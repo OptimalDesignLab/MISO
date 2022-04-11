@@ -1,16 +1,16 @@
 {
    "flow-param": {
       "mach": 0.5,
-      "aoa": 3.0,
+      "aoa": 0.0,
       "roll-axis": 0,
       "pitch-axis": 1
    },
    "space-dis": {
       "GD": false,
       "GD-degree": 1,
-      "degree": 1,
+      "degree": 2,
       "lps-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "dsbp"
    },
    "time-dis": {
       "steady": true,
@@ -24,12 +24,12 @@
       "cfl": 1.0
    },
    "mesh": {
-	   "file": "airfoil_steady.mesh",
+	   "file": "airfoil_p2_r1.mesh",
       "refine": 0
    },
    "bcs": {
-      "slip-wall": [0, 0, 1, 1],
-      "far-field": [1, 1, 0, 0]
+      "slip-wall": [0, 0, 0, 0],
+      "far-field": [1, 1, 1, 1]
    },
    "nonlin-solver": {
       "printlevel": 1,

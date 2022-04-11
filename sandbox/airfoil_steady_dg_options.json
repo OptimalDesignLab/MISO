@@ -25,7 +25,7 @@
    },
    "mesh": {
       "file": "airfoil_steady.mesh",
-      "refine": 3
+      "refine": 0
    },
    "bcs": {
       "slip-wall": [0, 0, 1, 1],

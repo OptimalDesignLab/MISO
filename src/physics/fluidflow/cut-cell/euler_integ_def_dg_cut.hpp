@@ -449,11 +449,10 @@ void CutDGInterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
    }
    else
    {
-      mach::calcRoeFaceFlux<double, dim>(
-          dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
-      // mach::calcLaxFriedrichsFlux<double, dim>(dir.GetData(),qL.GetData(),
-      // qR.GetData(),
-      //                                          flux.GetData());
+      // mach::calcRoeFaceFlux<double, dim>(
+      //     dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
+      mach::calcLaxFriedrichsFlux<double, dim>(dir.GetData(),qL.GetData(),
+      qR.GetData(), flux.GetData());
    }
 }
 
@@ -487,10 +486,10 @@ void CutDGInterfaceIntegrator<dim, entvar>::calcFluxJacState(
    }
    else
    {
-      mach::calcRoeFaceFlux<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
-      // mach::calcLaxFriedrichsFlux<adouble, dim>(
+      // mach::calcRoeFaceFlux<adouble, dim>(
       //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+      mach::calcLaxFriedrichsFlux<adouble, dim>(
+          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
@@ -530,10 +529,10 @@ void CutDGInterfaceIntegrator<dim, entvar>::calcFluxJacDir(
    }
    else
    {
-      mach::calcRoeFaceFlux<adouble, dim>(
-          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
-      // mach::calcLaxFriedrichsFlux<adouble, dim>(
+      // mach::calcRoeFaceFlux<adouble, dim>(
       //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+      mach::calcLaxFriedrichsFlux<adouble, dim>(
+          dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());

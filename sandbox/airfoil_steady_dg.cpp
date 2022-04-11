@@ -58,14 +58,18 @@ int main(int argc, char *argv[])
      // solver->printResidual("residual-init");
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
-      // solver->solveForState();
-      // solver->printSolution("airfoil-steady-dg-final");
-      // mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-      //           << endl;
-      // auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
-      // solver->createOutput("drag", drag_opts);
-      // double drag = abs(solver->calcOutput("drag"));
-      // mfem::out << "\nDrag error = " << drag << endl;
+      solver->solveForState();
+      solver->printSolution("airfoil-steady-dg-final");
+      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+                << endl;
+      auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+      solver->createOutput("drag", drag_opts);
+      double drag = abs(solver->calcOutput("drag"));
+      mfem::out << "\nDrag error = " << drag << endl;
+      auto lift_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+      solver->createOutput("lift", lift_opts);
+      double lift = abs(solver->calcOutput("lift"));
+      mfem::out << "\nlift error = " << lift << endl;
    }
    catch (MachException &exception)
    {

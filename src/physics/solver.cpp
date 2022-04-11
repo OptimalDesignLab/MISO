@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cmath>
 #include <utility>
-
+#include "cut_quad.hpp"
 #ifdef MFEM_USE_PUMI
 
 #include "apfMDS.h"
@@ -44,7 +44,6 @@
 
 using namespace std;
 using namespace mfem;
-
 namespace mach
 {
 adept::Stack AbstractSolver::diff_stack;
@@ -105,6 +104,10 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    materials = material_library;
 
    constructMesh(move(smesh));
+   for (int k = 0; k < mesh->GetNE(); ++k)
+   {
+      embeddedElements.push_back(false);
+   }
    // mesh->EnsureNodes();
    // mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
    // /// before internal boundaries are removed
@@ -146,7 +149,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
           options["time-dis"]["ode-solver"].template get<string>());
       // TODO: parallel exit
    }
-
+   cout << "# mesh elements " << mesh->GetNE() << endl;
    // Refine the mesh here, or have a separate member function?
    for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
    {
@@ -202,8 +205,10 @@ void AbstractSolver::initDerived()
         << endl;
    if (gd)
    {
-      fes_gd.reset(new GDSpaceType(
-          mesh.get(), fec.get(), num_state, Ordering::byVDIM, fe_order, comm));
+      setGDSpace(fe_order);
+      // fes_gd.reset(new GDSpaceType(
+      //     mesh.get(), fec.get(), num_state, Ordering::byVDIM, fe_order,
+      //     comm));
       u_gd.reset(new GDGridFunType(fes_gd.get()));
       *out << "Number of finite element unknowns in gd: "
            << fes_gd->GlobalTrueVSize() << endl;
@@ -329,6 +334,17 @@ AbstractSolver::~AbstractSolver()
    MPI_Comm_free(&comm);
 }
 
+void AbstractSolver::setGDSpace(int fe_order)
+{
+   fes_gd.reset(new GDSpaceType(mesh.get(),
+                                fec.get(),
+                                embeddedElements,
+                                num_state,
+                                Ordering::byVDIM,
+                                fe_order,
+                                comm));
+}
+
 void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 {
    std::string mesh_file = options["mesh"]["file"].template get<string>();
@@ -348,6 +364,214 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
+      TinyVector<double,2> airfoil_cent;
+      airfoil_cent(0) = 20.0;
+      airfoil_cent(1) = 20.0;
+      /// let us see if this works
+      /// find the elements to refine
+      CutCell<2, 1> cut_init(smesh.get());
+      Algoim::LevelSet<2> phi_init = cut_init.constructLevelSet();
+      cout << " # mesh elements " << endl;
+      cout << smesh->GetNE() << endl;
+      int ncr = options["mesh"]["ncr"].template get<int>();
+      int ncr_bdr = options["mesh"]["ncr2"].template get<int>();
+      for (int k = 0; k < -1; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+#if 0
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            cout << "LSF value is " << lsv << endl;
+            if (lsv > 0.0)
+            {
+               marked_elements1.Append(i);
+            }
+#endif
+            if (cut_init.cutByGeom(i) == true)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         cout << "problem in nc refinement " << endl;
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+#if 1
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            cout << "element is " << i << endl;
+            cout << "LSF value is " << lsv << endl;
+            // if (lsv > 0.0)
+            // {
+            //    marked_elements1.Append(i);
+            // }
+#endif
+         }
+        // smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            TinyVector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = sqrt(Algoim::magsqr(x_diff));
+            if (abs(dist) < 16.0 && lsv < 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         cout << "problem in nc refinement " << endl;
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            TinyVector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = sqrt(Algoim::magsqr(x_diff));
+            if (abs(dist) < 8.0 && lsv < 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         cout << "problem in nc refinement " << endl;
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      // for (int k = 0; k < ncr; ++k)
+      // {
+      //    mfem::Array<int> marked_elements1;
+      //    for (int i = 0; i < smesh->GetNE(); ++i)
+      //    {
+      //       Vector cent;
+      //       cut_init.GetElementCenter(i, cent);
+      //       TinyVector<double, 2> x_c;
+      //       x_c(0) = cent(0);
+      //       x_c(1) = cent(1);
+      //       double lsv = phi_init(x_c);
+      //       TinyVector<double, 2> x_diff;
+      //       x_diff = x_c - airfoil_cent;
+      //       double dist = sqrt(Algoim::magsqr(x_diff));
+      //       if (abs(dist) < 4.0 && lsv < 0)
+      //       {
+      //          marked_elements1.Append(i);
+      //       }
+      //    }
+      //    smesh->GeneralRefinement(marked_elements1, 1, 1);
+      // }
+      // for (int k = 0; k < ncr; ++k)
+      // {
+      //    mfem::Array<int> marked_elements1;
+      //    for (int i = 0; i < smesh->GetNE(); ++i)
+      //    {
+      //       Vector cent;
+      //       cut_init.GetElementCenter(i, cent);
+      //       TinyVector<double, 2> x_c;
+      //       x_c(0) = cent(0);
+      //       x_c(1) = cent(1);
+      //       double lsv = phi_init(x_c);
+      //       TinyVector<double, 2> x_diff;
+      //       x_diff = x_c - airfoil_cent;
+      //       double dist = sqrt(Algoim::magsqr(x_diff));
+      //       if (abs(dist) < 2.0 && lsv < 0)
+      //       {
+      //          marked_elements1.Append(i);
+      //       }
+      //    }
+      //    smesh->GeneralRefinement(marked_elements1, 1, 1);
+      // }
+      // for (int k = 0; k < ncr; ++k)
+      // {
+      //    mfem::Array<int> marked_elements1;
+      //    for (int i = 0; i < smesh->GetNE(); ++i)
+      //    {
+      //       Vector cent;
+      //       cut_init.GetElementCenter(i, cent);
+      //       TinyVector<double, 2> x_c;
+      //       x_c(0) = cent(0);
+      //       x_c(1) = cent(1);
+      //       double lsv = phi_init(x_c);
+      //       TinyVector<double, 2> x_diff;
+      //       x_diff = x_c - airfoil_cent;
+      //       double dist = sqrt(Algoim::magsqr(x_diff));
+      //       if (abs(dist) < 1.0 && lsv < 0)
+      //       {
+      //          marked_elements1.Append(i);
+      //       }
+      //    }
+      //    smesh->GeneralRefinement(marked_elements1, 1, 1);
+      // }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            TinyVector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = sqrt(Algoim::magsqr(x_diff));
+            if (abs(dist) < 1.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            TinyVector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = sqrt(Algoim::magsqr(x_diff));
+            if (abs(dist) < 1.0 && cut_init.insideBoundary(i) == 0 && (x_c(0) < 19.7 || x_c(0) > 20.3))
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
       mesh.reset(new MeshType(comm, *smesh));
    }
    // native MFEM mesh
@@ -521,6 +745,7 @@ void AbstractSolver::setInitialCondition(
     ParCentGridFunction &state,
     const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init)
 {
+   cout << "inside setInitialCondition() " << endl;
    VectorFunctionCoefficient u0(num_state, u_init);
    cout << "before ProjectCoefficient() " << endl;
    state.ProjectCoefficient(u0);
@@ -564,6 +789,15 @@ void AbstractSolver::setInitialCondition(ParCentGridFunction &state,
 {
    VectorConstantCoefficient u0(u_init);
    state.ProjectCoefficient(u0);
+   GridFunType u_test(fes.get());
+   u_test.ProjectCoefficient(u0);
+   HypreParMatrix *Q;
+   Q = fes_gd->Dof_TrueDof_Matrix();
+   Q->Mult(state, *u);
+   u_test -= *u;
+
+   cout << "After projection, the difference norm is " << u_test.Norml2()
+        << '\n';
 }
 
 void AbstractSolver::setFieldValue(HypreParVector &field, const double u_init)
@@ -699,7 +933,7 @@ double AbstractSolver::calcL2Error(
    const FiniteElement *fe = nullptr;
    ElementTransformation *T = nullptr;
    Vector shape;
-   Array<int> vdofs;
+   mfem::Array<int> vdofs;
 
    // sum up the L2 error over all states
    for (int i = 0; i < fe_space->GetNE(); i++)
@@ -1359,7 +1593,7 @@ void AbstractSolver::removeInternalBoundaries()
                nlohmann::json::value_t::array)
       {
          const auto &tmp = prob_opts["keep-bndrys"].get<vector<int>>();
-         Array<int> keep(tmp.size());
+         mfem::Array<int> keep(tmp.size());
          for (size_t i = 0; i < tmp.size(); ++i)
          {
             keep[i] = tmp[i];
@@ -1377,7 +1611,7 @@ void AbstractSolver::removeInternalBoundaries()
    else if (prob_opts.contains("keep-bndrys-adj-to"))
    {
       const auto &tmp = prob_opts["keep-bndrys-adj-to"].get<vector<int>>();
-      Array<int> regions(tmp.size());
+      mfem::Array<int> regions(tmp.size());
       for (size_t i = 0; i < tmp.size(); ++i)
       {
          regions[i] = tmp[i];
@@ -1530,7 +1764,7 @@ void AbstractSolver::setEssentialBoundaries()
          ess_bdr = 0;
       }
    }
-   Array<int> ess_tdof_list;
+   mfem::Array<int> ess_tdof_list;
    fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    if (ess_tdof_list != nullptr)
    {
@@ -2300,7 +2534,7 @@ void AbstractSolver::checkJacobian(
       FunctionCoefficient up(std::move(pert_fun));
       pert_vec.ProjectCoefficient(up);
 
-      Array<int> ess_tdof_list;
+      mfem::Array<int> ess_tdof_list;
       fes_gd->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       pert_vec.SetSubVector(ess_tdof_list, 0.0);
 
@@ -2341,7 +2575,7 @@ void AbstractSolver::checkJacobian(
       FunctionCoefficient up(std::move(pert_fun));
       pert_vec.ProjectCoefficient(up);
 
-      Array<int> ess_tdof_list;
+      mfem::Array<int> ess_tdof_list;
       fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
       pert_vec.SetSubVector(ess_tdof_list, 0.0);
 
@@ -2388,7 +2622,7 @@ void AbstractSolver::checkJacobian(
    // calcResidual(state, real_res);
    // calcResidual(zero_state, zero_res);
 
-   // Array<int> ess_tdof_list;
+   // mfem::Array<int> ess_tdof_list;
    // fes->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
    // zero_res.SetSubVector(ess_tdof_list, 100.0);
 

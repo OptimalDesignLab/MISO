@@ -15,6 +15,7 @@ public:
 
    ParGalerkinDifference(mach::MeshType *pm,
                          const mfem::FiniteElementCollection *f,
+                         std::vector<bool> _embeddedElements,
                          int vdim = 1,
                          int ordering = mfem::Ordering::byVDIM,
                          int degree = 0,
@@ -132,6 +133,9 @@ protected:
    mutable HYPRE_Int *mat_row_idx;
    /// finite element collection
    const mfem::FiniteElementCollection *fec;  // not owned
+   ///\Note: cut-cell stuff
+   /// the vector of embedded elements 
+   std::vector<bool> embeddedElements;
 };
 }  // end of namespace mfem
 #endif  // end of ParGALERKIN DIFF

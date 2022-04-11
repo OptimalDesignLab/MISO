@@ -17,7 +17,7 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
 {
    if (embeddedElements.at(trans.ElementNo) == true)
    {
-      cout << "embedded element " << trans.ElementNo << endl;
+      // cout << "embedded element " << trans.ElementNo << endl;
       return 0.0;
    }
    // int dof = el.GetDof();
@@ -28,10 +28,10 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
    {
       ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));  // <---
    }
-   if (ir == NULL)
-   {
-      return 0.0;
-   }
+   // if (ir == NULL)
+   // {
+   //    return 0.0;
+   // }
    energy = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -203,7 +203,7 @@ void CutDGInviscidIntegrator<Derived>::AssembleElementGrad(
          }
       }
    }
-   #endif
+#endif
 }
 template <typename Derived>
 double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
@@ -229,9 +229,12 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
    {
       return 0;
    }
+   // ir = cutBdrFaceIntRules[trans.Elem1No];
    ir = cutBdrFaceIntRules[trans.Elem1No];
    if (!ir)
    {
+      // cout << "int rule not available for face with el id: " << trans.Elem1No
+      // << endl;
       int intorder;
       intorder = trans.Elem1->OrderW() + 2 * el_bnd.GetOrder();
       ir = &IntRules.Get(trans.FaceGeom, intorder);
@@ -247,9 +250,11 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
       // get the normal vector, and then add contribution to function
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      //fun += face_ip.weight * trans.Weight();
+      // fun += face_ip.weight * trans.Weight();
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
+   // cout << "edge length for element " << trans.Elem1No << " : " << fun <<
+   // endl;
    return fun;
 }
 
@@ -444,10 +449,10 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       nrm(1) = ny / ds;
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
-     // double area = sqrt(trans.Weight());
-      //fun += face_ip.weight * alpha * area;
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight *
-             sqrt(trans.Weight()) * alpha;
+      double area = sqrt(trans.Weight());
+      // fun += face_ip.weight * alpha * area;
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
+             alpha;
    }
    return fun;
 }

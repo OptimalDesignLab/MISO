@@ -19,6 +19,7 @@
 #include "gd.hpp"
 #include "pcentgridfunc.hpp"
 
+using namespace mfem;
 #ifdef MFEM_USE_PUMI
 namespace apf
 {
@@ -200,7 +201,7 @@ public:
    virtual void setInitialCondition(mfem::ParGridFunction &state,
                                     const mfem::Vector &u_init);
 
-
+   virtual void setGDSpace(int order);
    /// Initializes the field to a given constant
    /// \param[in] field - the field to set
    /// \param[in] u_init - constant to set the field to
@@ -831,7 +832,10 @@ protected:
    std::unique_ptr<mfem::Solver> solver;
    /// linear system preconditioner for solver in newton solver and adjoint
    std::unique_ptr<mfem::Solver> prec;
-
+   //--------------------------------------------------------------------------
+   // Members associated with cut-cell
+   /// the vector of embedded elements 
+   std::vector<bool> embeddedElements;
    //--------------------------------------------------------------------------
    // Members associated with boundary conditions and outputs
    /// Array that marks boundaries as essential

@@ -100,9 +100,17 @@ template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
+   #if 0
+   GridFunction x(fes.get());
    res->AddDomainIntegrator(
        new EulerDGIntegrator<dim>(diff_stack, alpha));
-
+   double area;
+   area = res->GetEnergy(x);
+   cout << "circle area: " << M_PI * 900 << endl;
+   cout << "calculated area: " << area << endl;
+   cout << "airfoil area " << endl;
+   cout << abs(M_PI * 900 - area) << endl;
+   #endif
    // add the LPS stabilization
    // auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    // res->AddDomainIntegrator(
@@ -130,6 +138,7 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           bndry_marker[idx]);
       idx++;
    }
+#if 1
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
       vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
@@ -139,9 +148,15 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           new DGSlipWallBC<dim, entvar>(diff_stack, fec.get(), alpha),
           bndry_marker[idx]);
       idx++;
+      GridFunction x(fes.get());
+      double peri_airfoil;
+      peri_airfoil = res->GetEnergy(x);
+      cout << "airfoil perimeter: " << peri_airfoil << endl;
    }
+#endif
    if (bcs.find("far-field") != bcs.end())
    {
+      GridFunction x(fes.get());
       // far-field boundary conditions
       vector<int> tmp = bcs["far-field"].template get<vector<int>>();
       mfem::Vector qfar(dim + 2);
@@ -152,6 +167,12 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           new DGFarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
           bndry_marker[idx]);
       idx++;
+      double peri_far;
+   peri_far = res->GetEnergy(x);
+   cout << "farfield perimeter: " << 2 * M_PI * 30 << endl;
+   cout << "calculated perimeter: " << peri_far << endl;
+   cout << "error: " << endl;
+   cout << abs(2 * M_PI * 30 - peri_far) << endl;
    }
 }
 

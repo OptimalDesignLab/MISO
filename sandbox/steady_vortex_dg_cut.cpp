@@ -61,10 +61,10 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs, 0);
       string opt_file_name(options_file);
       auto solver =
-          createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
+      createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
       solver->printSolution("vortex-steady-dg-cut-init");
-      // get the initial density error
+      //get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
@@ -171,6 +171,6 @@ void uexact(const Vector &x, Vector &q)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 3.0, 3.0, true);
+       N, N, Element::QUADRILATERAL, true, 3.1, 3.1, true);
    return mesh;
 }

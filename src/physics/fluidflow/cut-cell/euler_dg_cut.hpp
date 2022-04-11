@@ -108,7 +108,8 @@ protected:
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules;
    // boundary face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutBdrFaceIntRules;
-
+   // boundary face int rule that is cut by the embedded geometry
+   std::map<int, IntegrationRule *> cutBdrFaceIntRules_outer;
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
    // vector of cut interior faces
@@ -125,7 +126,7 @@ protected:
    // Algoim::LevelSet<2> phi_e;
    // circle<2> phi_inner;
    // circle<2> phi_outer;
-   Algoim::LevelSet<2> phi_inner;
+   Algoim::LevelSet<2> phi;
    Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
@@ -163,7 +164,10 @@ protected:
                   const nlohmann::json &options) override;
    /// Return the number of state variables
    int getNumState() override { return dim + 2; }
-
+   
+   /// sets the GD fespace 
+   /// \param[in] order - the order of discretization
+   void setGDSpace(int order) override; 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
    void initialHook(const mfem::ParGridFunction &state) override;

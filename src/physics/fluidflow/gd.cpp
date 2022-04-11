@@ -63,12 +63,14 @@ void buildLSInterpolation(int dim,
                           DenseMatrix &interp);
 }
 
-ParGalerkinDifference::ParGalerkinDifference(mach::MeshType *pm,
-                                             const FiniteElementCollection *f,
-                                             int vdim,
-                                             int ordering,
-                                             int de,
-                                             MPI_Comm _comm)
+ParGalerkinDifference::ParGalerkinDifference(
+    mach::MeshType *pm,
+    const FiniteElementCollection *f,
+    std::vector<bool> _embeddedElements,
+    int vdim,
+    int ordering,
+    int de,
+    MPI_Comm _comm)
  : ParFiniteElementSpace(pm, f, vdim, ordering)
 {
    degree = de;
@@ -76,6 +78,7 @@ ParGalerkinDifference::ParGalerkinDifference(mach::MeshType *pm,
    dim = pm->Dimension();
    fec = f;
    comm = _comm;
+   embeddedElements = _embeddedElements;
    BuildGDProlongation();
    Build_Dof_TrueDof_Matrix();
 }
@@ -193,7 +196,10 @@ void ParGalerkinDifference::GetNeighbourSet(int id,
       {
          if (-1 == nels.Find(adj[i]))
          {
-            nels.Append(adj[i]);
+            if (embeddedElements.at(adj[i]) == false)
+            {
+               nels.Append(adj[i]);
+            }
          }
       }
       // cout << "List now is: ";
@@ -201,21 +207,24 @@ void ParGalerkinDifference::GetNeighbourSet(int id,
       adj.LoseData();
       for (int i = 0; i < cand.Size(); i++)
       {
-         // cout << "deal with cand " << cand[i];
-         mesh->ElementToElementTable().GetRow(cand[i], cand_adj);
-         // cout << "'s adj are ";
-         // cand_adj.Print(cout, cand_adj.Size());
-         for (int j = 0; j < cand_adj.Size(); j++)
+         if (embeddedElements.at(cand[i]) == false)
          {
-            if (-1 == nels.Find(cand_adj[j]))
+            // cout << "deal with cand " << cand[i];
+            mesh->ElementToElementTable().GetRow(cand[i], cand_adj);
+            // cout << "'s adj are ";
+            // cand_adj.Print(cout, cand_adj.Size());
+            for (int j = 0; j < cand_adj.Size(); j++)
             {
-               // cout << cand_adj[j] << " is not found in nels. add to adj and
-               // cand_next.\n";
-               adj.Append(cand_adj[j]);
-               cand_next.Append(cand_adj[j]);
+               if (-1 == nels.Find(cand_adj[j]))
+               {
+                  // cout << cand_adj[j] << " is not found in nels. add to adj
+                  // and cand_next.\n";
+                  adj.Append(cand_adj[j]);
+                  cand_next.Append(cand_adj[j]);
+               }
             }
+            cand_adj.LoseData();
          }
-         cand_adj.LoseData();
       }
       cand.LoseData();
       cand = cand_next;
@@ -275,20 +284,37 @@ void ParGalerkinDifference::BuildGDProlongation() const
    // int degree_actual;
    for (int i = 0; i < nEle; i++)
    {
-      GetNeighbourSet(i, nelmt, elmt_id);
+      if (embeddedElements.at(i) == true)
+      {
+         elmt_id.LoseData();
+         elmt_id.Append(i);
 
-      // cout << "Elements id(s) in patch " << i << ": " << endl;
-      // elmt_id.Print(cout, elmt_id.Size());
+         local_mat.SetSize(num_dofs, 1);
 
-      // 2. build the quadrature and barycenter coordinate matrices
-      BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
-      // cout << "neighbour mat is done " << endl;
-      // 3. buil the loacl reconstruction matrix
-      buildLSInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
-      // cout << "build LS interpolation " << endl;
-      // 4. assemble them back to prolongation matrix
-      AssembleProlongationMatrix(elmt_id, local_mat);
-      // cout << "assemble prolongation done " << endl;
+         for (int k = 0; k < num_dofs; ++k)
+         {
+            local_mat(k, 0) = 0.0;
+         }
+
+         AssembleProlongationMatrix(elmt_id, local_mat);
+      }
+      else
+      {
+         GetNeighbourSet(i, nelmt, elmt_id);
+
+         // cout << "Elements id(s) in patch " << i << ": " << endl;
+         // elmt_id.Print(cout, elmt_id.Size());
+
+         // 2. build the quadrature and barycenter coordinate matrices
+         BuildNeighbourMat(elmt_id, cent_mat, quad_mat);
+         // cout << "neighbour mat is done " << endl;
+         // 3. buil the loacl reconstruction matrix
+         buildLSInterpolation(dim, degree, cent_mat, quad_mat, local_mat);
+         // cout << "build LS interpolation " << endl;
+         // 4. assemble them back to prolongation matrix
+         AssembleProlongationMatrix(elmt_id, local_mat);
+         // cout << "assemble prolongation done " << endl;
+      }
    }
    cP->Finalize();
    cP_is_set = true;
@@ -436,41 +462,9 @@ void mfem::buildLSInterpolation(int dim,
    // Set the RHS for the LS problem (it's the identity matrix)
    // This will store the solution, that is, the basis coefficients, hence
    // the name `coeff`
-   mfem::DenseMatrix coeff(num_elem, num_elem);
-   coeff = 0.0;
-   for (int i = 0; i < num_elem; ++i)
-   {
-      coeff(i, i) = 1.0;
-   }
-
-   // Set-up and solve the least-squares problem using LAPACK's dgels
-   char TRANS = 'N';
-   int info;
-   int lwork = 2 * num_elem * num_basis;
-   double work[lwork];
-   dgels_(&TRANS,
-          &num_elem,
-          &num_basis,
-          &num_elem,
-          V.GetData(),
-          &num_elem,
-          coeff.GetData(),
-          &num_elem,
-          work,
-          &lwork,
-          &info);
-   MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
-
-   // -------------------------------------------------------------------------------
-
-   /// use this for quad elements
-   // Set the RHS for the LS problem (it's the identity matrix)
-   // This will store the solution, that is, the basis coefficients, hence
-   // the name `coeff`
-   // int LDB = max(num_elem, num_basis);
-   // mfem::DenseMatrix coeff(LDB, LDB);
+   // mfem::DenseMatrix coeff(num_elem, num_elem);
    // coeff = 0.0;
-   // for (int i = 0; i < LDB; ++i)
+   // for (int i = 0; i < num_elem; ++i)
    // {
    //    coeff(i, i) = 1.0;
    // }
@@ -478,17 +472,49 @@ void mfem::buildLSInterpolation(int dim,
    // // Set-up and solve the least-squares problem using LAPACK's dgels
    // char TRANS = 'N';
    // int info;
-   // int lwork = (num_elem * num_basis) + (3 * num_basis) + 1;
+   // int lwork = 2 * num_elem * num_basis;
    // double work[lwork];
-   // int rank;
-   // Array<int> jpvt;
-   // jpvt.SetSize(num_basis);
-   // jpvt = 0;
-   // double rcond = 1e-16;
+   // dgels_(&TRANS,
+   //        &num_elem,
+   //        &num_basis,
+   //        &num_elem,
+   //        V.GetData(),
+   //        &num_elem,
+   //        coeff.GetData(),
+   //        &num_elem,
+   //        work,
+   //        &lwork,
+   //        &info);
+   // MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
 
-   // dgelsy_(&num_elem, &num_basis, &num_elem, V.GetData(), &num_elem,
-   // coeff.GetData(),
-   //         &LDB, jpvt.GetData(), &rcond, &rank, work, &lwork, &info);
+   // -------------------------------------------------------------------------------
+
+   /// use this for quad elements
+   // Set the RHS for the LS problem (it's the identity matrix)
+   // This will store the solution, that is, the basis coefficients, hence
+   // the name `coeff`
+   int LDB = max(num_elem, num_basis);
+   mfem::DenseMatrix coeff(LDB, LDB);
+   coeff = 0.0;
+   for (int i = 0; i < LDB; ++i)
+   {
+      coeff(i, i) = 1.0;
+   }
+
+   // Set-up and solve the least-squares problem using LAPACK's dgels
+   char TRANS = 'N';
+   int info;
+   int lwork = (num_elem * num_basis) + (3 * num_basis) + 1;
+   double work[lwork];
+   int rank;
+   Array<int> jpvt;
+   jpvt.SetSize(num_basis);
+   jpvt = 0;
+   double rcond = 1e-16;
+
+   dgelsy_(&num_elem, &num_basis, &num_elem, V.GetData(), &num_elem,
+   coeff.GetData(),
+           &LDB, jpvt.GetData(), &rcond, &rank, work, &lwork, &info);
 
    MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
 
@@ -553,14 +579,14 @@ void mfem::buildLSInterpolation(int dim,
                // ","
                //           << q << ") = " << fabs(exact - poly_at_quad) <<
                //           endl;
-               // if ((p == 0) && (q == 0))
-               // {
+               if ((p == 0) && (q == 0))
+               {
                MFEM_ASSERT(fabs(exact - poly_at_quad) <= 1e-12,
                            " p = " << p << " , q = " << q << ", "
                                    << fabs(exact - poly_at_quad) << " : "
                                    << "Interpolation operator does not "
                                       "interpolate exactly!\n");
-               // }
+               }
             }
          }
       }

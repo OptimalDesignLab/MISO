@@ -15,10 +15,23 @@ double DGInviscidIntegrator<Derived>::GetElementEnergy(
     mfem::ElementTransformation &trans,
     const mfem::Vector &elfun)
 {
+
+   using namespace mfem;
    double energy;
 
+   int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      ir = &IntRules.Get(el.GetGeomType(), intorder);
+   }
    energy = 0.0;
-
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      energy += ip.weight * trans.Weight();
+   }
    return energy;
 }
 
@@ -178,8 +191,8 @@ double DGInviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
       // get the normal vector, and then add contribution to function
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      //fun += face_ip.weight * trans.Weight();
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
+      fun += face_ip.weight * trans.Weight();
+      //fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;
 }

@@ -30,10 +30,10 @@ struct circle
       //               ((x[1]- 5) * (x[1] - 5)) - (0.5 * 0.5));
       // level-set function for reference elements
       return lsign * ((((x[0] * xscale) + min_x - xc) *
-                    ((x[0] * xscale) + min_x - xc)) +
-                   (((x[1] * yscale) + min_y - yc) *
-                    ((x[1] * yscale) + min_y - yc)) -
-                   (radius * radius));
+                       ((x[0] * xscale) + min_x - xc)) +
+                      (((x[1] * yscale) + min_y - yc) *
+                       ((x[1] * yscale) + min_y - yc)) -
+                      (radius * radius));
    }
    template <typename T>
    blitz::TinyVector<T, N> grad(const blitz::TinyVector<T, N> &x) const
@@ -50,28 +50,141 @@ class CutCell
 {
 public:
    CutCell(mfem::Mesh *_mesh) : mesh(_mesh) { phi = constructLevelSet(); }
+
+   std::vector<TinyVector<double, N>> constructNormal(
+       std::vector<TinyVector<double, N>> Xc) const
+   {
+      std::vector<TinyVector<double, N>> nor;
+      int nbnd = Xc.size();
+      TinyVector<double, N> nsurf;
+      for (int i = 0; i < nbnd; i++)
+      {
+         std::vector<double> dX;
+         for (int j = 0; j < N; ++j)
+         {
+            if (i == 0)
+            {
+               dX.push_back(Xc.at(i + 1)(j) - Xc.at(i)(j));
+            }
+            else if (i == nbnd - 1)
+            {
+               dX.push_back(Xc.at(i)(j) - Xc.at(i - 1)(j));
+            }
+            else
+            {
+               dX.push_back(0.5 * (Xc.at(i + 1)(j) - Xc.at(i - 1)(j)));
+            }
+         }
+         double nx = dX.at(1);
+         double ny = -dX.at(0);
+         double ds = 1.0 / sqrt((nx * nx) + (ny * ny));
+         nsurf(0) = nx * ds;
+         nsurf(1) = ny * ds;
+         nor.push_back(nsurf);
+      }
+      return nor;
+   }
+   std::vector<TinyVector<double, N - 1>> getCurvature(
+       std::vector<TinyVector<double, N>> Xc) const
+   {
+      std::vector<TinyVector<double, N - 1>> kappa;
+      int nbnd = Xc.size();
+      double a0 = 0.2969;
+      double a1 = -0.126;
+      double a2 = -0.3516;
+      double a3 = 0.2843;
+      double a4 = -0.1015;  // -0.1036 for closed te
+      double tc = 0.12;
+      double theta = 0.0;
+      // thickness
+      for (int i = 0; i < nbnd; i++)
+      {
+         double xc = Xc.at(i)(0);
+         double yt = tc * ((a0 * sqrt(xc)) + (a1 * xc) + (a2 * (pow(xc, 2))) +
+                      (a3 * (pow(xc, 3))) + (a4 * (pow(xc, 4)))) / (0.2);
+         double dytdx = tc * ((0.5 * a0 / sqrt(xc)) + a1 + (2.0 * a2 * xc) +
+                         (3.0 * a3 * pow(xc, 2)) + (4.0 * a4 * pow(xc, 3))) /(0.2);
+         double d2ytdx = tc * ((-0.25 * a0 / pow(xc, 1.5)) + (2.0 * a2) +
+                          (6.0 * a3 * xc) + (12.0 * a4 * pow(xc, 2))) /0.2;
+         double ysu = yt * cos(theta);
+         double dydx = dytdx * cos(theta);
+         double d2ydx = d2ytdx * cos(theta);
+         double roc = (pow((1 + (dydx * dydx)), 1.5)) / abs(d2ydx);
+         if (xc == 0.0)
+         {
+             double rle = 0.5 * pow(a0 * tc / 0.20, 2);
+             kappa.push_back(1.0/rle);
+         }
+         else if(i ==0 || i==nbnd-1)
+         {
+            kappa.push_back(0.0);
+         }
+         else
+         {
+             kappa.push_back(1.0/roc);
+         }
+        // kappa.push_back(0.0);
+      }
+      return kappa;
+   }
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
       std::vector<TinyVector<double, N>> Xc;
       std::vector<TinyVector<double, N>> nor;
-      int nbnd = 64;
-      cout << "nbnd " << nbnd << endl;
+      std::vector<TinyVector<double, N - 1>> kappa;
+      int nel = mesh->GetNE();
+      // int nbnd = 8*sqrt(nel);
+      // cout << "nbnd " << nbnd << endl;
       /// parameters
-      double rho = nbnd;
+      // double rho = 10 * nbnd;
       double delta = 1e-10;
       double xc = 0.0;
       double yc = 0.0;
+      phi_c.xscale = 1.0;
+      phi_c.yscale = 1.0;
+      phi_c.min_x = 0.0;
+      phi_c.min_y = 0.0;
       /// radius
-      double a;
-      if (ls ==1)
+      double a, b;
+      if (ls == 1)
       {
          a = 1.0;
+         b = 1.0;
+         phi_c.lsign = -1.0;
+         phi_c.radius = 1.0;
       }
       else
       {
          a = 3.0;
+         phi_c.lsign = 1.0;
+         phi_c.radius = 3.0;
       }
+      const char *geometry_file = "naca_0012_64.dat";
+      ifstream file;
+      file.open(geometry_file);
+      /// read the boundary coordinates from user-provided file
+      while (1)
+      {
+         if (file.eof()) break;
+         TinyVector<double, N> x;
+         for (int j = 0; j < N; ++j)
+         {
+            file >> x(j);
+         }
+         Xc.push_back(x);
+      }
+      file.close();
+      /// get the number of boundary points
+      int nbnd = Xc.size();
+      cout << "nbnd " << nbnd << endl;
+      double rho = 10 * nbnd;
+      /// construct the normal vector for all boundary points
+      nor = constructNormal(Xc);
+      /// get the curvature vector for all boundary points
+      kappa = getCurvature(Xc);
+/// use this if not reading from file
+#if 0
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
@@ -85,33 +198,60 @@ public:
          ni = nrm / ds;
          Xc.push_back(x);
          nor.push_back(ni);
+         /// curvature correction
+         TinyVector<double, N> dx, d2x;
+         dx = {-a * sin(theta), a * cos(theta)};
+         d2x = {-a * cos(theta), -a * sin(theta)};
+         double num = (dx(0) * d2x(1) - dx(1) * d2x(0));
+         double mag_dx = mag(dx);
+         double den = mag_dx * mag_dx * mag_dx;
+         TinyVector<double, N - 1> curv;
+         curv(0) = num / den;
+         kappa.push_back(curv);
+         //kappa.push_back(0.0);
       }
+#endif
       double lsign;
       /// initialize levelset
       if (ls == 1)
       {
-         // phi.radius = 1.0;
          lsign = -1.0;
       }
       else
       {
-         //   phi.radius = 3.0;
          lsign = 1.0;
       }
-      Algoim::LevelSet<2> phi_ls;
-      phi.initializeLevelSet(Xc, nor, rho, lsign, delta);
+      /// translate airfoil
+      TinyVector<double, N> xcent;
+      xcent(0) = 19.5;
+      xcent(1) = 20.0;
+      std::vector<TinyVector<double, N>> Xcoord;
+      for (int k = 0; k < nbnd; ++k)
+      {
+         TinyVector<double, N> xs;
+         for (int d = 0; d < N; ++d)
+         {
+            xs(d) = Xc.at(k)(d) + xcent(d);
+         }
+         Xcoord.push_back(xs);
+      }
+      Algoim::LevelSet<2> phi;
+      phi.initializeLevelSet(Xcoord, nor, kappa, rho, lsign, delta);
       phi.xscale = 1.0;
       phi.yscale = 1.0;
       phi.min_x = 0.0;
       phi.min_y = 0.0;
-  
-
-// TinyVector<double, N> x;
-// x(0) = 0.1;
-// x(1) = 0.8;
-// std::cout << std::setprecision(10) << std::endl;
-// cout << "phi " << phi(x) << endl;
-// cout << "grad phi "<< phi.grad(x) << endl;
+      TinyVector<double, 2> xle, xte;
+      xle(0) = 19.5;
+      xle(1) = 20.0;
+      xte(0) = 19.997592;
+      xte(1) = 20.0;
+      std::cout << std::setprecision(10) << std::endl;
+      cout << "phi , gradphi at leading edge: " << endl;
+      cout << phi(xle) <<  " , " << phi.grad(xle) << endl;
+      cout << "phi , gradphi at trailing edge: " << endl;
+      cout << phi(xte) <<  " , " << phi.grad(xte) << endl;
+      cout << "============================== " << endl;
 /// just checking normal vectors
 #if 0 
       cout << "norm vectors " << endl;
@@ -159,12 +299,16 @@ public:
          x(1) = coord[1];
          Vector lvsval(v.Size());
          lvsval(i) = -phi(x);
-         // if (elemid == 13)
-         // {
-         //    cout << "lvsval cut " << lvsval(i) << endl;
-         // }
-         // cout << "lsv is " << lsv << endl;
-         if ((lvsval(i) < 1e-02) && (abs(lvsval(i)) > 1e-16) || lvsval(i) < 0)
+         if (elemid == 19 || elemid == 20)
+         {
+            if (i==0)
+            {
+               cout << "element id: " << elemid << endl;
+            }
+
+            cout << "lvsval cut " << lvsval(i) << endl;
+         }
+         if ((lvsval(i) < 0) && (abs(lvsval(i)) > 1e-16))
          {
             k = k + 1;
          }
@@ -177,10 +321,16 @@ public:
             n = n + 1;
          }
       }
+      if (elemid == 19 || elemid == 20)
+      {
+         cout << "k " << k << " , "
+              << "l " << l << endl;
+      }
       if ((k == v.Size()) || (l == v.Size()))
       {
          return false;
       }
+      
       if (((k == 3) || (l == 3)) && (n == 1))
       {
          return false;
@@ -214,12 +364,8 @@ public:
          else
          {
             lvsval(i) = -phi(x);
-            if (elemid == 13)
-            {
-               cout << "lvsval " << lvsval(i) << endl;
-            }
          }
-         if ((lvsval(i) < 0) || (lvsval(i) < 1e-02))
+         if ((lvsval(i) < 0) || (lvsval(i) == 0) || (abs(lvsval(i)) <= 1e-16))
          {
             k = k + 1;
          }
@@ -242,7 +388,14 @@ public:
       ElementTransformation *eltransf = mesh->GetElementTransformation(id);
       eltransf->Transform(Geometries.GetCenter(geom), cent);
    }
-
+   /// function to get element center
+   void GetElementCenter(Mesh *mesh, int id, mfem::Vector &cent)
+   {
+      cent.SetSize(mesh->Dimension());
+      int geom = mesh->GetElement(id)->GetGeometryType();
+      ElementTransformation *eltransf = mesh->GetElementTransformation(id);
+      eltransf->Transform(Geometries.GetCenter(geom), cent);
+   }
    /// find bounding box for a given cut element
    void findBoundingBox(int id,
                         blitz::TinyVector<double, N> &xmin,
@@ -292,7 +445,7 @@ public:
        double radius,
        std::map<int, IntegrationRule *> &cutSquareIntRules) const
    {
-      cout <<  "#cut elements " << cutelems.size() << endl;
+      cout << "#cut elements " << cutelems.size() << endl;
       double tol = 1e-16;
       QuadratureRule<N> qp;
       for (int k = 0; k < cutelems.size(); ++k)
@@ -310,7 +463,6 @@ public:
          int elemid = cutelems.at(k);
          ElementTransformation *trans = mesh->GetElementTransformation(elemid);
          findBoundingBox(elemid, xmin, xmax);
-         // Algoim::LevelSet<2> phi;
          // phi = constructLevelSet();
          // phi.xscale = xmax[0] - xmin[0];
          // phi.yscale = xmax[1] - xmin[1];
@@ -333,17 +485,16 @@ public:
          for (const auto &pt : q.nodes)
          {
             IntegrationPoint &ip = ir->IntPoint(i);
-            ip.x = (pt.x[0] - xmin[0])/xscale;
-            ip.y = (pt.x[1] - xmin[1])/yscale;
-            ip.weight = pt.w/trans->Weight();
+            ip.x = (pt.x[0] - xmin[0]) / xscale;
+            ip.y = (pt.x[1] - xmin[1]) / yscale;
+            ip.weight = pt.w / trans->Weight();
             // if (elemid == 1)
             // {
             TinyVector<double, N> xp;
-            xp[0] = (pt.x[0]); //* phi.xscale) + phi.min_x;
-            xp[1] = (pt.x[1]);// * phi.yscale) + phi.min_y;
+            xp[0] = (pt.x[0]);  //* phi.xscale) + phi.min_x;
+            xp[1] = (pt.x[1]);  // * phi.yscale) + phi.min_y;
             qp.evalIntegrand(xp, pt.w);
-           // }
-      
+            // }
             i = i + 1;
             MFEM_ASSERT(ip.weight > 0,
                         "integration point weight is negative in domain "
@@ -412,17 +563,17 @@ public:
          for (const auto &pt : q.nodes)
          {
             IntegrationPoint &ip = ir->IntPoint(i);
-            ip.x = (pt.x[0]- xmin[0])/xscale;;
-            ip.y = (pt.x[1]- xmin[1])/yscale;;
-            ip.weight = pt.w/sqrt(trans->Weight());
+            ip.x = (pt.x[0] - xmin[0]) / xscale;
+            ip.y = (pt.x[1] - xmin[1]) / yscale;
+            ip.weight = pt.w / sqrt(trans->Weight());
             TinyVector<double, N> xp;
-            xp[0] = (pt.x[0]* phi.xscale) + phi.min_x;
-            xp[1] = (pt.x[1]* phi.yscale) + phi.min_y;
+            xp[0] = (pt.x[0]);  //* phi.xscale) + phi.min_x;
+            xp[1] = (pt.x[1]);  //* phi.yscale) + phi.min_y;
             qp.evalIntegrand(xp, pt.w);
             i = i + 1;
             // cout << "elem " << elemid << " , " << ip.weight << endl;
-            double xqp = (pt.x[0]);// * phi.xscale) + phi.min_x;
-            double yqp = (pt.x[1]);// * phi.yscale) + phi.min_y;
+            // double xqp = (pt.x[0]);// * phi.xscale) + phi.min_x;
+            // double yqp = (pt.x[1]);// * phi.yscale) + phi.min_y;
             MFEM_ASSERT(
                 ip.weight > 0,
                 "integration point weight is negative in curved surface "
@@ -445,7 +596,8 @@ public:
                   FaceElementTransformations *trans;
                   trans = mesh->GetInteriorFaceTransformations(fid);
                   // cout << "trans  " << trans->Face->ElementNo << endl;
-                  // cout << "face elements " << trans->Elem1No <<  "  , " << trans->Elem2No << endl;
+                  // cout << "face elements " << trans->Elem1No <<  "  , " <<
+                  // trans->Elem2No << endl;
                   mfem::Array<int> v;
                   mesh->GetEdgeVertices(fid, v);
                   double *v1coord, *v2coord;
@@ -497,7 +649,7 @@ public:
                         }
                         else
                         {
-                           ip.x = (pt.x[1] - xmin[1])/yscale;
+                           ip.x = (pt.x[1] - xmin[1]) / yscale;
                            // cout << "pt.x[1] " << pt.x[1] << endl;
                            // cout << "ip.x " << ip.x << endl;
                         }
@@ -506,27 +658,27 @@ public:
                      {
                         if (-1 == orient[c])
                         {
-                           ip.x = 1 - (pt.x[0]- xmin[0])/xscale;
+                           ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                            // cout << "pt.x[0] " << pt.x[0] << endl;
                            // cout << "ip.x " << ip.x << endl;
                         }
                         else
                         {
-                           ip.x = (pt.x[0]- xmin[0])/xscale;
+                           ip.x = (pt.x[0] - xmin[0]) / xscale;
                            // cout << "pt.x[0] " << pt.x[0] << endl;
                            // cout << "ip.x " << ip.x << endl;
                         }
                      }
                      TinyVector<double, N> xp;
-                     xp[0] = (pt.x[0] * phi.xscale) + phi.min_x;
-                     xp[1] = (pt.x[1] * phi.yscale) + phi.min_y;
+                     xp[0] = pt.x[0];
+                     xp[1] = pt.x[1];
                      qface.evalIntegrand(xp, pt.w);
                      trans->SetIntPoint(&ip);
-                     ip.weight = pt.w/trans->Weight();
+                     ip.weight = pt.w / trans->Weight();
                      i = i + 1;
                      // scaled to original element space
-                     double xq = (pt.x[0] * phi.xscale) + phi.min_x;
-                     double yq = (pt.x[1] * phi.yscale) + phi.min_y;
+                     double xq = (pt.x[0]);  //* phi.xscale) + phi.min_x;
+                     double yq = (pt.x[1]);  //* phi.yscale) + phi.min_y;
                      MFEM_ASSERT(ip.weight > 0,
                                  "integration point weight is negative from "
                                  "Saye's method");
@@ -550,7 +702,7 @@ public:
                }
             }
          }
-      } /// loop over cut elements
+      }  /// loop over cut elements
       std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
       std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
@@ -558,8 +710,8 @@ public:
       /// quad rule for faces
       std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qface, face);
-      std::cout << "  scheme.vtp file written, containing " << qface.nodes.size()
-                << " quadrature points\n";
+      std::cout << "  scheme.vtp file written, containing "
+                << qface.nodes.size() << " quadrature points\n";
    }
    /// get integration rule for cut segments
    void GetCutBdrSegmentIntRule(
@@ -666,22 +818,22 @@ public:
                         {
                            if (-1 == orient[c])
                            {
-                              ip.x = 1 - (pt.x[1] - xmin[1])/yscale;
+                              ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                            }
                            else
                            {
-                              ip.x = (pt.x[1] - xmin[1])/yscale;
+                              ip.x = (pt.x[1] - xmin[1]) / yscale;
                            }
                         }
                         else
                         {
                            if (1 == orient[c])
                            {
-                              ip.x = 1 - (pt.x[1] - xmin[1])/yscale;
+                              ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                            }
                            else
                            {
-                              ip.x = (pt.x[1] - xmin[1])/yscale;
+                              ip.x = (pt.x[1] - xmin[1]) / yscale;
                            }
                         }
                      }
@@ -691,22 +843,22 @@ public:
                         {
                            if (-1 == orient[c])
                            {
-                              ip.x = 1.0 - (pt.x[0] - xmin[0])/xscale;
+                              ip.x = 1.0 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
-                              ip.x = (pt.x[0] - xmin[0])/xscale;
+                              ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
                         else
                         {
                            if (1 == orient[c])
                            {
-                              ip.x = 1.0 - (pt.x[0] - xmin[0])/xscale;
+                              ip.x = 1.0 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
-                              ip.x = (pt.x[0] - xmin[0])/xscale;
+                              ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
                      }
@@ -746,7 +898,10 @@ public:
                                  "integration point (ycoord) not on element "
                                  "face (Saye's rule)");
                   }
-                  cutBdrFaceIntRules[elemid] = ir;
+                  if (ir->Size() > 0)
+                  {
+                     cutBdrFaceIntRules[elemid] = ir;
+                  }
                }
             }
          }
@@ -760,7 +915,7 @@ public:
 
 protected:
    mfem::Mesh *mesh;
-   mutable circle<N> phi_e;
+   mutable circle<N> phi_c;
    mutable Algoim::LevelSet<2> phi;
 };
 }  // namespace mach

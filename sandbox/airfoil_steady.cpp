@@ -63,6 +63,10 @@ int main(int argc, char *argv[])
       solver->createOutput("drag", drag_opts);
       double drag = abs(solver->calcOutput("drag"));
       mfem::out << "\nDrag error = " << drag << endl;
+      auto lift_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+      solver->createOutput("lift", lift_opts);
+      double lift = abs(solver->calcOutput("lift"));
+      mfem::out << "\nlift error = " << lift << endl;
    }
    catch (MachException &exception)
    {
