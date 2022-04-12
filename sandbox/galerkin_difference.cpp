@@ -11,10 +11,6 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-
-std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(0.0,1.0);
-
 /// \brief Defines the exact solution for the steady isentropic vortex
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - state variables stored as a 4-vector
@@ -62,52 +58,50 @@ int main(int argc, char *argv[])
    }
    try
    {
-      // generate the mesh
+      // working mesh
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree+1, nx, ny);
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       int dim = smesh->Dimension();
       int num_state = dim+2;
 
       // initialize the basis centers
-      int numBasis = smesh->GetNE();
+      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree+1, numRad, numTheta);
+      int numBasis = bmesh->GetNE();
       Vector center(2*numBasis);
       Vector loc(dim);
       for (int k = 0; k < numBasis; k++)
       {  
-         smesh->GetElementCenter(k,loc);
+         bmesh->GetElementCenter(k,loc);
          center(k*2) = loc(0);
          center(k*2+1) = loc(1);         
       }
-
-      // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
-      // int numBasis = numRad * numTheta;
       ofstream centerwrite("center.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
-      
+
       // initialize the fe collection and rbf space
       DSBPCollection fec(degree,smesh->Dimension());
       DGDSpace dgdSpace(smesh.get(),&fec,center,degree,extra,num_state,Ordering::byVDIM);
       FiniteElementSpace fes(smesh.get(),&fec,num_state,Ordering::byVDIM);
 
-      //================== Construct the gridfunction and apply the exact solution =======
+      // Construct the gridfunction and apply the exact solution
       mfem::VectorFunctionCoefficient u0_fun(num_state, upoly);
       mfem::CentGridFunction x_cent(&dgdSpace);
       x_cent.ProjectCoefficient(u0_fun);
+
       ofstream x_centprint("x_cent.txt");
       x_cent.Print(x_centprint,4);
       x_centprint.close();
 
-
       mfem::GridFunction x_exact(&fes);
       x_exact.ProjectCoefficient(u0_fun);
-      //============== Prolong the solution to SBP nodes =================================
-      //============== and check the simple l2 norm error ================================
-      ofstream sol_ofs("dgd_test.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,0);
-      x_exact.SaveVTK(sol_ofs,"exact",0);
 
+      ofstream x_exactprint("x_exact.txt");
+      x_exact.Print(x_exactprint,4);
+      x_exactprint.close();
+
+
+      // prolong the solution and save
       mfem::GridFunction x(&fes);
       x = 0.0;
       dgdSpace.GetProlongationMatrix()->Mult(x_cent,x);
@@ -115,107 +109,113 @@ int main(int argc, char *argv[])
       x.Print(x_prolongprint,4);
       x_prolongprint.close();
 
-      //============== Prolong the solution to SBP nodes =================================
-      //============== and check the simple l2 norm error ======
+
+      ofstream sol_ofs("dgd_test.vtk");
+      sol_ofs.precision(14);
+      smesh->PrintVTK(sol_ofs,0);
+      x_exact.SaveVTK(sol_ofs,"exact",0);
       x.SaveVTK(sol_ofs,"prolong",0);
+
+
+      // check error
       x -= x_exact;
       x.SaveVTK(sol_ofs,"error",0);
       sol_ofs.close();
       cout << "Check the projection l2 error: " << x.Norml2() << '\n';
 
-      SparseMatrix *prolong = dgdSpace.GetCP();
-      DenseMatrix *p = prolong->ToDenseMatrix();
-      ofstream p_save("p.txt");
-      p_save << std::fixed << setprecision(16);
-      for (int i = 0; i < p->Height(); i++)
-      {
-         for (int j = 0; j < p->Width(); j++)
-         {
-            p_save << (*p)(i,j)  << ' ';
-         }
-         p_save << '\n';
-      }
-      p_save.close();
+      // SparseMatrix *prolong = dgdSpace.GetCP();
+      // DenseMatrix *p = prolong->ToDenseMatrix();
+      // ofstream p_save("p.txt");
+      // p_save << std::fixed << setprecision(16);
+      // for (int i = 0; i < p->Height(); i++)
+      // {
+      //    for (int j = 0; j < p->Width(); j++)
+      //    {
+      //       p_save << (*p)(i,j)  << ' ';
+      //    }
+      //    p_save << '\n';
+      // }
+      // p_save.close();
 
       //============== check dpdc =================================
       // fd method
-      int pert_idx = 1;
-      double pert = 1e-7;
-      Vector center_p(center);
-      Vector center_m(center);
-      center_p(pert_idx) = center_p(pert_idx) + pert;
-      center_m(pert_idx) = center_p(pert_idx) - pert;
+      // int pert_idx = 1;
+      // double pert = 1e-7;
+      // Vector center_p(center);
+      // Vector center_m(center);
+      // center_p(pert_idx) = center_p(pert_idx) + pert;
+      // center_m(pert_idx) = center_p(pert_idx) - pert;
 
-      dgdSpace.buildProlongationMatrix(center_p);
-      SparseMatrix *p_plus = dgdSpace.GetCP();
-      DenseMatrix *pd_plus = p_plus->ToDenseMatrix();
-      ofstream pp_save("p_plus.txt");
-      pp_save << std::fixed << setprecision(16);
-      for (int i = 0; i < pd_plus->Height(); i++)
-      {
-         for (int j = 0; j < pd_plus->Width(); j++)
-         {
-            pp_save << (*pd_plus)(i,j)  << ' ';
-         }
-         pp_save << '\n';
-      }
-      pp_save.close();
+      // dgdSpace.buildProlongationMatrix(center_p);
+      // SparseMatrix *p_plus = dgdSpace.GetCP();
+      // DenseMatrix *pd_plus = p_plus->ToDenseMatrix();
+      // ofstream pp_save("p_plus.txt");
+      // pp_save << std::fixed << setprecision(16);
+      // for (int i = 0; i < pd_plus->Height(); i++)
+      // {
+      //    for (int j = 0; j < pd_plus->Width(); j++)
+      //    {
+      //       pp_save << (*pd_plus)(i,j)  << ' ';
+      //    }
+      //    pp_save << '\n';
+      // }
+      // pp_save.close();
 
-      dgdSpace.buildProlongationMatrix(center_m);
-      SparseMatrix *p_minus = dgdSpace.GetCP();
-      DenseMatrix *pd_minus = p_minus->ToDenseMatrix();
-      ofstream pm_save("p_minus.txt");
-      pm_save << std::fixed << setprecision(16);
-      for (int i = 0; i < pd_minus->Height(); i++)
-      {
-         for (int j = 0; j < pd_minus->Width(); j++)
-         {
-            pm_save << (*pd_minus)(i,j)  << ' ';
-         }
-         pm_save << '\n';
-      }
-      pm_save.close();
+      // dgdSpace.buildProlongationMatrix(center_m);
+      // SparseMatrix *p_minus = dgdSpace.GetCP();
+      // DenseMatrix *pd_minus = p_minus->ToDenseMatrix();
+      // ofstream pm_save("p_minus.txt");
+      // pm_save << std::fixed << setprecision(16);
+      // for (int i = 0; i < pd_minus->Height(); i++)
+      // {
+      //    for (int j = 0; j < pd_minus->Width(); j++)
+      //    {
+      //       pm_save << (*pd_minus)(i,j)  << ' ';
+      //    }
+      //    pm_save << '\n';
+      // }
+      // pm_save.close();
 
-      *pd_plus -= *pd_minus;
+      // *pd_plus -= *pd_minus;
 
-      *pd_plus *= (1./pert);
-      ofstream fd_save("dpdc_fd.txt");
-      fd_save << std::fixed << setprecision(16);
-      for (int i = 0; i < pd_plus->Height(); i++)
-      {
-         for (int j = 0; j < pd_plus->Width(); j++)
-         {
-            fd_save << (*pd_plus)(i,j)  << ' ';
-         }
-         fd_save << '\n';
-      }
-      fd_save.close();
+      // *pd_plus *= (1./pert);
+      // ofstream fd_save("dpdc_fd.txt");
+      // fd_save << std::fixed << setprecision(16);
+      // for (int i = 0; i < pd_plus->Height(); i++)
+      // {
+      //    for (int j = 0; j < pd_plus->Width(); j++)
+      //    {
+      //       fd_save << (*pd_plus)(i,j)  << ' ';
+      //    }
+      //    fd_save << '\n';
+      // }
+      // fd_save.close();
 
-      SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
-      dgdSpace.GetdPdc(pert_idx,center,dpdc);
+      // SparseMatrix dpdc(pd_plus->Height(),pd_plus->Width());
+      // dgdSpace.GetdPdc(pert_idx,center,dpdc);
 
-      // test
-      //DenseMatrix *testmat = Mult(*p_minus,*pd_minus);
+      // // test
+      // //DenseMatrix *testmat = Mult(*p_minus,*pd_minus);
 
-      DenseMatrix *dpdc_dense = dpdc.ToDenseMatrix();
-      ofstream dpdc_save("dpdc.txt");
-      for (int i = 0; i < dpdc_dense->Height(); i++)
-      {
-         for (int j = 0; j < dpdc_dense->Width(); j++)
-         {
-            dpdc_save << (*dpdc_dense)(i,j)  << ' ';
-         }
-         dpdc_save << '\n';
-      }
-      dpdc_save.close();
+      // DenseMatrix *dpdc_dense = dpdc.ToDenseMatrix();
+      // ofstream dpdc_save("dpdc.txt");
+      // for (int i = 0; i < dpdc_dense->Height(); i++)
+      // {
+      //    for (int j = 0; j < dpdc_dense->Width(); j++)
+      //    {
+      //       dpdc_save << (*dpdc_dense)(i,j)  << ' ';
+      //    }
+      //    dpdc_save << '\n';
+      // }
+      // dpdc_save.close();
 
-      *dpdc_dense -= *pd_plus;
+      // *dpdc_dense -= *pd_plus;
 
-      cout << "Check dpdc error norm: " << dpdc_dense->FNorm2() << '\n';
-      delete dpdc_dense;
-      delete p;
-      delete pd_plus;
-      delete pd_minus;
+      // cout << "Check dpdc error norm: " << dpdc_dense->FNorm2() << '\n';
+      // delete dpdc_dense;
+      // delete p;
+      // delete pd_plus;
+      // delete pd_minus;
 
    }   
    catch (MachException &exception)
@@ -234,7 +234,6 @@ int main(int argc, char *argv[])
 void uexact(const Vector &x, Vector& q)
 {
    q.SetSize(4);
-   Vector u(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
    double rhoi = 2.0;
@@ -257,10 +256,10 @@ void uexact(const Vector &x, Vector& q)
                  (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
    double a = sqrt(euler::gamma*press/rho);
 
-   u(0) = rho;
-   u(1) = -rho*a*Ma*sin(theta);
-   u(2) = rho*a*Ma*cos(theta);
-   u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   q(0) = rho;
+   q(1) = -rho*a*Ma*sin(theta);
+   q(2) = rho*a*Ma*cos(theta);
+   q(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
 }
 
 void upoly(const mfem::Vector &x, mfem::Vector &u)
@@ -317,21 +316,6 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
 
    mesh_ptr->NewNodes(*xy, true);
    return mesh_ptr;
-}
-
-mfem::Vector buildBasisCenters(int numRad, int numTheta)
-{
-   double r,theta;
-   int numBasis = numRad * numTheta;
-   Vector basisCenter(2*numBasis);
-   for (int i = 0; i < numBasis; i++)
-   {
-      r = 1.0 + 2.0 * normal_rand(gen);
-      theta = M_PI/2.0 * normal_rand(gen);
-      basisCenter(i*2) = r *cos(theta);
-      basisCenter(i*2+1) = r * sin(theta);
-   }
-   return basisCenter;
 }
 
  // Output a QuadratureScheme as an XML .vtp file for visualisation in ParaView or anything else that
