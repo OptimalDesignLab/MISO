@@ -4,6 +4,7 @@
 #include "rbfgridfunc.hpp"
 #include "optimization.hpp"
 #include "bfgsnewton.hpp"
+#include "naca12.data"
 #include <random>
 #include <fstream>
 #include <iostream>
@@ -12,6 +13,7 @@
 using namespace std;
 using namespace mfem;
 using namespace mach;
+
 
 
 std::default_random_engine gen(std::random_device{}());
@@ -29,6 +31,8 @@ void uexact(const Vector &x, Vector& u);
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis);
+mfem::Vector buildBasisCenter2(int nx, int ny);
+mfem::Vector buildBasisCenter3();
 
 template<typename T>
 void writeBasisCentervtp(const mfem::Vector &q, T& stream);
@@ -40,11 +44,10 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 1;
-   int nx = 1;
-   int ny = 1;
-   int numRad = 10;
-   int numTheta = 10;
-   int extra = 1;
+   int nx = 10;
+   int ny = 10;
+   args.AddOption(&nx, "-nx", "--num-rad", "number of radial segments");
+   args.AddOption(&ny, "-ny", "--num-theta", "number of angular segments");
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -60,13 +63,15 @@ int main(int argc, char *argv[])
       ofstream savevtk("airfoil.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
-      std::cout << "Number of elements " << bmesh->GetNE() << '\n';
       int dim = bmesh->Dimension();
       int num_state = dim + 2;
 
       // initialize the basis center (design variables)
-      int numBasis = bmesh->GetNE();
-      Vector center = buildBasisCenter(bmesh.get(),numBasis);
+      // int numBasis = bmesh->GetNE();
+      // Vector center = buildBasisCenter(bmesh.get(),numBasis);
+      Vector center = buildBasisCenter3();
+      int numBasis = center.Size()/2;
+      std::cout << "Number of basis centers " << numBasis << '\n';
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
@@ -179,6 +184,47 @@ mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis)
    return center;
 }
 
+mfem::Vector buildBasisCenter2(int nx, int ny)
+{
+   int numBasis = nx * ny;
+   double dx = 60./(nx-1);
+   double dy = 60./(ny-1);
+   std::vector<double> cent;
+
+   double x,y;
+   int row, col;
+   for (int i = 0; i < numBasis; i++)
+   {
+      row = i/ny;
+      col = i%ny;
+
+      x = -30. + row * dx;
+      y = -30. + col * dy;
+      if (sqrt(pow(x,2)+pow(y,2)) < 30.0)
+      {
+         cent.push_back(x);
+         cent.push_back(y);
+      }
+   }
+   mfem::Vector center(cent.size());
+
+   for (int i = 0; i < cent.size()/2; i++)
+   {
+      center(2*i) = cent[2*i];
+      center(2*i+1) = cent[2*i+1];
+   }
+   return center;
+}
+
+mfem::Vector buildBasisCenter3()
+{
+   mfem::Vector center(132*2);
+   for (int i = 0; i < 132*2; i++)
+   {
+      center(i) = naca12[i];
+   }
+   return center;
+}
 
 template <typename T>
 void writeBasisCentervtp(const mfem::Vector &center, T &stream)

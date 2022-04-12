@@ -29,6 +29,7 @@ void uexact(const Vector &x, Vector& u);
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
 mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis);
+mfem::Vector buildBasisCenter2(int numt, int numr);
 
 template<typename T>
 void writeBasisCentervtp(const mfem::Vector &q, T& stream);
@@ -73,11 +74,14 @@ int main(int argc, char *argv[])
 
       // mesh for basis
       unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree + 1,numRad,numTheta);
-
-
-      // initialize the basis center (design variables)
       int numBasis = bmesh->GetNE();
       Vector center = buildBasisCenter(bmesh.get(),numBasis);
+
+
+      // Vector center = buildBasisCenter2(numRad,numTheta);
+      // int numBasis = center.Size()/2;
+
+
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
@@ -92,7 +96,7 @@ int main(int argc, char *argv[])
       // cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,1);
+      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
@@ -187,6 +191,42 @@ mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis)
       mesh->GetElementCenter(k,loc);
       center(k*2) = loc(0);
       center(k*2+1) = loc(1);
+   }
+   return center;
+}
+
+mfem::Vector buildBasisCenter2(int nx, int ny)
+{
+   int numBasis = nx * ny;
+   double dx = 3./(nx-1);
+   double dy = 3./(ny-1);
+   std::vector<double> cent;
+
+   double x,y;
+   int row, col;
+   double dist;
+   for (int i = 0; i < numBasis; i++)
+   {
+      row = i/ny;
+      col = i%ny;
+
+      x = row * dx;
+      y = col * dy;
+      dist = sqrt(pow(x,2)+ pow(y,2));
+
+      if (1.0 < dist && dist < 3.0)
+      {
+         cent.push_back(x);
+         cent.push_back(y);
+      }
+   }
+   cout << "cent size is " << cent.size() << '\n';
+   mfem::Vector center(cent.size());
+
+   for (int i = 0; i < cent.size()/2; i++)
+   {
+      center(2*i) = cent[2*i];
+      center(2*i+1) = cent[2*i+1];
    }
    return center;
 }

@@ -64,9 +64,6 @@ int main(int argc, char *argv[])
    {
       // generate the mesh
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree+1, nx, ny);
-      ofstream savevtk("dgd_test.vtk");
-      smesh->PrintVTK(savevtk,0);
-      savevtk.close();
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       int dim = smesh->Dimension();
       int num_state = dim+2;
