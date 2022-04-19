@@ -85,10 +85,12 @@ int main(int argc, char *argv[])
       dgdopt.SetInitialCondition(qfar);
       //dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,10);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
+
+      dgdopt.printSolution(opti_value,"airfoil-opt-final");
 
       ofstream optwrite("center_optimal.vtp");
       writeBasisCentervtp(opti_value, optwrite);

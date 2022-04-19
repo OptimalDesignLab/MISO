@@ -46,6 +46,8 @@ public:
 
    void checkJacobian(mfem::Vector &x);
    void getFreeStreamState(mfem::Vector &q_ref);
+
+   void printSolution(const mfem::Vector &c, const std::string &file_name);
    /// class destructor
    ~DGDOptimizer();
    

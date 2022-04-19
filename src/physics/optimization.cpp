@@ -131,16 +131,8 @@ void DGDOptimizer::SetInitialCondition(const mfem::Vector uic)
 	GridFunType u_test(fes_full.get());
 	dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
 
-	ofstream initial("initial_condition.vtk");
-	initial.precision(14);
-	mesh->PrintVTK(initial, 0);
-	u_full->SaveVTK(initial, "initial", 0);
-	u_test.SaveVTK(initial, "projection", 0);
-
 	u_test -= *u_full;
 	cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-	u_test.SaveVTK(initial, "project_error", 0);
-	initial.close();
 }
 
 double DGDOptimizer::GetEnergy(const Vector &x) const
@@ -420,6 +412,22 @@ void DGDOptimizer::checkJacobian(Vector &x)
 	dJdc_fd -= dJdc_analytic;
 	cout << ", difference norm is " << dJdc_fd.Norml2() << '\n';
 }
+
+
+void DGDOptimizer::printSolution(const Vector &c, const std::string &file_name)
+{
+   // TODO: These mfem functions do not appear to be parallelized
+   fes_dgd->buildProlongationMatrix(c);
+   GridFunType u_test(fes_full.get());
+   dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
+
+   ofstream initial(file_name+".vtk");
+   initial.precision(14);
+   mesh->PrintVTK(initial, 0);
+   u_test.SaveVTK(initial, "solution", 0);
+   initial.close();
+}
+
 
 DGDOptimizer::~DGDOptimizer()
 {
