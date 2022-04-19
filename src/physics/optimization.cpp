@@ -245,7 +245,9 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	DenseMatrix *temp_mat1 = ::Mult(*pRpu,pPupc);
 	SparseMatrix *Pt = Transpose(*P);
 	DenseMatrix *pR_dgdpc = ::Mult(*Pt,*temp_mat1);
+	delete Pt;
 	*pR_dgdpc += pPtpcR;
+	delete temp_mat1;
 
 	// ofstream pt_save("pt.txt");
 	// Pt->PrintMatlab(pt_save);
@@ -263,8 +265,9 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	umfsolver.SetPrintLevel(1);
 	umfsolver.SetOperator(*pRt_dgdpuc);
 	umfsolver.Mult(pJpuc,adj);
+	delete pRt_dgdpuc;
 
-	// ofstream adj_save("adj.txt");
+	// ofstream adj_sasve("adj.txt");
 	// adj.Print(adj_save,1);
 	// adj_save.close();
 
@@ -278,9 +281,7 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	// ofstream djdc_save("djdc.txt");
 	// y.Print(djdc_save,1);
 	// djdc_save.close();
-	delete temp_mat1;
-	delete Pt;
-	delete pRt_dgdpuc;
+	
 	delete pR_dgdpc;
 }	
 

@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
    try
    {
       // mesh for basis
-      unique_ptr<Mesh> bmesh(new Mesh("airfoil_p2_r0.mesh",1));
+      unique_ptr<Mesh> bmesh(new Mesh("coarse.mesh",1));
       ofstream savevtk("airfoil.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
@@ -67,10 +67,10 @@ int main(int argc, char *argv[])
       int num_state = dim + 2;
 
       // initialize the basis center (design variables)
-      // int numBasis = bmesh->GetNE();
-      // Vector center = buildBasisCenter(bmesh.get(),numBasis);
-      Vector center = buildBasisCenter3();
-      int numBasis = center.Size()/2;
+      int numBasis = bmesh->GetNE();
+      Vector center = buildBasisCenter(bmesh.get(),numBasis);
+      // Vector center = buildBasisCenter3();
+      // int numBasis = center.Size()/2;
       std::cout << "Number of basis centers " << numBasis << '\n';
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
       dgdopt.SetInitialCondition(qfar);
       //dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(10.0,1e6,1e-4,0.7,10);
+      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);

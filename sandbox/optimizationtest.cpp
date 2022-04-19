@@ -73,13 +73,13 @@ int main(int argc, char *argv[])
 
 
       // mesh for basis
-      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree + 1,numRad,numTheta);
-      int numBasis = bmesh->GetNE();
-      Vector center = buildBasisCenter(bmesh.get(),numBasis);
+      // unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree + 1,numRad,numTheta);
+      // int numBasis = bmesh->GetNE();
+      // Vector center = buildBasisCenter(bmesh.get(),numBasis);
 
 
-      // Vector center = buildBasisCenter2(numRad,numTheta);
-      // int numBasis = center.Size()/2;
+      Vector center = buildBasisCenter2(numRad,numTheta);
+      int numBasis = center.Size()/2;
 
 
       ofstream centerwrite("center_initial.vtp");
