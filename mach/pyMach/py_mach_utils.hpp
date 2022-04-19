@@ -35,6 +35,7 @@ inline double *npBufferToDoubleArray(const py::array_t<double> &buffer,
           "Incompatible dimensions:\n"
           "\texpected a 1D array!");
    }
+
    shape = std::move(info.shape);
    return static_cast<double *>(info.ptr);
 }
@@ -62,6 +63,13 @@ inline mfem::Vector npBufferToMFEMVector(const py::array_t<double> &buffer)
           "Incompatible dimensions:\n"
           "\texpected a 1D array!");
    }
+   if (info.strides[0] != sizeof(double))
+   {
+      throw std::runtime_error(
+          "Incompatible stride:\n"
+          "\texpected a contiguous array!");
+   }
+
    return {static_cast<double *>(info.ptr), static_cast<int>(info.shape[0])};
 }
 
@@ -79,6 +87,12 @@ mfem::Array<T> npBufferToMFEMArray(const py::array_t<T> &buffer)
       throw std::runtime_error(
           "Incompatible dimensions:\n"
           "\texpected a 1D array!");
+   }
+   if (info.strides[0] != sizeof(T))
+   {
+      throw std::runtime_error(
+          "Incompatible stride:\n"
+          "\texpected a contiguous array!");
    }
    return {static_cast<T *>(info.ptr), static_cast<int>(info.shape[0])};
 }
@@ -102,16 +116,15 @@ inline MachInputs pyDictToMachInputs(const py::dict &py_inputs)
       else
       {
          const auto &value_buffer = input.second.cast<py::array_t<double>>();
-         std::vector<pybind11::ssize_t> shape;
-         auto *value = npBufferToDoubleArray(value_buffer, shape);
+         auto vector = npBufferToMFEMVector(value_buffer);
 
-         if (shape[0] == 1)
+         if (vector.Size() == 1)
          {
-            inputs.emplace(key, *value);
+            inputs.emplace(key, vector(0));
          }
          else
          {
-            inputs.emplace(key, InputVector(value, shape[0]));
+            inputs.emplace(key, vector);
          }
       }
    }

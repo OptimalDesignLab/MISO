@@ -64,7 +64,7 @@ class TestMachMeshWarper(unittest.TestCase):
 
         model.connect("ivc.surf_mesh_coords", "vol_mesh_move.surf_mesh_coords")
 
-        problem.setup()
+        problem.setup(force_alloc_complex=True)
         problem.run_model()
 
         local_vol_mesh_size = warper.getVolumeCoordsSize()
@@ -98,7 +98,7 @@ class TestMachMeshWarper(unittest.TestCase):
 
         model.connect("ivc.surf_mesh_coords", "vol_mesh_move.surf_mesh_coords")
 
-        problem.setup()
+        problem.setup(force_alloc_complex=True)
         problem.run_model()
 
         data = problem.check_partials()
@@ -126,7 +126,7 @@ class TestMachMeshWarper(unittest.TestCase):
 
         model.connect("ivc.surf_mesh_coords", "vol_mesh_move.surf_mesh_coords")
 
-        problem.setup(mode="rev")
+        problem.setup(mode="rev", force_alloc_complex=True)
         # om.n2(problem)
         problem.run_model()
 

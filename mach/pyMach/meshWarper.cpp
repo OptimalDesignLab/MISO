@@ -29,19 +29,9 @@ void initMeshWarper(py::module &m)
 
    py::class_<MeshWarper, AbstractSolver2>(m, "MeshWarper")
        .def(py::init(
-                [](const std::string &opt_file_name, mpi_comm comm)
-                {
-                   nlohmann::json json_options;
-                   std::ifstream options_file(opt_file_name);
-                   options_file >> json_options;
-                   return std::make_unique<MeshWarper>(comm, json_options);
-                }),
-            py::arg("opt_file_name"),
-            py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
-       .def(py::init(
-                [](const nlohmann::json &json_options, mpi_comm comm)
-                { return std::make_unique<MeshWarper>(comm, json_options); }),
-            py::arg("json_options"),
+                [](const nlohmann::json &warper_options, mpi_comm comm)
+                { return std::make_unique<MeshWarper>(comm, warper_options); }),
+            py::arg("warper_options"),
             py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
 
        .def("getSurfaceCoordsSize", &MeshWarper::getSurfaceCoordsSize)

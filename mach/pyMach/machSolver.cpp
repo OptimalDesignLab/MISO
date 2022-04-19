@@ -254,8 +254,7 @@ void initSolver(py::module &m)
               const py::array_t<double> &out)
            {
               auto out_vec = npBufferToMFEMVector(out);
-              return self.calcOutput(
-                  output, pyDictToMachInputs(py_inputs), out_vec);
+              self.calcOutput(output, pyDictToMachInputs(py_inputs), out_vec);
            },
            "Calculate the vector-valued output specified by \"output\" using "
            "\"inputs\"",
