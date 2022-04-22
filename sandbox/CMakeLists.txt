@@ -24,8 +24,9 @@ set(SANDBOX_SRCS
    continuous_2d_euler
    optimizationtest
    airfoil_steady	
-	airfoil_optimization
+   airfoil_optimization
    wedgeshock
+   wedgeshock_optimization
 )
 
 create_sandbox("${SANDBOX_SRCS}")

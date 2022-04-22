@@ -39,15 +39,19 @@ void writeBasisCentervtp(const mfem::Vector &q, T& stream);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "airfoil_optimization_options.json";
+   const char *options_file = "wedgeshock_optimization_options.json";
    int myid = 0;
    // Parse command-line options
    OptionsParser args(argc, argv);
    int degree = 1;
    int nx = 10;
    int ny = 10;
+   int bx = 10;
+   int by = 10;
    args.AddOption(&nx, "-nx", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-ny", "--num-theta", "number of angular segments");
+   args.AddOption(&bx, "-bx", "--num-rad", "number of radial segments");
+   args.AddOption(&by, "-by", "--num-theta", "number of angular segments");
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -59,8 +63,8 @@ int main(int argc, char *argv[])
    try
    {
       // mesh for basis
-      unique_ptr<Mesh> bmesh(new Mesh("airfoil_p2_r0.mesh",1));
-      ofstream savevtk("airfoil.vtk");
+      unique_ptr<Mesh> bmesh(new Mesh(nx,ny,Element::TRIANGLE,true,2.0,1.0,true));
+      ofstream savevtk("wedgeshock.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
       int dim = bmesh->Dimension();
@@ -69,20 +73,18 @@ int main(int argc, char *argv[])
       // initialize the basis center (design variables)
       int numBasis = bmesh->GetNE();
       Vector center = buildBasisCenter(bmesh.get(),numBasis);
-      // Vector center = buildBasisCenter3();
-      // int numBasis = center.Size()/2;
-      std::cout << "Number of basis centers " << numBasis << '\n';
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
 
+      unique_ptr<Mesh> smesh(new Mesh(nx,ny,Element::TRIANGLE,true,2.0,1.0,true));
+
       // initialize the optimization object
       string optfile(options_file);
-      DGDOptimizer dgdopt(center,optfile,nullptr);
+      DGDOptimizer dgdopt(center,optfile,move(smesh));
       dgdopt.InitializeSolver();
-      Vector qfar(dim+2);
-      dgdopt.getFreeStreamState(qfar);
-      dgdopt.SetInitialCondition(qfar);
+      dgdopt.SetInitialCondition(uexact);
+      dgdopt.printSolution(center,"wedgeshock-initial");
       //dgdopt.checkJacobian(center);
 
       BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
@@ -90,7 +92,7 @@ int main(int argc, char *argv[])
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
 
-      dgdopt.printSolution(opti_value,"airfoil-opt-final");
+      dgdopt.printSolution(opti_value,"wedgeshock-final");
 
       ofstream optwrite("center_optimal.vtp");
       writeBasisCentervtp(opti_value, optwrite);
@@ -138,38 +140,46 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
    return mesh_ptr;
 }
 
-// the exact solution
-void uexact(const Vector &x, Vector& q)
+// Exact solution; 
+void uexact(const Vector &x, Vector& u)
 {
-   q.SetSize(4);
-   Vector u(4);
-   double ri = 1.0;
-   double Mai = 0.5; //0.95 
-   double rhoi = 2.0;
+   u.SetSize(4);
+   double Mai = 2.4; //Ma1
+   double rhoi = 1.0; //rho1
    double prsi = 1.0/euler::gamma;
-   double rinv = ri/sqrt(x(0)*x(0) + x(1)*x(1));
-   double rho = rhoi*pow(1.0 + 0.5*euler::gami*Mai*Mai*(1.0 - rinv*rinv),
-                         1.0/euler::gami);
-   double Ma = sqrt((2.0/euler::gami)*( ( pow(rhoi/rho, euler::gami) ) * 
-                    (1.0 + 0.5*euler::gami*Mai*Mai) - 1.0 ) );
-   double theta;
-   if (x(0) > 1e-15)
-   {
-      theta = atan(x(1)/x(0));
-   }
-   else
-   {
-      theta = M_PI/2.0;
-   }
-   double press = prsi* pow( (1.0 + 0.5*euler::gami*Mai*Mai) / 
-                 (1.0 + 0.5*euler::gami*Ma*Ma), euler::gamma/euler::gami);
+   //assuming theta = 25 degrees, Ma1 = 2.4
+   double theta = 25*2*M_PI/360;
+   double beta =  52.17187440*2*M_PI/360; 
+   //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
+   
+   //compute mach number downstream of shock
+   double Ma1n = Mai*sin(beta);
+   double Ma2n = sqrt((1+(.5*euler::gami)*Ma1n*Ma1n) /
+                     (euler::gamma*Ma1n*Ma1n - .5*euler::gami));
+   double Ma = Ma2n/sin(beta-theta);
+   
+   //compute other quantities using continuity, momentum, and energy equations
+   double rho = rhoi*(euler::gamma+1)*Ma1n*Ma1n / 
+                  (2+euler::gami*Ma1n*Ma1n);
+   double press = prsi*(1 + (2*euler::gamma/(euler::gamma+1))*(Ma1n*Ma1n - 1)); 
    double a = sqrt(euler::gamma*press/rho);
 
+   
+   double thresh = x(1)/tan(beta); //assuming wedge tip is origin
+   // if behind shock, set back to upstream state
+   if(x(0) <= thresh+.5)
+   {
+      theta = 0;
+      Ma = Mai;
+      rho = rhoi;
+      press = prsi;
+      a = sqrt(euler::gamma*press/rho);
+   }
+
    u(0) = rho;
-   u(1) = -rho*a*Ma*sin(theta);
-   u(2) = rho*a*Ma*cos(theta);
+   u(1) = rho*a*Ma*cos(theta);
+   u(2) = rho*a*Ma*sin(theta);
    u(3) = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
-   q = u;
 }
 
 // build the basis center
