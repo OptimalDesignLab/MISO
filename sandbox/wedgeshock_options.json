@@ -26,8 +26,8 @@
        "refine": 0
     },
     "bcs": {
-       "wedge-shock": [1, 1, 1, 0],
-       "slip-wall": [0, 0, 0, 1]
+       "wedge-shock": [1, 1, 1, 1],
+       "slip-wall": [0, 0, 0, 0 ]
     },
     "newton": {
        "printlevel": 1,

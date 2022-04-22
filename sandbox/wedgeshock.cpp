@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 	int ny = 10;
 
    OptionsParser args(argc, argv);
-   const char *options_file = "wedge_shock_options.json";
+   const char *options_file = "wedgeshock_options.json";
    args.AddOption(&nx, "-nx", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-ny", "--num-theta", "number of angular segments");
    args.AddOption(&options_file, "-o", "--options",
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-		unique_ptr<Mesh> bmesh = MakeCartesian2D(nx,ny,Element::TRIANGLE,true,2.0,1.0,true);
+		unique_ptr<Mesh> bmesh (new Mesh(nx,ny,Element::TRIANGLE,true,2.0,1.0,true));
       int numBasis = bmesh->GetNE();
       Vector center(2*numBasis);
       Vector loc(2);
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 
       const int dim = 2;
 
-      unique_ptr<Mesh> smesh = MakeCartesian2D(nx,ny,Element::TRIANGLE,true,2.0,1.0,true);
+      unique_ptr<Mesh> smesh(new Mesh(nx,ny,Element::TRIANGLE,true,2.0,1.0,true));
       std::cout << "Number of elements " << smesh->GetNE() <<'\n';
       unique_ptr<AbstractSolver> solver(
          new EulerSolver<2, entvar>(opt_file_name, move(smesh)));
