@@ -25,6 +25,7 @@ set(SANDBOX_SRCS
    optimizationtest
    airfoil_steady	
 	airfoil_optimization
+   wedgeshock
 )
 
 create_sandbox("${SANDBOX_SRCS}")

@@ -81,6 +81,16 @@ void EulerSolver<dim, entvar>::addBoundaryIntegrators(double alpha)
 {
    auto &bcs = options["bcs"];
    int idx = 0;
+   if (bcs.find("wedge-shock") != bcs.end())
+   { // shock capturing wedge problem BC
+      vector<int> tmp = bcs["wedge-shock"].template get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new WedgeShockBC<2>(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
    if (bcs.find("vortex") != bcs.end())
    { // isentropic vortex BC
       if (dim != 2)

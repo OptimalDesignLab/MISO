@@ -643,6 +643,79 @@ void calcIsentropicVortexFlux(const xdouble *x, const xdouble *dir,
    }
 }
 
+
+/// Wedge shock exact state as a function of position
+/// \param[in] x - location at which the exact state is desired
+/// \param[out] qbnd - vortex conservative variable at `x`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \note  Taken from Fundamentals of Aerodynamics (Anderson)
+template <typename xdouble>
+void calcWedgeShockState(const xdouble *x, xdouble *qbnd)
+{
+   double Mai = 2.4; //Ma1
+   double rhoi = 1.0; //rho1
+   double prsi = 1.0/euler::gamma;
+   //assuming theta = 25 degrees, Ma1 = 2.4
+   xdouble theta = 25*2*M_PI/360;
+   double beta = 52.17187440*2*M_PI/360; 
+   //taken from Figure 9.9, Anderson for theta = 25 degrees, Ma1 = 2.4
+   
+   //compute mach number downstream of shock
+   xdouble Ma1n = Mai*sin(beta);
+   xdouble Ma2n = sqrt((1+(.5*euler::gami)*Ma1n*Ma1n) /
+                     (euler::gamma*Ma1n*Ma1n - .5*euler::gami));
+   xdouble Ma = Ma2n/sin(beta-theta);
+   
+   //compute other quantities using continuity, momentum, and energy equations
+   xdouble rho = rhoi*(euler::gamma+1)*Ma1n*Ma1n / 
+                  (2+euler::gami*Ma1n*Ma1n);
+   xdouble press = prsi*(1 + (2*euler::gamma/(euler::gamma+1))*(Ma1n*Ma1n - 1)); 
+   xdouble a = sqrt(euler::gamma*press/rho);
+   // qbnd[0] = rho;
+   // qbnd[1] = rho*a*Ma*cos(theta);
+   // qbnd[2] = rho*a*Ma*sin(theta);
+   // qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   // std::cout << "state: "<< qbnd[0] << " " << qbnd[1] << " " << qbnd[2] << " " << qbnd[3] << "\n";
+   // std::cout << "state: "<< rho << " " << Ma << " " << press << "\n";
+   // std::cout << "Ma1n, Ma2n, a: " << Ma1n << " " << Ma2n << " " <<a << "\n";
+   xdouble thresh = x[1]/tan(beta); //assuming wedge tip is origin
+   // if behind shock, set back to upstream state
+   if(x[0] <= thresh+.5)
+   {
+      theta = 0;
+      Ma = Mai;
+      rho = rhoi;
+      press = prsi;
+      a = sqrt(euler::gamma*press/rho);
+   }
+   qbnd[0] = rho;
+   qbnd[1] = rho*a*Ma*cos(theta);
+   qbnd[2] = rho*a*Ma*sin(theta);
+   qbnd[3] = press/euler::gami + 0.5*rho*a*a*Ma*Ma;
+   // std::cout << "point: "<< x[0] << " " << x[1] << "\n";
+   // std::cout << "state: "<< qbnd[0] << " " << qbnd[1] << " " << qbnd[2] << " " << qbnd[3] << "\n";
+   // std::cout << "Ma1n, Ma2n, Ma, press: " << Ma1n << " " << Ma2n << " " << Ma << " " << press << "\n";
+}
+
+
+
+/// A wrapper for `calcBoundaryFlux` in the case of the wedge shock
+/// \param[in] x - location at which the boundary flux is desired
+/// \param[in] dir - desired (scaled) direction of the flux
+/// \param[in] q - conservative state variable on the interior of the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcWedgeShockFlux(const xdouble *x, const xdouble *dir,
+                              const xdouble *q, xdouble *flux)
+{
+   xdouble qbnd[4];
+   xdouble work[4];
+   calcWedgeShockState<xdouble>(x, qbnd);
+   calcBoundaryFlux<xdouble,2>(dir, qbnd, q, work, flux);
+}
+
+
 /// removes the component of momentum normal to the wall from `q`
 /// \param[in] dir - vector perpendicular to the wall (does not need to be unit)
 /// \param[in] q - the state whose momentum is being projected
