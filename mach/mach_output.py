@@ -16,110 +16,150 @@ class MachFunctional(om.ExplicitComponent):
     def setup(self):
         solver = self.options["solver"]
 
-        self.add_input("state",
-                       distributed=True,
-                       shape_by_conn=True,
-                       desc="Mach state vector",
-                       tags=["mphys_coupling"])
-    
-        self.add_input("mesh_coords",
-                       distributed=True,
-                       shape_by_conn=True,
-                       desc="volume mesh node coordinates",
-                       tags=["mphys_coordinates"])
-
-        solver_options = solver.getOptions()
-        ext_fields = "external-fields" in solver_options
-        if self.options["depends"] is not None:
-            for input in self.options["depends"]:
-                if ext_fields and input in solver_options["external-fields"]:
-                    self.add_input(input,
-                                shape=solver.getFieldSize(input),
-                                tags=["mphys_coupling"])
-                else:
-                    self.add_input(input,
-                                tags=["mphys_input"])
+        # hold map of vector-valued I/O names -> contiguous vectors to pass to Mach
+        self.vectors = dict()
 
         func = self.options["func"]
         if self.options["func_options"]:
             solver.createOutput(func, self.options["func_options"])
         else:
-            solver.createOutput(func)
+            solver.createOutput(func)    
+
+        solver_options = solver.getOptions()
+        ext_fields = "external-fields" in solver_options
+        if self.options["depends"] is not None:
+            for input in self.options["depends"]:
+
+                if input == "state":
+                    state_size = solver.getStateSize()
+                    self.add_input("state",
+                                #    shape=state_size,
+                                   distributed=True,
+                                   shape_by_conn=True,
+                                   desc="Mach state vector",
+                                   tags=["mphys_coupling"])
+                    self.vectors["state"] = np.empty(state_size)
+
+                elif input == "mesh_coords":
+                    mesh_coords_size = solver.getFieldSize("mesh_coords")
+                    self.add_input("mesh_coords",
+                                #    shape=mesh_coords_size,
+                                   distributed=True,
+                                   shape_by_conn=True,
+                                   desc="volume mesh node coordinates",
+                                   tags=["mphys_coordinates"])
+                    self.vectors["mesh_coords"] = np.empty(mesh_coords_size)
+                else:
+                    input_size = solver.getFieldSize(input)
+                    if input_size == 0:
+                        input_size = 1
+
+                    # distributed = True if input_size != 1 else False
+                    if ext_fields and input in solver_options["external-fields"]:
+                        tag = "mphys_coupling"
+                        distributed = True
+                    else:
+                        tag = "mphys_input"
+                        distributed = False
+
+                    distributed = False
+                    self.add_input(input,
+                                   distributed=distributed,
+                                   shape=input_size,
+                                   tags=tag)
+                    if input_size > 1:
+                        self.vectors[input] = np.empty(input_size)
+
 
         output_size = solver.getOutputSize(func)
-        distributed = True if output_size != 1 else False
+        # distributed = True if output_size != 1 else False
+        if output_size != 1:
+            tag = "mphys_coupling"
+            distributed = True
+        else:
+            tag = "mphys_result"
+            distributed = False
+
+        # tag = "mphys_result"
+        # distributed = False
         self.add_output(func,
                         distributed=distributed,
                         shape=output_size,
-                        tags=["mphys_result"])
-
-    #     # self.declare_partials(func, "state")
-    #     # self.declare_partials(func, "mesh_coords")
-
-    # def setup_partials(self):
-    #     if self.options["depends"] is not None:
-    #         func = self.options["func"]
-    #         for input in self.options["depends"]:
-    #             self.declare_partials(func, input)
+                        tags=tag)
+        self.vectors[func] = np.empty(output_size)
 
     def compute(self, inputs, outputs):
         solver = self.options["solver"]
         func = self.options["func"]
+
+        # Copy vector inputs into internal contiguous data buffers
+        for input in inputs:
+            if input in self.vectors:
+                self.vectors[input][:] = inputs[input][:]
+
         input_dict = dict(zip(inputs.keys(), inputs.values()))
-        outputs[func] = solver.calcOutput(func, input_dict)
+        input_dict.update(self.vectors)  
 
-    # def compute_partials(self, inputs, partials):
-    #     solver = self.options["solver"]
-    #     func = self.options["func"]
-
-    #     input_dict = dict(zip(inputs.keys(), inputs.values()))
-    #     for input in inputs:
-    #         solver.calcOutputPartial(of=func, wrt=input,
-    #                                  inputs=input_dict,
-    #                                  partial=partials[func, input][0])
+        output = self.vectors[func]
+        solver.calcOutput(func, input_dict, output)
+        outputs[func][:] = self.vectors[func][:]
 
     def compute_jacvec_product(self, inputs, d_inputs, d_outputs, mode):
         solver = self.options["solver"]
         func = self.options["func"]
-        if mode == 'fwd':
-            if func in d_outputs:
-                input_dict = dict(zip(inputs.keys(), inputs.values()))
-                for input in inputs:
-                    if input in d_inputs:
-                        func_dot = np.zeros_like(d_outputs[func])
-                        solver.outputJacobianVectorProduct(of=func,
-                                                           inputs=input_dict,
-                                                           wrt_dot=d_inputs[input],
-                                                           wrt=input,
-                                                           out_dot=func_dot)
 
-                        if MPI and self.comm.size > 1:
-                            # In Fwd, allreduce the result of the dot product with the subjac.
-                            # Allocate buffer of same size and dtype for storing the result.
-                            func_dot_global = np.zeros_like(func_dot)
-                            self.comm.Allreduce(func_dot, func_dot_global, op=MPI.SUM)
-                            d_outputs[func] += func_dot_global
-                        else:
-                            # Recommended to make sure your code can run without MPI too, for testing.
-                            d_outputs[func] += func_dot
+        # Copy vector inputs into internal contiguous data buffers
+        for input in inputs:
+            if input in self.vectors:
+                self.vectors[input][:] = inputs[input][:]
 
-        elif mode == 'rev':
-            if func in d_outputs:
-                input_dict = dict(zip(inputs.keys(), inputs.values()))
-                for input in inputs:
-                    if input in d_inputs:
-                        if MPI and self.comm.size > 1:
-                            # In Rev, allreduce the serial derivative vector before the dot product.
-                            # Allocate buffer of same size and dtype for storing the result.
-                            func_bar = np.zeros_like(d_outputs[func])
-                            self.comm.Allreduce(d_outputs[func], func_bar, op=MPI.SUM)
-                        else:
-                            # Recommended to make sure your code can run without MPI too, for testing.
-                            func_bar = d_outputs[func]
+        input_dict = dict(zip(inputs.keys(), inputs.values()))
+        input_dict.update(self.vectors)  
 
-                        solver.outputVectorJacobianProduct(of=func,
-                                                           inputs=input_dict,
-                                                           out_bar=func_bar,
-                                                           wrt=input,
-                                                           wrt_bar=d_inputs[input])
+        try:
+            if mode == 'fwd':
+                if func in d_outputs:
+                    for input in inputs:
+                        if input in d_inputs:
+                            func_dot = np.zeros_like(d_outputs[func])
+                            solver.outputJacobianVectorProduct(of=func,
+                                                              inputs=input_dict,
+                                                              wrt_dot=d_inputs[input],
+                                                              wrt=input,
+                                                              out_dot=func_dot)
+
+                            if MPI and self.comm.size > 1:
+                                # In Fwd, allreduce the result of the dot product with the subjac.
+                                # Allocate buffer of same size and dtype for storing the result.
+                                func_dot_global = np.zeros_like(func_dot)
+                                self.comm.Allreduce(func_dot, func_dot_global, op=MPI.SUM)
+                                d_outputs[func] += func_dot_global
+                            else:
+                                # Recommended to make sure your code can run without MPI too, for testing.
+                                d_outputs[func] += func_dot
+
+            elif mode == 'rev':
+                if func in d_outputs:
+                    for input in inputs:
+                        if input in d_inputs:
+                            if MPI and self.comm.size > 1:
+                                # In Rev, allreduce the serial derivative vector before the dot product.
+                                # Allocate buffer of same size and dtype for storing the result.
+                                func_bar = np.zeros_like(d_outputs[func])
+                                self.comm.Allreduce(d_outputs[func], func_bar, op=MPI.SUM)
+                            else:
+                                # Recommended to make sure your code can run without MPI too, for testing.
+                                func_bar = d_outputs[func]
+
+                            solver.outputVectorJacobianProduct(of=func,
+                                                               inputs=input_dict,
+                                                               out_bar=func_bar,
+                                                               wrt=input,
+                                                               wrt_bar=d_inputs[input])
+        except NotImplementedError as err:
+            if self.options["check_partials"]:
+                pass
+            else:
+                raise err
+
 

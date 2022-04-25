@@ -32,7 +32,16 @@ TEST_CASE("ScalarL2IdentityProjection::apply")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::ScalarL2IdentityProjection op(state, dg_state);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -48,15 +57,15 @@ TEST_CASE("ScalarL2IdentityProjection::apply")
 
    dg_state.distributeSharedDofs(dg_state_tv);
 
-   /// Print fields
-   mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_scalar_identity", &mesh);
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(p+2);
-   pv.SetDataFormat(mfem::VTKFormat::ASCII);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("state", &state.gridFunc());
-   pv.RegisterField("dg_state", &dg_state.gridFunc());
-   pv.Save();
+   // /// Print fields
+   // mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_scalar_identity", &mesh);
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(p+2);
+   // pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("state", &state.gridFunc());
+   // pv.RegisterField("dg_state", &dg_state.gridFunc());
+   // pv.Save();
 }
 
 TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
@@ -84,7 +93,16 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::ScalarL2IdentityProjection op(state, dg_state);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -205,7 +223,7 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
       {"degree", p-1},
       {"basis-type", "DG"}});
 
-   mach::ScalarL2IdentityProjection op(state, dg_state);
+   mach::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
    mfem::FunctionCoefficient adj_coeff(
    [](const mfem::Vector &x)
@@ -299,7 +317,16 @@ TEST_CASE("L2IdentityProjection::apply")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2IdentityProjection op(state, dg_state);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -317,15 +344,15 @@ TEST_CASE("L2IdentityProjection::apply")
 
    dg_state.distributeSharedDofs(dg_state_tv);
 
-   /// Print fields
-   mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_identity", &mesh);
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(p+2);
-   pv.SetDataFormat(mfem::VTKFormat::ASCII);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("state", &state.gridFunc());
-   pv.RegisterField("dg_state", &dg_state.gridFunc());
-   pv.Save();
+   // /// Print fields
+   // mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_identity", &mesh);
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(p+2);
+   // pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("state", &state.gridFunc());
+   // pv.RegisterField("dg_state", &dg_state.gridFunc());
+   // pv.Save();
 }
 
 TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
@@ -357,7 +384,16 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2IdentityProjection op(state, dg_state);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -465,7 +501,7 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2IdentityProjection op(state, dg_state);
+   mach::L2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -565,7 +601,16 @@ TEST_CASE("L2CurlProjection::apply")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2CurlProjection op(state, dg_curl);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2CurlProjection op(state, mesh_coords, dg_curl);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -588,15 +633,15 @@ TEST_CASE("L2CurlProjection::apply")
    curl_op.Finalize();
    curl_op.Mult(state.gridFunc(), curl.gridFunc());
 
-   /// Print fields
-   mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_curl", &mesh);
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(p+2);
-   pv.SetDataFormat(mfem::VTKFormat::ASCII);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("curl", &curl.gridFunc());
-   pv.RegisterField("dg_curl", &dg_curl.gridFunc());
-   pv.Save();
+   // /// Print fields
+   // mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_curl", &mesh);
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(p+2);
+   // pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("curl", &curl.gridFunc());
+   // pv.RegisterField("dg_curl", &dg_curl.gridFunc());
+   // pv.Save();
 }
 
 TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
@@ -626,7 +671,16 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2CurlProjection op(state, dg_state);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2CurlProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -737,7 +791,7 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt mesh_coords")
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2CurlProjection op(state, dg_state);
+   mach::L2CurlProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -837,7 +891,16 @@ TEST_CASE("L2CurlMagnitudeProjection::apply")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::L2CurlMagnitudeProjection op(state, dg_curl);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_curl);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -860,15 +923,15 @@ TEST_CASE("L2CurlMagnitudeProjection::apply")
    curl_op.Finalize();
    curl_op.Mult(state.gridFunc(), curl.gridFunc());
 
-   /// Print fields
-   mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_curl_magnitude", &mesh);
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(p+2);
-   pv.SetDataFormat(mfem::VTKFormat::ASCII);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("curl", &curl.gridFunc());
-   pv.RegisterField("dg_curl_mag", &dg_curl.gridFunc());
-   pv.Save();
+   // /// Print fields
+   // mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_curl_magnitude", &mesh);
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(p+2);
+   // pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("curl", &curl.gridFunc());
+   // pv.RegisterField("dg_curl_mag", &dg_curl.gridFunc());
+   // pv.Save();
 }
 
 TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
@@ -897,7 +960,16 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::L2CurlMagnitudeProjection op(state, dg_state);
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -1007,7 +1079,7 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords")
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::L2CurlMagnitudeProjection op(state, dg_state);
+   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());

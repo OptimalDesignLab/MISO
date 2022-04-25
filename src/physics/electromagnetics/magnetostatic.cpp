@@ -100,6 +100,21 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       TorqueFunctional out(fes(), fields, options, nu);
       outputs.emplace(fun, std::move(out));
    }
+   else if (fun == "flux_density")
+   {
+      auto state_degree =
+          AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                      {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple(fun),
+                     std::forward_as_tuple(mesh(), dg_field_options, mesh().SpaceDimension()));
+
+      auto &dg_field = fields.at(fun);
+      L2CurlProjection out(
+          state(), fields.at("mesh_coords"), dg_field);
+      outputs.emplace(fun, std::move(out));
+   }
    else if (fun == "flux_magnitude")
    {
       auto state_degree =
@@ -111,7 +126,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple(mesh(), dg_field_options));
 
       auto &dg_field = fields.at(fun);
-      L2CurlMagnitudeProjection out(state(), dg_field);
+      L2CurlMagnitudeProjection out(
+          state(), fields.at("mesh_coords"), dg_field);
       outputs.emplace(fun, std::move(out));
    }
    else if (fun == "ac_loss")
@@ -121,10 +137,10 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       nlohmann::json dg_field_options{{"degree", state_degree},
                                       {"basis-type", "DG"}};
       fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("flux_magnitude"),
+                     std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
 
-      ACLossFunctional out(fields, sigma);
+      ACLossFunctional out(fields, sigma, options);
       outputs.emplace(fun, std::move(out));
    }
    else

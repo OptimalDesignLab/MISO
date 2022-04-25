@@ -790,33 +790,48 @@ namespace mach
 {
 ScalarL2IdentityProjection::ScalarL2IdentityProjection(
     FiniteElementState &state,
+    FiniteElementState &mesh_coords,
     FiniteElementState &output)
- : L2TransferOperator(state, output, std::make_unique<ScalarIdentityOperator>())
+ : L2TransferOperator(state,
+                      mesh_coords,
+                      output,
+                      std::make_unique<ScalarIdentityOperator>())
 { }
 
 L2IdentityProjection::L2IdentityProjection(FiniteElementState &state,
+                                           FiniteElementState &mesh_coords,
                                            FiniteElementState &output)
- : L2TransferOperator(state, output, std::make_unique<IdentityOperator>())
+ : L2TransferOperator(state,
+                      mesh_coords,
+                      output,
+                      std::make_unique<IdentityOperator>())
 { }
 
 L2CurlProjection::L2CurlProjection(FiniteElementState &state,
+                                   FiniteElementState &mesh_coords,
                                    FiniteElementState &output)
- : L2TransferOperator(state, output, std::make_unique<CurlOperator>())
+ : L2TransferOperator(state,
+                      mesh_coords,
+                      output,
+                      std::make_unique<CurlOperator>())
 { }
 
-L2CurlMagnitudeProjection::L2CurlMagnitudeProjection(FiniteElementState &state,
-                                                     FiniteElementState &output)
- : L2TransferOperator(state, output, std::make_unique<CurlMagnitudeOperator>())
+L2CurlMagnitudeProjection::L2CurlMagnitudeProjection(
+    FiniteElementState &state,
+    FiniteElementState &mesh_coords,
+    FiniteElementState &output)
+ : L2TransferOperator(state,
+                      mesh_coords,
+                      output,
+                      std::make_unique<CurlMagnitudeOperator>())
 { }
 
 void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
 {
+   setInputs(*this, inputs);
+
    out_vec = 0.0;
    output.gridFunc() = 0.0;
-
-   mfem::Vector state_tv;
-   setVectorFromInputs(inputs, "state", state_tv, false, true);
-   state.distributeSharedDofs(state_tv);
 
    const auto &state_fes = state.space();
    const auto &output_fes = output.space();
@@ -865,6 +880,7 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
    }
    else if (wrt == "state")
    {
+      state_bar.localVec() = 0.0;
       output_adjoint.distributeSharedDofs(out_bar);
 
       const auto &state_fes = state.space();
@@ -911,11 +927,13 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
          state_bar.localVec().AddElementVector(state_vdofs, el_state_bar);
       }
 
-      /// this should maybe accumulate into wrt_bar
-      state_bar.setTrueVec(wrt_bar);
+      scratch.SetSize(state_bar.space().GetTrueVSize());
+      state_bar.setTrueVec(scratch);
+      wrt_bar += scratch;
    }
    else if (wrt == "mesh_coords")
    {
+      mesh_coords_bar.localVec() = 0.0;
       output_adjoint.distributeSharedDofs(out_bar);
 
       const auto &state_fes = state.space();
@@ -973,8 +991,9 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
                                                      el_mesh_coords_bar);
       }
 
-      /// this should maybe accumulate into wrt_bar
-      mesh_coords_bar.setTrueVec(wrt_bar);
+      scratch.SetSize(mesh_coords_bar.space().GetTrueVSize());
+      mesh_coords_bar.setTrueVec(scratch);
+      wrt_bar += scratch;
    }
 }
 

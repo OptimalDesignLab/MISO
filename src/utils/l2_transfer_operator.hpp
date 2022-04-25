@@ -82,9 +82,11 @@ public:
                               mfem::Vector &wrt_bar);
 
    L2TransferOperator(FiniteElementState &state,
+                      FiniteElementState &mesh_coords,
                       FiniteElementState &output,
                       std::unique_ptr<L2TransferOperation> operation)
     : state(state),
+      mesh_coords(mesh_coords),
       output(output),
       output_adjoint(output.mesh(), output.space()),
       state_bar(state.mesh(), state.space()),
@@ -95,12 +97,15 @@ public:
       operation(std::move(operation))
    { }
 
-private:
+protected:
    FiniteElementState &state;
+   FiniteElementState &mesh_coords;
    FiniteElementState &output;
    FiniteElementState output_adjoint;
    FiniteElementDual state_bar;
    FiniteElementDual mesh_coords_bar;
+
+   mfem::Vector scratch;
 
    std::unique_ptr<L2TransferOperation> operation;
 };
@@ -111,6 +116,7 @@ class ScalarL2IdentityProjection : public L2TransferOperator
 {
 public:
    ScalarL2IdentityProjection(FiniteElementState &state,
+                              FiniteElementState &mesh_coords,
                               FiniteElementState &output);
 };
 
@@ -119,7 +125,10 @@ public:
 class L2IdentityProjection : public L2TransferOperator
 {
 public:
-   L2IdentityProjection(FiniteElementState &state, FiniteElementState &output);
+   L2IdentityProjection(FiniteElementState &state,
+                        FiniteElementState &mesh_coords,
+
+                        FiniteElementState &output);
 };
 
 /// Conveniece class that wraps the projection of the curl of the state to its
@@ -127,7 +136,16 @@ public:
 class L2CurlProjection : public L2TransferOperator
 {
 public:
-   L2CurlProjection(FiniteElementState &state, FiniteElementState &output);
+   L2CurlProjection(FiniteElementState &state,
+                    FiniteElementState &mesh_coords,
+                    FiniteElementState &output);
+
+   friend inline int getSize(const L2CurlProjection &output)
+   {
+      return output.output.space().GetTrueVSize();
+   }
+
+   friend void setInputs(L2CurlProjection &output, const MachInputs &inputs);
 };
 
 /// Conveniece class that wraps the projection of the magnitude of the curl of
@@ -136,14 +154,24 @@ class L2CurlMagnitudeProjection : public L2TransferOperator
 {
 public:
    L2CurlMagnitudeProjection(FiniteElementState &state,
+                             FiniteElementState &mesh_coords,
                              FiniteElementState &output);
 };
 
 inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
 {
    mfem::Vector state_tv;
-   setVectorFromInputs(inputs, "state", state_tv, false, true);
-   output.state.distributeSharedDofs(state_tv);
+   setVectorFromInputs(inputs, "state", state_tv);
+   if (state_tv.Size() > 0)
+   {
+      output.state.distributeSharedDofs(state_tv);
+   }
+   mfem::Vector mesh_coords_tv;
+   setVectorFromInputs(inputs, "mesh_coords", mesh_coords_tv);
+   if (mesh_coords_tv.Size() > 0)
+   {
+      output.mesh_coords.distributeSharedDofs(mesh_coords_tv);
+   }
 }
 
 inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
@@ -156,6 +184,14 @@ inline void calcOutput(L2CurlMagnitudeProjection &output,
                        mfem::Vector &out_vec)
 {
    output.apply(inputs, out_vec);
+}
+
+inline void vectorJacobianProduct(L2CurlMagnitudeProjection &output,
+                                  const mfem::Vector &out_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar)
+{
+   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
 }
 
 inline void calcOutput(L2TransferOperator &output,
@@ -171,6 +207,37 @@ inline void vectorJacobianProduct(L2TransferOperator &output,
                                   mfem::Vector &wrt_bar)
 {
    output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
+}
+
+inline void calcOutput(L2CurlProjection &output,
+                       const MachInputs &inputs,
+                       mfem::Vector &out_vec)
+{
+   output.apply(inputs, out_vec);
+}
+
+inline void vectorJacobianProduct(L2CurlProjection &output,
+                                  const mfem::Vector &out_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar)
+{
+   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
+}
+
+inline void setInputs(L2CurlProjection &output, const MachInputs &inputs)
+{
+   mfem::Vector state_tv;
+   setVectorFromInputs(inputs, "state", state_tv);
+   if (state_tv.Size() > 0)
+   {
+      output.state.distributeSharedDofs(state_tv);
+   }
+   mfem::Vector mesh_coords_tv;
+   setVectorFromInputs(inputs, "mesh_coords", mesh_coords_tv);
+   if (mesh_coords_tv.Size() > 0)
+   {
+      output.mesh_coords.distributeSharedDofs(mesh_coords_tv);
+   }
 }
 
 }  // namespace mach
