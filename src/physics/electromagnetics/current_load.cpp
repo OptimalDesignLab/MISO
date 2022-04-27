@@ -138,10 +138,12 @@ void vectorJacobianProduct(CurrentLoad &load,
       amg.SetPrintLevel(-1);
 
       HyprePCG pcg(*M_matT);
+      // HypreGMRES pcg(*M_matT);
       pcg.SetTol(1e-12);
       pcg.SetMaxIter(500);
       pcg.SetPrintLevel(2);
       pcg.SetPreconditioner(amg);
+      // pcg.SetKDim(100);
       pcg.Mult(RHS, X);
 
       load.nd_mass.RecoverFEMSolution(X, rhs, psi_j);
@@ -234,6 +236,17 @@ void CurrentLoad::assembleLoad()
    // pv.RegisterField("CurrentDensity", &j);
    // pv.Save();
 
+   mfem::ParaViewDataCollection paraview_dc("current_density",
+                                            j.ParFESpace()->GetParMesh());
+   paraview_dc.SetPrefixPath("ParaView");
+   paraview_dc.SetLevelsOfDetail(2);
+   paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   paraview_dc.SetHighOrderOutput(true);
+   paraview_dc.SetCycle(0);
+   paraview_dc.SetTime(0.0);
+   paraview_dc.RegisterField("current_density", &j);
+   paraview_dc.Save();
+
    /// assemble mass matrix
    delete nd_mass.LoseMat();
    nd_mass.Update();
@@ -256,16 +269,34 @@ void CurrentLoad::assembleLoad()
    // J.ParallelAssemble(RHS);
 
    HypreBoomerAMG amg(*M.As<HypreParMatrix>());
+   HypreILU ilu;
+   // HYPRE_ILUSetType(ilu, );
+   HYPRE_ILUSetLevelOfFill(ilu, 4);
+   // HYPRE_ILUSetLocalReordering(ilu, );
+   // HYPRE_ILUSetPrintLevel(ilu, );
+
    // HypreBoomerAMG amg(M);
    amg.SetPrintLevel(-1);
 
-   HyprePCG pcg(*M.As<HypreParMatrix>());
+   // HyprePCG pcg(*M.As<HypreParMatrix>());
+   HypreGMRES pcg(*M.As<HypreParMatrix>());
    // HyprePCG pcg(M);
+   // MINRESSolver pcg(fes.GetComm());
    pcg.SetTol(1e-12);
    pcg.SetMaxIter(250);
    pcg.SetPrintLevel(2);
-   pcg.SetPreconditioner(amg);
+   // pcg.SetPreconditioner(amg);
+   pcg.SetPreconditioner(ilu);
+   pcg.SetKDim(250);
+   pcg.SetOperator(*M.As<HypreParMatrix>());
+
+   std::cout << "Inverting current load mass matrix:\n";
    pcg.Mult(RHS, X);
+
+   Vector res(RHS.Size());
+   M->Mult(X, res);
+   res -= RHS;
+   std::cout << "Residual Norm: " << res.Norml2() << "\n";
 
    nd_mass.RecoverFEMSolution(X, J, j);
    // j.SetFromTrueDofs(X);
