@@ -2,6 +2,7 @@
 #include "mpi.h"
 #include "nlohmann/json.hpp"
 
+#include "coefficient.hpp"
 #include "mach_nonlinearform.hpp"
 #include "mesh_move_integ.hpp"
 #include "mfem_extensions.hpp"
@@ -69,6 +70,8 @@ public:
     : res(fes, fields),
       lambda_c(std::make_unique<mfem::ConstantCoefficient>(1.0)),
       mu_c(std::make_unique<mfem::ConstantCoefficient>(1.0)),
+      // lambda_c(std::make_unique<mach::LameFirstParameter>()),
+      // mu_c(std::make_unique<mach::LameSecondParameter>()),
       surface_indices(surface_indices),
       prec(constructPreconditioner(fes, options["lin-prec"]))
    {

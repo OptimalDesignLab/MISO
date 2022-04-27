@@ -947,6 +947,9 @@ private:
 class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
+   friend void setOptions(ACLossFunctionalIntegrator &integ,
+                          const nlohmann::json &options);
+
    friend void setInputs(ACLossFunctionalIntegrator &integ,
                          const MachInputs &inputs);
 
@@ -969,9 +972,9 @@ private:
    mfem::Coefficient &sigma;
    double freq = 1.0;
    double radius = 1.0;
-   double effective_length = 1.0;
-   double num_sih = 1.0;
-   double num_turns = 1.0;
+   double stack_length = 1.0;
+   double model_depth = 1.0;
+   double num_strands = 1.0;
    double slot_area = 1.0;
 
 #ifndef MFEM_THREAD_SAFE

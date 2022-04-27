@@ -43,6 +43,20 @@ mach::MeshDependentCoefficient constructSigma(const nlohmann::json &options,
    return sigma;
 }
 
+std::vector<int> getCurrentAttributes(nlohmann::json &options)
+{
+   std::vector<int> attributes;
+   for (const auto &group : options["current"])
+   {
+      for (const auto &source : group)
+      {
+         auto attrs = source.get<std::vector<int>>();
+         attributes.insert(attributes.end(), attrs.begin(), attrs.end());
+      }
+   }
+   return attributes;
+}
+
 }  // anonymous namespace
 
 namespace mach
@@ -140,7 +154,13 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
 
-      ACLossFunctional out(fields, sigma, options);
+      auto ac_loss_options = options;
+      ac_loss_options["attributes"] = getCurrentAttributes(AbstractSolver2::options);
+
+      std::cout << "ac loss options:\n";
+      std::cout << ac_loss_options << "\n";
+
+      ACLossFunctional out(fields, sigma, ac_loss_options);
       outputs.emplace(fun, std::move(out));
    }
    else

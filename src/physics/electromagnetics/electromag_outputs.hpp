@@ -103,16 +103,16 @@ public:
    }
 
    friend inline double jacobianVectorProduct(ForceFunctional &output,
-                                       const mfem::Vector &wrt_dot,
-                                       const std::string &wrt)
+                                              const mfem::Vector &wrt_dot,
+                                              const std::string &wrt)
    {
       return jacobianVectorProduct(output.output, wrt_dot, wrt);
    }
 
    friend inline void vectorJacobianProduct(ForceFunctional &output,
-                                     const mfem::Vector &out_bar,
-                                     const std::string &wrt,
-                                     mfem::Vector &wrt_bar)
+                                            const mfem::Vector &out_bar,
+                                            const std::string &wrt,
+                                            mfem::Vector &wrt_bar)
    {
       vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
    }
@@ -174,16 +174,16 @@ public:
    }
 
    friend inline double jacobianVectorProduct(TorqueFunctional &output,
-                                       const mfem::Vector &wrt_dot,
-                                       const std::string &wrt)
+                                              const mfem::Vector &wrt_dot,
+                                              const std::string &wrt)
    {
       return jacobianVectorProduct(output.output, wrt_dot, wrt);
    }
 
    friend inline void vectorJacobianProduct(TorqueFunctional &output,
-                                     const mfem::Vector &out_bar,
-                                     const std::string &wrt,
-                                     mfem::Vector &wrt_bar)
+                                            const mfem::Vector &out_bar,
+                                            const std::string &wrt,
+                                            mfem::Vector &wrt_bar)
    {
       vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
    }
@@ -214,6 +214,9 @@ public:
       return getSize(output.output);
    }
 
+   friend void setOptions(ACLossFunctional &output,
+                          const nlohmann::json &options);
+
    friend void setInputs(ACLossFunctional &output, const MachInputs &inputs);
 
    friend double calcOutput(ACLossFunctional &output, const MachInputs &inputs);
@@ -228,10 +231,12 @@ public:
                                  mfem::Vector &partial);
 
    ACLossFunctional(std::map<std::string, FiniteElementState> &fields,
-                    mfem::Coefficient &sigma);
+                    mfem::Coefficient &sigma,
+                    const nlohmann::json &options);
 
 private:
    FunctionalOutput output;
+   FunctionalOutput volume;
    std::map<std::string, FiniteElementState> &fields;
 };
 

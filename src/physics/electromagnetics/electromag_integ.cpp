@@ -2774,13 +2774,18 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
+void setOptions(ACLossFunctionalIntegrator &integ,
+                const nlohmann::json &options)
+{
+   integ.num_strands = options.value("num_strands", integ.num_strands);
+}
+
 void setInputs(ACLossFunctionalIntegrator &integ, const MachInputs &inputs)
 {
    setValueFromInputs(inputs, "strand_radius", integ.radius);
    setValueFromInputs(inputs, "frequency", integ.freq);
-   setValueFromInputs(inputs, "effective_length", integ.effective_length);
-   setValueFromInputs(inputs, "num_sih", integ.num_sih);
-   setValueFromInputs(inputs, "num_turns", integ.num_turns);
+   setValueFromInputs(inputs, "stack_length", integ.stack_length);
+   setValueFromInputs(inputs, "model_depth", integ.model_depth);
    setValueFromInputs(inputs, "slot_area", integ.slot_area);
 }
 
@@ -2830,12 +2835,14 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 
       const auto sigma_val = sigma.Eval(trans, ip);
 
-      const auto loss = effective_length * M_PI * pow(radius, 4) * sigma_val *
+      const auto loss = stack_length * M_PI * pow(radius, 4) * sigma_val *
                         pow(freq * b_mag, 2) / 32.0;
 
-      fun += loss * num_turns * num_sih * w / slot_area;
+      // fun += loss * num_strands * w / (slot_area * model_depth);
       // fun += loss * w * pow(num_sih, 2) * num_turns * fill_factor /
       // slot_area;
+
+      fun += loss * num_strands * w;
    }
    return fun;
 }
