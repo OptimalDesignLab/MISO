@@ -122,11 +122,11 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                                       {"basis-type", "DG"}};
       fields.emplace(std::piecewise_construct,
                      std::forward_as_tuple(fun),
-                     std::forward_as_tuple(mesh(), dg_field_options, mesh().SpaceDimension()));
+                     std::forward_as_tuple(
+                         mesh(), dg_field_options, mesh().SpaceDimension()));
 
       auto &dg_field = fields.at(fun);
-      L2CurlProjection out(
-          state(), fields.at("mesh_coords"), dg_field);
+      L2CurlProjection out(state(), fields.at("mesh_coords"), dg_field);
       outputs.emplace(fun, std::move(out));
    }
    else if (fun == "flux_magnitude")
@@ -155,7 +155,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple(mesh(), dg_field_options));
 
       auto ac_loss_options = options;
-      ac_loss_options["attributes"] = getCurrentAttributes(AbstractSolver2::options);
+      ac_loss_options["attributes"] =
+          getCurrentAttributes(AbstractSolver2::options);
 
       std::cout << "ac loss options:\n";
       std::cout << ac_loss_options << "\n";

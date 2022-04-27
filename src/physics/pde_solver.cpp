@@ -230,7 +230,7 @@ MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
    MachMesh mesh;
    if (mesh_ext == "ugrid")
    {
-      gmi_model *g = gmi_load(model_file.c_str()); // will this leak?
+      gmi_model *g = gmi_load(model_file.c_str());  // will this leak?
       mesh.pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
           apf::loadMdsFromUgrid(g, mesh_file.c_str()));
    }

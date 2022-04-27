@@ -70,7 +70,8 @@ ACLossFunctional::ACLossFunctional(
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma), attributes);
+      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma),
+                                       attributes);
       volume.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
    }
    else
