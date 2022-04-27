@@ -140,7 +140,7 @@ protected:
    /// \brief The name of the finite element vector
    std::string name_;
 
-   static mfem::Vector true_vec;
+   // static mfem::Vector true_vec;
 };
 
 // /// \brief Find the average value of a finite element vector across all dofs

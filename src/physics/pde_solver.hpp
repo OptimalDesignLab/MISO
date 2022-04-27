@@ -131,6 +131,19 @@ protected:
 
    void setUpExternalFields();
 
+   void initialHook(const mfem::Vector &state) override
+   {
+      int inverted_elems = mesh().CheckElementOrientation(false);
+      if (inverted_elems > 0)
+      {
+         throw MachException("Mesh contains inverted elements!\n");
+      }
+      else
+      {
+         std::cout << "No inverted elements!\n";
+      }
+   }
+
    void setState_(std::any function,
                   const std::string &name,
                   mfem::Vector &state) override;

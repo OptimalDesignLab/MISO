@@ -23,7 +23,7 @@ def _getPhysicsAbbreviation(solver_options):
 
 class MachCouplingGroup(om.Group):
     def initialize(self):
-        self.options.declare("solver", type=PDESolver, recordable=False)
+        self.options.declare("solver", types=PDESolver, recordable=False)
         self.options.declare("depends", types=list)
         self.options.declare("check_partials", default=False)
         self.options.declare("scenario_name", default=None)
@@ -44,16 +44,16 @@ class MachCouplingGroup(om.Group):
                            promotes_inputs=[*self.depends, ("mesh_coords", mesh_input)],
                            promotes_outputs=[("state", state_output)])
 
-class MachPrecouplingGroup:
+class MachPrecouplingGroup(om.Group):
     """
     Group that handles surface -> volume mesh movement
 
-    To properly support parallel analysis, I'll need to have this component
+    To properly support parallel analysis, I"ll need to have this component
     partition the input surface coords
     """
     def initialize(self):
-        self.options.declare("solver", type=PDESolver, recordable=False)
-        self.options.declare("warper", type=MeshWarper, recordable=False)
+        self.options.declare("solver", types=PDESolver, recordable=False)
+        self.options.declare("warper", types=MeshWarper, recordable=False)
         self.options.declare("scenario_name", default=None)
 
     def setup(self):
@@ -64,18 +64,18 @@ class MachPrecouplingGroup:
         solver_options = self.solver.getOptions()
         mesh_input = "x_" + _getPhysicsAbbreviation(solver_options)
         mesh_output = "x_" + _getPhysicsAbbreviation(solver_options) + "_vol"
-        self.add_subsystem("solver",
+        self.add_subsystem("warper",
                            MachMeshWarper(warper=self.warper),
                            promotes_inputs=[("surf_mesh_coords", mesh_input)],
                            promotes_outputs=[("vol_mesh_coords", mesh_output)])
 
-class MachOutputsGroup:
+class MachOutputsGroup(om.Group):
     """
     Group that handles calculating outputs after the state solve
     """
     def initialize(self):
-        self.options.declare("solver", type=PDESolver, recordable=False)
-        self.options.declare("outputs", type=dict, default=None)
+        self.options.declare("solver", types=PDESolver, recordable=False)
+        self.options.declare("outputs", types=dict, default=None)
         self.options.declare("scenario_name", default=None)
 
     def setup(self):
@@ -115,19 +115,20 @@ class MachMesh(om.IndepVarComp):
     """
 
     def initialize(self):
-        self.options.declare('solver', default=None, desc='the mach solver object itself', recordable=False)
-        self.options.declare('warper', default=None, desc='the mesh warper object itself', recordable=False)
+        self.options.declare("solver", default=None, desc="the mach solver object itself", recordable=False)
+        self.options.declare("warper", default=None, desc="the mesh warper object itself", recordable=False)
+        self.options.declare("scenario_name", default=None)
 
     def setup(self):
-        solver = self.options['solver']
-        warper = self.options['warper']
+        solver = self.options["solver"]
+        warper = self.options["warper"]
 
-        if isinstance(warper, MachMeshWarper):
+        if isinstance(warper, MeshWarper):
             local_surf_mesh_size = warper.getSurfaceCoordsSize()
             surf_coords = np.empty(local_surf_mesh_size)
             warper.getInitialSurfaceCoords(surf_coords)
         else:
-            raise NotImplementedError("MachMesh class not implemented for mesh warpers besides MachMeshWarper!\n")
+            raise NotImplementedError("MachMesh class only implemented for MachMeshWarper!\n")
 
         solver_options = solver.getOptions()
         mesh_output = "x_" + _getPhysicsAbbreviation(solver_options) + "0"
@@ -135,22 +136,23 @@ class MachMesh(om.IndepVarComp):
         self.add_output(mesh_output,
                         distributed=True,
                         val=surf_coords,
-                        desc='surface mesh node coordinates',
-                        tags=['mphys_coordinates'])
+                        desc="surface mesh node coordinates",
+                        tags=["mphys_coordinates"])
 
 class MachMeshGroup(om.Group):
     def initialize(self):
-        self.options.declare('solver', default=None, desc='the mach solver object itself', recordable=False)
-        self.options.declare('warper', default=None, desc='the mesh warper object itself', recordable=False)
+        self.options.declare("solver", default=None, desc="the mach solver object itself", recordable=False)
+        self.options.declare("warper", default=None, desc="the mesh warper object itself", recordable=False)
+        self.options.declare("scenario_name", default=None)
 
     def setup(self):
         solver = self.options["solver"]
-        warper = self.options['warper']
+        warper = self.options["warper"]
 
         solver_options = solver.getOptions()
         mesh_output = "x_" + _getPhysicsAbbreviation(solver_options) + "0"
 
-        self.add_subsystem('mesh',
+        self.add_subsystem("mesh",
                            MachMesh(solver=solver, warper=warper),
                            promotes_outputs=[mesh_output])
 

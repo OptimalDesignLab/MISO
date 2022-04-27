@@ -119,6 +119,7 @@ MachMesh::MachMesh()
       gmi_egads_start();
 #endif
       gmi_register_mesh();
+      gmi_register_null();
    }
    ++pumi_mesh_count;
 }
@@ -192,7 +193,7 @@ MachMesh constructMesh(MPI_Comm comm,
       mesh.mesh = std::make_unique<mfem::ParMesh>(comm, *smesh);
    }
    // PUMI mesh
-   else if (mesh_ext == "smb")
+   else if (mesh_ext == "smb" || mesh_ext == "ugrid")
    {
       mesh = constructPumiMesh(comm, mesh_options);
    }
@@ -217,14 +218,27 @@ MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
 #ifdef MFEM_USE_PUMI  // if using pumi mesh
    auto model_file = mesh_options["model-file"].get<std::string>();
    auto mesh_file = mesh_options["file"].get<std::string>();
-
+   std::string mesh_ext;
+   std::size_t i = mesh_file.rfind('.', mesh_file.length());
+   if (i != std::string::npos)
+   {
+      mesh_ext = (mesh_file.substr(i + 1, mesh_file.length() - i));
+   }
    /// Switch PUMI MPI Comm to the mesh's comm
    PCU_Switch_Comm(comm);
 
    MachMesh mesh;
-   mesh.pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
-       apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
-
+   if (mesh_ext == "ugrid")
+   {
+      gmi_model *g = gmi_load(model_file.c_str()); // will this leak?
+      mesh.pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
+          apf::loadMdsFromUgrid(g, mesh_file.c_str()));
+   }
+   else if (mesh_ext == "smb")
+   {
+      mesh.pumi_mesh = std::unique_ptr<apf::Mesh2, pumiDeleter>(
+          apf::loadMdsMesh(model_file.c_str(), mesh_file.c_str()));
+   }
    auto &pumi_mesh = mesh.pumi_mesh;
 
    /// TODO: change this to use options
@@ -236,7 +250,7 @@ MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
    //     bc.run();
    // }
 
-   pumi_mesh->verify();
+   // pumi_mesh->verify();
 
    auto *aux_num = apf::createNumbering(
        pumi_mesh.get(), "aux_numbering", pumi_mesh->getShape(), 1);

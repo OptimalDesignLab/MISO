@@ -390,6 +390,12 @@ public:
                          const mfem::IntegrationPoint &ip,
                          double state) override;
 
+   void EvalRevDiff(const double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
    ~NonlinearReluctivityCoefficient();
 
 protected:

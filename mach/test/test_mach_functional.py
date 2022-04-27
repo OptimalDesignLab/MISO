@@ -227,12 +227,7 @@ class TestEMFunctionals(unittest.TestCase):
                              comm=prob.comm)
 
         state_size = emSolver.getFieldSize("state")
-        state = np.zeros(state_size)
-        inputs = {
-            "current_density:test": 3e6,
-            "state": state
-        }
-        emSolver.solveForState(inputs, state)
+        state = np.random.randn(state_size)
 
         ivc = prob.model.add_subsystem("ivc",
                                        om.IndepVarComp(),
@@ -250,7 +245,7 @@ class TestEMFunctionals(unittest.TestCase):
                                                            depends=["state", "mesh_coords"]),
                                             promotes_inputs=[("mesh_coords", "x_em0"), "state"],
                                             promotes_outputs=["flux_magnitude"])
-        flux_mag.set_check_partial_options(wrt="*", directional=False)
+        flux_mag.set_check_partial_options(wrt="*", directional=True)
 
         prob.setup()
         prob.run_model()
@@ -266,12 +261,7 @@ class TestEMFunctionals(unittest.TestCase):
                              comm=prob.comm)
 
         state_size = emSolver.getFieldSize("state")
-        state = np.zeros(state_size)
-        inputs = {
-            "current_density:test": 3e6,
-            "state": state
-        }
-        emSolver.solveForState(inputs, state)
+        state = np.random.randn(state_size)
 
         ivc = prob.model.add_subsystem("ivc",
                                        om.IndepVarComp(),

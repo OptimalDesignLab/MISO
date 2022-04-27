@@ -316,7 +316,14 @@ void AbstractSolver2::calcOutput(const std::string &output,
          throw MachException("Did not find " + output + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
-      mach::calcOutput(output_iter->second, inputs, out_vec);
+      if (out_vec.Size() == 1)
+      {
+         out_vec(0) = mach::calcOutput(output_iter->second, inputs);
+      }
+      else
+      {
+         mach::calcOutput(output_iter->second, inputs, out_vec);
+      }
    }
    catch (const std::out_of_range &exception)
    {

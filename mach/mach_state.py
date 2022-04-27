@@ -50,25 +50,44 @@ class MachState(om.ImplicitComponent):
     def setup(self):
         solver = self.options["solver"]
 
+        # hold map of vector-valued I/O names -> contiguous vectors to pass to Mach
+        self.vectors = dict()
+
+        # state inputs
         solver_options = solver.getOptions()
         ext_fields = "external-fields" in solver_options
         for input in self.options["depends"]:
-            if ext_fields and input in solver_options["external-fields"]:
-                self.add_input(input,
-                               shape=solver.getFieldSize(input),
-                               tags=["mphys_coupling"])
+            if input == "mesh_coords":
+                mesh_coords_size = solver.getFieldSize("mesh_coords")
+                self.add_input("mesh_coords",
+                               shape=mesh_coords_size,
+                               #    distributed=True,
+                               #    shape_by_conn=True,
+                               desc="volume mesh node coordinates",
+                               tags=["mphys_coordinates"])
+                self.vectors["mesh_coords"] = np.empty(mesh_coords_size)
             else:
-                self.add_input(input,
-                               tags=["mphys_input"])
+                input_size = solver.getFieldSize(input)
+                if input_size == 0:
+                    input_size = 1
+                if ext_fields and input in solver_options["external-fields"]:
+                    self.add_input(input,
+                                   shape=input_size,
+                                   tags=["mphys_coupling"])
+                else:
+                    self.add_input(input,
+                                   shape=input_size,
+                                   tags=["mphys_input"])
+                if input_size > 1:
+                    self.vectors[input] = np.empty(input_size)
 
-        # state inputs
-        # mesh_name = _getMeshCoordsName(solver_options)
-
-        self.add_input("mesh_coords",
-                       distributed=True,
-                       shape_by_conn=True,
-                       desc="volume mesh node coordinates",
-                       tags=["mphys_coordinates"])
+        # mesh_coords_size = solver.getFieldSize("mesh_coords")
+        # self.add_input("mesh_coords",
+        #                shape=mesh_coords_size,
+        #             #    distributed=True,
+        #             #    shape_by_conn=True,
+        #                desc="volume mesh node coordinates",
+        #                tags=["mphys_coordinates"])
 
         # state outputs
         local_state_size = solver.getStateSize()
@@ -78,30 +97,66 @@ class MachState(om.ImplicitComponent):
                         distributed=True,
                         desc="Mach state vector",
                         tags=["mphys_coupling"])
+        self.vectors["state"] = state
+        self.vectors["state_res"] = np.empty_like(state)
 
     def apply_nonlinear(self, inputs, outputs, residuals):
         solver = self.options["solver"]
 
+        # Copy vector inputs into internal contiguous data buffers
+        for input in inputs:
+            if input in self.vectors:
+                self.vectors[input][:] = inputs[input][:]
+
+        # Copy vector outputs into internal contiguous data buffers
+        for output in outputs:
+            if output in self.vectors:
+                self.vectors[output][:] = outputs[output][:]
+
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
-        solver.calcResidual(input_dict, residuals["state"])
+        input_dict.update(self.vectors)   
+
+        residual = self.vectors["state_res"]     
+        solver.calcResidual(input_dict, residual)
+        residuals["state"][:] = residual[:]
 
     def solve_nonlinear(self, inputs, outputs):
         solver = self.options["solver"]
 
-        state = outputs["state"]
-        # if (self.options["initial_condition"] is not None):
-        #     u_init = self.options["initial_condition"]
-        #     solver.setFieldValue(state, u_init)
+        # Copy vector inputs into internal contiguous data buffers
+        for input in inputs:
+            if input in self.vectors:
+                self.vectors[input][:] = inputs[input][:]
+
+        # Copy vector outputs into internal contiguous data buffers
+        for output in outputs:
+            if output in self.vectors:
+                self.vectors[output][:] = outputs[output][:]
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+        input_dict.update(self.vectors)        
+
+        state = self.vectors["state"]
         solver.solveForState(input_dict, state)
+        outputs["state"][:] = state[:]
 
     def linearize(self, inputs, outputs, residuals):
         # cache inputs
+        # Copy vector inputs into internal contiguous data buffers
+        for input in inputs:
+            if input in self.vectors:
+                self.vectors[input][:] = inputs[input][:]
+
+        # Copy vector outputs into internal contiguous data buffers
+        for output in outputs:
+            if output in self.vectors:
+                self.vectors[output][:] = outputs[output][:]
+
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
+        input_dict.update(self.vectors)        
         self.linear_inputs = input_dict
 
         solver = self.options["solver"]
