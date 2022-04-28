@@ -310,11 +310,11 @@ auto useAny(std::any &any, T lambda, Ts... rest) ->
    }
 }
 
-/// \brief helper function to populate the @a ess_bdr array based on options
-/// \param[in] options - options dictionary containing "ess-bdr" key
-/// \param[out] ess_bdr - binary array that marks essential boundaries
-void getEssentialBoundaries(const nlohmann::json &options,
-                            mfem::Array<int> &ess_bdr);
+/// \brief helper function to populate the @a bdr_arr array based on JSON data
+/// \param[in] boundary - JSON value containing boundary data
+/// \param[out] bdr_arr - binary array that marks boundaries in MFEM format
+void getMFEMBoundaryArray(const nlohmann::json &boundary,
+                          mfem::Array<int> &bdr_arr);
 
 // /// The following are adapted from MFEM's pfem_extras.xpp
 // class DiscreteGradOperator : public mfem::ParDiscreteLinearOperator
@@ -344,17 +344,22 @@ void getEssentialBoundaries(const nlohmann::json &options,
 // class IrrotationalProjector : public mfem::Operator
 // {
 // public:
-//    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
+//    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector
+//    field,
 //    // compute the Nedelec DoFs of the irrotational portion, 'y', of
-//    // this vector field.  The resulting GridFunction will satisfy Curl y = 0
+//    // this vector field.  The resulting GridFunction will satisfy Curl y
+//    = 0
 //    // to machine precision.
 //    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
 //    /// \brief Reverse-mode differentiation of IrrotationalProjector::Mult
-//    /// \param[in] proj_bar - derivative of some output w.r.t. the projection
-//    /// \param[in] wrt - string indicating what to take the derivative w.r.t.
-//    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t. @a
-//    wrt void vectorJacobianProduct(const mfem::ParGridFunction &proj_bar,
+//    /// \param[in] proj_bar - derivative of some output w.r.t. the
+//    projection
+//    /// \param[in] wrt - string indicating what to take the derivative
+//    w.r.t.
+//    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t.
+//    @a wrt void vectorJacobianProduct(const mfem::ParGridFunction
+//    &proj_bar,
 //                               std::string wrt,
 //                               mfem::ParGridFunction &wrt_bar);
 
@@ -393,17 +398,23 @@ void getEssentialBoundaries(const nlohmann::json &options,
 // class DivergenceFreeProjector : public IrrotationalProjector
 // {
 // public:
-//    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
+//    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector
+//    field,
 //    // compute the Nedelec DoFs of the divergence free portion, 'y', of
-//    // this vector field.  The resulting GridFunction will satisfy Div y = 0
+//    // this vector field.  The resulting GridFunction will satisfy Div y =
+//    0
 //    // in a weak sense.
 //    virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
 
-//    /// \brief Reverse-mode differentiation of DivergenceFreeProjector::Mult
-//    /// \param[in] proj_bar - derivative of some output w.r.t. the projection
-//    /// \param[in] wrt - string indicating what to take the derivative w.r.t.
-//    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t. @a
-//    wrt void vectorJacobianProduct(const mfem::ParGridFunction &proj_bar,
+//    /// \brief Reverse-mode differentiation of
+//    DivergenceFreeProjector::Mult
+//    /// \param[in] proj_bar - derivative of some output w.r.t. the
+//    projection
+//    /// \param[in] wrt - string indicating what to take the derivative
+//    w.r.t.
+//    /// \param[inout] wrt_bar - accumulated sensitivity of output w.r.t.
+//    @a wrt void vectorJacobianProduct(const mfem::ParGridFunction
+//    &proj_bar,
 //                               std::string wrt,
 //                               mfem::ParGridFunction &wrt_bar);
 

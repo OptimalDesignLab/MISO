@@ -198,9 +198,12 @@ void MachNonlinearForm::addBdrFaceIntegrator(
     const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   bdr_markers.emplace_back(bdr_attr_marker.size());
-   bdr_markers.back().Assign(bdr_attr_marker.data());
-   nf.AddBdrFaceIntegrator(integrator, bdr_markers.back());
+
+   auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Size();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
+
+   nf.AddBdrFaceIntegrator(integrator, marker);
    addSensitivityIntegrator(*integrator,
                             nf_fields,
                             rev_sens,

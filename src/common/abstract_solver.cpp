@@ -125,7 +125,7 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       for (auto &pair : loggers)
       {
          auto &logger = pair.first;
-         logState(logger, state, "state", 0, 0.0, rank);
+         logState(logger, state, "state", 1, 1.0, rank);
       }
    }
 }

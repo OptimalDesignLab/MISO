@@ -38,7 +38,7 @@ void setOptions(CurrentLoad &load, const nlohmann::json &options)
       {
          auto fes = load.fes;
          mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-         getEssentialBoundaries(options["bcs"], ess_bdr);
+         getMFEMBoundaryArray(options["bcs"]["essential"], ess_bdr);
          fes.GetEssentialTrueDofs(ess_bdr, load.ess_tdof_list);
       }
    }

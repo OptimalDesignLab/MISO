@@ -88,37 +88,34 @@ HypreParVector bufferToHypreParVector(double *buffer,
        fes.GetComm(), fes.GlobalTrueVSize(), buffer, fes.GetTrueDofOffsets()};
 }
 
-void getEssentialBoundaries(const nlohmann::json &options,
-                            mfem::Array<int> &ess_bdr)
+void getMFEMBoundaryArray(const nlohmann::json &boundary,
+                          mfem::Array<int> &bdr_arr)
 {
-   ess_bdr = 0;
-   if (options["essential"].is_string())
+   bdr_arr = 0;
+   if (boundary.is_string())
    {
-      auto tmp = options["essential"].get<std::string>();
+      auto tmp = boundary.get<std::string>();
       if (tmp == "all")
       {
-         ess_bdr = 1;
+         bdr_arr = 1;
       }
       else if (tmp == "none")
       {
-         ess_bdr = 0;
+         bdr_arr = 0;
       }
       else
       {
-         throw MachException("Unrecognized string for \"essential\" options!");
+         throw MachException("Unrecognized string for boundary!");
       }
    }
-   else if (options["essential"].is_array())
+   else if (boundary.is_array())
    {
-      auto tmp = options["essential"].get<std::vector<int>>();
-      for (auto &bdr : tmp)
-      {
-         ess_bdr[bdr - 1] = 1;
-      }
+      auto tmp = boundary.get<std::vector<int>>();
+      attrVecToArray(tmp, bdr_arr);
    }
    else
    {
-      throw MachException("Unrecognized JSON value for \"essential\" options!");
+      throw MachException("Unrecognized JSON value for boundary!");
    }
 }
 

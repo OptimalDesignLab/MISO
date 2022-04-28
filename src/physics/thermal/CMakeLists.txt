@@ -1,23 +1,16 @@
 set(MACH_PHYSICS_THERMAL_HEADERS
+   thermal_integ.hpp
+   thermal_residual.hpp
    thermal.hpp
-   therm_integ.hpp
-   temp_integ.hpp
 )
 
 target_sources(mach
    PRIVATE
+      thermal_integ.cpp
+      thermal_residual.cpp
       thermal.cpp
-      therm_integ.cpp
-      temp_integ.cpp
-      thermal_verify.cpp
       ${MACH_PHYSICS_THERMAL_HEADERS}
 )
-
-# get_target_property(MACH_PUBLIC_HEADERS mach PUBLIC_HEADER)
-# set(MACH_PUBLIC_HEADERS ${MACH_PUBLIC_HEADERS} ${MACH_PHYSICS_THERMAL_HEADERS})
-# set_target_properties(mach PROPERTIES
-#    PUBLIC_HEADER "${MACH_PUBLIC_HEADERS}"
-# )
 
 add_public_headers_to_target(mach "${MACH_PHYSICS_THERMAL_HEADERS}")
 

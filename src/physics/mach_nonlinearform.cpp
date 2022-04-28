@@ -45,7 +45,7 @@ void setOptions(MachNonlinearForm &form, const nlohmann::json &options)
       {
          auto &fes = *form.nf.ParFESpace();
          form.ess_bdr.SetSize(fes.GetParMesh()->bdr_attributes.Max());
-         getEssentialBoundaries(options["bcs"], form.ess_bdr);
+         getMFEMBoundaryArray(options["bcs"]["essential"], form.ess_bdr);
          mfem::Array<int> ess_tdof_list;
          fes.GetEssentialTrueDofs(form.ess_bdr, ess_tdof_list);
          form.nf.SetEssentialTrueDofs(ess_tdof_list);

@@ -133,6 +133,8 @@ protected:
 
    void initialHook(const mfem::Vector &state) override
    {
+      AbstractSolver2::initialHook(state);
+
       int inverted_elems = mesh().CheckElementOrientation(false);
       if (inverted_elems > 0)
       {

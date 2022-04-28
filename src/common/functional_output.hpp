@@ -183,11 +183,11 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
     std::vector<int> bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   //    auto &marker = bdr_markers.emplace_back(bdr_attr_marker.size());
-   //    marker.Assign(bdr_attr_marker.data());
+
    auto mesh_attr_size = output.ParFESpace()->GetMesh()->bdr_attributes.Size();
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
+
    output.AddBdrFaceIntegrator(integrator, marker);
    addSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
