@@ -46,14 +46,23 @@ using namespace mach;
 
 TEST_CASE("ThermalSolver Box Regression Test")
 {
+   // define the target state solution error
+   std::vector<std::vector<double>> target_error = {
+      // nxy = 2, nxy = 4, nyx = 8, nyx = 16, nxy = 32
+      {0.0,     0.0,     0.0,      0.0,      0.0}, // p = 1
+      {0.0,     0.0,     0.0,      0.0,      0.0}, // p = 2
+      {0.0,     0.0,     0.0,      0.0,      0.0}, // p = 3
+      {0.0,     0.0,     0.0,      0.0,      0.0}  // p = 4
+   };
+
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 1; ++order)
+   for (int order = 1; order <= 2; ++order)
    {
       options["space-dis"]["degree"] = order;
       int nxy = 1;
-      for (int ref = 1; ref <= 1; ++ref)
+      for (int ref = 1; ref <= 2; ++ref)
       {  
          nxy *= 2;
          DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
@@ -91,7 +100,7 @@ TEST_CASE("ThermalSolver Box Regression Test")
 
             std::cout.precision(10);
             std::cout << "error: " << error << "\n";
-            // REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
+            REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
             // /// Calculate the magnetic energy and check against target energy
             // solver.createOutput("energy");
@@ -103,181 +112,3 @@ TEST_CASE("ThermalSolver Box Regression Test")
       }
    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// #include "catch.hpp"
-// #include "mfem.hpp"
-// #include "thermal.hpp"
-
-// #include <fstream>
-// #include <iostream>
-
-// using namespace std;
-// using namespace mfem;
-// using namespace mach;
-
-// // Provide the options explicitly for regression tests
-// auto options = R"(
-// {
-//    "print-options": false,
-//    "mesh": {
-//       "file": "initial.mesh",
-//       "num-edge-x": 20,
-//       "num-edge-y": 5,
-//       "num-edge-z": 5
-//    },
-//    "space-dis": {
-//       "basis-type": "H1",
-//       "degree": 1,
-//       "GD": false
-//    },
-//    "steady": false,
-//    "time-dis": {
-//       "ode-solver": "MIDPOINT",
-//       "const-cfl": true,
-//       "cfl": 1.0,
-//       "dt": 0.01,
-//       "t-final": 0.2
-//    },
-//    "lin-prec": {
-//       "type": "hypreboomeramg"
-//    },
-//    "lin-solver": {
-//       "reltol": 1e-14,
-//       "abstol": 0.0,
-//       "printlevel": 0,
-//       "maxiter": 500
-//    },
-//    "adj-solver":{
-//       "reltol": 1e-8,
-//       "abstol": 0.0,
-//       "printlevel": 0,
-//       "maxiter": 500
-//    },
-//    "nonlin-solver":{
-//       "printlevel": 0
-//    },
-//    "components": {
-//       "stator": {
-//          "material": "regtestmat1",
-//          "attr": 1,
-//          "max-temp": 0.5
-//       },
-//       "rotor": {
-//          "material": "regtestmat1",
-//          "attr": 2,
-//          "max-temp": 0.5
-//       }
-//    },
-//    "bcs": {
-//       "outflux": [0, 0, 1, 0, 1, 0]
-//    },
-//    "outputs": {
-//       "temp-agg": "temp-agg"
-//    },
-//    "problem-opts": {
-//       "outflux-type": "test",
-//       "rho-agg": 10,
-//       "max-temp": 0.1,
-//       "init-temp": 300,
-//       "current_density": 1,
-//       "frequency": 1500
-//    }
-// })"_json;
-
-
-// static double temp_0;
-
-// static double t_final;
-
-// static double InitialTemperature(const Vector &x);
-
-// static double ExactSolution(const Vector &x);
-
-// TEST_CASE("Thermal Cube Solver Regression Test", "[thermal]")
-// {
-//    temp_0 = options["problem-opts"]["init-temp"].get<double>();
-//    t_final = options["time-dis"]["t-final"].get<double>();
-//    double target_error[4] {
-//       0.0548041517, 0.0137142199, 0.0060951886, 0.0034275387
-//    };
-
-//    for (int h = 1; h <= 4; ++h)
-//    {
-//       DYNAMIC_SECTION("...for mesh sizing h = " << h)
-//       {
-//          // generate a simple tet mesh
-//          int num_edge_x = 2*h;
-//          int num_edge_y = 2;
-//          int num_edge_z = 2;
-
-//          std::unique_ptr<Mesh> mesh(
-//             new Mesh(Mesh::MakeCartesian3D(num_edge_x, num_edge_y, num_edge_z,
-//                                            Element::HEXAHEDRON,
-//                                            1.0, 1.0, 1.0, true)));
-
-//          std::cout << "Number of Boundary Attributes: "<< mesh->bdr_attributes.Size() <<std::endl;
-//          // assign attributes to top and bottom sides
-//          for (int i = 0; i < mesh->GetNE(); ++i)
-//          {
-//             Element *elem = mesh->GetElement(i);
-
-//             Array<int> verts;
-//             elem->GetVertices(verts);
-
-//             bool below = true;
-//             for (int i = 0; i < 4; ++i)
-//             {
-//                auto vtx = mesh->GetVertex(verts[i]);
-//                if (vtx[0] <= 0.5)
-//                {
-//                   below = below & true;
-//                }
-//                else
-//                {
-//                   below = below & false;
-//                }
-//             }
-//             if (below)
-//             {
-//                elem->SetAttribute(1);
-//             }
-//             else
-//             {
-//                elem->SetAttribute(2);
-//             }
-//          }
-//          mesh->SetAttributes();
-
-//          auto solver = createSolver<ThermalSolver>(options, move(mesh));
-//          solver->setInitialCondition(InitialTemperature);
-//          solver->solveForState();
-//          solver->printSolution("thermal_final", 0);
-//          double l2_error = solver->calcL2Error(ExactSolution);
-//          REQUIRE(l2_error == Approx(target_error[h-1]).margin(1e-10));
-//       }
-//    }
-// }
-
-// double InitialTemperature(const Vector &x)
-// {
-//    return sin(M_PI*x(0)/2) - x(0)*x(0)/2;
-// }
-
-// double ExactSolution(const Vector &x)
-// {
-//    return sin(M_PI*x(0)/2)*exp(-M_PI*M_PI*t_final/4) - x(0)*x(0)/2 - 0.2;
-// }
