@@ -17,6 +17,12 @@ int getSize(const ThermalResidual &residual) { return getSize(residual.res); }
 void setInputs(ThermalResidual &residual, const mach::MachInputs &inputs)
 {
    setInputs(residual.res, inputs);
+
+   setVectorFromInputs(inputs, "thermal_load", residual.load);
+   if (residual.load.Size() != 0)
+   {
+      residual.load.SetSubVector(residual.res.getEssentialDofs(), 0.0);
+   }
 }
 
 void setOptions(ThermalResidual &residual, const nlohmann::json &options)
@@ -29,6 +35,11 @@ void evaluate(ThermalResidual &residual,
               mfem::Vector &res_vec)
 {
    evaluate(residual.res, inputs, res_vec);
+
+   if (residual.load.Size() == res_vec.Size())
+   {
+      res_vec.Add(-1.0, residual.load);
+   }
 }
 
 void linearize(ThermalResidual &residual, const mach::MachInputs &inputs)

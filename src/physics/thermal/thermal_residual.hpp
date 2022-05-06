@@ -83,6 +83,9 @@ private:
    /// (at constant volume)
    std::unique_ptr<MeshDependentCoefficient> cv;
 
+   /// Right-hand-side load vector to apply to residual
+   mfem::Vector load;
+
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
 
