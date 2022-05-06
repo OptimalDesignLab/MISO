@@ -26,8 +26,8 @@ auto options = R"(
       "flux-fun": "Euler"
    },
    "bcs": {
-      "far-field": [0, 1, 1, 1],
-      "slip-wall": [1, 0, 0, 0]
+      "far-field": [2, 3, 4],
+      "slip-wall": [1]
    }
 })"_json;
 

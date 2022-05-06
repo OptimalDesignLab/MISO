@@ -71,8 +71,8 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
          "res-exp": 2.0
       },
       "bcs": {
-         "vortex": [1, 1, 1, 0],
-         "slip-wall": [0, 0, 0, 1]
+         "vortex": [1, 2, 3],
+         "slip-wall": [4]
       },
       "nonlin-solver": {
          "printlevel": 0,
@@ -91,7 +91,7 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
       "saveresults": false,
       "outputs":
       { 
-         "drag": [0, 0, 0, 1]
+         "drag": [4]
       }
    })"_json;
 
@@ -110,8 +110,7 @@ TEST_CASE("Testing FlowSolver on the steady isentropic vortex")
 
          // write the initial state for debugging 
          auto &state = solver.getState();
-         mach::ParaViewLogger paraview("test_flow_solver",
-            state.gridFunc().ParFESpace()->GetParMesh());
+         mach::ParaViewLogger paraview("test_flow_solver", &state.mesh());
          paraview.registerField("state", state.gridFunc());
          paraview.saveState(state_tv, "state", 0, 1.0, 0);
 
