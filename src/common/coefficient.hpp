@@ -362,6 +362,12 @@ private:
    std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
 };
 
+std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
+    const std::string &name,
+    const nlohmann::json &components,
+    const nlohmann::json &materials,
+    double default_val = 0.0);
+
 class NonlinearReluctivityCoefficient : public StateCoefficient
 {
 public:

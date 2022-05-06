@@ -31,24 +31,20 @@ class MachFunctional(om.ExplicitComponent):
             for input in self.options["depends"]:
 
                 if input == "state":
-                    state_size = solver.getStateSize()
                     self.add_input("state",
-                                #    shape=state_size,
                                    distributed=True,
                                    shape_by_conn=True,
                                    desc="Mach state vector",
                                    tags=["mphys_coupling"])
-                    self.vectors["state"] = np.empty(state_size)
+                    self.vectors["state"] = np.empty(0)
 
                 elif input == "mesh_coords":
-                    mesh_coords_size = solver.getFieldSize("mesh_coords")
                     self.add_input("mesh_coords",
-                                #    shape=mesh_coords_size,
                                    distributed=True,
                                    shape_by_conn=True,
                                    desc="volume mesh node coordinates",
                                    tags=["mphys_coordinates"])
-                    self.vectors["mesh_coords"] = np.empty(mesh_coords_size)
+                    self.vectors["mesh_coords"] = np.empty(0)
                 else:
                     input_size = solver.getFieldSize(input)
                     if input_size == 0:
@@ -95,6 +91,8 @@ class MachFunctional(om.ExplicitComponent):
         # Copy vector inputs into internal contiguous data buffers
         for input in inputs:
             if input in self.vectors:
+                if self.vectors[input].shape != inputs[input].shape:
+                    self.vectors[input].resize(inputs[input].shape)
                 self.vectors[input][:] = inputs[input][:]
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))
@@ -111,6 +109,8 @@ class MachFunctional(om.ExplicitComponent):
         # Copy vector inputs into internal contiguous data buffers
         for input in inputs:
             if input in self.vectors:
+                if self.vectors[input].shape != inputs[input].shape:
+                    self.vectors[input].resize(inputs[input].shape)
                 self.vectors[input][:] = inputs[input][:]
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))

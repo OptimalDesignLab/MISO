@@ -58,14 +58,12 @@ class MachState(om.ImplicitComponent):
         ext_fields = "external-fields" in solver_options
         for input in self.options["depends"]:
             if input == "mesh_coords":
-                mesh_coords_size = solver.getFieldSize("mesh_coords")
                 self.add_input("mesh_coords",
-                               shape=mesh_coords_size,
-                               #    distributed=True,
-                               #    shape_by_conn=True,
+                               distributed=True,
+                               shape_by_conn=True,
                                desc="volume mesh node coordinates",
                                tags=["mphys_coordinates"])
-                self.vectors["mesh_coords"] = np.empty(mesh_coords_size)
+                self.vectors["mesh_coords"] = np.empty(0)
             else:
                 input_size = solver.getFieldSize(input)
                 if input_size == 0:
@@ -106,6 +104,8 @@ class MachState(om.ImplicitComponent):
         # Copy vector inputs into internal contiguous data buffers
         for input in inputs:
             if input in self.vectors:
+                if self.vectors[input].shape != inputs[input].shape:
+                    self.vectors[input].resize(inputs[input].shape)
                 self.vectors[input][:] = inputs[input][:]
 
         # Copy vector outputs into internal contiguous data buffers
@@ -127,6 +127,8 @@ class MachState(om.ImplicitComponent):
         # Copy vector inputs into internal contiguous data buffers
         for input in inputs:
             if input in self.vectors:
+                if self.vectors[input].shape != inputs[input].shape:
+                    self.vectors[input].resize(inputs[input].shape)
                 self.vectors[input][:] = inputs[input][:]
 
         # Copy vector outputs into internal contiguous data buffers
@@ -147,6 +149,8 @@ class MachState(om.ImplicitComponent):
         # Copy vector inputs into internal contiguous data buffers
         for input in inputs:
             if input in self.vectors:
+                if self.vectors[input].shape != inputs[input].shape:
+                    self.vectors[input].resize(inputs[input].shape)
                 self.vectors[input][:] = inputs[input][:]
 
         # Copy vector outputs into internal contiguous data buffers

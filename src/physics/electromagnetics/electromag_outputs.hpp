@@ -237,7 +237,63 @@ public:
 private:
    FunctionalOutput output;
    FunctionalOutput volume;
-   std::map<std::string, FiniteElementState> &fields;
+   // std::map<std::string, FiniteElementState> &fields;
+
+   double freq = 1.0;
+   double radius = 1.0;
+   double stack_length = 1.0;
+   double num_strands = 1.0;
+};
+
+// class SteinmetzValue final
+// {
+// public:
+//    friend inline int getSize(const SteinmetzValue &output)
+//    {
+//       return 1.0;
+//    }
+
+
+// };
+
+class CoreLossFunctional final
+{
+public:
+   friend inline int getSize(const CoreLossFunctional &output)
+   {
+      return getSize(output.output);
+   }
+
+   friend void setOptions(CoreLossFunctional &output,
+                          const nlohmann::json &options);
+
+   friend void setInputs(CoreLossFunctional &output, const MachInputs &inputs);
+
+   friend double calcOutput(CoreLossFunctional &output,
+                            const MachInputs &inputs);
+
+   friend double calcOutputPartial(CoreLossFunctional &output,
+                                   const std::string &wrt,
+                                   const MachInputs &inputs);
+
+   friend void calcOutputPartial(CoreLossFunctional &output,
+                                 const std::string &wrt,
+                                 const MachInputs &inputs,
+                                 mfem::Vector &partial);
+
+   CoreLossFunctional(std::map<std::string, FiniteElementState> &fields,
+                      const nlohmann::json &components,
+                      const nlohmann::json &materials,
+                      const nlohmann::json &options);
+
+private:
+   FunctionalOutput output;
+   /// Density
+   std::unique_ptr<mfem::Coefficient> rho;
+   /// Steinmetz coefficients
+   std::unique_ptr<mfem::Coefficient> k_s;
+   std::unique_ptr<mfem::Coefficient> alpha;
+   std::unique_ptr<mfem::Coefficient> beta;
 };
 
 inline void setOptions(ForceFunctional &output, const nlohmann::json &options)

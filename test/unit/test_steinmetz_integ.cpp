@@ -1,30 +1,58 @@
-#include <random>
-
 #include "catch.hpp"
 #include "mfem.hpp"
+
 #include "coefficient.hpp"
-#include "mfem_common_integ.hpp"
 #include "electromag_integ.hpp"
-#include "euler_test_data.hpp"
-#include "electromag_test_data.hpp"
+#include "material_library.hpp"
 
-namespace
+TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
 {
+   const int dim = 3;
+   int num_edge = 3;
+   auto smesh = mfem::Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                            mfem::Element::TETRAHEDRON,
+                                            1.0, 1.0, 1.0, true);
 
-using namespace mfem;
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   mesh.EnsureNodes();
 
-double func(const Vector &x)
-{
-  return (x(0) + x(1) + x(2));
+   std::vector<double> core_loss_vals = {3.3188545983, 3.3197067467, 3.3197277527, 3.3197273582};
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      mfem::L2_FECollection fec(p, dim);
+      mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+      mfem::ParGridFunction peak_flux(&fes);
+      mfem::FunctionCoefficient flux_coeff([](const mfem::Vector &x)
+      {
+         return cos(x(0));
+      });
+      peak_flux.ProjectCoefficient(flux_coeff);
+
+      mfem::NonlinearForm functional(&fes);
+
+      mfem::ConstantCoefficient rho(1.0);
+      mfem::ConstantCoefficient k_s(0.01);
+      mfem::ConstantCoefficient alpha(1.21);
+      mfem::ConstantCoefficient beta(1.62);
+      auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
+      setInputs(*integ, {{"frequency", 151.0}});
+
+      functional.AddDomainIntegrator(integ);
+
+      auto core_loss = functional.GetEnergy(peak_flux);
+
+      /// Answer should be k_s * pow(freq, alpha) * \int_0^1 cos(x)^beta dx
+      /// auto cos_integ = 0.76655;
+      /// 0.01 * pow(151, 1.21) * cos_integ -> 3.3197287087
+      REQUIRE(core_loss == Approx(core_loss_vals[p-1]));
+   }
 }
 
-void funcRevDiff(const Vector &x, const double Q_bar, Vector &x_bar)
-{
-   x_bar.SetSize(3);
-   x_bar = Q_bar;
-}
 
-} // namespace
+
+
 
 /** not maintaining anymore
 TEST_CASE("DomainResIntegrator::AssembleElementVector",

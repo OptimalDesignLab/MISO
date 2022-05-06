@@ -15,7 +15,7 @@
 
 namespace mach
 {
-class FunctionalOutput final
+class FunctionalOutput
 {
 public:
    friend void setInputs(FunctionalOutput &output, const MachInputs &inputs);
@@ -107,7 +107,7 @@ public:
     : output(&fes), func_fields(nullptr)
    { }
 
-private:
+protected:
    /// underlying nonlinear form object
    mfem::ParNonlinearForm output;
    /// work vector

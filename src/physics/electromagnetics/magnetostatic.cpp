@@ -5,6 +5,7 @@
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
+#include "common_outputs.hpp"
 #include "electromag_integ.hpp"
 #include "electromag_outputs.hpp"
 #include "functional_output.hpp"
@@ -86,13 +87,14 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 void MagnetostaticSolver::addOutput(const std::string &fun,
                                     const nlohmann::json &options)
 {
-   if (fun == "energy")
+   /// if fun starts with prefix "energy"
+   if (fun.rfind("energy", 0) == 0)
    {
       FunctionalOutput out(fes(), fields);
       out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu));
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun == "force")
+   else if (fun.rfind("force", 0) == 0)
    {
       /// create displacement field V that uses the same FES as the mesh
       auto &mesh_fes = fields.at("mesh_coords").space();
@@ -103,7 +105,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       ForceFunctional out(fes(), fields, options, nu);
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun == "torque")
+   else if (fun.rfind("torque", 0) == 0)
    {
       /// create displacement field V that uses the same FES as the mesh
       auto &mesh_fes = fields.at("mesh_coords").space();
@@ -114,7 +116,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       TorqueFunctional out(fes(), fields, options, nu);
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun == "flux_density")
+   else if (fun.rfind("flux_density", 0) == 0)
    {
       auto state_degree =
           AbstractSolver2::options["space-dis"]["degree"].get<int>();
@@ -129,7 +131,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       L2CurlProjection out(state(), fields.at("mesh_coords"), dg_field);
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun == "flux_magnitude")
+   else if (fun.rfind("flux_magnitude", 0) == 0)
    {
       auto state_degree =
           AbstractSolver2::options["space-dis"]["degree"].get<int>();
@@ -144,7 +146,33 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
           state(), fields.at("mesh_coords"), dg_field);
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun == "ac_loss")
+   else if (fun.rfind("average_flux_magnitude", 0) == 0)
+   {
+      AverageMagnitudeCurlState out(fes(), fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("max_flux_magnitude", 0) == 0)
+   {
+      IECurlMagnitudeAggregateFunctional out(fes(), fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("max_state", 0) == 0)
+   {
+      mfem::ParFiniteElementSpace *fes = nullptr;
+      if (options.contains("state"))
+      {
+         auto field_name = options["state"].get<std::string>();
+         std::cout << "field name: " << field_name << "\n";
+         fes = &fields.at(field_name).space();
+      }
+      else
+      {
+         fes = &PDESolver::fes();
+      }
+      IEAggregateFunctional out(*fes, fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("ac_loss", 0) == 0)
    {
       auto state_degree =
           AbstractSolver2::options["space-dis"]["degree"].get<int>();
@@ -162,6 +190,31 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       std::cout << ac_loss_options << "\n";
 
       ACLossFunctional out(fields, sigma, ac_loss_options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("core_loss", 0) == 0)
+   {
+      auto state_degree =
+          AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                      {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple("peak_flux"),
+                     std::forward_as_tuple(mesh(), dg_field_options));
+
+      CoreLossFunctional out(
+          fields, AbstractSolver2::options["components"], materials, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("mass", 0) == 0)
+   {
+      MassFunctional out(
+          fields, AbstractSolver2::options["components"], materials, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("volume", 0) == 0)
+   {
+      VolumeFunctional out(fields, options);
       outputs.emplace(fun, std::move(out));
    }
    else

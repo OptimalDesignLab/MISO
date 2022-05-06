@@ -3,47 +3,12 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "coefficient.hpp"
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
 #include "thermal_integ.hpp"
 
 #include "thermal_residual.hpp"
-
-namespace
-{
-std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
-    const std::string &name,
-    const nlohmann::json &options,
-    const nlohmann::json &materials,
-    double default_val = 0.0)
-{
-   auto material_coeff = std::make_unique<mach::MeshDependentCoefficient>();
-   /// loop over all components, construct coeff for each
-   for (auto &component : options["components"])
-   {
-      int attr = component.value("attr", -1);
-
-      const auto &material = component["material"].get<std::string>();
-      double val = materials[material].value(name, default_val);
-
-      if (-1 != attr)
-      {
-         auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-         material_coeff->addCoefficient(attr, move(coeff));
-      }
-      else
-      {
-         for (auto &attribute : component["attrs"])
-         {
-            auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-            material_coeff->addCoefficient(attribute, move(coeff));
-         }
-      }
-   }
-   return material_coeff;
-}
-
-}  // anonymous namespace
 
 namespace mach
 {
@@ -137,9 +102,10 @@ ThermalResidual::ThermalResidual(
     const nlohmann::json &options,
     const nlohmann::json &materials)
  : res(fes, fields),
-   kappa(constructMaterialCoefficient("kappa", options, materials)),
-   rho(constructMaterialCoefficient("rho", options, materials)),
-   cv(constructMaterialCoefficient("cv", options, materials)),
+   kappa(
+       constructMaterialCoefficient("kappa", options["components"], materials)),
+   rho(constructMaterialCoefficient("rho", options["components"], materials)),
+   cv(constructMaterialCoefficient("cv", options["components"], materials)),
    prec(constructPreconditioner(fes, options["lin-prec"]))
 
 {
@@ -164,8 +130,7 @@ ThermalResidual::ThermalResidual(
          const auto &bdr_attr_marker =
              bcs["convection"].get<std::vector<int>>();
 
-         res.addBdrFaceIntegrator(new ConvectionBCIntegrator,
-                                  bdr_attr_marker);
+         res.addBdrFaceIntegrator(new ConvectionBCIntegrator, bdr_attr_marker);
       }
    }
 }

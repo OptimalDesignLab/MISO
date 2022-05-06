@@ -2774,21 +2774,6 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
-void setOptions(ACLossFunctionalIntegrator &integ,
-                const nlohmann::json &options)
-{
-   integ.num_strands = options.value("num_strands", integ.num_strands);
-}
-
-void setInputs(ACLossFunctionalIntegrator &integ, const MachInputs &inputs)
-{
-   setValueFromInputs(inputs, "strand_radius", integ.radius);
-   setValueFromInputs(inputs, "frequency", integ.freq);
-   setValueFromInputs(inputs, "stack_length", integ.stack_length);
-   setValueFromInputs(inputs, "model_depth", integ.model_depth);
-   setValueFromInputs(inputs, "slot_area", integ.slot_area);
-}
-
 double ACLossFunctionalIntegrator::GetElementEnergy(
     const FiniteElement &el,
     ElementTransformation &trans,
@@ -2835,14 +2820,12 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 
       const auto sigma_val = sigma.Eval(trans, ip);
 
-      const auto loss = stack_length * M_PI * pow(radius, 4) * sigma_val *
-                        pow(freq * b_mag, 2) / 32.0;
+      /// Frequency should be angular frequency -> 2pi*f
+      // const auto loss = stack_length * M_PI * pow(radius, 4) * sigma_val *
+      //                   pow(freq * b_mag, 2) / 32.0;
 
-      // fun += loss * num_strands * w / (slot_area * model_depth);
-      // fun += loss * w * pow(num_sih, 2) * num_turns * fill_factor /
-      // slot_area;
-
-      fun += loss * num_strands * w;
+      const auto loss = sigma_val * pow(b_mag, 2);
+      fun += loss * w;
    }
    return fun;
 }
@@ -3590,24 +3573,64 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
-// CurlInterpolator::AssembleElementMatrix2(const FiniteElement &nd_fe,
-//                                          const FiniteElement &rt_fe,
-//                                          ElementTransformation &trans,
-//                                          DenseMatrix &elmat)
-// {
-//    DenseMatrix curl_shape(fe.GetDof(), dim);
-//    Vector curl_k(fe.GetDof());
+void setInputs(SteinmetzLossIntegrator &integ, const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "frequency", integ.freq);
+}
 
-//    curl.SetSize(dof, fe.GetDof());
-//    for (int k = 0; k < dof; k++)
-//    {
-//       fe.CalcCurlShape(Nodes.IntPoint(k), curl_shape);
-//       curl_shape.Mult(nk + d2n[k]*dim, curl_k);
-//       for (int j = 0; j < curl_k.Size(); j++)
-//       {
-//          curl(k,j) = (fabs(curl_k(j)) < 1e-12) ? 0.0 : curl_k(j);
-//       }
-//    }
-// }
+double SteinmetzLossIntegrator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape;
+#endif
+   shape.SetSize(ndof);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+
+      el.CalcPhysShape(trans, shape);
+      // const auto peak_flux_mag = shape * elfun;
+      const auto peak_flux_mag = 2.6;
+
+      auto rho_v = rho.Eval(trans, ip);
+      auto k_s_v = k_s.Eval(trans, ip);
+      auto alpha_v = alpha.Eval(trans, ip);
+      auto beta_v = beta.Eval(trans, ip);
+
+      fun +=
+          rho_v * k_s_v * pow(freq, alpha_v) * pow(peak_flux_mag, beta_v) * w;
+   }
+   return fun;
+}
 
 }  // namespace mach

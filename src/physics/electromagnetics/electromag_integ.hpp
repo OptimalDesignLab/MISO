@@ -947,12 +947,6 @@ private:
 class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   friend void setOptions(ACLossFunctionalIntegrator &integ,
-                          const nlohmann::json &options);
-
-   friend void setInputs(ACLossFunctionalIntegrator &integ,
-                         const MachInputs &inputs);
-
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
    /// \param[in] sigma - the electrical conductivity coefficient
@@ -970,13 +964,6 @@ public:
 
 private:
    mfem::Coefficient &sigma;
-   double freq = 1.0;
-   double radius = 1.0;
-   double stack_length = 1.0;
-   double model_depth = 1.0;
-   double num_strands = 1.0;
-   double slot_area = 1.0;
-
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
@@ -1131,23 +1118,57 @@ inline void addSensitivityIntegrator(
            fields.at("state").gridFunc(), primal_integ));
 }
 
-// /** Class for constructing the (local) discrete curl matrix which can be used
-//     as an integrator in a DiscreteLinearOperator object to assemble the
-//     global discrete curl matrix. */
-// class CurlInterpolator : public mfem::DiscreteInterpolator
-// {
-// public:
-//    /// Construct the element local residual
-//    /// \param[in] nd_el - the ND finite element used to take the curl
-//    /// \param[in] rt_el - the RT finite element used to represent the curl
-//    field
-//    /// \param[in] trans - defines the reference to physical element mapping
-//    /// \param[out] elmat - local discrete curl matrix
-//    void AssembleElementMatrix2(const FiniteElement &nd_fe,
-//                                const FiniteElement &rt_fe,
-//                                ElementTransformation &trans,
-//                                DenseMatrix &elmat) override;
-// };
+/// Functional integrator to compute core losses based on the Steinmetz
+/// equations
+class SteinmetzLossIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setInputs(SteinmetzLossIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \brief - Compute element contribution to global force/torque
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global force/torque
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// \brief - Computes dJdu, for solving for the adjoint
+   // /// \param[in] el - the finite element
+   // /// \param[in] trans - defines the reference to physical element mapping
+   // /// \param[in] elfun - state vector of the element
+   // /// \param[out] elfun_bar - \partial J \partial u for this functional
+   // void AssembleElementVector(const mfem::FiniteElement &el,
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun,
+   //                            mfem::Vector &elfun_bar) override;
+
+   SteinmetzLossIntegrator(mfem::Coefficient &rho,
+                           mfem::Coefficient &k_s,
+                           mfem::Coefficient &alpha,
+                           mfem::Coefficient &beta)
+    : rho(rho), k_s(k_s), alpha(alpha), beta(beta)
+   { }
+
+private:
+   /// Density
+   mfem::Coefficient &rho;
+   /// Steinmetz coefficients
+   mfem::Coefficient &k_s;
+   mfem::Coefficient &alpha;
+   mfem::Coefficient &beta;
+
+   /// Electrical excitation frequency
+   double freq = 1.0;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+
+   /// class that implements mesh sensitivities for SteinmetzLossIntegrator
+   friend class SteinmetzLossIntegratorMeshSens;
+};
 
 }  // namespace mach
 

@@ -15,6 +15,12 @@ public:
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
+
+   VolumeIntegrator(mfem::Coefficient *rho = nullptr) : rho(rho) { }
+
+private:
+   /// Optional density coefficient to get mass
+   mfem::Coefficient *rho;
 };
 
 class StateIntegrator : public mfem::NonlinearFormIntegrator
@@ -27,6 +33,20 @@ public:
 private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
+#endif
+};
+
+class MagnitudeCurlStateIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape;
+   mfem::DenseMatrix curlshape_dFt;
 #endif
 };
 

@@ -19,7 +19,13 @@ double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-      vol += ip.weight * trans.Weight();
+
+      double val = ip.weight * trans.Weight();
+      if (rho)
+      {
+         val *= rho->Eval(trans, ip);
+      }
+      vol += val;
    }
    return vol;
 }
@@ -37,6 +43,71 @@ double StateIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
       trans.SetIntPoint(&ip);
       el.CalcShape(ip, shape);
       fun += ip.weight * (shape * elfun) * trans.Weight();
+   }
+   return fun;
+}
+
+double MagnitudeCurlStateIntegrator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+   int dimc = (dim == 3) ? 3 : 1;
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape;
+   mfem::DenseMatrix curlshape_dFt;
+#endif
+   curlshape.SetSize(ndof, dimc);
+   curlshape_dFt.SetSize(ndof, dimc);
+
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, dimc);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      b_vec = 0.0;
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      trans.SetIntPoint(&ip);
+
+      double w = ip.weight * trans.Weight();
+
+      if (dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcCurlShape(ip, curlshape_dFt);
+      }
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans.Weight();
+      fun += b_mag * w;
    }
    return fun;
 }

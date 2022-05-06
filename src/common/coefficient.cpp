@@ -194,6 +194,38 @@ void MeshDependentCoefficient::EvalRevDiff(const double Q_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
+std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
+    const std::string &name,
+    const nlohmann::json &components,
+    const nlohmann::json &materials,
+    double default_val)
+{
+   auto material_coeff = std::make_unique<mach::MeshDependentCoefficient>();
+   /// loop over all components, construct coeff for each
+   for (auto &component : components)
+   {
+      int attr = component.value("attr", -1);
+
+      const auto &material = component["material"].get<std::string>();
+      double val = materials[material].value(name, default_val);
+
+      if (-1 != attr)
+      {
+         auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
+         material_coeff->addCoefficient(attr, move(coeff));
+      }
+      else
+      {
+         for (auto &attribute : component["attrs"])
+         {
+            auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
+            material_coeff->addCoefficient(attribute, move(coeff));
+         }
+      }
+   }
+   return material_coeff;
+}
+
 NonlinearReluctivityCoefficient::NonlinearReluctivityCoefficient(
     const std::vector<double> &B,
     const std::vector<double> &H)
