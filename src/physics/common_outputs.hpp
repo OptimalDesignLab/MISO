@@ -17,20 +17,20 @@ class VolumeFunctional : public FunctionalOutput
 public:
    friend inline int getSize(const VolumeFunctional &output)
    {
-      const auto& fun_output = dynamic_cast<const FunctionalOutput &>(output);
+      const auto &fun_output = dynamic_cast<const FunctionalOutput &>(output);
       return getSize(fun_output);
    }
 
    friend void setOptions(VolumeFunctional &output,
                           const nlohmann::json &options)
    {
-      auto& fun_output = dynamic_cast<FunctionalOutput &>(output);
+      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
       setOptions(fun_output, options);
    }
 
    friend void setInputs(VolumeFunctional &output, const MachInputs &inputs)
    {
-      auto& fun_output = dynamic_cast<FunctionalOutput &>(output);
+      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
       setInputs(fun_output, inputs);
    }
 
@@ -45,20 +45,19 @@ class MassFunctional : public FunctionalOutput
 public:
    friend inline int getSize(const MassFunctional &output)
    {
-      const auto& fun_output = dynamic_cast<const FunctionalOutput &>(output);
+      const auto &fun_output = dynamic_cast<const FunctionalOutput &>(output);
       return getSize(fun_output);
    }
 
-   friend void setOptions(MassFunctional &output,
-                          const nlohmann::json &options)
+   friend void setOptions(MassFunctional &output, const nlohmann::json &options)
    {
-      auto& fun_output = dynamic_cast<FunctionalOutput &>(output);
+      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
       setOptions(fun_output, options);
    }
 
    friend void setInputs(MassFunctional &output, const MachInputs &inputs)
    {
-      auto& fun_output = dynamic_cast<FunctionalOutput &>(output);
+      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
       setInputs(fun_output, inputs);
    }
 

@@ -44,7 +44,8 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
 
    double loss = calcOutput(output.output, fun_inputs);
 
-   loss *= output.stack_length * M_PI * pow(output.radius, 4) * pow(2 * M_PI * output.freq, 2) / 32.0;
+   loss *= output.stack_length * M_PI * pow(output.radius, 4) *
+           pow(2 * M_PI * output.freq, 2) / 32.0;
    loss *= output.num_strands;
 
    double volume = calcOutput(output.volume, fun_inputs);
@@ -72,7 +73,7 @@ ACLossFunctional::ACLossFunctional(
     const nlohmann::json &options)
  : output(fields.at("peak_flux").space(), fields),
    volume(fields.at("peak_flux").space(), fields)
-   // fields(fields)
+// fields(fields)
 {
    if (options.contains("attributes"))
    {

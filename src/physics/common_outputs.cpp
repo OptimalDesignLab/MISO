@@ -25,8 +25,7 @@ VolumeFunctional::VolumeFunctional(
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new VolumeIntegrator,
-                                       attributes);
+      addOutputDomainIntegrator(new VolumeIntegrator, attributes);
    }
    else
    {
@@ -52,8 +51,7 @@ MassFunctional::MassFunctional(
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new VolumeIntegrator(rho.get()),
-                                       attributes);
+      addOutputDomainIntegrator(new VolumeIntegrator(rho.get()), attributes);
    }
    else
    {
