@@ -49,7 +49,9 @@ FlowResidual<dim, entvar>::FlowResidual(const nlohmann::json &options,
    const char *name = fes.FEColl()->Name();
    if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
    {
-      mass.AddDomainIntegrator(new DiagMassIntegrator(fes.GetVDim()));
+      bool space_vary = options["time-dis"]["steady"];
+      mass.AddDomainIntegrator(
+          new DiagMassIntegrator(fes.GetVDim(), space_vary));
    }
    else
    {

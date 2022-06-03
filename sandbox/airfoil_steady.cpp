@@ -7,9 +7,7 @@ constexpr bool entvar = false;
 #include <fstream>
 #include <iostream>
 
-#include "mfem.hpp"
-
-#include "euler.hpp"
+#include "mach.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -25,9 +23,18 @@ void pert(const Vector &x, Vector& p);
 
 int main(int argc, char *argv[])
 {
+   // Get the options
    const char *options_file = "airfoil_steady_options.json";
+   nlohmann::json options;
+   ifstream option_source(options_file);
+   option_source >> options;
+
    // Initialize MPI
+   int num_procs, rank;
    MPI_Init(&argc, &argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+   ostream *out = getOutStream(rank);
 
    // Parse command-line options
    OptionsParser args(argc, argv);
@@ -44,21 +51,31 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      auto solver = createSolver<EulerSolver<2, entvar> >(opt_file_name);
+
+      // Create solver and set initial condition 
+      FlowSolver<2> solver(MPI_COMM_WORLD, options);
+      mfem::Vector state_tv(solver.getStateSize());
       Vector qfar(4);
-      static_cast<EulerSolver<2, entvar>*>(solver.get())->getFreeStreamState(qfar);
-      //Vector wfar(4);
-      // TODO: I do not like that we have to perform this conversion outside the solver...
-      //calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(qfar);
-      solver->printSolution("airfoil-steady-init");
-      solver->checkJacobian(pert);
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
-      solver->solveForState();
-      solver->printSolution("airfoil-steady-final");
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
+      solver.getFreeStreamState(qfar);
+      auto uInit = [&](const Vector &x, Vector &u0) { u0 = qfar; };
+      solver.setState(uInit, state_tv);
+
+      // create the outputs
+      solver.createOutput("entropy", options["outputs"].at("entropy"));
+      solver.createOutput("drag", options["outputs"].at("drag"));
+      solver.createOutput("lift", options["outputs"].at("lift"));
+
+      // Solve for the state
+      MachInputs inputs({{"state", state_tv}});
+      solver.solveForState(inputs, state_tv);
+
+      // Compute the entropy, lift and drag
+      double entropy = solver.calcOutput("entropy", inputs);
+      *out << "entropy = " << entropy << endl;
+      double lift = solver.calcOutput("lift", inputs);
+      *out << "lift = " << lift << endl;
+      double drag = solver.calcOutput("drag", inputs);
+      *out << "drag = " << drag << endl;
    }
    catch (MachException &exception)
    {
@@ -68,7 +85,6 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-
    MPI_Finalize();
 }
 
