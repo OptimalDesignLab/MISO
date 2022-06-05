@@ -1,5 +1,5 @@
-#ifndef MACH_CUT_QUAD
-#define MACH_CUT_QUAD
+#ifndef MACH_CUT_QUAD_INDICATOR
+#define MACH_CUT_QUAD_INDICATOR
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
@@ -45,6 +45,75 @@ struct circle
           lsign * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)));
    }
 };
+template <int N>
+struct LocalDistance
+{
+   TinyVector<double, N> norm;
+   TinyVector<double, N> xbnd;
+   TinyVector<double, N> kappa;
+   TinyVector<double, N> tan;
+   template <typename T>
+   T operator()(const blitz::TinyVector<T, N> &x) const
+   {
+      TinyVector<T, N> x_diff;
+      x_diff = x - xbnd;
+      T dist1 = dot(x_diff, norm);
+      double nx = norm(0);
+      double ny = norm(1);
+      double tx = tan(0);
+      double ty = tan(1);
+      TinyVector<T, N> proj;
+      TinyVector<double, N> tanvx, tanvy;
+      tanvx = {tx * tx, tx * ty};
+      tanvy = {tx * ty, ty * ty};
+      proj(0) = dot(tanvx, x_diff);
+      proj(1) = dot(tanvy, x_diff);
+      T perp_tan = dot(tan, x_diff);
+      // T dist2 = 0.5 * kappa(0) * perp_tan1 * perp_tan1;
+      T dist2 = 0.5 * kappa(0) * dot(x_diff, proj);
+      T dist = dist1 + dist2;
+      return -dist;
+   }
+
+   template <typename T>
+   blitz::TinyVector<T, N> grad(const blitz::TinyVector<T, N> &x) const
+   {
+      TinyVector<T, N> x_diff;
+      x_diff = x - xbnd;
+      T perp_tan = dot(tan, x_diff);
+      double nx = norm(0);
+      double ny = norm(1);
+      TinyVector<double, N> norvx, norvy;
+      norvx = {1.0 - (nx * nx), -nx * ny};
+      norvy = {-nx * ny, 1.0 - (ny * ny)};
+      T perp2_x = kappa(0) * dot(norvx, x_diff);
+      T perp2_y = kappa(0) * dot(norvy, x_diff);
+      // T perp2_x = kappa(0) * tan(0) * perp_tan;
+      // T perp2_y = kappa(0) * tan(1) * perp_tan;
+      return blitz::TinyVector<T, N>(-(norm(0) + perp2_x), -(norm(1) + perp2_y));
+   }
+};
+
+template <int N>
+double calcbasis(std::vector<TinyVector<double, N>> xbnd,
+                 TinyVector<double, N> xcent,
+                 double rho,
+                 double delta,
+                 double min_dist,
+                 int nbnd)
+{
+   double denom = 0.0;
+   /// evaluate the level-set
+   for (int idx = 0; idx < nbnd; ++idx)
+   {
+      TinyVector<double, N> x_diff;
+      x_diff = xcent - xbnd.at(idx);
+      double delx = sqrt(magsqr(x_diff) + delta);
+      double expc = exp(-rho * (delx - min_dist));
+      denom += expc;
+   }
+   return denom;
+}
 template <int N, int ls>
 class CutCell
 {
@@ -55,7 +124,7 @@ public:
        std::vector<TinyVector<double, N>> Xc) const
    {
       std::vector<TinyVector<double, N>> nor;
-      int nbnd = Xc.size();
+      nbnd = Xc.size();
       TinyVector<double, N> nsurf;
       for (int i = 0; i < nbnd; i++)
       {
@@ -93,7 +162,7 @@ public:
        std::vector<TinyVector<double, N>> Xc) const
    {
       std::vector<TinyVector<double, N - 1>> kappa;
-      int nbnd = Xc.size();
+      nbnd = Xc.size();
       double a0 = 0.2969;
       double a1 = -0.126;
       double a2 = -0.3516;
@@ -126,7 +195,7 @@ public:
             double rle = 0.5 * pow(a0 * tc / 0.20, 2);
             kappa.push_back(1.0 / rle);
          }
-         else if (i == 0 || i == nbnd - 1 || i == nbnd - 2)
+         else if (i == 0 || i == nbnd - 1)
          {
             kappa.push_back(0.0);
          }
@@ -142,21 +211,20 @@ public:
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
-      std::vector<TinyVector<double, N>> Xc;
-      std::vector<TinyVector<double, N>> nor;
-      std::vector<TinyVector<double, N - 1>> kappa;
+      // std::vector<TinyVector<double, N>> Xc;
+      // std::vector<TinyVector<double, N>> nor;
+      // std::vector<TinyVector<double, N - 1>> kappa;
       int nel = mesh->GetNE();
-      // int nbnd = 8 * sqrt(nel);
-
+      nbnd = sqrt(nel);
       /// parameters
-      double delta = 1e-10;
+      delta = 1e-10;
       double xc = 0.0;
       double yc = 0.0;
       /// radius
       double a, b;
       if (ls == 1)
       {
-         a = 1.0;
+         a = 4.0;
          b = 1.0;
       }
       else
@@ -164,7 +232,7 @@ public:
          a = 3.0;
          b = 3.0;
       }
-#if 1
+#if 0
       const char *geometry_file = "NACA_0012_200pts.dat";
       ifstream file;
       file.open(geometry_file);
@@ -184,14 +252,27 @@ public:
       nor = constructNormal(Xc);
       /// get the curvature vector for all boundary points
       kappa = getCurvature(Xc);
-#endif
       /// get the number of boundary points
-      int nbnd = Xc.size();
+      nbnd = Xc.size();
+      /// translate airfoil
+      TinyVector<double, N> xcent;
+      xcent(0) = 19.5;
+      xcent(1) = 20.0;
+      std::vector<TinyVector<double, N>> Xcoord;
+      for (int k = 0; k < nbnd; ++k)
+      {
+         TinyVector<double, N> xs;
+         for (int d = 0; d < N; ++d)
+         {
+            xs(d) = Xc.at(k)(d) + xcent(d);
+         }
+         Xcoord.push_back(xs);
+      }
+#endif
       cout << "nbnd " << nbnd << endl;
-      double rho = 10 * nbnd;
+      rho = 10 * nbnd;
 /// use this if not reading from file
-#if 0
-
+#if 1
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
@@ -217,7 +298,7 @@ public:
          TinyVector<double, N - 1> curv;
          curv(0) = num / den;
          kappa.push_back(curv);
-         // kappa.push_back(0.0);
+         //kappa.push_back(0.0);
       }
 #endif
       double lsign;
@@ -230,11 +311,11 @@ public:
       {
          lsign = 1.0;
       }
-      /// translate airfoil
+      /// translate ellipse
       TinyVector<double, N> xcent;
-      xcent(0) = 19.5;
-      xcent(1) = 20.0;
-      std::vector<TinyVector<double, N>> Xcoord;
+      xcent(0) = 10.0;
+      xcent(1) = 10.0;
+      // std::vector<TinyVector<double, N>> Xcoord;
       for (int k = 0; k < nbnd; ++k)
       {
          TinyVector<double, N> xs;
@@ -251,10 +332,14 @@ public:
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
       TinyVector<double, 2> xle, xte;
-      xle(0) = 19.5;
-      xle(1) = 20.0;
-      xte(0) = 19.997592;
-      xte(1) = 20.0;
+      // xle(0) = 19.5;
+      // xle(1) = 20.0;
+      // xte(0) = 19.997592;
+      // xte(1) = 20.0;
+      xle(0) = 6.0;
+      xle(1) = 10.0;
+      xte(0) = 14.0;
+      xte(1) = 10.0;
       std::cout << std::setprecision(10) << std::endl;
       cout << "phi , gradphi at leading edge: " << endl;
       cout << phi_ls(xle) << " , " << phi_ls.grad(xle) << endl;
@@ -397,6 +482,7 @@ public:
          return false;
       }
    }
+
    /// function to get element center
    void GetElementCenter(int id, mfem::Vector &cent) const
    {
@@ -463,10 +549,11 @@ public:
        std::map<int, IntegrationRule *> &cutSquareIntRules) const
    {
       cout << "#cut elements " << cutelems.size() << endl;
-      double tol = 1e-16;
+      double tol = 1e-14;
       QuadratureRule<N> qp;
       for (int k = 0; k < cutelems.size(); ++k)
       {
+         QuadratureRule<N> qarea;
          IntegrationRule *ir = NULL;
          blitz::TinyVector<double, N> xmin;
          blitz::TinyVector<double, N> xmax;
@@ -488,15 +575,77 @@ public:
          double yscale = xmax[1] - xmin[1];
          xlower = {xmin[0], xmin[1]};
          xupper = {xmax[0], xmax[1]};
-         auto q =
-             Algoim::quadGen<N>(phi,
-                                Algoim::BoundingBox<double, N>(xlower, xupper),
-                                dir,
-                                side,
-                                order);
+         /// changes to incorporate indicator quadrature rule
+         blitz::TinyVector<double, 2> xcent = 0.5 * (xmin + xmax);
+         TinyVector<double, N> dx = xcent - xmin;
+         double L = sqrt(magsqr(dx));
+         /// find minimum distance
+         double min_dist = 1e+100;
+         /// find minimum distance
+         for (int idx = 0; idx < nbnd; ++idx)
+         {
+            TinyVector<double, 2> x_diff;
+            x_diff = xcent - Xcoord.at(idx);
+            double deli_x = sqrt(magsqr(x_diff) + delta);
+            min_dist = min(min_dist, deli_x);
+         }
+         double denom = calcbasis<2>(Xcoord, xcent, rho, delta, min_dist, nbnd);
+         double fac = exp(2.0 * rho * L);
+         for (int kbnd = 0; kbnd < nbnd; ++kbnd)
+         {
+            LocalDistance<N> phi;
+            phi.norm = nor.at(kbnd);
+            phi.kappa = kappa.at(kbnd);
+            phi.xbnd = Xcoord.at(kbnd);
+            phi.tan = {nor.at(kbnd)(1), -nor.at(kbnd)(0)};
+            TinyVector<double, N> x_diff;
+            x_diff = xcent - Xcoord.at(kbnd);
+            double delk_x = sqrt(magsqr(x_diff) + delta);
+            double psi = exp(-rho * (delk_x - min_dist)) / denom;
+            if (psi * fac > tol)
+            {
+               auto q = Algoim::quadGen<N>(
+                   phi,
+                   Algoim::BoundingBox<double, N>(xlower, xupper),
+                   dir,
+                   side,
+                   order);
+               for (const auto &pt : q.nodes)
+               {
+                  TinyVector<double, N> xp;
+                  xp[0] = pt.x[0];
+                  xp[1] = pt.x[1];
+                  /// find minimum distance
+                  double min_dist1 = 1e+100;
+                  for (int idx = 0; idx < nbnd; ++idx)
+                  {
+                     TinyVector<double, 2> x_diff;
+                     x_diff = xp - Xcoord.at(idx);
+                     /// this needs to be replaced with interval type
+                     double deli_x = sqrt(magsqr(x_diff) + delta);
+                     min_dist1 = min(min_dist1, deli_x);
+                  }
+                  double denom2 =
+                      calcbasis<2>(Xcoord, xp, rho, delta, min_dist1, nbnd);
+                  TinyVector<double, N> x_diff;
+                  x_diff = xp - Xcoord.at(kbnd);
+                  double delk_x = sqrt(magsqr(x_diff) + delta);
+                  double psi_scale = exp(-rho * (delk_x - min_dist1)) / denom2;
+                  double weight = psi_scale * pt.w;
+                  if (weight < tol)
+                  {
+                     weight = tol;
+                  }
+                  if (weight > tol)
+                  {
+                     qarea.evalIntegrand(xp, weight);
+                  }
+               }
+            }
+         }
          int i = 0;
-         ir = new IntegrationRule(q.nodes.size());
-         for (const auto &pt : q.nodes)
+         ir = new IntegrationRule(qarea.nodes.size());
+         for (const auto &pt : qarea.nodes)
          {
             IntegrationPoint &ip = ir->IntPoint(i);
             ip.x = (pt.x[0] - xmin[0]) / xscale;
@@ -511,16 +660,16 @@ public:
             MFEM_ASSERT(ip.weight > 0,
                         "integration point weight is negative in domain "
                         "integration from Saye's method");
-            MFEM_ASSERT(
-                (phi(pt.x) < tol),
-                " phi = "
-                    << phi(pt.x) << " : "
-                    << " levelset function positive at the quadrature point "
-                       "domain integration (Saye's method)");
+            // MFEM_ASSERT(
+            //     (phi(pt.x) < tol),
+            //     " phi = " << phi(pt.x) << " : "
+            //               << " levelset function positive at the "
+            //                  "quadrature point "
+            //                  "domain integration (Saye's method)");
          }
          cutSquareIntRules[elemid] = ir;
       }
-      std::ofstream f("element_quad_rule_ls_bnds_outer.vtp");
+      std::ofstream f("element_quad_rule_indicator.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
       std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
                 << " quadrature points\n";
@@ -534,10 +683,12 @@ public:
        std::map<int, IntegrationRule *> &cutSegmentIntRules,
        std::map<int, IntegrationRule *> &cutInteriorFaceIntRules)
    {
-      QuadratureRule<N> qp, qface;
+      QuadratureRule<N> qp, qf;
+      cout << "#cut bdr elements " << cutelems.size() << endl;
       for (int k = 0; k < cutelems.size(); ++k)
       {
-         IntegrationRule *ir;
+         QuadratureRule<N> qperi;
+         IntegrationRule *ir = NULL;
          blitz::TinyVector<double, N> xmin;
          blitz::TinyVector<double, N> xmax;
          blitz::TinyVector<double, N> xupper;
@@ -545,9 +696,6 @@ public:
          int side;
          int dir;
          double tol = 1e-14;
-         // standard reference element
-         // xlower = {0, 0};
-         // xupper = {1, 1};
          int elemid = cutelems.at(k);
          ElementTransformation *trans = mesh->GetElementTransformation(elemid);
          findBoundingBox(elemid, xmin, xmax);
@@ -558,15 +706,77 @@ public:
          // phi.radius = radius;
          dir = N;
          side = -1;
-         auto q =
-             Algoim::quadGen<N>(phi,
-                                Algoim::BoundingBox<double, N>(xlower, xupper),
-                                dir,
-                                side,
-                                order);
+         /// changes to incorporate indicator quadrature rule
+         blitz::TinyVector<double, 2> xcent = 0.5 * (xmin + xmax);
+         TinyVector<double, N> dx = xcent - xmin;
+         double L = sqrt(magsqr(dx));
+         /// find minimum distance
+         double min_dist = 1e+100;
+         /// find minimum distance
+         for (int idx = 0; idx < nbnd; ++idx)
+         {
+            TinyVector<double, 2> x_diff;
+            x_diff = xcent - Xcoord.at(idx);
+            double deli_x = sqrt(magsqr(x_diff) + delta);
+            min_dist = min(min_dist, deli_x);
+         }
+         double denom = calcbasis<2>(Xcoord, xcent, rho, delta, min_dist, nbnd);
+         double fac = exp(2.0 * rho * L);
+         for (int kbnd = 0; kbnd < nbnd; ++kbnd)
+         {
+            LocalDistance<N> phi;
+            phi.norm = nor.at(kbnd);
+            phi.kappa = kappa.at(kbnd);
+            phi.xbnd = Xcoord.at(kbnd);
+            phi.tan = {nor.at(kbnd)(1), -nor.at(kbnd)(0)};
+            TinyVector<double, N> x_diff;
+            x_diff = xcent - Xcoord.at(kbnd);
+            double delk_x = sqrt(magsqr(x_diff) + delta);
+            double psi = exp(-rho * (delk_x - min_dist)) / denom;
+            if (psi * fac > tol)
+            {
+               auto q = Algoim::quadGen<N>(
+                   phi,
+                   Algoim::BoundingBox<double, N>(xlower, xupper),
+                   dir,
+                   side,
+                   order);
+               for (const auto &pt : q.nodes)
+               {
+                  TinyVector<double, N> xp;
+                  xp[0] = pt.x[0];
+                  xp[1] = pt.x[1];
+                  /// find minimum distance
+                  double min_dist1 = 1e+100;
+                  for (int idx = 0; idx < nbnd; ++idx)
+                  {
+                     TinyVector<double, 2> x_diff;
+                     x_diff = xp - Xcoord.at(idx);
+                     /// this needs to be replaced with interval type
+                     double deli_x = sqrt(magsqr(x_diff) + delta);
+                     min_dist1 = min(min_dist1, deli_x);
+                  }
+                  double denom2 =
+                      calcbasis<2>(Xcoord, xp, rho, delta, min_dist1, nbnd);
+                  TinyVector<double, N> x_diff;
+                  x_diff = xp - Xcoord.at(kbnd);
+                  double delk_x = sqrt(magsqr(x_diff) + delta);
+                  double psi_scale = exp(-rho * (delk_x - min_dist1)) / denom2;
+                  double weight = psi_scale * pt.w;
+                  if (weight < tol)
+                  {
+                     weight = tol;
+                  }
+                  if (weight > tol)
+                  {
+                     qperi.evalIntegrand(xp, weight);
+                  }
+               }
+            }
+         }
          int i = 0;
-         ir = new IntegrationRule(q.nodes.size());
-         for (const auto &pt : q.nodes)
+         ir = new IntegrationRule(qperi.nodes.size());
+         for (const auto &pt : qperi.nodes)
          {
             IntegrationPoint &ip = ir->IntPoint(i);
             ip.x = (pt.x[0] - xmin[0]) / xscale;
@@ -587,24 +797,23 @@ public:
                 "int rule from Saye's method");
          }
          cutSegmentIntRules[elemid] = ir;
+         #if 1
+         /// interior faces int rules
          mfem::Array<int> orient;
          mfem::Array<int> fids;
          mesh->GetElementEdges(elemid, fids, orient);
          int fid;
          for (int c = 0; c < fids.Size(); ++c)
          {
+            QuadratureRule<N> qface;
             fid = fids[c];
             if (find(cutinteriorFaces.begin(), cutinteriorFaces.end(), fid) !=
                 cutinteriorFaces.end())
             {
                if (cutInteriorFaceIntRules[fid] == NULL)
                {
-                  // cout << "fid " << fid  << endl;
                   FaceElementTransformations *trans;
                   trans = mesh->GetInteriorFaceTransformations(fid);
-                  // cout << "trans  " << trans->Face->ElementNo << endl;
-                  // cout << "face elements " << trans->Elem1No <<  "  , " <<
-                  // trans->Elem2No << endl;
                   mfem::Array<int> v;
                   mesh->GetEdgeVertices(fid, v);
                   double *v1coord, *v2coord;
@@ -613,7 +822,6 @@ public:
                   if (abs(v1coord[0] - v2coord[0]) < 1e-15)
                   {
                      dir = 0;
-                     // if (v1coord[0] > v2coord[1])
                      if (abs(v1coord[0] - xmax[0]) > 1e-15)
                      {
                         side = 0;
@@ -635,15 +843,61 @@ public:
                         side = 1;
                      }
                   }
-                  auto q = Algoim::quadGen<N>(
-                      phi,
-                      Algoim::BoundingBox<double, N>(xlower, xupper),
-                      dir,
-                      side,
-                      order);
+                  /// changes to incorporate indicator quadrature rule
+                  for (int kbnd = 0; kbnd < nbnd; ++kbnd)
+                  {
+                     LocalDistance<N> phi;
+                     phi.norm = nor.at(kbnd);
+                     phi.kappa = kappa.at(kbnd);
+                     phi.xbnd = Xcoord.at(kbnd);
+                     phi.tan = {nor.at(kbnd)(1), -nor.at(kbnd)(0)};
+                     TinyVector<double, N> x_diff;
+                     x_diff = xcent - Xcoord.at(kbnd);
+                     double delk_x = sqrt(magsqr(x_diff) + delta);
+                     double psi = exp(-rho * (delk_x - min_dist)) / denom;
+                     if (psi * fac > tol)
+                     {
+                        auto q = Algoim::quadGen<N>(
+                            phi,
+                            Algoim::BoundingBox<double, N>(xlower, xupper),
+                            dir,
+                            side,
+                            order);
+                        for (const auto &pt : q.nodes)
+                        {
+                           TinyVector<double, N> xp;
+                           xp[0] = pt.x[0];
+                           xp[1] = pt.x[1];
+                           /// find minimum distance
+                           double min_dist1 = 1e+100;
+                           for (int idx = 0; idx < nbnd; ++idx)
+                           {
+                              TinyVector<double, 2> x_diff;
+                              x_diff = xp - Xcoord.at(idx);
+                              double deli_x = sqrt(magsqr(x_diff) + delta);
+                              min_dist1 = min(min_dist1, deli_x);
+                           }
+                           double denom2 = calcbasis<2>(Xcoord, xp, rho, delta, min_dist1, nbnd);
+                           TinyVector<double, N> x_diff;
+                           x_diff = xp - Xcoord.at(kbnd);
+                           double delk_x = sqrt(magsqr(x_diff) + delta);
+                           double psi_scale = exp(-rho * (delk_x - min_dist1)) / denom2;
+                           double weight = psi_scale * pt.w;
+                           if (weight < tol)
+                           {
+                              weight = tol;
+                           }
+                           if (weight > tol)
+                           {
+                              qface.evalIntegrand(xp, weight);
+                           }
+                        }
+                     }
+                  }
+                  cout << "qface.nodes.size() " << qface.nodes.size() << endl;
+                  ir = new IntegrationRule(qface.nodes.size());
                   int i = 0;
-                  ir = new IntegrationRule(q.nodes.size());
-                  for (const auto &pt : q.nodes)
+                  for (const auto &pt : qface.nodes)
                   {
                      IntegrationPoint &ip = ir->IntPoint(i);
                      ip.y = 0.0;
@@ -654,14 +908,10 @@ public:
                            if (-1 == orient[c])
                            {
                               ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                              // cout << "pt.x[1] " << pt.x[1] << endl;
-                              // cout << "ip.x " << ip.x << endl;
                            }
                            else
                            {
                               ip.x = (pt.x[1] - xmin[1]) / yscale;
-                              // cout << "pt.x[1] " << pt.x[1] << endl;
-                              // cout << "ip.x " << ip.x << endl;
                            }
                         }
                         else
@@ -683,8 +933,6 @@ public:
                            if (-1 == orient[c])
                            {
                               ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
-                              // cout << "pt.x[0] " << pt.x[0] << endl;
-                              // cout << "ip.x " << ip.x << endl;
                            }
                            else
                            {
@@ -702,15 +950,12 @@ public:
                            {
                               ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
-
-                           // cout << "pt.x[0] " << pt.x[0] << endl;
-                           // cout << "ip.x " << ip.x << endl;
                         }
                      }
                      TinyVector<double, N> xp;
                      xp[0] = pt.x[0];
                      xp[1] = pt.x[1];
-                     qface.evalIntegrand(xp, pt.w);
+                     qf.evalIntegrand(xp, pt.w);
                      trans->SetIntPoint(&ip);
                      ip.weight = pt.w / trans->Weight();
                      i = i + 1;
@@ -740,16 +985,17 @@ public:
                }
             }
          }
+      #endif
       }  /// loop over cut elements
-      std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
+      std::ofstream f("cut_segment_quad_rule.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
       std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
                 << " quadrature points\n";
       /// quad rule for faces
-      std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
-      Algoim::outputQuadratureRuleAsVtpXML(qface, face);
+      std::ofstream face("cut_interior_face_quad_rule.vtp");
+      Algoim::outputQuadratureRuleAsVtpXML(qf, face);
       std::cout << "  scheme.vtp file written, containing "
-                << qface.nodes.size() << " quadrature points\n";
+                << qf.nodes.size() << " quadrature points\n";
    }
    /// get integration rule for cut segments
    void GetCutBdrSegmentIntRule(
@@ -770,19 +1016,8 @@ public:
          int side;
          int dir;
          double tol = 1e-16;
-         // standard reference element
-         // xlower = {0, 0};
-         // xupper = {1, 1};
          int elemid = cutelems.at(k);
          findBoundingBox(elemid, xmin, xmax);
-         // phi.xscale = 1.0;
-         // phi.yscale = 1.0;
-         // phi.min_x = 0.0;
-         // phi.min_y = 0.0;
-         // phi.xscale = xmax[0] - xmin[0];
-         // phi.yscale = xmax[1] - xmin[1];
-         // phi.min_x = xmin[0];
-         // phi.min_y = xmin[1];
          double xscale = xmax[0] - xmin[0];
          double yscale = xmax[1] - xmin[1];
          mfem::Array<int> orient;
@@ -801,18 +1036,11 @@ public:
                {
                   FaceElementTransformations *trans;
                   trans = mesh->GetFaceElementTransformations(fid);
-                  // cout << "fid " << fid << endl;
-                  // cout << "trans  " << trans->Face->ElementNo << endl;
-                  // cout << "bdr face int rule for " << fid << endl;
                   mfem::Array<int> v;
                   mesh->GetEdgeVertices(fid, v);
                   double *v1coord, *v2coord;
                   v1coord = mesh->GetVertex(v[0]);
                   v2coord = mesh->GetVertex(v[1]);
-                  // cout << " x vert " << v1coord[0] << " , " << v2coord[0] <<
-                  // endl; cout << " y vert " << v1coord[1] << " , " <<
-                  // v2coord[1] << endl; cout << abs(v1coord[0] - v2coord[0]) <<
-                  // endl;
                   if (abs(v1coord[0] - v2coord[0]) < 1e-15)
                   {
                      dir = 0;
@@ -838,9 +1066,6 @@ public:
                         side = 1;
                      }
                   }
-
-                  // cout << "dir " << dir << endl;
-                  // cout << "side " << side << endl;
 
                   auto q = Algoim::quadGen<N>(
                       phi,
@@ -960,6 +1185,12 @@ protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
    Algoim::LevelSet<N> phi;
+   mutable std::vector<TinyVector<double, N>> Xc, Xcoord;
+   mutable std::vector<TinyVector<double, N>> nor;
+   mutable std::vector<TinyVector<double, N - 1>> kappa;
+   mutable int nbnd;
+   mutable double delta;
+   mutable double rho;
    // circle<N> phi;
 };
 }  // namespace mach
