@@ -177,24 +177,24 @@ void AbstractSolver::initDerived()
 
 
    // mass lumping
-   const bool lump = options["mass-matrix"]["lump"].get<bool>();
-   if (lump)
-   {
-      double *cols;
-      int num_in_row;
-      Vector diag(mass_matrix_gd->Height());
-      diag = 0.0;
-      for (int i = 0; i < mass_matrix_gd->Height(); i++)
-      {
-         cols = mass_matrix_gd->GetRowEntries(i);
-         num_in_row = mass_matrix_gd->RowSize(i);
-         for (int j = 0; j < num_in_row; j++)
-         {
-            diag(i) += cols[j];
-         }
-      }
-      mass_matrix_gd.reset(new MatrixType(diag));
-   }
+   // const bool lump = options["mass-matrix"]["lump"].get<bool>();
+   // if (lump)
+   // {
+   //    double *cols;
+   //    int num_in_row;
+   //    Vector diag(mass_matrix_gd->Height());
+   //    diag = 0.0;
+   //    for (int i = 0; i < mass_matrix_gd->Height(); i++)
+   //    {
+   //       cols = mass_matrix_gd->GetRowEntries(i);
+   //       num_in_row = mass_matrix_gd->RowSize(i);
+   //       for (int j = 0; j < num_in_row; j++)
+   //       {
+   //          diag(i) += cols[j];
+   //       }
+   //    }
+   //    mass_matrix_gd.reset(new MatrixType(diag));
+   // }
 
 #endif
    const string odes = options["time-dis"]["ode-solver"].get<string>();
