@@ -181,6 +181,27 @@ inline xdouble entropy(const xdouble *q)
    }
 }
 
+/// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
+/// \param[in] q - state variables (either conservative or entropy variables)
+/// \param[in] qe - equilibrium state used in affine transformation
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+/// \note This version performs an affine transformation to the entropy such
+/// that it is has its minimizer at `qe`.
+template <typename xdouble, int dim>
+inline xdouble entropy(const xdouble *q, const xdouble *qe)
+{
+   xdouble ent = entropy<xdouble, dim>(q);
+   xdouble ent_ref = entropy<xdouble, dim>(qe);
+   ent -= ent_ref;
+   xdouble we[dim + 2];
+   calcEntropyVars<xdouble, dim>(qe, we);
+   for (int i = 0; i < dim + 2; ++i)
+      ent -= we[i] * (q[i] - qe[i]);
+   return ent;
+}
+
 /// Euler flux function in a given (scaled) direction
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] q - conservative variables
@@ -1142,6 +1163,60 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
       w_diff[i] = wL[i] - wR[i];
    }
    xdouble lambda = diss_coeff * calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
+   for (int i = 0; i < dim + 2; i++)
+   {
+      flux[i] = flux[i] + lambda * dqdw_vec[i];
+   }
+}
+
+template <typename xdouble, int dim, bool entvar = false>
+void calcFarFieldFlux2(const xdouble *dir,
+                       const xdouble *qbnd,
+                       const xdouble *q,
+                       xdouble *work,
+                       xdouble *flux)
+{
+   //xdouble qcons[dim + 2];
+   //calcConservativeVars<xdouble, dim, entvar>(q, qcons);
+   //calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
+   //calcIsmailRoeFaceFluxWithDiss<xdouble, dim>(dir, 1.0, qcons, qbnd, flux);
+   if constexpr (entvar)
+   {
+      // not set up for entvar yet 
+      throw(-1);
+   }
+
+   // compute the slip-wall flux
+   //xdouble x[dim];
+   //calcSlipWallFlux<xdouble, dim, entvar>(x, dir, q, flux);
+
+   xdouble U = dot<xdouble, dim>(dir, qbnd+1)/qbnd[0];
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      flux[i] = q[i] * U;
+   }
+   xdouble press = pressure<xdouble, dim>(q);
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] += dir[i] * press;
+   }
+   flux[dim + 1] += press * U;
+
+   // add the penalty on the far-field condition 
+   xdouble q_ave[dim + 2];
+   xdouble w[dim + 2];
+   xdouble wbnd[dim + 2];
+   xdouble w_diff[dim + 2];
+   xdouble dqdw_vec[dim + 2];
+   calcEntropyVars<xdouble, dim, false>(q, w);  // convert to entropy vars
+   calcEntropyVars<xdouble, dim, false>(qbnd, wbnd);
+   for (int i = 0; i < dim + 2; i++)
+   {
+      q_ave[i] = 0.5 * (q[i] + qbnd[i]);
+      w_diff[i] = w[i] - wbnd[i];
+   }
+   xdouble lambda = calcSpectralRadius<xdouble, dim>(dir, q_ave);
    calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
    for (int i = 0; i < dim + 2; i++)
    {
