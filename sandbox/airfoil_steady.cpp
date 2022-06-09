@@ -1,9 +1,5 @@
 // Solve for the steady flow around a NACA0012
 
-// set this const expression to true in order to use entropy variables for state
-constexpr bool entvar = false;
-
-#include<random>
 #include <fstream>
 #include <iostream>
 
@@ -12,14 +8,6 @@ constexpr bool entvar = false;
 using namespace std;
 using namespace mfem;
 using namespace mach;
-
-std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
-
-/// \brief Defines the random function for the jabocian check
-/// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-void pert(const Vector &x, Vector& p);
 
 int main(int argc, char *argv[])
 {
@@ -86,14 +74,4 @@ int main(int argc, char *argv[])
       cerr << exception.what() << endl;
    }
    MPI_Finalize();
-}
-
-// perturbation function used to check the jacobian in each iteration
-void pert(const Vector &x, Vector& p)
-{
-   p.SetSize(4);
-   for (int i = 0; i < 4; i++)
-   {
-      p(i) = normal_rand(gen);
-   }
 }

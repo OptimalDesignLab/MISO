@@ -3,25 +3,14 @@
 // set this const expression to true in order to use entropy variables for state
 constexpr bool entvar = false;
 
-#include<random>
-#include "adept.h"
-
-#include "mfem.hpp"
-#include "euler.hpp"
 #include <fstream>
 #include <iostream>
+
+#include "mach.hpp"
 
 using namespace std;
 using namespace mfem;
 using namespace mach;
-
-std::default_random_engine gen(std::random_device{}());
-std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
-
-/// \brief Defines the random function for the jabocian check
-/// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-void pert(const Vector &x, Vector& p);
 
 /// \brief Returns the value of the integrated math entropy over the domain
 double calcEntropyTotalExact();
@@ -33,23 +22,11 @@ void uexact(const Vector &x, Vector& u);
 
 int main(int argc, char *argv[])
 {
+   // Get the options
    const char *options_file = "steady_vortex_options.json";
-#ifdef MFEM_USE_PETSC
-   const char *petscrc_file = "eulersteady.petsc";
-   // Get the option file
    nlohmann::json options;
    ifstream option_source(options_file);
    option_source >> options;
-   // Write the petsc option file
-   ofstream petscoptions(petscrc_file);
-   const string linearsolver_name = options["petscsolver"]["ksptype"].get<string>();
-   const string prec_name = options["petscsolver"]["pctype"].get<string>();
-   petscoptions << "-solver_ksp_type " << linearsolver_name << '\n';
-   petscoptions << "-prec_pc_type " << prec_name << '\n';
-   //petscoptions << "-prec_pc_factor_levels " << 4 << '\n';
-
-   petscoptions.close();
-#endif
 
    // Initialize MPI
    int num_procs, rank;
@@ -58,18 +35,15 @@ int main(int argc, char *argv[])
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    ostream *out = getOutStream(rank);
 
-#ifdef MFEM_USE_PETSC
-   MFEMInitializePetsc(NULL, NULL, petscrc_file, NULL);
-#endif
-  
    // Parse command-line options
    OptionsParser args(argc, argv);
-   int degree = 2;
+   int mesh_degree = 2;
    int nx = 1;
    int ny = 1;
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
-   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   args.AddOption(&mesh_degree, "-d", "--degree",
+                  "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nr", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-nt", "--num-theta", "number of angular segments");
    args.Parse();
@@ -78,43 +52,44 @@ int main(int argc, char *argv[])
       args.PrintUsage(*out);
       return 1;
    }
-  
+
    try
    {
-      // construct the mesh
+      // Get options from file and build mesh
       string opt_file_name(options_file);
-      auto smesh = buildQuarterAnnulusMesh(degree, nx, ny);
-      *out << "Number of elements " << smesh->GetNE() <<'\n';
+      auto mesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
+      *out << "Number of elements " << mesh->GetNE() << endl;
       ofstream sol_ofs("steady_vortex_mesh.vtk");
       sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs,0);
+      mesh->PrintVTK(sol_ofs, 2);
 
-      // construct the solver and set initial conditions
-      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name,
-                                                         move(smesh));
-      solver->setInitialCondition(uexact);
-      solver->printSolution("euler_init", 0);
+      // Create solver and set initial condition
+      FlowSolver<2, entvar> solver(MPI_COMM_WORLD, options, std::move(mesh));
+      mfem::Vector state_tv(solver.getStateSize());
+      solver.setState(uexact, state_tv);
 
       // get the initial density error
-      double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-                            .calcConservativeVarsL2Error(uexact, 0));
-      double res_error = solver->calcResidualNorm();
+      double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
+      double res_error = solver.calcResidualNorm(state_tv);
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
-      solver->checkJacobian(pert);
-      solver->solveForState();
-      solver->printSolution("euler_final",0);
-      // get the final density error
-      l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-                            .calcConservativeVarsL2Error(uexact, 0));
-      res_error = solver->calcResidualNorm();
-      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
-      double entropy = solver->calcOutput("entropy");
 
+      // Create the output(s), inputs, and solve for state
+      solver.createOutput("entropy", options["outputs"].at("entropy"));
+      solver.createOutput("drag", options["outputs"].at("drag"));
+      MachInputs inputs({{"state", state_tv}});
+      solver.solveForState(inputs, state_tv);
+
+      // Evaluate the density, entropy and drag errors
+      res_error = solver.calcResidualNorm(state_tv); 
+      l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
+      double entropy = solver.calcOutput("entropy", inputs);
+      double drag = solver.calcOutput("drag", inputs);
       out->precision(15);
       *out << "\nfinal residual norm = " << res_error;
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      *out << "\nDrag error = " << drag << endl;
+      *out << "\nDrag error = " << fabs(drag - (-1/ mach::euler::gamma)) 
+           << endl;
       *out << "\nTotal entropy = " << entropy;
       *out << "\nEntropy error = "
            << fabs(entropy - calcEntropyTotalExact()) << endl;
@@ -127,22 +102,7 @@ int main(int argc, char *argv[])
    {
       cerr << exception.what() << endl;
    }
-
-#ifdef MFEM_USE_PETSC
-   MFEMFinalizePetsc();
-#endif
-
    MPI_Finalize();
-}
-
-// perturbation function used to check the jacobian in each iteration
-void pert(const Vector &x, Vector& p)
-{
-   p.SetSize(4);
-   for (int i = 0; i < 4; i++)
-   {
-      p(i) = normal_rand(gen);
-   }
 }
 
 // Returns the exact total entropy value over the quarter annulus

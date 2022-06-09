@@ -1,30 +1,29 @@
 {
+   "silent" : false,
+   "paraview": {
+      "each-timestep": true,
+      "directory": "vortex-steady"
+   },
    "flow-param": {
+      "entropy-state": false,
       "mach": 1.0,
       "aoa": 0.0
    },
    "space-dis": {
-      "GD": false,
-      "GD-degree": 1,
       "degree": 1,
       "lps-coeff": 1.0,
-      "basis-type": "csbp"
+      "basis-type": "csbp",
+      "flux-fun": "IR"
    },
-   "steady": true,
    "time-dis": {
+      "type": "PTC",
       "steady": true,
       "steady-abstol": 1e-12,
       "steady-restol": 1e-10,
-      "const-cfl": true,
-      "ode-solver": "PTC",
       "t-final": 100,
       "dt": 1e12,
-      "cfl": 1.0
-   },
-	"model-file": "annulus.dmg",
-   "mesh": {
-	   "file":"annulus.smb",
-      "refine": 0
+      "cfl": 1.0,
+      "res-exp": 2.0
    },
    "bcs": {
       "vortex": [1, 1, 1, 0],
@@ -36,15 +35,8 @@
       "reltol": 1e-1,
       "abstol": 1e-12
    },
-   "petscsolver": {
-      "ksptype": "gmres",
-      "pctype": "lu",
-      "abstol": 1e-15,
-      "reltol": 1e-15,
-      "maxiter": 100,
-      "printlevel": 0
-   },
    "lin-solver": {
+      "type": "hyprefgmres",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,
@@ -54,7 +46,10 @@
    "saveresults":false,
    "outputs":
    {
-      "entropy": true,
-      "drag": [0, 0, 0, 1]
+      "each-timestep": true,
+      "entropy": {},
+      "drag": {
+         "boundaries": [0, 0, 0, 1]
+      }
    }
 }
