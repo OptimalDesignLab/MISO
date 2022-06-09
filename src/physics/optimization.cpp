@@ -301,6 +301,19 @@ void DGDOptimizer::addBoundaryIntegrators(double alpha)
 	auto &bcs = options["bcs"];
 	bndry_marker.resize(bcs.size());
 	int idx = 0;
+   if (bcs.find("wedge-shock") != bcs.end())
+   { // shock capturing wedge problem BC
+      vector<int> tmp = bcs["wedge-shock"].get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res_full->AddBdrFaceIntegrator(
+          new WedgeShockBC<2,false>(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
+		res_dgd->AddBdrFaceIntegrator(
+          new WedgeShockBC<2,false>(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
    if (bcs.find("vortex") != bcs.end())
    { // isentropic vortex BC
       if (dim != 2)

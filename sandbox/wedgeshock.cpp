@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
       solver->solveForState();
-      solver->printSolution("shockwedge-final");
+      solver->printSolution("wedgeshock-sol");
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       mfem::out << "\n|| rho_h - rho ||_{L^2} = " 
