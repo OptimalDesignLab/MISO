@@ -448,10 +448,12 @@ void transferSolution(MeshType &old_mesh,
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_rad - number of nodes in the radial direction
 /// \param[in] num_ang - number of nodes in the angular direction
+/// \param[in] pert - perturbs interior vertices by at most `pert` fraction of h
 /// \returns unique pointer to a serial `Mesh` object.
 std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree,
                                                     int num_rad,
-                                                    int num_ang);
+                                                    int num_ang,
+                                                    double pert=0.0);
 
 }  // namespace mach
 
