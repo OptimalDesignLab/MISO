@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
 
-      // Create solver and set initial condition 
+      // Create solver and set initial condition
       FlowSolver<2> solver(MPI_COMM_WORLD, options);
       mfem::Vector state_tv(solver.getStateSize());
       Vector qfar(4);
