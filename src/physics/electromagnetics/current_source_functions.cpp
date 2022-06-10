@@ -568,7 +568,6 @@ void team13CurrentSourceRevDiff(adept::Stack &diff_stack,
 
 namespace mach
 {
-
 void CurrentDensityCoefficient::cacheCurrentDensity()
 {
    for (auto &[group, coeff] : group_map)

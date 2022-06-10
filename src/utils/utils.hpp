@@ -17,7 +17,6 @@
 
 namespace mach
 {
-
 inline adept::Stack &getDiffStack()
 {
    static adept::Stack diff_stack;

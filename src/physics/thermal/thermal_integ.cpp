@@ -6,7 +6,6 @@
 
 namespace mach
 {
-
 void ConvectionBCIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,
     const mfem::FiniteElement &el2,
