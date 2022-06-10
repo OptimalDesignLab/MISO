@@ -334,12 +334,12 @@ double FlowControlSolver<dim, entvar>::calcStepSize(int iter,
           "FlowControlSolver not set up to handle steady "
           "simulations!\n");
    }
-   if (!options["time-dis"]["const-cfl"].get<bool>())
+   if (!options["time-dis"]["const-cfl"].template get<bool>())
    {
       return AbstractSolver2::calcStepSize(iter, t, t_final, dt_old, state);
    }
    // Otherwise, use a constant CFL condition
-   auto cfl = options["time-dis"]["cfl"].get<double>();
+   auto cfl = options["time-dis"]["cfl"].template get<double>();
    // here we call the FlowResidual method for the min time step, which needs
    // the current flow state as a grid function
    Vector control_state;
@@ -358,7 +358,7 @@ bool FlowControlSolver<dim, entvar>::iterationExit(int iter,
                                                    double dt,
                                                    const Vector &state) const
 {
-   if (options["time-dis"]["steady"].get<bool>())
+   if (options["time-dis"]["steady"].template get<bool>())
    {
       throw MachException(
           "FlowControlSolver not set up to handle steady "

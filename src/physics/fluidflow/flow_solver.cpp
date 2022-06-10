@@ -135,7 +135,7 @@ double FlowSolver<dim, entvar>::calcStepSize(int iter,
       // A better choice might be the l1 norm
       double res_norm = calcResidualNorm(state);
       double exponent = options["time-dis"]["res-exp"];
-      double dt = options["time-dis"]["dt"].get<double>() *
+      double dt = options["time-dis"]["dt"].template get<double>() *
                   pow(res_norm0 / res_norm, exponent);
       return max(dt, dt_old);
    }
@@ -167,7 +167,7 @@ bool FlowSolver<dim, entvar>::iterationExit(int iter,
          return true;
       }
       if (norm <=
-          res_norm0 * options["time-dis"]["steady-reltol"].get<double>())
+          res_norm0 * options["time-dis"]["steady-reltol"].template get<double>())
       {
          return true;
       }

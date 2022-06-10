@@ -141,12 +141,12 @@ public:
    /// Operator application
    /// \param[in] x - the vector being preconditioned
    /// \param[in] y - the preconditioned vector
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const;
+   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// Action of the transpose operator
    /// \param[in] x - the vector being preconditioned
    /// \param[in] y - the preconditioned vector
-   virtual void MultTranspose(const mfem::Vector &x, mfem::Vector &y) const;
+   virtual void MultTranspose(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// Preconditioner destructor
    ~BlockJacobiPreconditioner();
