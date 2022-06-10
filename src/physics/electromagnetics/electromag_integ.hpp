@@ -909,20 +909,10 @@ private:
 class DCLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// \brief allows changing the frequency and diameter of the strands for AC
-   /// loss calculation
-   friend void setInputs(DCLossFunctionalIntegrator &integ,
-                         const MachInputs &inputs);
-
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] sigma - the electrical conductivity coefficient
-   /// \param[in] current - the current density vector coefficient
    /// \param[in] current_density - the current density magnitude
-   DCLossFunctionalIntegrator(mfem::Coefficient &sigma,
-                              mfem::VectorCoefficient &current,
-                              double current_density)
-    : sigma(sigma), current(current), current_density(current_density)
-   { }
+   DCLossFunctionalIntegrator(mfem::Coefficient &sigma) : sigma(sigma) { }
 
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] el - the finite element
@@ -935,11 +925,50 @@ public:
 
 private:
    mfem::Coefficient &sigma;
-   mfem::VectorCoefficient &current;
-   double current_density;
+   // double rms_current;
+   // double strand_radius;
+   // double num_strands_in_hand;
+   // double num_turns;
+};
+
+class DCLossFunctionalDistributionIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   friend void setInputs(DCLossFunctionalDistributionIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[out] elvect - element local heat source distribution
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+   DCLossFunctionalDistributionIntegrator(mfem::Coefficient &sigma,
+                                          std::string name = "")
+    : sigma(sigma), name(name)
+   { }
+
+private:
+   /// Electrical conductivity
+   mfem::Coefficient &sigma;
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
+   /// Litz wire strand radius
+   double strand_radius = 1.0;
+   /// Total wire length
+   double wire_length = 1.0;
+   /// Number of strands in hand for litz wire
+   double strands_in_hand = 1.0;
+   /// RMS current
+   double rms_current = 1.0;
 #ifndef MFEM_THREAD_SAFE
-   mfem::Vector current_vec;
+   mfem::Vector shape;
 #endif
+   /// class that implements mesh sensitivities for
+   /// DCLossFunctionalDistributionIntegrator
+   friend class DCLossFunctionalDistributionIntegratorMeshSens;
 };
 
 /// Functional integrator to compute AC copper losses based on hybrid approach
@@ -967,6 +996,55 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
+};
+
+class ACLossFunctionalDistributionIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   friend void setInputs(ACLossFunctionalDistributionIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[out] elvect - element local heat source distribution
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+   ACLossFunctionalDistributionIntegrator(mfem::GridFunction &peak_flux,
+                                          mfem::Coefficient &sigma,
+                                          std::string name = "")
+    : peak_flux(peak_flux), sigma(sigma), name(name)
+   { }
+
+private:
+   mfem::GridFunction &peak_flux;
+   /// Electrical conductivity
+   mfem::Coefficient &sigma;
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
+   /// Electrical excitation frequency
+   double freq = 1.0;
+   /// Litz wire strand radius
+   double radius = 1.0;
+   /// into the page length
+   double stack_length = 1.0;
+   /// Number of strands in hand for litz wire
+   double strands_in_hand = 1.0;
+   /// Number of turns of litz wire
+   double num_turns = 1.0;
+   /// Number of slots in motor
+   double num_slots = 1.0;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Vector flux_shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+   /// class that implements mesh sensitivities for
+   /// ACLossFunctionalDistributionIntegrator
+   friend class ACLossFunctionalDistributionIntegratorMeshSens;
 };
 
 /// Functional integrator to compute AC copper losses based on hybrid approach
@@ -1088,7 +1166,8 @@ public:
    /// \brief - assemble an element's contribution to dJdX
    /// \param[in] el - the finite element that describes the mesh element
    /// \param[in] trans - the transformation between reference and physical
-   /// space \param[out] mesh_coords_bar - dJdX for the element
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;
@@ -1148,8 +1227,9 @@ public:
    SteinmetzLossIntegrator(mfem::Coefficient &rho,
                            mfem::Coefficient &k_s,
                            mfem::Coefficient &alpha,
-                           mfem::Coefficient &beta)
-    : rho(rho), k_s(k_s), alpha(alpha), beta(beta)
+                           mfem::Coefficient &beta,
+                           std::string name = "")
+    : rho(rho), k_s(k_s), alpha(alpha), beta(beta), name(name)
    { }
 
 private:
@@ -1160,14 +1240,62 @@ private:
    mfem::Coefficient &alpha;
    mfem::Coefficient &beta;
 
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
    /// Electrical excitation frequency
    double freq = 1.0;
+   /// Maximum flux density magnitude
+   double max_flux_mag = 1.0;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
 
    /// class that implements mesh sensitivities for SteinmetzLossIntegrator
    friend class SteinmetzLossIntegratorMeshSens;
+};
+
+class SteinmetzLossDistributionIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   friend void setInputs(SteinmetzLossDistributionIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[out] elvect - element local heat source distribution
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+   SteinmetzLossDistributionIntegrator(mfem::Coefficient &rho,
+                                       mfem::Coefficient &k_s,
+                                       mfem::Coefficient &alpha,
+                                       mfem::Coefficient &beta,
+                                       std::string name = "")
+    : rho(rho), k_s(k_s), alpha(alpha), beta(beta), name(name)
+   { }
+
+private:
+   /// Density
+   mfem::Coefficient &rho;
+   /// Steinmetz coefficients
+   mfem::Coefficient &k_s;
+   mfem::Coefficient &alpha;
+   mfem::Coefficient &beta;
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
+   /// Electrical excitation frequency
+   double freq = 1.0;
+   /// Maximum flux density magnitude
+   double max_flux_mag = 1.0;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+   /// class that implements mesh sensitivities for
+   /// SteinmetzLossDistributionIntegrator
+   friend class SteinmetzLossDistributionIntegratorMeshSens;
 };
 
 }  // namespace mach

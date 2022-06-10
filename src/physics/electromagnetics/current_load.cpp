@@ -269,9 +269,9 @@ void CurrentLoad::assembleLoad()
    // J.ParallelAssemble(RHS);
 
    HypreBoomerAMG amg(*M.As<HypreParMatrix>());
-   HypreILU ilu;
-   // HYPRE_ILUSetType(ilu, );
-   HYPRE_ILUSetLevelOfFill(ilu, 4);
+   // HypreILU ilu;
+   // // HYPRE_ILUSetType(ilu, );
+   // HYPRE_ILUSetLevelOfFill(ilu, 4);
    // HYPRE_ILUSetLocalReordering(ilu, );
    // HYPRE_ILUSetPrintLevel(ilu, );
 
@@ -285,8 +285,8 @@ void CurrentLoad::assembleLoad()
    pcg.SetTol(1e-12);
    pcg.SetMaxIter(250);
    pcg.SetPrintLevel(2);
-   // pcg.SetPreconditioner(amg);
-   pcg.SetPreconditioner(ilu);
+   pcg.SetPreconditioner(amg);
+   // pcg.SetPreconditioner(ilu);
    pcg.SetKDim(250);
    pcg.SetOperator(*M.As<HypreParMatrix>());
 

@@ -29,6 +29,13 @@ class MachFunctional(om.ExplicitComponent):
         ext_fields = "external-fields" in solver_options
         if self.options["depends"] is not None:
             for input in self.options["depends"]:
+                if isinstance(input, tuple):
+                    input = input[0]
+
+                if not isinstance(input, str):
+                    raise ValueError("Unsupported input type!")
+
+                print(f"setting input: {input}")
 
                 if input == "state":
                     self.add_input("state",

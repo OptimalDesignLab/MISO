@@ -392,10 +392,10 @@ void PDESolver::setUpExternalFields()
    if (options.contains("external-fields"))
    {
       auto &external_fields = options["external-fields"];
-      for (auto &f : external_fields.items())
+      for (auto &[name, field] : external_fields.items())
       {
-         std::string name(f.key());
-         auto field = f.value();
+         // std::string name(f.key());
+         // auto field = f.value();
 
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();

@@ -37,9 +37,9 @@ class MachCouplingGroup(om.Group):
         solver_options = self.solver.getOptions()
         mesh_input = "x_" + _getPhysicsAbbreviation(solver_options) + "_vol"
         state_output = _getPhysicsAbbreviation(solver_options) + "_state"
-        self.add_subsystem("solver",
+        self.add_subsystem("state",
                            MachState(solver=self.solver,
-                                     depends=self.depends,
+                                     depends=["mesh_coords", *self.depends],
                                      check_partials=self.check_partials),
                            promotes_inputs=[*self.depends, ("mesh_coords", mesh_input)],
                            promotes_outputs=[("state", state_output)])
@@ -64,7 +64,7 @@ class MachPrecouplingGroup(om.Group):
         solver_options = self.solver.getOptions()
         mesh_input = "x_" + _getPhysicsAbbreviation(solver_options)
         mesh_output = "x_" + _getPhysicsAbbreviation(solver_options) + "_vol"
-        self.add_subsystem("warper",
+        self.add_subsystem("mesh_warper",
                            MachMeshWarper(warper=self.warper),
                            promotes_inputs=[("surf_mesh_coords", mesh_input)],
                            promotes_outputs=[("vol_mesh_coords", mesh_output)])
@@ -76,6 +76,7 @@ class MachOutputsGroup(om.Group):
     def initialize(self):
         self.options.declare("solver", types=PDESolver, recordable=False)
         self.options.declare("outputs", types=dict, default=None)
+        self.options.declare("check_partials", default=False)
         self.options.declare("scenario_name", default=None)
 
     def setup(self):
@@ -157,9 +158,10 @@ class MachMeshGroup(om.Group):
                            promotes_outputs=[mesh_output])
 
 class MachBuilder(Builder):
-    def __init__(self, solver_type, solver_options, warper_type, warper_options, outputs, check_partials=False):
+    def __init__(self, solver_type, solver_options, solver_inputs, warper_type, warper_options, outputs, check_partials=False):
         self.solver_type = copy.deepcopy(solver_type)
         self.solver_options = copy.deepcopy(solver_options)
+        self.solver_inputs = copy.deepcopy(solver_inputs)
         self.warper_type = copy.deepcopy(warper_type)
         self.warper_options = copy.deepcopy(warper_options)
         self.outputs = copy.deepcopy(outputs)
@@ -177,6 +179,7 @@ class MachBuilder(Builder):
 
     def get_coupling_group_subsystem(self, scenario_name=None):
         return MachCouplingGroup(solver=self.solver,
+                                 depends=self.solver_inputs,
                                  check_partials=self.check_partials,
                                  scenario_name=scenario_name)
 

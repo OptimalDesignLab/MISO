@@ -199,7 +199,7 @@ void MachNonlinearForm::addBdrFaceIntegrator(
 {
    integs.emplace_back(*integrator);
 
-   auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Size();
+   auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Max();
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
 

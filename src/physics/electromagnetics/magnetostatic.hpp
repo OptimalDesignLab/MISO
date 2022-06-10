@@ -4,6 +4,7 @@
 #include <memory>
 #include <mpi.h>
 
+#include "coefficient.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -26,6 +27,8 @@ public:
 private:
    /// Coefficient representing the potentially nonlinear magnetic reluctivity
    ReluctivityCoefficient nu;
+   /// Material dependent coefficient representing density
+   MeshDependentCoefficient rho;
    /// Material dependent coefficient representing electrical conductivity
    MeshDependentCoefficient sigma;
 

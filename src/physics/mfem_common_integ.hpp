@@ -141,9 +141,10 @@ public:
    /// \brief - assemble an element's contribution to d(psi^T D u)/dX
    /// \param[in] el - the finite element that describes the mesh element
    /// \param[in] trans - the transformation between reference and physical
-   /// space \param[out] mesh_coords_bar - d(psi^T D u)/dX for the element \note
-   /// the LinearForm that assembles this integrator's FiniteElementSpace
-   ///       MUST be the mesh's nodal finite element space
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T D u)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;

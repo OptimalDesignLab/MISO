@@ -14,6 +14,7 @@
 #include "magnetostatic.hpp"
 #include "mpi_comm.hpp"
 #include "py_mach_utils.hpp"
+#include "thermal.hpp"
 
 namespace py = pybind11;
 using namespace mach;
@@ -36,12 +37,16 @@ std::unique_ptr<PDESolver> initSolver(nlohmann::json solver_type,
       return std::make_unique<MagnetostaticSolver>(
           comm, solver_options, nullptr);
    }
+   else if (type == "thermal")
+   {
+      return std::make_unique<ThermalSolver>(comm, solver_options, nullptr);
+   }
    else
    {
       throw std::runtime_error(
-          "Unknown solver type!\n"
-          "\tKnown types are:\n"
-          "\t\tmagnetostatic\n");
+          "Unknown solver type! Known types are:\n"
+          "\tmagnetostatic\n"
+          "\tthermal\n");
    }
 }
 

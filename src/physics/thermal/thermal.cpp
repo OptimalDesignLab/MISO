@@ -22,6 +22,10 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
        ThermalResidual(fes(), fields, options, materials));
    setOptions(*spatial_res, options);
 
+   fields.emplace(std::piecewise_construct,
+                  std::forward_as_tuple("thermal_load"),
+                  std::forward_as_tuple(mesh(), fes(), "thermal_load"));
+
    auto *prec = getPreconditioner(*spatial_res);
    auto lin_solver_opts = options["lin-solver"];
    linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);

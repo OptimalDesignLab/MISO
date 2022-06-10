@@ -4,9 +4,11 @@
 #include <unordered_set>
 #include <vector>
 
+#include "mach_linearform.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "common_outputs.hpp"
 #include "electromag_integ.hpp"
 #include "functional_output.hpp"
 #include "mach_input.hpp"
@@ -14,56 +16,6 @@
 
 namespace mach
 {
-// class BNormSquaredAverageFunctional final
-// {
-// public:
-//    friend void setOptions(BNormSquaredAverageFunctional &output,
-//                           const nlohmann::json &options)
-//    {
-//       setOptions(output.bnormsquared, options);
-//       setOptions(output.volume, options);
-//    }
-
-//    friend void setInputs(BNormSquaredAverageFunctional &output,
-//                          const MachInputs &inputs)
-//    {
-//       setInputs(output.bnormsquared, inputs);
-//       setInputs(output.volume, inputs);
-//    }
-
-//    friend double calcOutput(BNormSquaredAverageFunctional &output,
-//                             const MachInputs &inputs)
-//    {
-//       double bnormsquared = calcOutput(output.bnormsquared, inputs);
-//       double volume = calcOutput(output.volume, inputs);
-//       return bnormsquared / volume;
-//    }
-
-//    BNormSquaredAverageFunctional(
-//        mfem::ParFiniteElementSpace &fes,
-//        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
-//        const nlohmann::json &options)
-//     : bnormsquared(fes, fields), volume(fes, fields)
-//    {
-//       if (options.contains("attributes"))
-//       {
-//          auto attributes = options["attributes"].get<std::vector<int>>();
-//          bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator,
-//                                                 attributes);
-//          volume.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
-//       }
-//       else
-//       {
-//          bnormsquared.addOutputDomainIntegrator(new BNormSquaredIntegrator);
-//          volume.addOutputDomainIntegrator(new VolumeIntegrator);
-//       }
-//    }
-
-// private:
-//    FunctionalOutput bnormsquared;
-//    FunctionalOutput volume;
-// };
-
 class ForceFunctional final
 {
 public:
@@ -206,6 +158,48 @@ private:
    std::map<std::string, FiniteElementState> &fields;
 };
 
+class DCLossFunctional final : private FunctionalOutput
+{
+public:
+   friend inline int getSize(const DCLossFunctional &output)
+   {
+      const auto &fun_output = dynamic_cast<const FunctionalOutput &>(output);
+      return getSize(fun_output);
+   }
+
+   friend void setOptions(DCLossFunctional &output,
+                          const nlohmann::json &options)
+   {
+      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
+      setOptions(fun_output, options);
+   }
+
+   friend void setInputs(DCLossFunctional &output, const MachInputs &inputs)
+   {
+      setValueFromInputs(inputs, "wire_length", output.wire_length);
+      setValueFromInputs(inputs, "rms_current", output.rms_current);
+      setValueFromInputs(inputs, "strand_radius", output.strand_radius);
+      setValueFromInputs(inputs, "strands_in_hand", output.strands_in_hand);
+
+      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
+      setInputs(fun_output, inputs);
+   }
+
+   friend double calcOutput(DCLossFunctional &output, const MachInputs &inputs);
+
+   DCLossFunctional(std::map<std::string, FiniteElementState> &fields,
+                    mfem::Coefficient &sigma,
+                    const nlohmann::json &options);
+
+private:
+   VolumeFunctional volume;
+
+   double wire_length = 1.0;
+   double rms_current = 1.0;
+   double strand_radius = 1.0;
+   double strands_in_hand = 1.0;
+};
+
 class ACLossFunctional final
 {
 public:
@@ -236,24 +230,17 @@ public:
 
 private:
    FunctionalOutput output;
-   FunctionalOutput volume;
-   // std::map<std::string, FiniteElementState> &fields;
+   VolumeFunctional volume;
 
+   std::map<std::string, FiniteElementState> &fields;
+   
    double freq = 1.0;
    double radius = 1.0;
    double stack_length = 1.0;
-   double num_strands = 1.0;
+   double strands_in_hand = 1.0;
+   double num_turns = 1.0;
+   double num_slots = 1.0;
 };
-
-// class SteinmetzValue final
-// {
-// public:
-//    friend inline int getSize(const SteinmetzValue &output)
-//    {
-//       return 1.0;
-//    }
-
-// };
 
 class CoreLossFunctional final
 {
@@ -295,51 +282,43 @@ private:
    std::unique_ptr<mfem::Coefficient> beta;
 };
 
-inline void setOptions(ForceFunctional &output, const nlohmann::json &options)
+class EMHeatSourceOutput final
 {
-   auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
-   auto &&axis = options["axis"].get<std::vector<double>>();
-   mfem::VectorConstantCoefficient axis_vector(
-       mfem::Vector(&axis[0], axis.size()));
-
-   auto &v = output.fields.at("vforce").gridFunc();
-   v = 0.0;
-   for (const auto &attr : attrs)
+public:
+   friend inline int getSize(const EMHeatSourceOutput &output)
    {
-      v.ProjectCoefficient(axis_vector, attr);
+      return getSize(output.lf);
    }
-}
 
-inline void setOptions(TorqueFunctional &output, const nlohmann::json &options)
-{
-   auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
-   auto &&axis = options["axis"].get<std::vector<double>>();
-   auto &&about = options["about"].get<std::vector<double>>();
-   mfem::Vector axis_vector(&axis[0], axis.size());
-   axis_vector /= axis_vector.Norml2();
-   mfem::Vector about_vector(&about[0], axis.size());
-   double r_data[3];
-   mfem::Vector r(r_data, axis.size());
-   mfem::VectorFunctionCoefficient v_vector(
-       3,
-       [&axis_vector, &about_vector, &r](const mfem::Vector &x, mfem::Vector &v)
-       {
-          subtract(x, about_vector, r);
-          // r /= r.Norml2();
-          v(0) = axis_vector(1) * r(2) - axis_vector(2) * r(1);
-          v(1) = axis_vector(2) * r(0) - axis_vector(0) * r(2);
-          v(2) = axis_vector(0) * r(1) - axis_vector(1) * r(0);
-          // if (v.Norml2() > 1e-12)
-          //    v /= v.Norml2();
-       });
+   friend void setOptions(EMHeatSourceOutput &output,
+                          const nlohmann::json &options);
 
-   auto &v = output.fields.at("vtorque").gridFunc();
-   v = 0.0;
-   for (const auto &attr : attrs)
+   friend void setInputs(EMHeatSourceOutput &output, const MachInputs &inputs);
+
+   friend double calcOutput(EMHeatSourceOutput &output,
+                            const MachInputs &inputs)
    {
-      v.ProjectCoefficient(v_vector, attr);
+      return NAN;
    }
-}
+
+   friend void calcOutput(EMHeatSourceOutput &output,
+                          const MachInputs &inputs,
+                          mfem::Vector &out_vec);
+
+   EMHeatSourceOutput(std::map<std::string, FiniteElementState> &fields,
+                      mfem::Coefficient &rho,
+                      mfem::Coefficient &sigma,
+                      const nlohmann::json &components,
+                      const nlohmann::json &materials,
+                      const nlohmann::json &options);
+
+private:
+   MachLinearForm lf;
+   /// Steinmetz coefficients
+   std::unique_ptr<mfem::Coefficient> k_s;
+   std::unique_ptr<mfem::Coefficient> alpha;
+   std::unique_ptr<mfem::Coefficient> beta;
+};
 
 }  // namespace mach
 

@@ -151,7 +151,7 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
    integs.emplace_back(*integrator);
    // auto &marker = domain_markers.emplace_back(attr_marker.size());
    // marker.Assign(attr_marker.data());
-   auto mesh_attr_size = output.ParFESpace()->GetMesh()->attributes.Size();
+   auto mesh_attr_size = output.ParFESpace()->GetMesh()->attributes.Max();
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
@@ -184,7 +184,7 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
 {
    integs.emplace_back(*integrator);
 
-   auto mesh_attr_size = output.ParFESpace()->GetMesh()->bdr_attributes.Size();
+   auto mesh_attr_size = output.ParFESpace()->GetMesh()->bdr_attributes.Max();
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
 

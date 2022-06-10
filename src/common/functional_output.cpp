@@ -54,7 +54,13 @@ double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);
    Vector state;
-   setVectorFromInputs(inputs, "state", state, false, true);
+   setVectorFromInputs(inputs, "state", state);
+   if (state.Size() == 0)
+   {
+      output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      state.NewDataAndSize(output.scratch.GetData(),
+                           output.output.ParFESpace()->GetTrueVSize());
+   }
    return output.output.GetEnergy(state);
 }
 

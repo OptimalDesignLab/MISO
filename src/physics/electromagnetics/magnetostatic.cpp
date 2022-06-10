@@ -15,34 +15,36 @@
 
 namespace
 {
-mach::MeshDependentCoefficient constructSigma(const nlohmann::json &options,
-                                              const nlohmann::json &materials)
-{
-   mach::MeshDependentCoefficient sigma;
-   /// loop over all components, construct conductivity for each
-   for (auto &component : options["components"])
-   {
-      int attr = component.value("attr", -1);
+// mach::MeshDependentCoefficient constructSigma(const nlohmann::json &options,
+//                                               const nlohmann::json
+//                                               &materials)
+// {
+//    mach::MeshDependentCoefficient sigma;
+//    /// loop over all components, construct conductivity for each
+//    for (auto &component : options["components"])
+//    {
+//       int attr = component.value("attr", -1);
 
-      const auto &material = component["material"].get<std::string>();
-      double sigma_val = materials[material].value("sigma", 0.0);
+//       const auto &material = component["material"].get<std::string>();
+//       double sigma_val = materials[material].value("sigma", 0.0);
 
-      if (-1 != attr)
-      {
-         auto coeff = std::make_unique<mfem::ConstantCoefficient>(sigma_val);
-         sigma.addCoefficient(attr, move(coeff));
-      }
-      else
-      {
-         for (auto &attribute : component["attrs"])
-         {
-            auto coeff = std::make_unique<mfem::ConstantCoefficient>(sigma_val);
-            sigma.addCoefficient(attribute, move(coeff));
-         }
-      }
-   }
-   return sigma;
-}
+//       if (-1 != attr)
+//       {
+//          auto coeff = std::make_unique<mfem::ConstantCoefficient>(sigma_val);
+//          sigma.addCoefficient(attr, move(coeff));
+//       }
+//       else
+//       {
+//          for (auto &attribute : component["attrs"])
+//          {
+//             auto coeff =
+//             std::make_unique<mfem::ConstantCoefficient>(sigma_val);
+//             sigma.addCoefficient(attribute, move(coeff));
+//          }
+//       }
+//    }
+//    return sigma;
+// }
 
 std::vector<int> getCurrentAttributes(nlohmann::json &options)
 {
@@ -67,7 +69,9 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
                                          std::unique_ptr<mfem::Mesh> smesh)
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
    nu(options, materials),
-   sigma(constructSigma(options, materials))
+   rho(constructMaterialCoefficient("rho", options["components"], materials)),
+   sigma(
+       constructMaterialCoefficient("sigma", options["components"], materials))
 {
    options["time-dis"]["type"] = "steady";
 
@@ -172,6 +176,14 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       IEAggregateFunctional out(*fes, fields, options);
       outputs.emplace(fun, std::move(out));
    }
+   else if (fun.rfind("dc_loss", 0) == 0)
+   {
+      auto dc_loss_options = options;
+      dc_loss_options["attributes"] =
+          getCurrentAttributes(AbstractSolver2::options);
+      DCLossFunctional out(fields, sigma, dc_loss_options);
+      outputs.emplace(fun, std::move(out));
+   }
    else if (fun.rfind("ac_loss", 0) == 0)
    {
       auto state_degree =
@@ -185,10 +197,6 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       auto ac_loss_options = options;
       ac_loss_options["attributes"] =
           getCurrentAttributes(AbstractSolver2::options);
-
-      std::cout << "ac loss options:\n";
-      std::cout << ac_loss_options << "\n";
-
       ACLossFunctional out(fields, sigma, ac_loss_options);
       outputs.emplace(fun, std::move(out));
    }
@@ -215,6 +223,32 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    else if (fun.rfind("volume", 0) == 0)
    {
       VolumeFunctional out(fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("heat_source", 0) == 0)
+   {
+      auto state_degree =
+          AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                      {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple("peak_flux"),
+                     std::forward_as_tuple(mesh(), dg_field_options));
+
+      auto temp_degree = options["space-dis"]["degree"].get<int>();
+      auto temp_basis = options["space-dis"]["basis-type"].get<std::string>();
+      nlohmann::json temp_field_options{{"degree", temp_degree},
+                                        {"basis-type", temp_basis}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple("temperature"),
+                     std::forward_as_tuple(mesh(), temp_field_options));
+
+      EMHeatSourceOutput out(fields,
+                             rho,
+                             sigma,
+                             AbstractSolver2::options["components"],
+                             materials,
+                             options);
       outputs.emplace(fun, std::move(out));
    }
    else

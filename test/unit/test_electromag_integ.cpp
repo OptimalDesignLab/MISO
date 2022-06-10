@@ -1490,61 +1490,6 @@ TEST_CASE("nuFuncIntegrator::AssembleRHSElementVect",
    }
 }
 
-TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
-          "[DCLossFunctionalIntegrator]")
-{
-   using namespace mfem;
-
-   const int dim = 3; // templating is hard here because mesh constructors
-
-
-   int num_edge = 1;
-   for (int i = 0; i < 2; ++i)
-   {
-      num_edge *= 2;
-      DYNAMIC_SECTION("...for num edges = " << num_edge)
-      {
-         auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                           Element::TETRAHEDRON,
-                                           1.0, 1.0, 1.0, true);
-         mesh.EnsureNodes();
-
-         const auto p = 2;
-
-         std::unique_ptr<FiniteElementCollection> fec(
-            new ND_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-            &mesh, fec.get()));
-
-         NonlinearForm functional(fes.get());
-
-         // initialize state
-         GridFunction A(fes.get());
-
-         // auto sigma_val = 58.14e6;
-         auto sigma_val = 1.0;
-         ConstantCoefficient sigma(sigma_val); // conductivity
-
-         double current_vec_data[] = {0.0, 0.0, 1.0};
-         Vector current_vec(current_vec_data, 3);
-         VectorConstantCoefficient current(current_vec); // current density coefficient
-         auto current_density = 1.0; // current density magnitude
-
-         functional.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegrator(sigma, current, current_density));
-
-         const auto R_dc = 1.0 / (sigma_val); // length / (sigma * area)
-         const auto loss = std::pow(current_density, 2) * R_dc;
-         
-         const double loss_fe = functional.GetEnergy(A);
-         // std::cout << "functional loss: " << loss_fe << "\n";
-         // std::cout << "analytical loss: " << loss << "\n";
-         const double loss_ratio = loss_fe / loss;
-         REQUIRE(loss_ratio == Approx(1.0).epsilon(1e-1));
-      }
-   }
-}
-
 namespace mach
 {
 /// Compute the finite-difference approximation of the derivative of the

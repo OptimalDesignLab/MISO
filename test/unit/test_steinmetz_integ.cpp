@@ -16,38 +16,30 @@ TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
    mfem::ParMesh mesh(MPI_COMM_WORLD, smesh); 
    mesh.EnsureNodes();
 
-   std::vector<double> core_loss_vals = {3.3188545983, 3.3197067467, 3.3197277527, 3.3197273582};
 
-   for (int p = 1; p <= 4; ++p)
-   {
-      mfem::L2_FECollection fec(p, dim);
-      mfem::ParFiniteElementSpace fes(&mesh, &fec);
+   mfem::L2_FECollection fec(1, dim);
+   mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-      mfem::ParGridFunction peak_flux(&fes);
-      mfem::FunctionCoefficient flux_coeff([](const mfem::Vector &x)
-      {
-         return cos(x(0));
-      });
-      peak_flux.ProjectCoefficient(flux_coeff);
+   mfem::NonlinearForm functional(&fes);
 
-      mfem::NonlinearForm functional(&fes);
+   mfem::ConstantCoefficient rho(1.0);
+   mfem::ConstantCoefficient k_s(0.01);
+   mfem::ConstantCoefficient alpha(1.21);
+   mfem::ConstantCoefficient beta(1.62);
+   auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
+   setInputs(*integ, {
+      {"frequency", 151.0},
+      {"max_flux_magnitude", 2.2}
+   });
 
-      mfem::ConstantCoefficient rho(1.0);
-      mfem::ConstantCoefficient k_s(0.01);
-      mfem::ConstantCoefficient alpha(1.21);
-      mfem::ConstantCoefficient beta(1.62);
-      auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
-      setInputs(*integ, {{"frequency", 151.0}});
+   functional.AddDomainIntegrator(integ);
 
-      functional.AddDomainIntegrator(integ);
+   mfem::Vector dummy_vec(fes.GetTrueVSize());
+   auto core_loss = functional.GetEnergy(dummy_vec);
 
-      auto core_loss = functional.GetEnergy(peak_flux);
-
-      /// Answer should be k_s * pow(freq, alpha) * \int_0^1 cos(x)^beta dx
-      /// auto cos_integ = 0.76655;
-      /// 0.01 * pow(151, 1.21) * cos_integ -> 3.3197287087
-      REQUIRE(core_loss == Approx(core_loss_vals[p-1]));
-   }
+   /// Answer should be k_s * pow(freq, alpha) * pow(|B|)^beta 
+   /// 0.01 * pow(151, 1.21) * pow(2.2, 1.62) -> 15.5341269187
+   REQUIRE(core_loss == Approx(15.5341269187));
 }
 
 

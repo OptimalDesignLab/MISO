@@ -1,5 +1,6 @@
 #include "coefficient.hpp"
 #include "electromag_integ.hpp"
+#include "mach_input.hpp"
 
 using namespace mfem;
 
@@ -2706,26 +2707,16 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
-void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
-{
-   // auto it = inputs.find("current_density");
-   // if (it != inputs.end())
-   // {
-   //    integ.current_density = it->second.getValue();
-   // }
-   setValueFromInputs(inputs, "current_density", integ.current_density);
-}
+// void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
+// {
+//    setValueFromInputs(inputs, "rms_current", integ.rms_current);
+// }
 
 double DCLossFunctionalIntegrator::GetElementEnergy(
     const FiniteElement &el,
     ElementTransformation &trans,
     const Vector &elfun)
 {
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
-   int dim = el.GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
-
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
@@ -2744,13 +2735,6 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-#ifdef MFEM_THREAD_SAFE
-   double current_vec_data[3];
-   Vector current_vec(current_vec_data, dimc);
-#else
-   current_vec.SetSize(dimc);
-#endif
-
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -2759,19 +2743,74 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       trans.SetIntPoint(&ip);
 
       double w = ip.weight * trans.Weight();
-
-      current.Eval(current_vec, trans, ip);
-      current_vec *= current_density;
-      const double current2 = current_vec * current_vec;
-      if (current2 < 1e-14)
-      {
-         continue;
-      }
-      const double sigma_val = sigma.Eval(trans, ip);
-      const double loss = current2 / sigma_val;
-      fun += loss * w;
+      const double sigma_v = sigma.Eval(trans, ip);
+      fun += w / sigma_v;
    }
    return fun;
+}
+
+void setInputs(DCLossFunctionalDistributionIntegrator &integ,
+               const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "wire_length", integ.wire_length);
+   setValueFromInputs(inputs, "rms_current", integ.rms_current);
+   setValueFromInputs(inputs, "strand_radius", integ.strand_radius);
+   setValueFromInputs(inputs, "strands_in_hand", integ.strands_in_hand);
+}
+
+void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &elvect)
+{
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape;
+#endif
+   shape.SetSize(ndof);
+   elvect.SetSize(ndof);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      el.CalcPhysShape(trans, shape);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+
+      const auto sigma_v = sigma.Eval(trans, ip);
+
+      double strand_area = M_PI * pow(strand_radius, 2);
+      double R = wire_length / (strand_area * strands_in_hand * sigma_v);
+
+      double loss = pow(rms_current, 2) * R;
+      // not sure about this... but it matches MotorCAD's values
+      loss *= sqrt(2);
+
+      elvect.Add(loss * w, shape);
+   }
 }
 
 double ACLossFunctionalIntegrator::GetElementEnergy(
@@ -2820,14 +2859,95 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 
       const auto sigma_val = sigma.Eval(trans, ip);
 
-      /// Frequency should be angular frequency -> 2pi*f
-      // const auto loss = stack_length * M_PI * pow(radius, 4) * sigma_val *
-      //                   pow(freq * b_mag, 2) / 32.0;
-
       const auto loss = sigma_val * pow(b_mag, 2);
       fun += loss * w;
    }
    return fun;
+}
+
+void setInputs(ACLossFunctionalDistributionIntegrator &integ,
+               const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "frequency", integ.freq);
+   setValueFromInputs(inputs, "strand_radius", integ.radius);
+   setValueFromInputs(inputs, "stack_length", integ.stack_length);
+   setValueFromInputs(inputs, "strands_in_hand", integ.strands_in_hand);
+   setValueFromInputs(inputs, "num_turns", integ.num_turns);
+   setValueFromInputs(inputs, "num_slots", integ.num_slots);
+}
+
+void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &elvect)
+{
+   int ndof = el.GetDof();
+
+   const int element = trans.ElementNo;
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
+   const int flux_ndof = flux_el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Vector flux_shape;
+#endif
+   shape.SetSize(ndof);
+   flux_shape.SetSize(flux_ndof);
+   elvect.SetSize(ndof);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      el.CalcPhysShape(trans, shape);
+
+      flux_el.CalcPhysShape(flux_trans, flux_shape);
+      const auto b_mag = flux_shape * elfun;
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+
+      const auto sigma_v = sigma.Eval(trans, ip);
+
+      double loss = stack_length * M_PI * pow(radius, 4) *
+                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 32.0;
+      loss *= 2 * strands_in_hand * num_turns * num_slots;
+
+      elvect.Add(loss * w, shape);
+   }
 }
 
 void setInputs(HybridACLossFunctionalIntegrator &integ,
@@ -3576,6 +3696,15 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
 void setInputs(SteinmetzLossIntegrator &integ, const MachInputs &inputs)
 {
    setValueFromInputs(inputs, "frequency", integ.freq);
+   if (integ.name != "")
+   {
+      setValueFromInputs(
+          inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
+   }
+   else
+   {
+      setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
+   }
 }
 
 double SteinmetzLossIntegrator::GetElementEnergy(
@@ -3583,14 +3712,6 @@ double SteinmetzLossIntegrator::GetElementEnergy(
     mfem::ElementTransformation &trans,
     const mfem::Vector &elfun)
 {
-   /// number of degrees of freedom
-   int ndof = el.GetDof();
-
-#ifdef MFEM_THREAD_SAFE
-   Vector shape;
-#endif
-   shape.SetSize(ndof);
-
    const auto *ir = IntRule;
    if (ir == nullptr)
    {
@@ -3618,19 +3739,84 @@ double SteinmetzLossIntegrator::GetElementEnergy(
       /// holds quadrature weight
       const double w = ip.weight * trans.Weight();
 
-      el.CalcPhysShape(trans, shape);
-      // const auto peak_flux_mag = shape * elfun;
-      const auto peak_flux_mag = 2.6;
-
       auto rho_v = rho.Eval(trans, ip);
       auto k_s_v = k_s.Eval(trans, ip);
       auto alpha_v = alpha.Eval(trans, ip);
       auto beta_v = beta.Eval(trans, ip);
 
-      fun +=
-          rho_v * k_s_v * pow(freq, alpha_v) * pow(peak_flux_mag, beta_v) * w;
+      fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) * w;
    }
    return fun;
+}
+
+void setInputs(SteinmetzLossDistributionIntegrator &integ,
+               const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "frequency", integ.freq);
+
+   if (integ.name != "")
+   {
+      setValueFromInputs(
+          inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
+   }
+   else
+   {
+      setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
+   }
+}
+
+void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &elvect)
+{
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape;
+#endif
+   shape.SetSize(ndof);
+   elvect.SetSize(ndof);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      el.CalcPhysShape(trans, shape);
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans.Weight();
+
+      double rho_v = rho.Eval(trans, ip);
+      double k_s_v = k_s.Eval(trans, ip);
+      double alpha_v = alpha.Eval(trans, ip);
+      double beta_v = beta.Eval(trans, ip);
+
+      double loss =
+          rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v);
+
+      elvect.Add(loss * w, shape);
+   }
 }
 
 }  // namespace mach

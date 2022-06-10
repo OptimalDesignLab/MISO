@@ -52,6 +52,15 @@ public:
    template <typename T>
    void addDomainIntegrator(T *integrator);
 
+   /// Adds domain integrator restricted to certain elements specified by the
+   /// attributes listed in @a bdr_attr_marker to linear form
+   /// \param[in] integrator - integrator to add to functional
+   /// \param[in] bdr_attr_marker - lists element attributes this integrator
+   /// should be used on
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   template <typename T>
+   void addDomainIntegrator(T *integrator, std::vector<int> attr_marker);
+
    /// Adds boundary integrator to linear form
    /// \param[in] integrator - linear form integrator for boundary
    /// \tparam T - type of integrator, used for constructing MachIntegrator
@@ -115,6 +124,10 @@ private:
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
+
+   /// Collection of element attribute markers for domain integrators
+   std::list<mfem::Array<int>> domain_markers;
+
    /// Collection of boundary markers for boundary integrators
    std::vector<mfem::Array<int>> bdr_marker;
 
@@ -141,6 +154,24 @@ void MachLinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddDomainIntegrator(integrator);
+   addSensitivityIntegrator(*integrator,
+                            *lf_fields,
+                            rev_sens,
+                            rev_scalar_sens,
+                            fwd_sens,
+                            fwd_scalar_sens);
+}
+
+template <typename T>
+void MachLinearForm::addDomainIntegrator(T *integrator,
+                                         std::vector<int> attr_marker)
+{
+   integs.emplace_back(*integrator);
+
+   auto mesh_attr_size = lf.ParFESpace()->GetMesh()->attributes.Max();
+   auto &marker = domain_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(attr_marker, marker);
+   lf.AddDomainIntegrator(integrator, marker);
    addSensitivityIntegrator(*integrator,
                             *lf_fields,
                             rev_sens,
