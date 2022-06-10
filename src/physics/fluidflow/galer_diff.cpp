@@ -172,9 +172,9 @@ void GalerkinDifference::BuildGDProlongation() const
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   ofstream cp_save("cP.txt");
-   cP->PrintMatlab(cp_save);
-   cp_save.close();
+   // ofstream cp_save("cP.txt");
+   // cP->PrintMatlab(cp_save);
+   // cp_save.close();
 }
 
 void GalerkinDifference::AssembleProlongationMatrix(const mfem::Array<int> &id,

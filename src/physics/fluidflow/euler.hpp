@@ -57,6 +57,7 @@ public:
    virtual void convertToConservCent(mfem::Vector &state);
    virtual void PrintSodShock(const std::string &file_name);
    virtual void PrintSodShockCenter(const std::string &file_name);
+   virtual double computeMass();
    virtual void checkConversion(void (*u_exact)(const mfem::Vector &, mfem::Vector &));
    virtual void conToEntropyVars(const mfem::Vector &entropy, mfem::Vector &conserv);
    virtual void conToConservVars(const mfem::Vector &conserv, mfem::Vector &entropy);

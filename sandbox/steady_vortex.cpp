@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
       solver->setInitialCondition(uexact);
       //solver->setMinL2ErrorInitialCondition(uexact);
-      solver->printSolution("gd_init", 0);
+      //solver->printSolution("gd_init", 0);
 
       // get the initial density error
       double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
          mfem::out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
          mfem::out << "\ninitial residual norm = " << res_error << endl;
       }
-      solver->checkJacobian(pert);
-      solver->feedpert(pert);
+      // solver->checkJacobian(pert);
+      // solver->feedpert(pert);
       solver->solveForState();
       solver->printSolution("gd_final",0);
       solver->printError("gd_final_error", 0, uexact);

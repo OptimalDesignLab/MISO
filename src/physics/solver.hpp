@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <time.h>
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -150,6 +151,7 @@ public:
    /// A temporal funtion that print the 2d sod_shock problem
    virtual void PrintSodShock(const std::string &file_name) = 0;
    virtual void PrintSodShockCenter(const std::string &file_name) = 0;
+   virtual double computeMass() = 0;
    
    /// A virtual function convert the conservative variable to entropy variables
    /// defined in EulerSolver
@@ -181,6 +183,8 @@ protected:
 #ifdef MFEM_USE_PUMI
    apf::Mesh2* pumi_mesh;
 #endif
+   clock_t start_t;
+   clock_t end_t;
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    /// object defining the computational mesh

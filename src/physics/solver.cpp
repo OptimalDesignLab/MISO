@@ -1,6 +1,6 @@
 #include <fstream>
 #include <iostream>
-#include <time.h>
+
 #include <iomanip>
 #include "default_options.hpp"
 #include "solver.hpp"
@@ -422,13 +422,13 @@ void AbstractSolver::setInitialCondition(
    //    }
    // }
    
-   u_test -= *u;
-   cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
-   ofstream sol_ofs("projection_error.vtk");
-   sol_ofs.precision(14);
-   mesh->PrintVTK(sol_ofs, 0);
-   u_test.SaveVTK(sol_ofs, "project_error", 0);
-   sol_ofs.close();
+   // u_test -= *u;
+   // cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
+   // ofstream sol_ofs("projection_error.vtk");
+   // sol_ofs.precision(14);
+   // mesh->PrintVTK(sol_ofs, 0);
+   // u_test.SaveVTK(sol_ofs, "project_error", 0);
+   // sol_ofs.close();
 
    // ofstream u_write("u_init.txt");
    // ofstream uc_write("uc_init.txt");
@@ -901,15 +901,15 @@ void AbstractSolver::solveSteady()
    newton_solver->SetAbsTol(nabstol);
    newton_solver->SetMaxIter(nmaxiter);
    // Solve the nonlinear problem with r.h.s at 0
+   start_t = clock();
    mfem::Vector b;
    // mfem::Vector u_true;
    // u->GetTrueDofs(u_true);
    // newton_solver->Mult(b, *u);
    // MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");
    // u->SetFromTrueDofs(u_true);
-   clock_t start_t = clock();
    newton_solver->Mult(b, *uc);
-   clock_t end_t = clock();
+   end_t = clock();
    double total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
    cout << "Time for solve the nonlinear prroblem: " << total_t << "s.\n";
    MFEM_VERIFY(newton_solver->GetConverged(), "Newton solver did not converge.");

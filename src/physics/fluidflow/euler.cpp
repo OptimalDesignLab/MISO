@@ -218,6 +218,14 @@ void EulerSolver<dim, entvar>::addOutputs()
       output.at("entropy").AddDomainIntegrator(
          new EntropyIntegrator<dim, entvar>(diff_stack));
    }
+
+   // if (fun.find("mass" != fun.end())
+   // {
+   //    output.emplace("mass",fes.get());
+   //    output.at("mass").AddDomainIntegrator(
+   //       new MassIntegrator
+   //    );
+   // }
 }
 
 template <int dim, bool entvar>
@@ -512,6 +520,36 @@ void EulerSolver<dim, entvar>::PrintSodShock(const std::string &file_name)
    write_coord.close();
    write_value.close();
    // write_error.close();
+}
+
+template<int dim, bool entvar>
+double EulerSolver<dim, entvar>::computeMass()
+{
+   fes->GetProlongationMatrix()->Mult(*uc,*u);
+   mfem::GridFunction state(fes_normal.get());
+   state = *u;
+   int num_dofs;
+   convertToConserv(state);
+   mfem::Array<int> vdofs;
+   
+   const FiniteElement *fe;
+   const SBPFiniteElement *sbp;
+   ElementTransformation *eltransf;
+   double mass = 0.0;
+   for (int i = 0; i < fes_normal->GetNE(); i++)
+   {
+      fe = fes_normal->GetFE(i);
+      sbp = dynamic_cast<const SBPFiniteElement*>(fe);
+      eltransf = mesh->GetElementTransformation(i);
+      fes_normal->GetElementVDofs(i,vdofs);
+      num_dofs = fe->GetDof();
+      for (int j = 0; j < num_dofs; j++)
+      {
+         eltransf->SetIntPoint(&fe->GetNodes().IntPoint(i));
+         mass += state(vdofs[j]) * eltransf->Weight() * sbp->getDiagNormEntry(j); 
+      }
+   }
+   return mass;
 }
 
 template<int dim, bool entvar>
