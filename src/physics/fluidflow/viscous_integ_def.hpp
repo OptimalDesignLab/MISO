@@ -9,7 +9,6 @@
 
 namespace mach
 {
-
 template <typename Derived>
 double SymmetricViscousIntegrator<Derived>::GetElementEnergy(
     const mfem::FiniteElement &el,

@@ -12,7 +12,6 @@ using namespace mfem;
 
 namespace mach
 {
-
 ControlResidual::ControlResidual(MPI_Comm incomm,
                                  const nlohmann::json &control_options)
 {
