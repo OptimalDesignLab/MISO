@@ -36,8 +36,8 @@ inline xdouble pressure(const xdouble *q)
 }
 
 /// Derivative of pressure w.r.t. the conservative variables
-/// \param[in] q - the conservative variables 
-/// \param[out] dpdq - the derivative of pressure 
+/// \param[in] q - the conservative variables
+/// \param[out] dpdq - the derivative of pressure
 /// \tparam xdouble - either double or adouble
 /// \tparam dim - number of physical dimensions
 template <typename xdouble, int dim>
@@ -1177,21 +1177,21 @@ void calcFarFieldFlux2(const xdouble *dir,
                        xdouble *work,
                        xdouble *flux)
 {
-   //xdouble qcons[dim + 2];
-   //calcConservativeVars<xdouble, dim, entvar>(q, qcons);
-   //calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
-   //calcIsmailRoeFaceFluxWithDiss<xdouble, dim>(dir, 1.0, qcons, qbnd, flux);
+   // xdouble qcons[dim + 2];
+   // calcConservativeVars<xdouble, dim, entvar>(q, qcons);
+   // calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
+   // calcIsmailRoeFaceFluxWithDiss<xdouble, dim>(dir, 1.0, qcons, qbnd, flux);
    if constexpr (entvar)
    {
-      // not set up for entvar yet 
+      // not set up for entvar yet
       throw(-1);
    }
 
    // compute the slip-wall flux
-   //xdouble x[dim];
-   //calcSlipWallFlux<xdouble, dim, entvar>(x, dir, q, flux);
+   // xdouble x[dim];
+   // calcSlipWallFlux<xdouble, dim, entvar>(x, dir, q, flux);
 
-   xdouble U = dot<xdouble, dim>(dir, qbnd+1)/qbnd[0];
+   xdouble U = dot<xdouble, dim>(dir, qbnd + 1) / qbnd[0];
    for (int i = 0; i < dim + 2; ++i)
    {
       flux[i] = q[i] * U;
@@ -1203,7 +1203,7 @@ void calcFarFieldFlux2(const xdouble *dir,
    }
    flux[dim + 1] += press * U;
 
-   // add the penalty on the far-field condition 
+   // add the penalty on the far-field condition
    xdouble q_ave[dim + 2];
    xdouble w[dim + 2];
    xdouble wbnd[dim + 2];

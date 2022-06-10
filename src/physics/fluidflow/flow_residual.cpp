@@ -273,7 +273,9 @@ void FlowResidual<dim, entvar>::addViscousBoundaryIntegrators(
       double len = 0.1;
       Vector xc({0.5, 0.0});
       res.addBdrFaceIntegrator(
-          new ViscousControlBC<dim>(stack, fes.FEColl(), re_fs, pr_fs, q_ref, scale, xc, len, mu), bdr_attr_marker);
+          new ViscousControlBC<dim>(
+              stack, fes.FEColl(), re_fs, pr_fs, q_ref, scale, xc, len, mu),
+          bdr_attr_marker);
    }
 }
 
@@ -364,7 +366,6 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    auto form_inputs = MachInputs({{"state", x}, {"time", time + dt}});
    return calcFormOutput(res, form_inputs);
 
-
    // ParGridFunction state(&fes), dstate(&fes);
    // state.SetFromTrueDofs(x);
    // dstate.SetFromTrueDofs(dxdt);
@@ -405,7 +406,6 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    //                                         work.GetData() + ptr);
    // }
 
-
    // // minus sign needed since dxdt = -res
    // double loc_change = -mass.InnerProduct(work, dxdt);
    // double ent_change = 0.0;
@@ -418,9 +418,9 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    // return ent_change;
 
    // minus sign needed since dxdt = -res
-   //return -InnerProduct(fes.GetComm(), work, dxdt);
+   // return -InnerProduct(fes.GetComm(), work, dxdt);
 
-   // TODO: The following should be sufficient for the dot product, and it 
+   // TODO: The following should be sufficient for the dot product, and it
    // avoids computing the form output, but there is an outstanding bug
    // const int num_state = dim + 2;
    // Array<int> vdofs(num_state);

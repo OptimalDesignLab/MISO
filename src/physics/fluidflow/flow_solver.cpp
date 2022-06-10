@@ -167,7 +167,8 @@ bool FlowSolver<dim, entvar>::iterationExit(int iter,
          return true;
       }
       if (norm <=
-          res_norm0 * options["time-dis"]["steady-reltol"].template get<double>())
+          res_norm0 *
+              options["time-dis"]["steady-reltol"].template get<double>())
       {
          return true;
       }

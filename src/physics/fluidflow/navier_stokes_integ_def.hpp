@@ -146,7 +146,7 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxDv(const mfem::Vector &x,
                                             mfem::DenseMatrix &flux_mat)
 {
    flux_mat = 0.0;
-   return; // !!!!!, BC is not dual consistent.
+   return;  // !!!!!, BC is not dual consistent.
    double mu_Re = mu;
    if (mu < 0.0)
    {
@@ -1056,7 +1056,7 @@ void ViscousControlBC<dim>::calcFluxDv(const mfem::Vector &x,
                                        mfem::DenseMatrix &flux_mat)
 {
    flux_mat = 0.0;
-   return; // !!!!!, BC is not dual consistent.
+   return;  // !!!!!, BC is not dual consistent.
    double mu_Re = mu;
    if (mu < 0.0)
    {

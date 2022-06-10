@@ -130,7 +130,7 @@ public:
    double getViscosity() const { return mu; }
    double getMach() const { return mach_fs; }
    double getAoA() const { return aoa_fs; }
-   double getReynolds() const { return re_fs; } 
+   double getReynolds() const { return re_fs; }
    double getPrandtl() const { return pr_fs; }
    int getIRoll() const { return iroll; }
    int getIPitch() const { return ipitch; }
@@ -138,7 +138,7 @@ public:
 private:
    /// print object
    std::ostream &out;
-   /// if true, viscous terms are included in the residual 
+   /// if true, viscous terms are included in the residual
    bool viscous;
    /// nondimensional viscosity (if mu is negative, we use Sutherland's)
    double mu;
@@ -146,9 +146,9 @@ private:
    double mach_fs;
    /// free-stream angle of attack
    double aoa_fs;
-   /// free-stream Reynolds number 
+   /// free-stream Reynolds number
    double re_fs;
-   /// free-stream Prandtl number 
+   /// free-stream Prandtl number
    double pr_fs;
    /// index of dimension corresponding to nose to tail axis
    int iroll;

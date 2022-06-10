@@ -16,7 +16,6 @@ namespace mach
 class ControlResidual final
 {
 public:
-
    /// Constructor
    /// \param[in] control_options - options used to define the residual
    /// \note the number of control variables is hard-coded.
@@ -114,9 +113,9 @@ private:
    int num_var;
    /// parameters in the control law
    double Kp, Td, Ti, beta, eta;
-   /// desired, or target, flow entropy 
+   /// desired, or target, flow entropy
    double target_entropy;
-   /// norm matrix that defines the Lyapunov function 
+   /// norm matrix that defines the Lyapunov function
    std::unique_ptr<mfem::DenseMatrix> P;
    /// turn on/off closed loop term
    bool closed_loop;

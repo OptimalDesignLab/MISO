@@ -57,8 +57,11 @@ protected:
 class ExplicitRRKSolver : public mfem::ODESolver
 {
 public:
-   ExplicitRRKSolver(int s_, const double *a_, const double *b_,
-                     const double *c_, std::ostream *out_stream = nullptr);
+   ExplicitRRKSolver(int s_,
+                     const double *a_,
+                     const double *b_,
+                     const double *c_,
+                     std::ostream *out_stream = nullptr);
 
    void Init(mfem::TimeDependentOperator &f_) override;
 
@@ -81,7 +84,8 @@ class RRK6Solver : public ExplicitRRKSolver
 {
 public:
    RRK6Solver(std::ostream *out_stream = nullptr)
-    : ExplicitRRKSolver(8, a, b, c, out_stream) { }
+    : ExplicitRRKSolver(8, a, b, c, out_stream)
+   { }
 
 protected:
    static const double a[28], b[8], c[7];
@@ -146,7 +150,8 @@ public:
    /// Action of the transpose operator
    /// \param[in] x - the vector being preconditioned
    /// \param[in] y - the preconditioned vector
-   virtual void MultTranspose(const mfem::Vector &x, mfem::Vector &y) const override;
+   virtual void MultTranspose(const mfem::Vector &x,
+                              mfem::Vector &y) const override;
 
    /// Preconditioner destructor
    ~BlockJacobiPreconditioner();

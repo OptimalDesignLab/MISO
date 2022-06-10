@@ -453,7 +453,7 @@ void transferSolution(MeshType &old_mesh,
 std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree,
                                                     int num_rad,
                                                     int num_ang,
-                                                    double pert=0.0);
+                                                    double pert = 0.0);
 
 }  // namespace mach
 

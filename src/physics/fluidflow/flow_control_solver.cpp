@@ -262,7 +262,7 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
       for (auto &pair : outputs)
       {
          auto inputs = MachInputs({});
-         if (pair.first == "entropy") // need compound state
+         if (pair.first == "entropy")  // need compound state
          {
             inputs = MachInputs({{"time", t0}, {"state", state}});
          }
@@ -271,14 +271,15 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
             inputs = MachInputs({{"time", t0}, {"state", flow_state}});
          }
          double fun = mach::calcOutput(pair.second, inputs);
-         *out << "\t" << pair.first << " = " << fun << endl; 
+         *out << "\t" << pair.first << " = " << fun << endl;
          if (rank == 0)
          {
-            string output_filename = pair.first + "-" + std::to_string(sample) 
-                + ".txt";
+            string output_filename =
+                pair.first + "-" + std::to_string(sample) + ".txt";
             remove(output_filename.c_str());
-            output_log.emplace(pair.first, ofstream(output_filename, fstream::app));
-            //output_log[pair.first].open(output_filenam, fstream::app);
+            output_log.emplace(pair.first,
+                               ofstream(output_filename, fstream::app));
+            // output_log[pair.first].open(output_filenam, fstream::app);
             output_log[pair.first] << setprecision(16);
          }
       }
@@ -304,7 +305,7 @@ void FlowControlSolver<dim, entvar>::iterationHook(int iter,
       for (auto &pair : outputs)
       {
          auto inputs = MachInputs({});
-         if (pair.first == "entropy") // need compound state
+         if (pair.first == "entropy")  // need compound state
          {
             inputs = MachInputs({{"time", t}, {"state", state}});
          }
@@ -312,7 +313,7 @@ void FlowControlSolver<dim, entvar>::iterationHook(int iter,
          {
             inputs = MachInputs({{"time", t}, {"state", flow_state}});
          }
-         double fun = mach::calcOutput(pair.second, inputs);         
+         double fun = mach::calcOutput(pair.second, inputs);
          if (rank == 0)
          {
             output_log[pair.first] << t << ' ' << fun << endl;
@@ -388,7 +389,7 @@ void FlowControlSolver<dim, entvar>::terminalHook(int iter,
       for (auto &pair : outputs)
       {
          auto inputs = MachInputs({});
-         if (pair.first == "entropy") // need compound state
+         if (pair.first == "entropy")  // need compound state
          {
             inputs = MachInputs({{"time", t_final}, {"state", state}});
          }

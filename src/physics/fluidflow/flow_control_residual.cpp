@@ -45,7 +45,7 @@ ControlResidual::ControlResidual(MPI_Comm incomm,
    {
       test_ode = true;
    }
-   else 
+   else
    {
       test_ode = false;
    }
@@ -70,7 +70,7 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
    {
       residual.closed_loop = false;
    }
-   else 
+   else
    {
       residual.closed_loop = true;
    }
@@ -91,21 +91,21 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
    //    (*residual.P)(1,1) = 1.0;
    // }
 
-   if ( (residual.rank == 0) && (inputs.find("P-matrix") != inputs.end()) )
+   if ((residual.rank == 0) && (inputs.find("P-matrix") != inputs.end()))
    {
       Vector p_vector(4);
       setVectorFromInputs(inputs, "P-matrix", p_vector);
-      (*residual.P)(0,0) = p_vector(0);
-      (*residual.P)(0,1) = p_vector(1);
-      (*residual.P)(1,0) = p_vector(1);
-      (*residual.P)(1,1) = p_vector(3);
+      (*residual.P)(0, 0) = p_vector(0);
+      (*residual.P)(0, 1) = p_vector(1);
+      (*residual.P)(1, 0) = p_vector(1);
+      (*residual.P)(1, 1) = p_vector(3);
       // check for symmetry
       if (fabs(p_vector(1) - p_vector(2)) >
-          10000.0*numeric_limits<double>::epsilon())
+          10000.0 * numeric_limits<double>::epsilon())
       {
          throw MachException(
              "setInputs(ControlResidual, inputs): "
-            "P-matrix is not symmetric!");
+             "P-matrix is not symmetric!");
       }
    }
 }
@@ -206,7 +206,7 @@ double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
       else
       {
          Vector &x = residual.x;
-         ent += 0.5*residual.P->InnerProduct(x, x);
+         ent += 0.5 * residual.P->InnerProduct(x, x);
       }
    }
    MPI_Bcast(&ent, 1, MPI_DOUBLE, 0, residual.comm);
@@ -249,7 +249,7 @@ double ControlResidual::getControlVelocity(const MachInputs &inputs)
       }
       else
       {
-         vel += x(1); // x should be set in setInputs above
+         vel += x(1);  // x should be set in setInputs above
          if (closed_loop)
          {
             double error = target_entropy - boundary_entropy;
@@ -379,7 +379,7 @@ template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
 {
    // extract flow and control states to compute entropy
-   //extractStates(inputs, control_ref, flow_ref);
+   // extractStates(inputs, control_ref, flow_ref);
    setInputs_(inputs);
    auto flow_inputs = MachInputs({{"state", flow_ref}});
    auto control_inputs = MachInputs({{"state", control_ref}});
@@ -403,12 +403,12 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
 
-   // get the control velocity; for this we need the boundary entropy at the 
+   // get the control velocity; for this we need the boundary entropy at the
    // new state, so compute that first
    auto flow_inputs =
        MachInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
-   auto control_inputs = 
+   auto control_inputs =
        MachInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
    double control_vel = control_res.getControlVelocity(control_inputs);
 

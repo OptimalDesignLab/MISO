@@ -19,10 +19,10 @@ double SymmetricViscousIntegrator<Derived>::GetElementEnergy(
    using namespace mfem;
    const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
    int num_nodes = sbp.GetDof();
-   Vector elvect; // Size is set by AssembleElementVector
+   Vector elvect;  // Size is set by AssembleElementVector
    ui.SetSize(num_states);
-   uj.SetSize(num_states); // stores the residual at i
-   wj.SetSize(num_states); // stores the entropy variables at i
+   uj.SetSize(num_states);  // stores the residual at i
+   wj.SetSize(num_states);  // stores the entropy variables at i
    this->AssembleElementVector(el, trans, elfun, elvect);
    mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    mfem::DenseMatrix res(elvect.GetData(), num_nodes, num_states);
@@ -32,7 +32,7 @@ double SymmetricViscousIntegrator<Derived>::GetElementEnergy(
       u.GetRow(i, ui);
       convert(ui, wj);
       res.GetRow(i, uj);
-      ent_change += wj*uj;
+      ent_change += wj * uj;
    }
    return ent_change;
 }

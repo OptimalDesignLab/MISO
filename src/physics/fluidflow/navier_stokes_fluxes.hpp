@@ -258,21 +258,21 @@ void calcControlPenaltyFlux(const xdouble *dir,
                             const xdouble Jac,
                             xdouble mu,
                             double Pr,
-                            xdouble uc, 
+                            xdouble uc,
                             const xdouble *qfs,
                             const xdouble *q,
                             xdouble *flux)
 {
-   // evaluate the difference w - w_bc, where 
+   // evaluate the difference w - w_bc, where
    // w_bc = [w[0], rho*uc_x/p, rho*uc_y/p, ...,w[dim+1]]
    xdouble dw[dim + 2];
    dw[0] = 0.0;
    dw[dim + 1] = 0.0;
    auto p = pressure<xdouble, dim>(q);
-   xdouble dA = sqrt(dot<xdouble,dim>(dir, dir));
+   xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
    for (int d = 0; d < dim; ++d)
    {
-      dw[d + 1] = (q[d + 1] - q[0]*uc*dir[d]/dA) / p;
+      dw[d + 1] = (q[d + 1] - q[0] * uc * dir[d] / dA) / p;
    }
    // initialize flux; recall that applyCijMatrix adds to its output
    for (int k = 0; k < dim + 2; ++k)

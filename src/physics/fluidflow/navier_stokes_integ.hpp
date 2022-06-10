@@ -280,7 +280,7 @@ public:
       {
          flux_jac[d] = 0.0;
       }
-   }                             
+   }
 
 private:
    /// Reynolds number
@@ -903,8 +903,7 @@ template <int dim>
 class ViscousExactBC : public ViscousBoundaryIntegrator<ViscousExactBC<dim>>
 {
 public:
-   using exactFun = std::function<
-       void(const mfem::Vector &, mfem::Vector &)>;
+   using exactFun = std::function<void(const mfem::Vector &, mfem::Vector &)>;
 
    /// Constructs an integrator for a viscous exact BCs
    /// \param[in] diff_stack - for algorithmic differentiation
@@ -1055,8 +1054,7 @@ private:
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \note This derived class uses the CRTP
 template <int dim>
-class ViscousControlBC
- : public ViscousBoundaryIntegrator<ViscousControlBC<dim>>
+class ViscousControlBC : public ViscousBoundaryIntegrator<ViscousControlBC<dim>>
 {
 public:
    using BCScaleFun = std::function<
@@ -1081,9 +1079,9 @@ public:
                     double vis = -1.0,
                     double a = 1.0)
     : ViscousBoundaryIntegrator<ViscousControlBC<dim>>(diff_stack,
-                                                            fe_coll,
-                                                            dim + 2,
-                                                            a),
+                                                       fe_coll,
+                                                       dim + 2,
+                                                       a),
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
@@ -1194,7 +1192,7 @@ public:
       {
          flux_jac[d] = 0.0;
       }
-   }                        
+   }
 
    /// Set the control for the integrator
    /// \param[in/out] integ - the boundary integrator whose control is being set

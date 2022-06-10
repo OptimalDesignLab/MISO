@@ -30,7 +30,6 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
    /// \param[in] Trans - defines the reference to physical element mapping
