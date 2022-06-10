@@ -1246,39 +1246,6 @@ void ViscousControlBC<dim>::calcFluxJacDw(
 //==============================================================================
 // SurfaceForce methods
 
-// template <int dim>
-// double SurfaceForce<dim>::calcBndryFun(const mfem::Vector &x,
-//                                        const mfem::Vector &dir,
-//                                        double jac,
-//                                        const mfem::Vector &q,
-//                                        const mfem::DenseMatrix &Dw)
-// {
-//    mfem::Vector flux_vec(q.Size());
-//    // Step 1: apply the EC slip wall flux
-//    calcSlipWallFlux<double, dim>(
-//        x.GetData(), dir.GetData(), q.GetData(), flux_vec.GetData());
-//    // Step 2: evaluate the adiabatic flux
-//    double mu_Re = mu;
-//    if (mu < 0.0)
-//    {
-//       mu_Re = calcSutherlandViscosity<double, dim>(q.GetData());
-//    }
-//    mu_Re /= Re;
-//    calcAdiabaticWallFlux<double, dim>(
-//        dir.GetData(), mu_Re, Pr, q.GetData(), Dw.GetData(), work_vec.GetData());
-//    flux_vec -= work_vec;  // note the minus sign!!!
-//    // Step 3: evaluate the no-slip penalty
-//    calcNoSlipPenaltyFlux<double, dim>(dir.GetData(),
-//                                       jac,
-//                                       mu_Re,
-//                                       Pr,
-//                                       qfs.GetData(),
-//                                       q.GetData(),
-//                                       work_vec.GetData());
-//    flux_vec += work_vec;
-//    return dot<double, dim>(force_nrm.GetData(), flux_vec.GetData() + 1);
-// }
-
 template <int dim>
 double SurfaceForce<dim>::calcBndryFun(const mfem::Vector &x,
                                        const mfem::Vector &dir,
@@ -1287,9 +1254,9 @@ double SurfaceForce<dim>::calcBndryFun(const mfem::Vector &x,
                                        const mfem::DenseMatrix &Dw)
 {
    mfem::Vector flux_vec(q.Size());
-   // Step 1: get the force due to convective transport; should be close to 
-   // zero almost everywhere except near control actuactor.
-   calcEulerFlux<double, dim>(dir.GetData(), q.GetData(), flux_vec.GetData());
+   // Step 1: apply the EC slip wall flux
+   calcSlipWallFlux<double, dim>(
+       x.GetData(), dir.GetData(), q.GetData(), flux_vec.GetData());
    // Step 2: evaluate the adiabatic flux
    double mu_Re = mu;
    if (mu < 0.0)
@@ -1300,17 +1267,15 @@ double SurfaceForce<dim>::calcBndryFun(const mfem::Vector &x,
    calcAdiabaticWallFlux<double, dim>(
        dir.GetData(), mu_Re, Pr, q.GetData(), Dw.GetData(), work_vec.GetData());
    flux_vec -= work_vec;  // note the minus sign!!!
-   // Step 3: evaluate the no-slip penalty; do not include this, because it 
-   // should be on the order of the discretization error, and without the 
-   // control value it would be inaccurate anyway.
-   // calcNoSlipPenaltyFlux<double, dim>(dir.GetData(),
-   //                                    jac,
-   //                                    mu_Re,
-   //                                    Pr,
-   //                                    qfs.GetData(),
-   //                                    q.GetData(),
-   //                                    work_vec.GetData());
-   // flux_vec += work_vec;
+   // Step 3: evaluate the no-slip penalty
+   calcNoSlipPenaltyFlux<double, dim>(dir.GetData(),
+                                      jac,
+                                      mu_Re,
+                                      Pr,
+                                      qfs.GetData(),
+                                      q.GetData(),
+                                      work_vec.GetData());
+   flux_vec += work_vec;
    return dot<double, dim>(force_nrm.GetData(), flux_vec.GetData() + 1);
 }
 
