@@ -34,13 +34,13 @@ void evaluate(MagnetostaticResidual &residual,
    setInputs(residual.load, inputs);
    addLoad(residual.load, res_vec);
 
-   mfem::Vector state;
-   setVectorFromInputs(inputs, "state", state);
-   const auto &ess_tdofs = residual.res.getEssentialDofs();
-   for (int i = 0; i < ess_tdofs.Size(); ++i)
-   {
-      res_vec(ess_tdofs[i]) = state(ess_tdofs[i]);
-   }
+   // mfem::Vector state;
+   // setVectorFromInputs(inputs, "state", state);
+   // const auto &ess_tdofs = residual.res.getEssentialDofs();
+   // for (int i = 0; i < ess_tdofs.Size(); ++i)
+   // {
+   //    res_vec(ess_tdofs[i]) = state(ess_tdofs[i]);
+   // }
 }
 
 void linearize(MagnetostaticResidual &residual, const mach::MachInputs &inputs)
