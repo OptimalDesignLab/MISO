@@ -55,7 +55,7 @@ public:
       // {
       //    residual.force->SetTime(input->second.getValue());
       // }
-      double time;
+      double time = 1e16;
       mach::setValueFromInputs(inputs, "time", time);
       residual.force->SetTime(time);
    }
@@ -158,7 +158,7 @@ public:
 
       mach::ParaViewLogger paraview("test_pde_solver", mesh_.get());
       paraview.registerField("state", fields.at("state").gridFunc());
-      addLogger(std::move(paraview), {.each_timestep=false});
+      addLogger(std::move(paraview), {.each_timestep=true});
    }
 private:
    static constexpr int num_states = 1;
