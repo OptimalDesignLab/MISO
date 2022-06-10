@@ -68,7 +68,7 @@ void initVector(py::module &m)
        .def("size", &Vector::Size)
 
        /// set the size of the vector
-       .def("setSize", (void(Vector::*)(int)) & Vector::SetSize)
+       .def("setSize", static_cast<void (Vector::*)(int)>(&Vector::SetSize))
 
        /// methods to allow indexing vector
        .def(
