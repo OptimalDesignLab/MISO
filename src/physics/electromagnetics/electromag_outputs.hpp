@@ -233,7 +233,7 @@ private:
    VolumeFunctional volume;
 
    std::map<std::string, FiniteElementState> &fields;
-   
+
    double freq = 1.0;
    double radius = 1.0;
    double stack_length = 1.0;

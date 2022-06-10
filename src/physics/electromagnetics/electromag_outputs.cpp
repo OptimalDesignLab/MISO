@@ -158,7 +158,9 @@ ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &sigma,
     const nlohmann::json &options)
- : output(fields.at("peak_flux").space(), fields), volume(fields, options), fields(fields)
+ : output(fields.at("peak_flux").space(), fields),
+   volume(fields, options),
+   fields(fields)
 {
    if (options.contains("attributes"))
    {
