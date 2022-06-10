@@ -129,7 +129,7 @@ void u0_function(const Vector &x, Vector& q)
    }
    else
    {
-      calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
+      calcEntropyVars<double, 2, false>(u0.GetData(), q.GetData());
    }
 }
 

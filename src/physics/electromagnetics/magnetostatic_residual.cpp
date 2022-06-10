@@ -1,11 +1,28 @@
+#include <memory>
 #include <string>
 
+#include "adept.h"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
+#include "magnetostatic_load.hpp"
 
 #include "magnetostatic_residual.hpp"
+
+namespace
+{
+std::unique_ptr<mfem::Solver> constructPreconditioner(
+    mfem::ParFiniteElementSpace &fes,
+    const nlohmann::json &prec_options)
+{
+   auto ams = std::make_unique<mfem::HypreAMS>(&fes);
+   ams->SetPrintLevel(prec_options["printlevel"].get<int>());
+   ams->SetSingularProblem();
+   return ams;
+}
+
+}  // namespace
 
 namespace mach
 {
@@ -110,6 +127,20 @@ void vectorJacobianProduct(MagnetostaticResidual &residual,
 mfem::Solver *getPreconditioner(MagnetostaticResidual &residual)
 {
    return residual.prec.get();
+}
+
+MagnetostaticResidual::MagnetostaticResidual(
+    adept::Stack &diff_stack,
+    mfem::ParFiniteElementSpace &fes,
+    std::map<std::string, FiniteElementState> &fields,
+    const nlohmann::json &options,
+    const nlohmann::json &materials,
+    StateCoefficient &nu)
+ : res(fes, fields),
+   load(diff_stack, fes, fields, options, materials, nu),
+   prec(constructPreconditioner(fes, options["lin-prec"]))
+{
+   res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
 }
 
 }  // namespace mach

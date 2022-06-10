@@ -1,8 +1,10 @@
-
-#include "diag_mass_integ.hpp"
+#include "euler_integ.hpp"
 #include "flow_solver.hpp"
 #include "flow_residual.hpp"
 #include "mfem_extensions.hpp"
+#include "euler_fluxes.hpp"
+
+#include "diag_mass_integ.hpp"  /// TEMP !!!!
 
 using namespace std;
 using namespace mfem;
@@ -18,118 +20,208 @@ int getNumFlowStates(const nlohmann::json &solver_options, int space_dim)
 
 namespace mach
 {
-FlowSolver::FlowSolver(MPI_Comm incomm,
-                       const nlohmann::json &solver_options,
-                       std::unique_ptr<mfem::Mesh> smesh)
- : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh)),
-   mass(&fes())
+template <int dim, bool entvar>
+FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
+                                    const nlohmann::json &solver_options,
+                                    std::unique_ptr<mfem::Mesh> smesh)
+ : PDESolver(incomm, solver_options, getNumFlowStates, std::move(smesh))
 {
-   // Construct space-time residual from spatial residual and mass matrix
-   spatial_res = std::make_unique<mach::MachResidual>(
-       FlowResidual(solver_options, fes(), diff_stack, fields));
-   const char *name = fes().FEColl()->Name();
-   if ((strncmp(name, "SBP", 3) == 0) || (strncmp(name, "DSBP", 4) == 0))
+   // Check for consistency between the template parameters, mesh, and options
+   if (mesh().SpaceDimension() != dim)
    {
-      mass.AddDomainIntegrator(new DiagMassIntegrator(fes().GetVDim()));
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tMesh space dimension does not match template"
+          "parameter dim");
    }
-   else
+   bool ent_state = options["flow-param"]["entropy-state"];
+   if (ent_state != entvar)
    {
-      mass.AddDomainIntegrator(new MassIntegrator());
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tentropy-state option is inconsistent with entvar"
+          "template parameter");
    }
-   mass.Assemble(0);  // May want to consider AssembleDiagonal(Vector &diag)
-   mass.Finalize(0);
-   mass_mat.reset(mass.ParallelAssemble());
-   space_time_res = std::make_unique<mach::MachResidual>(
-       mach::TimeDependentResidual(*spatial_res, mass_mat.get()));
+   if ((entvar) && (!options["time-dis"]["steady"]))
+   {
+      throw MachException(
+          "FlowSolver<dim,entvar> constructor:\n"
+          "\tnot set up for using entropy-variables as states for unsteady "
+          "problem (need nonlinear mass-integrator).");
+   }
 
-   // construct the preconditioner, linear solver, and nonlinear solver
-   auto prec_solver_opts = options["lin-prec"];
-   prec = constructPreconditioner(prec_solver_opts);
-   auto lin_solver_opts = options["lin-solver"];
-   linear_solver = constructLinearSolver(comm, lin_solver_opts, prec.get());
-   auto nonlin_solver_opts = options["nonlin-solver"];
+   // Construct spatial residual and the space-time residual
+   spatial_res = std::make_unique<mach::MachResidual>(
+       FlowResidual<dim, entvar>(options, fes(), fields, diff_stack, *out));
+   auto *mass_matrix = getMassMatrix(*spatial_res, options);
+   space_time_res = std::make_unique<mach::MachResidual>(
+       mach::TimeDependentResidual(*spatial_res, mass_matrix));
+
+   // get the preconditioner, and construct the linear solver and nonlinear
+   // solver
+   auto *prec = getPreconditioner(*spatial_res);
+   const auto &lin_solver_opts = options["lin-solver"];
+   linear_solver = constructLinearSolver(comm, lin_solver_opts, prec);
+   const auto &nonlin_solver_opts = options["nonlin-solver"];
    nonlinear_solver =
        constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*space_time_res);
 
    // construct the ODE solver (also used for pseudo-transient continuation)
-   auto ode_opts = options["time-dis"];
-   ode =
-       make_unique<FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
+   const auto &ode_opts = options["time-dis"];
+   ode = make_unique<FirstOrderODE>(
+       *space_time_res, ode_opts, *nonlinear_solver, out);
+
+   if (options["paraview"].at("each-timestep"))
+   {
+      ParaViewLogger paraview(options["paraview"]["directory"], &mesh());
+      paraview.registerField("state", fields.at("state").gridFunc());
+      addLogger(std::move(paraview), {.each_timestep = true});
+   }
 }
 
-unique_ptr<Solver> FlowSolver::constructPreconditioner(
-    nlohmann::json &prec_options)
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
 {
-   std::string prec_type = prec_options["type"].get<std::string>();
-   unique_ptr<Solver> precond;
-   if (prec_type == "hypreeuclid")
-   {
-      precond = std::make_unique<HypreEuclid>(comm);
-      // TODO: need to add HYPRE_EuclidSetLevel to odl branch of mfem
-      *out << "WARNING! Euclid fill level is hard-coded"
-           << "(see AbstractSolver::constructLinearSolver() for details)"
-           << endl;
-      // int fill = options["lin-solver"]["filllevel"].get<int>();
-      // HYPRE_EuclidSetLevel(dynamic_cast<HypreEuclid*>(precond.get())->GetPrec(),
-      // fill);
-   }
-   else if (prec_type == "hypreilu")
-   {
-      precond = std::make_unique<HypreILU>();
-      auto *ilu = dynamic_cast<HypreILU *>(precond.get());
-      HYPRE_ILUSetType(*ilu, prec_options["ilu-type"].get<int>());
-      HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"].get<int>());
-      HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"].get<int>());
-      HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"].get<int>());
-      // Just listing the options below in case we need them in the future
-      // HYPRE_ILUSetSchurMaxIter(ilu, schur_max_iter);
-      // HYPRE_ILUSetNSHDropThreshold(ilu, nsh_thres); needs type = 20,21
-      // HYPRE_ILUSetDropThreshold(ilu, drop_thres);
-      // HYPRE_ILUSetMaxNnzPerRow(ilu, nz_max);
-   }
-   else if (prec_type == "hypreams")
-   {
-      precond = std::make_unique<HypreAMS>(&(fes()));
-      auto *ams = dynamic_cast<HypreAMS *>(precond.get());
-      ams->SetPrintLevel(prec_options["printlevel"].get<int>());
-      ams->SetSingularProblem();
-   }
-   else if (prec_type == "hypreboomeramg")
-   {
-      precond = std::make_unique<HypreBoomerAMG>();
-      auto *amg = dynamic_cast<HypreBoomerAMG *>(precond.get());
-      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
-   }
-   else if (prec_type == "blockilu")
-   {
-      precond = std::make_unique<BlockILU>(fes().GetVDim());
-   }
-   else
-   {
-      throw MachException(
-          "Unsupported preconditioner type!\n"
-          "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
-          " HypreBoomerAMG.\n");
-   }
-   return precond;
-}
-
-void FlowSolver::initialHook(const mfem::Vector &state)
-{
-   AbstractSolver2::initialHook(state);
-   if (options["time-dis"]["steady"].template get<bool>())
+   // AbstractSolver2::initialHook(state);
+   if (options["time-dis"]["steady"])
    {
       // res_norm0 is used to compute the time step in PTC
       res_norm0 = calcResidualNorm(state);
    }
-   // TODO: this should only be output if necessary
-   // double entropy = ent->GetEnergy(state);
-   //*out << "before time stepping, entropy is " << entropy << endl;
-   // remove("entropylog.txt");
-   // entropylog.open("entropylog.txt", fstream::app);
-   // entropylog << setprecision(14);
+   if (options["time-dis"]["entropy-log"])
+   {
+      double t0 = options["time-dis"]["t-initial"];  // Should be passed in!!!
+      auto inputs = MachInputs({{"time", t0}, {"state", state}});
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         *out << "before time stepping, entropy is " << entropy << endl;
+         remove("entropy-log.txt");
+         entropy_log.open("entropy-log.txt", fstream::app);
+         entropy_log << setprecision(16);
+      }
+   }
 }
+
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDEIterationHook(int iter,
+                                                      double t,
+                                                      double dt,
+                                                      const Vector &state)
+{
+   if (options["time-dis"]["entropy-log"])
+   {
+      auto inputs = MachInputs({{"time", t}, {"state", state}});
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         entropy_log << t << ' ' << entropy << endl;
+      }
+   }
+}
+
+template <int dim, bool entvar>
+double FlowSolver<dim, entvar>::calcStepSize(int iter,
+                                             double t,
+                                             double t_final,
+                                             double dt_old,
+                                             const Vector &state) const
+{
+   if (options["time-dis"]["steady"])
+   {
+      // ramp up time step for pseudo-transient continuation
+      // TODO: the l2 norm of the weak residual is probably not ideal here
+      // A better choice might be the l1 norm
+      double res_norm = calcResidualNorm(state);
+      double exponent = options["time-dis"]["res-exp"];
+      double dt = options["time-dis"]["dt"].template get<double>() *
+                  pow(res_norm0 / res_norm, exponent);
+      return max(dt, dt_old);
+   }
+   if (!options["time-dis"]["const-cfl"])
+   {
+      return AbstractSolver2::calcStepSize(iter, t, t_final, dt_old, state);
+   }
+   // Otherwise, use a constant CFL condition
+   auto cfl = options["time-dis"]["cfl"];
+   // here we call the FlowResidual method for the min time step, which needs
+   // the current state; this is provided by the state field of PDESolver,
+   // which we access with getState()
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res)
+       .minCFLTimeStep(cfl, getState().gridFunc());
+}
+
+template <int dim, bool entvar>
+bool FlowSolver<dim, entvar>::iterationExit(int iter,
+                                            double t,
+                                            double t_final,
+                                            double dt,
+                                            const Vector &state) const
+{
+   if (options["time-dis"]["steady"])
+   {
+      double norm = calcResidualNorm(state);
+      if (norm <= options["time-dis"]["steady-abstol"])
+      {
+         return true;
+      }
+      if (norm <=
+          res_norm0 *
+              options["time-dis"]["steady-reltol"].template get<double>())
+      {
+         return true;
+      }
+      return false;
+   }
+   else
+   {
+      return AbstractSolver2::iterationExit(iter, t, t_final, dt, state);
+   }
+}
+
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::derivedPDETerminalHook(int iter,
+                                                     double t_final,
+                                                     const mfem::Vector &state)
+{
+   if (options["time-dis"]["entropy-log"])
+   {
+      auto inputs = MachInputs({{"time", t_final}, {"state", state}});
+      double entropy = calcEntropy(*spatial_res, inputs);
+      if (rank == 0)
+      {
+         entropy_log << t_final << ' ' << entropy << endl;
+         entropy_log.close();
+      }
+   }
+}
+
+template <int dim, bool entvar>
+double FlowSolver<dim, entvar>::calcConservativeVarsL2Error(
+    void (*u_exact)(const mfem::Vector &, mfem::Vector &),
+    int entry)
+{
+   return getConcrete<FlowResidual<dim, entvar>>(*spatial_res)
+       .calcConservativeVarsL2Error(getState().gridFunc(), u_exact, entry);
+}
+
+template <int dim, bool entvar>
+void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
+                                        const nlohmann::json &options)
+{
+   FlowResidual<dim, entvar> &flow_res =
+       getConcrete<FlowResidual<dim, entvar>>(*spatial_res);
+   outputs.emplace(fun, flow_res.constructOutput(fun, options));
+}
+
+// explicit instantiation
+template class FlowSolver<1, true>;
+template class FlowSolver<1, false>;
+template class FlowSolver<2, true>;
+template class FlowSolver<2, false>;
+template class FlowSolver<3, true>;
+template class FlowSolver<3, false>;
 
 /*
 Notes:

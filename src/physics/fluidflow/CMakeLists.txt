@@ -7,6 +7,8 @@ set(MACH_PHYSICS_FLUIDS_HEADERS
    euler_sens_integ_def.hpp
    euler.hpp
    fluidflow.hpp
+   flow_control_residual.hpp
+   flow_control_solver.hpp
    flow_residual.hpp
    flow_solver.hpp
    galer_diff.hpp
@@ -28,6 +30,8 @@ target_sources(mach
    PRIVATE
       advection.cpp
       euler.cpp
+      flow_control_residual.cpp 
+      flow_control_solver.cpp 
       flow_residual.cpp
       flow_solver.cpp
       galer_diff.cpp

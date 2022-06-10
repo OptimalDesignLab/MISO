@@ -1,5 +1,6 @@
 #include "mfem.hpp"
 
+#include "matrix_operators.hpp"
 #include "mfem_extensions.hpp"
 #include "utils.hpp"
 
@@ -32,6 +33,15 @@ void addJacobians(mfem::Operator &A,
       auto *dense_C = dynamic_cast<mfem::DenseMatrix *>(&C);
       dense_C->Diag(1.0, dense_B->Width());
       dense_C->Add(dt, *dense_B);
+      return;
+   }
+   // JacobianFree is templated, so just check A for type
+   auto *block_A = dynamic_cast<mfem::BlockOperator *>(&A);
+   /// auto *matfree_B = dynamic_cast<JacobianFree *>(&B);
+   if (block_A != nullptr)
+   {
+      auto *sum_C = dynamic_cast<SumOfOperators *>(&C);
+      sum_C->Add(1.0, A, dt, B);
       return;
    }
 }
@@ -121,8 +131,22 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &work = residual.work;
    add(state, dt, state_dot, work);
    MachInputs input{{"state", work}};
-   auto &spatial_jac = getJacobian(residual.spatial_res_, input, wrt);
-   addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
+
+   auto *jac_free = dynamic_cast<JacobianFree *>(residual.jac_.get());
+   if (jac_free)
+   {
+      // Using a Jacobian-free implementation
+      jac_free->setScaling(dt);
+      jac_free->setState(input);
+      // jac_free->print("jac-free-matrix.dat");
+      // throw(-1);
+   }
+   else
+   {
+      // The spatial Jacobian is stored explicitly (e.g. HypreParMatrix)
+      auto &spatial_jac = getJacobian(residual.spatial_res_, input, wrt);
+      addJacobians(*residual.mass_matrix_, dt, spatial_jac, *residual.jac_);
+   }
    return *residual.jac_;
 }
 
@@ -162,11 +186,13 @@ double calcEntropyChange(TimeDependentResidual &residual,
 
 FirstOrderODE::FirstOrderODE(MachResidual &residual,
                              const nlohmann::json &ode_options,
-                             mfem::Solver &solver)
+                             mfem::Solver &solver,
+                             std::ostream *out_stream)
  : EntropyConstrainedOperator(getSize(residual), 0.0),
    //  : TimeDependentOperator(getSize(residual), 0.0),
    residual_(residual),
-   solver_(solver)
+   solver_(solver),
+   out(out_stream)
 // zero_(getSize(residual))
 {
    solver_.iterative_mode = false;
@@ -195,9 +221,13 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
    {
       ode_solver_ = std::make_unique<mfem::ImplicitMidpointSolver>();
    }
-   else if (timestepper == "RRK")
+   else if ((timestepper == "RRK") || (timestepper == "RRKMIDPOINT"))
    {
-      ode_solver_ = std::make_unique<mach::RRKImplicitMidpointSolver>();
+      ode_solver_ = std::make_unique<mach::RRKImplicitMidpointSolver>(out);
+   }
+   else if (timestepper == "RRK6")
+   {
+      ode_solver_ = std::make_unique<mach::RRK6Solver>(out);
    }
    else if (timestepper == "PTC")
    {

@@ -129,6 +129,14 @@ inline xdouble dot(const xdouble *a, const xdouble *b)
    return DotProduct<xdouble, dim>::result(a, b);
 }
 
+/// Evaluate the squared exponential exp(- ||x - xc||^2 /len^2 )
+/// \param[in] len - a length scale for the squared exponential
+/// \param[in] xc - the center for this radial basis function
+/// \param[in] x - the point at which to evaluate the function
+double squaredExponential(double len,
+                          const mfem::Vector &xc,
+                          const mfem::Vector &x);
+
 std::ostream *getOutStream(int rank, bool silent = false);
 
 /// Construct a HypreParVector on the a given FES using external data
@@ -492,10 +500,12 @@ void transferSolution(MeshType &old_mesh,
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_rad - number of nodes in the radial direction
 /// \param[in] num_ang - number of nodes in the angular direction
+/// \param[in] pert - perturbs interior vertices by at most `pert` fraction of h
 /// \returns unique pointer to a serial `Mesh` object.
 std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree,
                                                     int num_rad,
-                                                    int num_ang);
+                                                    int num_ang,
+                                                    double pert = 0.0);
 
 }  // namespace mach
 

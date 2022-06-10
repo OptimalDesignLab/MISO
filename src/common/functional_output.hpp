@@ -9,6 +9,7 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "finite_element_state.hpp"
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 #include "utils.hpp"

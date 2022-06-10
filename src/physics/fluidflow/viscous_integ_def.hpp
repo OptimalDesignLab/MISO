@@ -10,6 +10,33 @@
 namespace mach
 {
 template <typename Derived>
+double SymmetricViscousIntegrator<Derived>::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   using namespace mfem;
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(el);
+   int num_nodes = sbp.GetDof();
+   Vector elvect;  // Size is set by AssembleElementVector
+   ui.SetSize(num_states);
+   uj.SetSize(num_states);  // stores the residual at i
+   wj.SetSize(num_states);  // stores the entropy variables at i
+   this->AssembleElementVector(el, trans, elfun, elvect);
+   mfem::DenseMatrix u(elfun.GetData(), num_nodes, num_states);
+   mfem::DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+   double ent_change = 0.0;
+   for (int i = 0; i < num_nodes; ++i)
+   {
+      u.GetRow(i, ui);
+      convert(ui, wj);
+      res.GetRow(i, uj);
+      ent_change += wj * uj;
+   }
+   return ent_change;
+}
+
+template <typename Derived>
 void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &Trans,

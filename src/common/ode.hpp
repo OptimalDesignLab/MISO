@@ -5,6 +5,7 @@
 
 #include "evolver.hpp"
 #include "mach_residual.hpp"
+#include "matrix_operators.hpp"
 
 namespace mach
 {
@@ -68,6 +69,7 @@ public:
       /// Jacobian
       auto *hypre_mass = dynamic_cast<mfem::HypreParMatrix *>(mass_matrix_);
       auto *iden_mass = dynamic_cast<mfem::IdentityOperator *>(mass_matrix_);
+      auto *block_mass = dynamic_cast<mfem::BlockOperator *>(mass_matrix_);
       if (hypre_mass != nullptr)
       {
          jac_ = std::make_unique<mfem::HypreParMatrix>(*hypre_mass);
@@ -75,6 +77,10 @@ public:
       else if (iden_mass != nullptr)
       {
          jac_ = std::make_unique<mfem::DenseMatrix>(getSize(spatial_res_));
+      }
+      else if (block_mass != nullptr)
+      {
+         jac_ = std::make_unique<JacobianFree>(spatial_res_, *mass_matrix_);
       }
    }
 
@@ -108,6 +114,7 @@ public:
        \param[in] solver - the solver that operates on
                   the residual
 
+
        Implements mfem::TimeDependentOperator::Mult and
        mfem::TimeDependentOperator::ImplicitSolve (described in more detail
       here:
@@ -120,7 +127,8 @@ public:
        where dt is nonzero */
    FirstOrderODE(MachResidual &residual,
                  const nlohmann::json &ode_options,
-                 mfem::Solver &solver);
+                 mfem::Solver &solver,
+                 std::ostream *out_stream = nullptr);
 
    /// \brief Performs a time step
    /// \param[inout] u - the predicted solution
@@ -162,11 +170,13 @@ public:
    }
 
    /// \brief Evaluate the spatial residual weighted by the entropy variables
-   /// \praam[in] dt - evaluate residual at t+dt
+   /// \param[in] dt - evaluate residual at t+dt
    /// \param[in] u - previous time step state
    /// \param[in] du_dt - the first time derivative of u
    /// \return the product `w^T R(u + dt * du_dt, p, t + dt)`
-   /// \note `w` and `R` are evaluated at `u + dt*du_dt` and time `t+dt`.
+   /// \note The entropy variables, `w`, are evaluated at `u`, and `R` is
+   /// equal to `-du_dt`.  Or, if necessary, `u` and `dt` can be used to
+   /// evaluate `R`.
    double EntropyChange(double dt,
                         const mfem::Vector &u,
                         const mfem::Vector &du_dt) override
@@ -186,6 +196,9 @@ private:
 
    /// \brief MFEM solver object for first-order ODEs
    std::unique_ptr<mfem::ODESolver> ode_solver_;
+
+   /// print object
+   std::ostream *out;
 
    mfem::Vector zero_;
 

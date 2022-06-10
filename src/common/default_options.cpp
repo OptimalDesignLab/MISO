@@ -8,27 +8,33 @@ namespace mach
 
 const nlohmann::json default_options{
     {"print-options", true},  // print out options when solver is constructed
-    {"flow-param",            // options related to flow simulations
+    {"paraview",              // options related to paraview visualization
      {
-         {"mach", 0.5},      // far-field mach number
-         {"aoa", 0.0},       // far-field angle of attack
-         {"roll-axis", 0},   // axis aligned with nose to tail of aircraft
-         {"pitch-axis", 1},  // axis in the "vertical" direction
-         {"Re", 0.0},        // far-field Reynolds number
-         {"Pr", 0.72},       // the Prandtl number
+         {"directory", "solver"},
+         {"each-timestep", false}  // if true, paraview file is saved each step
+     }},
+    {"test-ode", false},  // if true, use a simple conservative controller
+    {"flow-param",        // options related to flow simulations
+     {
+         {"entropy-state", false},  // if true, the states are entropy variables
+         {"mach", 0.5},             // far-field mach number
+         {"aoa", 0.0},              // far-field angle of attack
+         {"roll-axis", 0},    // axis aligned with nose to tail of aircraft
+         {"pitch-axis", 1},   // axis in the "vertical" direction
+         {"viscous", false},  // if true, viscous terms are added
+         {"Re", 0.0},         // far-field Reynolds number
+         {"Pr", 0.72},        // the Prandtl number
          {"mu",
           -1.0},  // nondimensional viscosity (if negative, use Sutherland's)
          {"viscous-mms", false}  // if true, include MMS terms for viscous test
      }},
 
-    {"space-dis",  // options related to spatial discretization
-     {
-         {"degree", 1},  // default operator degree
-         {"lps-coeff",
-          1.0},  // scaling coefficient for local-proj stabilization
-         {"iface-coeff", 1.0},  // scaling coefficient for interface dissipation
-         {"basis-type", "csbp"}  // csbp & dsbp for continuous & discrete SBP
-     }},
+    {"space-dis",            // options related to spatial discretization
+     {{"degree", 1},         // default operator degree
+      {"lps-coeff", 1.0},    // scaling coefficient for local-proj stabilization
+      {"iface-coeff", 1.0},  // scaling coefficient for interface dissipation
+      {"basis-type", "csbp"},  // csbp & dsbp for continuous & discrete SBP
+      {"flux-fun", "IR"}}},
 
     {"steady", false},  // deprecated; now included in "time-dis"
     {"time-dis",        // options related to unsteady time-marching
@@ -44,7 +50,8 @@ const nlohmann::json default_options{
          {"t-final", 1.0},      // final time to simulate to
          {"dt", 0.01},          // time-step size when `const-cfl` is false
          {"cfl", 1.0},          // target CFL number
-         {"max-iter", 10000}  // safe-guard upper bound on number of iterations
+         {"max-iter", 10000},   // safe-guard upper bound number of iterations
+         {"entropy-log", false}  // if true, time history of entropy is written
      }},
 
     {"nonlin-solver",  // options related to root-finding algorithms

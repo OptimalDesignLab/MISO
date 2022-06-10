@@ -131,21 +131,6 @@ protected:
 
    void setUpExternalFields();
 
-   void initialHook(const mfem::Vector &state) override
-   {
-      AbstractSolver2::initialHook(state);
-
-      int inverted_elems = mesh().CheckElementOrientation(false);
-      if (inverted_elems > 0)
-      {
-         throw MachException("Mesh contains inverted elements!\n");
-      }
-      else
-      {
-         std::cout << "No inverted elements!\n";
-      }
-   }
-
    void setState_(std::any function,
                   const std::string &name,
                   mfem::Vector &state) override;
@@ -153,6 +138,59 @@ protected:
    double calcStateError_(std::any ex_sol,
                           const std::string &name,
                           const mfem::Vector &state) override;
+
+   /// For code that should be executed before the time stepping begins
+   /// \param[in] state - the current state
+   /// \note This is `final` because we want to ensure the `state` Vector gets
+   /// associated with the state field.  This association may not happen if the
+   /// client overwrites this definition; however, there is a call to the
+   /// virtual function derivedPDEinitialHook(state) that the client can
+   /// overwrite.
+   virtual void initialHook(const mfem::Vector &state) override final;
+
+   /// Code in a derived class that should be executed before time-stepping
+   /// \param[in] state - the current state
+   virtual void derivedPDEInitialHook(const mfem::Vector &state) { }
+
+   /// For code that should be executed before `ode_solver->Step`
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   /// \param[in] state - the current state
+   /// \note This is `final` because we want to ensure that
+   /// AbstractSolver2::iterationHook() is called.
+   virtual void iterationHook(int iter,
+                              double t,
+                              double dt,
+                              const mfem::Vector &state) override final;
+
+   /// Code in a derived class that should be executed each time step
+   /// \param[in] iter - the current iteration
+   /// \param[in] t - the current time (before the step)
+   /// \param[in] dt - the step size that will be taken
+   /// \param[in] state - the current state
+   virtual void derivedPDEIterationHook(int iter,
+                                        double t,
+                                        double dt,
+                                        const mfem::Vector &state)
+   { }
+
+   /// For code that should be executed after the time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   virtual void terminalHook(int iter,
+                             double t_final,
+                             const mfem::Vector &state) override final;
+
+   /// Code in a derived class that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   virtual void derivedPDETerminalHook(int iter,
+                                       double t_final,
+                                       const mfem::Vector &state)
+   { }
 };
 
 }  // namespace mach

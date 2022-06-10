@@ -23,7 +23,15 @@ namespace mach
 class AbstractSolver2
 {
 public:
+   /// \brief Set solver options, overwriting existing options
+   void setOptions(const nlohmann::json &options)
+   {
+      AbstractSolver2::options.update(options, true);
+   }
+
+   /// \brief Retrieve the currently set solver options
    const nlohmann::json &getOptions() const { return options; }
+
    /// \brief Generic function that allows derived classes to set the state
    /// based on the type T
    /// \param[in] function - any object that a derived solver will know how to

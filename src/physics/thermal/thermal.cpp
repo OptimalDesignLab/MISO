@@ -20,7 +20,7 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
 
    spatial_res = std::make_unique<MachResidual>(
        ThermalResidual(fes(), fields, options, materials));
-   setOptions(*spatial_res, options);
+   mach::setOptions(*spatial_res, options);
 
    fields.emplace(std::piecewise_construct,
                   std::forward_as_tuple("thermal_load"),

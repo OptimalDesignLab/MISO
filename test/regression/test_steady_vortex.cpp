@@ -175,5 +175,5 @@ void wexact(const Vector &x, Vector& w)
    w.SetSize(4);
    Vector q(4);
    qexact(x, q);
-   calcEntropyVars<double, 2>(q.GetData(), w.GetData());
+   calcEntropyVars<double, 2, false>(q.GetData(), w.GetData());
 }

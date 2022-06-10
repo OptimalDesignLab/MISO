@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "adept.h"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -73,33 +74,15 @@ public:
                          std::map<std::string, FiniteElementState> &fields,
                          const nlohmann::json &options,
                          const nlohmann::json &materials,
-                         StateCoefficient &nu)
-    : res(fes, fields),
-      load(diff_stack, fes, fields, options, materials, nu),
-      prec(constructPreconditioner(fes, options["lin-prec"]))
-
-   {
-      res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
-   }
+                         StateCoefficient &nu);
 
 private:
    /// Nonlinear form that handles the curl curl term of the weak form
    MachNonlinearForm res;
    /// Load vector for current and magnetic sources
    MagnetostaticLoad load;
-
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
-
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
-       mfem::ParFiniteElementSpace &fes,
-       const nlohmann::json &prec_options)
-   {
-      auto ams = std::make_unique<mfem::HypreAMS>(&fes);
-      ams->SetPrintLevel(prec_options["printlevel"].get<int>());
-      ams->SetSingularProblem();
-      return ams;
-   }
 };
 
 }  // namespace mach

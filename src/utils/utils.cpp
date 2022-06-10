@@ -1,3 +1,4 @@
+#include <random>
 #include <cmath>
 
 #include "utils.hpp"
@@ -45,6 +46,12 @@ void invertElementwise(const Vector &x, Vector &y)
    {
       y(i) = 1.0 / x(i);
    }
+}
+
+double squaredExponential(double len, const Vector &xc, const Vector &x)
+{
+   double prod2 = x * x - 2.0 * (x * xc) + xc * xc;  // avoid memory allocation
+   return exp(-prod2 / pow(len, 2.0));
 }
 
 /// Handles print in parallel case
@@ -764,7 +771,10 @@ void transferSolution(MeshType &old_mesh,
 }
 #endif
 
-unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
+unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree,
+                                         int num_rad,
+                                         int num_ang,
+                                         double pert)
 {
    Mesh mesh = Mesh::MakeCartesian2D(num_rad,
                                      num_ang,
@@ -773,6 +783,27 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang)
                                      2.0,
                                      M_PI * 0.5,
                                      true);
+
+   static constexpr double eps = std::numeric_limits<double>::epsilon();
+   if (pert > eps)
+   {
+      // randomly perturb the interior vertices
+      std::default_random_engine gen(std::random_device{}());
+      std::uniform_real_distribution<double> uni_rand(-pert, pert);
+      for (int i = 0; i < mesh.GetNV(); ++i)
+      {
+         double *vertex = mesh.GetVertex(i);
+         // make sure vertex is interior
+         if (vertex[0] > eps && vertex[0] < 2.0 - eps && vertex[1] > eps &&
+             vertex[1] < M_PI * 0.5 - eps)
+         {
+            // perturb coordinates
+            vertex[0] += uni_rand(gen) * 2.0 / num_rad;
+            vertex[1] += uni_rand(gen) * M_PI * 0.5 / num_ang;
+         }
+      }
+   }
+
    // strategy:
    // 1) generate a fes for Lagrange elements of desired degree
    // 2) create a Grid Function using a VectorFunctionCoefficient

@@ -1,3 +1,4 @@
+#include "finite_element_dual.hpp"
 #include "mfem.hpp"
 
 #ifdef MFEM_USE_PUMI
@@ -25,69 +26,71 @@
 
 #include "pde_solver.hpp"
 
-namespace
-{
-/// TODO: Get rid of this function and instead opt for FiniteElementVector
-/// constructor
-template <typename T>
-T createFiniteElementVector(mfem::ParMesh &mesh,
-                            const nlohmann::json &space_options,
-                            const int num_states,
-                            const std::string &name)
-{
-   const int dim = mesh.Dimension();
-   const auto order = space_options["degree"].get<int>();
-   const auto basis_type = space_options["basis-type"].get<std::string>();
-   const bool galerkin_diff = space_options.value("GD", false);
-   // Define the SBP elements and finite-element space; eventually, we will want
-   // to have a case or if statement here for both CSBP and DSBP, and (?)
-   // standard FEM. and here it is for first two
-   std::unique_ptr<mfem::FiniteElementCollection> fec;
-   if (basis_type == "csbp")
-   {
-      fec = std::make_unique<mfem::SBPCollection>(order, dim);
-   }
-   else if (basis_type == "dsbp" || galerkin_diff)
-   {
-      fec = std::make_unique<mfem::DSBPCollection>(order, dim);
-   }
-   else if (basis_type == "nedelec" || basis_type == "nd" || basis_type == "ND")
-   {
-      fec = std::make_unique<mfem::ND_FECollection>(order, dim);
-   }
-   else if (basis_type == "H1")
-   {
-      fec = std::make_unique<mfem::H1_FECollection>(order, dim);
-   }
+// namespace
+// {
+// /// TODO: Get rid of this function and instead opt for FiniteElementVector
+// /// constructor
+// template <typename T>
+// T createFiniteElementVector(mfem::ParMesh &mesh,
+//                             const nlohmann::json &space_options,
+//                             const int num_states,
+//                             const std::string &name)
+// {
+//    const int dim = mesh.Dimension();
+//    const auto order = space_options["degree"].get<int>();
+//    const auto basis_type = space_options["basis-type"].get<std::string>();
+//    const bool galerkin_diff = space_options.value("GD", false);
+//    // Define the SBP elements and finite-element space; eventually, we will
+//    want
+//    // to have a case or if statement here for both CSBP and DSBP, and (?)
+//    // standard FEM. and here it is for first two
+//    std::unique_ptr<mfem::FiniteElementCollection> fec;
+//    if (basis_type == "csbp")
+//    {
+//       fec = std::make_unique<mfem::SBPCollection>(order, dim);
+//    }
+//    else if (basis_type == "dsbp" || galerkin_diff)
+//    {
+//       fec = std::make_unique<mfem::DSBPCollection>(order, dim);
+//    }
+//    else if (basis_type == "nedelec" || basis_type == "nd" || basis_type ==
+//    "ND")
+//    {
+//       fec = std::make_unique<mfem::ND_FECollection>(order, dim);
+//    }
+//    else if (basis_type == "H1")
+//    {
+//       fec = std::make_unique<mfem::H1_FECollection>(order, dim);
+//    }
 
-   T vec(mesh,
-         {.order = order,
-          .num_states = num_states,
-          .coll = std::move(fec),
-          .ordering = mfem::Ordering::byVDIM,
-          .name = name});
-   return vec;
-}
+//    T vec(mesh,
+//          {.order = order,
+//           .num_states = num_states,
+//           .coll = std::move(fec),
+//           .ordering = mfem::Ordering::byVDIM,
+//           .name = name});
+//    return vec;
+// }
 
-mach::FiniteElementState createState(mfem::ParMesh &mesh,
-                                     const nlohmann::json &space_options,
-                                     const int num_states,
-                                     const std::string &name)
-{
-   return createFiniteElementVector<mach::FiniteElementState>(
-       mesh, space_options, num_states, name);
-}
+// mach::FiniteElementState createState(mfem::ParMesh &mesh,
+//                                      const nlohmann::json &space_options,
+//                                      const int num_states,
+//                                      const std::string &name)
+// {
+//    return createFiniteElementVector<mach::FiniteElementState>(
+//        mesh, space_options, num_states, name);
+// }
 
-mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
-                                   const nlohmann::json &space_options,
-                                   const int num_states,
-                                   const std::string &name)
-{
-   return createFiniteElementVector<mach::FiniteElementDual>(
-       mesh, space_options, num_states, name);
-}
+// mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
+//                                    const nlohmann::json &space_options,
+//                                    const int num_states,
+//                                    const std::string &name)
+// {
+//    return createFiniteElementVector<mach::FiniteElementDual>(
+//        mesh, space_options, num_states, name);
+// }
 
-}  // namespace
+// }  // namespace
 
 namespace mach
 {
@@ -337,13 +340,14 @@ PDESolver::PDESolver(MPI_Comm incomm,
    materials(material_library)
 {
    fields.emplace(
-       "state", createState(mesh(), options["space-dis"], num_states, "state"));
+       "state",
+       FiniteElementState(mesh(), options["space-dis"], num_states, "state"));
    fields.emplace(
        "adjoint",
-       createState(mesh(), options["space-dis"], num_states, "adjoint"));
+       FiniteElementState(mesh(), options["space-dis"], num_states, "adjoint"));
    duals.emplace(
        "residual",
-       createDual(mesh(), options["space-dis"], num_states, "residual"));
+       FiniteElementDual(mesh(), options["space-dis"], num_states, "residual"));
 
    setUpExternalFields();
 }
@@ -357,12 +361,14 @@ PDESolver::PDESolver(MPI_Comm incomm,
    materials(material_library)
 {
    int ns = num_states(solver_options, mesh().SpaceDimension());
-   fields.emplace("state",
-                  createState(mesh(), options["space-dis"], ns, "state"));
-   fields.emplace("adjoint",
-                  createState(mesh(), options["space-dis"], ns, "adjoint"));
-   duals.emplace("residual",
-                 createDual(mesh(), options["space-dis"], ns, "residual"));
+   fields.emplace(
+       "state", FiniteElementState(mesh(), options["space-dis"], ns, "state"));
+   fields.emplace(
+       "adjoint",
+       FiniteElementState(mesh(), options["space-dis"], ns, "adjoint"));
+   duals.emplace(
+       "residual",
+       FiniteElementDual(mesh(), options["space-dis"], ns, "residual"));
 
    setUpExternalFields();
 }
@@ -399,7 +405,8 @@ void PDESolver::setUpExternalFields()
 
          /// this approach will only work for fields on the same mesh
          auto num_states = field["num-states"].get<int>();
-         fields.emplace(name, createState(mesh(), field, num_states, name));
+         fields.emplace(name,
+                        FiniteElementState(mesh(), field, num_states, name));
       }
    }
 }
@@ -458,6 +465,39 @@ double PDESolver::calcStateError_(std::any ex_sol,
           field.distributeSharedDofs(state);
           return calcLpError(field, *coeff, 2);
        });
+}
+
+void PDESolver::initialHook(const mfem::Vector &state)
+{
+   AbstractSolver2::initialHook(state);
+   int inverted_elems = mesh().CheckElementOrientation(false);
+   if (inverted_elems > 0)
+   {
+      throw MachException("Mesh contains inverted elements!\n");
+   }
+   else
+   {
+      std::cout << "No inverted elements!\n";
+   }
+
+   getState().distributeSharedDofs(state);
+   derivedPDEInitialHook(state);
+}
+
+void PDESolver::iterationHook(int iter,
+                              double t,
+                              double dt,
+                              const mfem::Vector &state)
+{
+   AbstractSolver2::iterationHook(iter, t, dt, state);
+   derivedPDEIterationHook(iter, t, dt, state);
+}
+
+void PDESolver::terminalHook(int iter,
+                             double t_final,
+                             const mfem::Vector &state)
+{
+   AbstractSolver2::terminalHook(iter, t_final, state);
 }
 
 }  // namespace mach

@@ -118,8 +118,9 @@ public:
       : PDESolver(comm, solver_options, num_states, std::move(smesh))
    {
       spatial_res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), fields, options));
-      setOptions(*spatial_res, options);
+      mach::setOptions(*spatial_res, options);
 
+      nlohmann::json prec_options;
       auto *prec = getPreconditioner(*spatial_res);
       auto lin_solver_opts = options["lin-solver"];
       linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
@@ -157,7 +158,7 @@ public:
 
       mach::ParaViewLogger paraview("test_pde_solver", &mesh());
       paraview.registerField("state", fields.at("state").gridFunc());
-      addLogger(std::move(paraview), {.each_timestep=false});
+      addLogger(std::move(paraview), {.each_timestep=true});
    }
 private:
    static constexpr int num_states = 1;

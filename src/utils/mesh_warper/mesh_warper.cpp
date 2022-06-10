@@ -290,7 +290,7 @@ MeshWarper::MeshWarper(MPI_Comm incomm,
    options["time-dis"]["type"] = "steady";
    spatial_res = std::make_unique<MachResidual>(
        MeshWarperResidual(fes(), fields, options, surface_indices));
-   setOptions(*spatial_res, options);
+   mach::setOptions(*spatial_res, options);
 
    auto *prec = getPreconditioner(*spatial_res);
    auto lin_solver_opts = options["lin-solver"];

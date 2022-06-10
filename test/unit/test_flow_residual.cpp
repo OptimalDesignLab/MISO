@@ -16,14 +16,25 @@ using namespace mach;
 auto options = R"(
 {
    "flow-param": {
+      "viscous": false,
+      "entropy-state": false,
+      "mu": -1.0,
+      "Re": 100,
+      "Pr": 0.72,
       "mach": 0.5,
-      "aoa": 0.0
+      "aoa": 0.0,
+      "roll-axis": 0,
+      "pitch-axis": 1
    },
    "space-dis": {
       "degree": 1,
       "lps-coeff": 1.0,
+      "iface-coeff": 0.0,
       "basis-type": "csbp",
       "flux-fun": "Euler"
+   },
+   "time-dis": {
+      "steady": false
    },
    "bcs": {
       "far-field": [2, 3, 4],
@@ -47,7 +58,7 @@ TEST_CASE("FlowResidual construction and evaluation", "[FlowResidual]")
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
    std::map<std::string, FiniteElementState> fields;
    // construct the residual
-   FlowResidual res(options, fespace, diff_stack, fields);
+   FlowResidual<dim,false> res(options, fespace, fields, diff_stack);
    int num_var = getSize(res);
    REQUIRE(num_var == 132);
 
@@ -93,11 +104,12 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
    SBPCollection fec(p, dim);
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
 
+   std::map<std::string, FiniteElementState> fields;
+
    // construct the residual with no dissipation and using IR flux
    options["space-dis"]["lps-coeff"] = 0.0;
    options["space-dis"]["flux-fun"] = "IR"; 
-   std::map<std::string, FiniteElementState> fields;
-   FlowResidual res(options, fespace, diff_stack, fields);
+   FlowResidual<dim,false> res(options, fespace, fields, diff_stack);
    int num_var = getSize(res);
 
    // create a randomly perturbed conservative variable state
@@ -114,12 +126,14 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
          q(num_state*i + j) *= uniform_rand(gen);
       }
    }
-   // evaluate the entropy change based on q; by setting dqdt and dt to zero, 
-   // we ensure that the entropy change is evaluated at q and not q + dt*dqdt; 
-   // consequently, the change in entropy on the periodic grid should be zero.
+
+   // evaluate the entropy change based on q; by setting dqdt to be the 
+   // residual evaluated at q, we ensure the entropy change should be zero for 
+   // the periodic domain and lps coeff = 0.0
+   auto inputs = MachInputs({{"state", q}});
    Vector dqdt(num_var);
-   dqdt = 0.0;
-   auto inputs = MachInputs({
+   evaluate(res, inputs, dqdt);
+   inputs = MachInputs({
       {"state", q}, {"state_dot", dqdt}, {"time", 0.0}, {"dt", 0.0}
    });
    REQUIRE( calcEntropyChange(res, inputs) == Approx(0.0).margin(1e-14) );

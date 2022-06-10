@@ -77,7 +77,7 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 
    spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
        diff_stack, fes(), fields, options, materials, nu));
-   setOptions(*spatial_res, options);
+   mach::setOptions(*spatial_res, options);
 
    auto *prec = getPreconditioner(*spatial_res);
    auto lin_solver_opts = options["lin-solver"];

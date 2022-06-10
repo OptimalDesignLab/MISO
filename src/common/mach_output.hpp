@@ -12,6 +12,7 @@
 #include "nlohmann/json.hpp"
 
 #include "mach_input.hpp"
+#include "mach_residual.hpp"
 #include "utils.hpp"
 
 /// TODO: add some compile time check that makes sure that the type used to
@@ -299,6 +300,40 @@ inline void vectorJacobianProduct(MachOutput &output,
 {
    output.self_->vectorJacobianProduct_(out_bar, wrt, wrt_bar);
 }
+
+/// Wrapper for residuals to access its calcEntropy function as a MachOutput
+template <typename T>
+class EntropyOutput final
+{
+public:
+   friend int getSize(const EntropyOutput &output)
+   {
+      return getSize(output.res);
+   }
+   friend void setInputs(EntropyOutput &output, const MachInputs &inputs) { }
+   friend void setOptions(EntropyOutput &output, const nlohmann::json &options)
+   { }
+   friend double calcOutput(EntropyOutput &output, const MachInputs &inputs)
+   {
+      return calcEntropy(output.res, inputs);
+   }
+   friend double calcOutputPartial(EntropyOutput &output,
+                                   const std::string &wrt,
+                                   const MachInputs &inputs)
+   {
+      return 0.0;
+   }
+   friend void calcOutputPartial(EntropyOutput &output,
+                                 const std::string &wrt,
+                                 const MachInputs &inputs,
+                                 mfem::Vector &partial)
+   { }
+
+   EntropyOutput(T &res_) : res(res_) { }
+
+private:
+   T &res;
+};
 
 }  // namespace mach
 

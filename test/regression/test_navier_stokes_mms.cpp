@@ -6,7 +6,9 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "navier_stokes.hpp"
+//#include "navier_stokes.hpp"
+#include "euler_fluxes.hpp"
+#include "flow_solver.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -17,6 +19,7 @@ auto options = R"(
 {
    "print-options": false,
    "flow-param": {
+      "viscous": true,
       "mu": 1.0,
       "Re": 10.0,
       "Pr": 0.75,
@@ -31,7 +34,7 @@ auto options = R"(
       "steady": true,
       "steady-abstol": 1e-12,
       "steady-restol": 1e-10,
-      "ode-solver": "PTC",
+      "type": "PTC",
       "dt": 1e12,
       "cfl": 1.0,
       "res-exp": 2.0
@@ -56,7 +59,8 @@ auto options = R"(
    },
    "outputs":
    {
-      "drag": [1, 0, 1, 0]
+      "drag": [1, 0, 1, 0],
+      "entropy": {}
    }
 })"_json;
 
@@ -64,7 +68,7 @@ auto options = R"(
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_x - number of nodes in the x direction
 /// \param[in] num_y - number of nodes in the y direction
-Mesh buildCurvilinearMesh(int degree, int num_x, int num_y);
+unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y);
 
 /// \brief Defines the exact solution for the manufactured solution
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -97,18 +101,28 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
          // std::cout << setw(3) << options << std::endl;
          
          // construct the mesh
-         unique_ptr<Mesh> smesh(new Mesh(buildCurvilinearMesh(p+1, nx, nx)));
-         //std::cout << "Number of elements " << smesh->GetNE() << '\n';
+         auto mesh = buildCurvilinearMesh(p+1, nx, nx);
+         //std::cout << "Number of elements " << mesh->GetNE() << '\n';
 
-         // construct the solver, set the initial condition, and solve
-         auto solver = createSolver<NavierStokesSolver<2>>(options,
-                                                           move(smesh));
-         solver->setInitialCondition(uexact);
-         solver->solveForState();
+         // Create solver and set initial guess to exact
+         FlowSolver<2> solver(MPI_COMM_WORLD, options, std::move(mesh));
+         mfem::Vector state_tv(solver.getStateSize());
+         solver.setState(uexact, state_tv);
 
-         // get L2 density error, and compare against target error
-         double l2_error = solver->calcL2Error(uexact, 0);
-         REQUIRE(l2_error == Approx(target_error[p-1]).margin(1e-10));
+         // get the initial entropy 
+         solver.createOutput("entropy", options["outputs"].at("entropy"));
+         MachInputs inputs({{"state", state_tv}});
+         double entropy0 = solver.calcOutput("entropy", inputs);
+         cout << "before time stepping, entropy is " << entropy0 << endl;
+
+         // Solve for the state and compute error
+         inputs = MachInputs({});
+         solver.solveForState(inputs, state_tv);
+         auto &state = solver.getState();
+         state.distributeSharedDofs(state_tv);
+         double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
+         std::cout << "l2 error = " << l2_error << std::endl;
+         REQUIRE(l2_error == Approx(target_error[p - 1]).margin(1e-10));
 
          // get the drag error and compare against target error
          // Note: the "exact" value of drag is set to 1.6, but this has
@@ -116,14 +130,17 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
          auto drag_opts = R"({ 
             "boundaries": [1, 3]
          })"_json;
-         solver->createOutput("drag", drag_opts);
-         double drag_error = solver->calcOutput("drag") - 1.6;
+         solver.createOutput("drag", drag_opts);
+         inputs = MachInputs({
+            {"state", state.gridFunc()}
+         });
+         double drag_error = solver.calcOutput("drag", inputs) - 1.6;
          REQUIRE(drag_error == Approx(target_drag_error[p-1]).margin(1e-10));
       }
    }
 }
 
-Mesh buildCurvilinearMesh(int degree, int num_x, int num_y)
+unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)
 {
    Mesh mesh = Mesh::MakeCartesian2D(num_x, num_y, Element::TRIANGLE, 
                                      true /* gen. edges */, 1.0, 1.0, true);
@@ -145,7 +162,7 @@ Mesh buildCurvilinearMesh(int degree, int num_x, int num_y)
    xy->MakeOwner(fec);
    xy->ProjectCoefficient(xy_coeff);
    mesh.NewNodes(*xy, true);
-   return mesh;
+   return make_unique<Mesh>(mesh);
 }
 
 void uexact(const Vector &x, Vector& q)

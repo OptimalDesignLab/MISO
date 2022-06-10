@@ -202,8 +202,8 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
       qL(di + 1) = rhou[di];
       qR(di + 1) = rhou2[di];
    }
-   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
-   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   mach::calcEntropyVars<double, dim, false>(qL.GetData(), wL.GetData());
+   mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
    // create perturbation vector
    for (int di = 0; di < dim + 2; ++di)
    {
@@ -374,8 +374,8 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian based on entropy variables
       qL(di + 1) = rhou[di];
       qR(di + 1) = rhou2[di];
    }
-   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
-   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   mach::calcEntropyVars<double, dim, false>(qL.GetData(), wL.GetData());
+   mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
    // create perturbation vector
    for (int di = 0; di < dim + 2; ++di)
    {
@@ -578,7 +578,7 @@ TEMPLATE_TEST_CASE_SIG("Mass integrator calcMatVec Jacobians",
       q(di + 1) = rhou[di];
    }
    mfem::Vector w(dim+2);
-   mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
 
    // Create the AD stack and the integrator
    adept::Stack diff_stack;
@@ -636,20 +636,23 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
    {
       q(di + 1) = rhou[di];
    }
-   if (entvar)
-   {
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
-   else
-   {
-      w = q;
-   }
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
 
    // dummy const vector x for calcFlux - unused
    const mfem::Vector x(nrm);
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    adept::Stack diff_stack;
+   // state is either w or q depending of entvar
+   mfem::Vector state(dim+2);
+   if constexpr(entvar)
+   {
+      state.SetDataAndSize(w.GetData(), dim+2);
+   }
+   else
+   {
+      state.SetDataAndSize(q.GetData(), dim+2);
+   }
 
    SECTION("Jacobian of Isentropic Vortex BC flux w.r.t state is correct")
    {
@@ -665,19 +668,19 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
       mfem::Vector jac_v_ad(dim + 2);
-      isentropic_vortex.calcFluxJacState(x, nrm, w, jac_ad);
+      isentropic_vortex.calcFluxJacState(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
-      mfem::Vector w_plus(w);
-      mfem::Vector w_minus(w);
-      w_plus.Add(delta, v);
-      w_minus.Add(-delta, v);
+      mfem::Vector state_plus(state);
+      mfem::Vector state_minus(state);
+      state_plus.Add(delta, v);
+      state_minus.Add(-delta, v);
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      isentropic_vortex.calcFlux(x, nrm, w_plus, flux_plus);
-      isentropic_vortex.calcFlux(x, nrm, w_minus, flux_minus);
+      isentropic_vortex.calcFlux(x, nrm, state_plus, flux_plus);
+      isentropic_vortex.calcFlux(x, nrm, state_minus, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -705,19 +708,19 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
       mfem::Vector jac_v_ad(dim + 2);
-      isentropic_vortex.calcFluxJacState(x, nrm, w, jac_ad);
+      isentropic_vortex.calcFluxJacState(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
-      mfem::Vector w_plus(w);
-      mfem::Vector w_minus(w);
-      w_plus.Add(delta, v);
-      w_minus.Add(-delta, v);
+      mfem::Vector state_plus(state);
+      mfem::Vector state_minus(state);
+      state_plus.Add(delta, v);
+      state_minus.Add(-delta, v);
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      isentropic_vortex.calcFlux(x, nrm, w_plus, flux_plus);
-      isentropic_vortex.calcFlux(x, nrm, w_minus, flux_minus);
+      isentropic_vortex.calcFlux(x, nrm, state_plus, flux_plus);
+      isentropic_vortex.calcFlux(x, nrm, state_minus, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -745,7 +748,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim);
       mfem::Vector jac_v_ad(dim + 2);
-      isentropic_vortex.calcFluxJacDir(x, nrm, w, jac_ad);
+      isentropic_vortex.calcFluxJacDir(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
@@ -756,8 +759,8 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      isentropic_vortex.calcFlux(x, nrm_plus, w, flux_plus);
-      isentropic_vortex.calcFlux(x, nrm_minus, w, flux_minus);
+      isentropic_vortex.calcFlux(x, nrm_plus, state, flux_plus);
+      isentropic_vortex.calcFlux(x, nrm_minus, state, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -785,7 +788,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim);
       mfem::Vector jac_v_ad(dim + 2);
-      isentropic_vortex.calcFluxJacDir(x, nrm, w, jac_ad);
+      isentropic_vortex.calcFluxJacDir(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
@@ -796,8 +799,8 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      isentropic_vortex.calcFlux(x, nrm_plus, w, flux_plus);
-      isentropic_vortex.calcFlux(x, nrm_minus, w, flux_minus);
+      isentropic_vortex.calcFlux(x, nrm_plus, state, flux_plus);
+      isentropic_vortex.calcFlux(x, nrm_minus, state, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -832,14 +835,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    {
       q(di + 1) = rhou[di];
    }
-   if (entvar)
-   {
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
-   else
-   {
-      w = q;
-   }
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
 
    // dummy const vector x for calcFlux - unused
    const mfem::Vector x(nrm);
@@ -847,6 +843,17 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    /// finite element or SBP operators
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    adept::Stack diff_stack;
+
+   // state is either w or q depending of entvar
+   mfem::Vector state(dim+2);
+   if constexpr(entvar)
+   {
+      state.SetDataAndSize(w.GetData(), dim+2);
+   }
+   else
+   {
+      state.SetDataAndSize(q.GetData(), dim+2);
+   }
 
    SECTION("Jacobian of slip wall flux w.r.t state is correct")
    {
@@ -863,19 +870,19 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
       mfem::Vector jac_v_ad(dim + 2);
-      slip_wall.calcFluxJacState(x, nrm, w, jac_ad);
+      slip_wall.calcFluxJacState(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
-      mfem::Vector w_plus(w);
-      mfem::Vector w_minus(w);
-      w_plus.Add(delta, v);
-      w_minus.Add(-delta, v);
+      mfem::Vector state_plus(state);
+      mfem::Vector state_minus(state);
+      state_plus.Add(delta, v);
+      state_minus.Add(-delta, v);
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      slip_wall.calcFlux(x, nrm, w_plus, flux_plus);
-      slip_wall.calcFlux(x, nrm, w_minus, flux_minus);
+      slip_wall.calcFlux(x, nrm, state_plus, flux_plus);
+      slip_wall.calcFlux(x, nrm, state_minus, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -904,19 +911,19 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
       mfem::Vector jac_v_ad(dim + 2);
-      slip_wall.calcFluxJacState(x, nrm, w, jac_ad);
+      slip_wall.calcFluxJacState(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
-      mfem::Vector w_plus(w);
-      mfem::Vector w_minus(w);
-      w_plus.Add(delta, v);
-      w_minus.Add(-delta, v);
+      mfem::Vector state_plus(state);
+      mfem::Vector state_minus(state);
+      state_plus.Add(delta, v);
+      state_minus.Add(-delta, v);
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      slip_wall.calcFlux(x, nrm, w_plus, flux_plus);
-      slip_wall.calcFlux(x, nrm, w_minus, flux_minus);
+      slip_wall.calcFlux(x, nrm, state_plus, flux_plus);
+      slip_wall.calcFlux(x, nrm, state_minus, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -945,7 +952,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim);
       mfem::Vector jac_v_ad(dim + 2);
-      slip_wall.calcFluxJacDir(x, nrm, w, jac_ad);
+      slip_wall.calcFluxJacDir(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
@@ -956,8 +963,8 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      slip_wall.calcFlux(x, nrm_plus, w, flux_plus);
-      slip_wall.calcFlux(x, nrm_minus, w, flux_minus);
+      slip_wall.calcFlux(x, nrm_plus, state, flux_plus);
+      slip_wall.calcFlux(x, nrm_minus, state, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -986,7 +993,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
       // get derivative information from AD functions and form product
       mfem::DenseMatrix jac_ad(dim + 2, dim);
       mfem::Vector jac_v_ad(dim + 2);
-      slip_wall.calcFluxJacDir(x, nrm, w, jac_ad);
+      slip_wall.calcFluxJacDir(x, nrm, state, jac_ad);
       jac_ad.Mult(v, jac_v_ad);
 
       // FD approximation
@@ -997,8 +1004,8 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
 
       mfem::Vector flux_plus(dim + 2);
       mfem::Vector flux_minus(dim + 2);
-      slip_wall.calcFlux(x, nrm_plus, w, flux_plus);
-      slip_wall.calcFlux(x, nrm_minus, w, flux_minus);
+      slip_wall.calcFlux(x, nrm_plus, state, flux_plus);
+      slip_wall.calcFlux(x, nrm_minus, state, flux_minus);
 
       // finite difference jacobian
       mfem::Vector jac_v_fd(dim + 2);
@@ -1011,6 +1018,109 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
          REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
       }
    }
+}
+
+// TODO: add dim = 1, 3 once 3d sbp operators implemented
+TEMPLATE_TEST_CASE_SIG("EC Boundary Flux Jacobians", "[EC-Boundary]",
+                       ((bool entvar), entvar), false, true)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   const int dim = 2;
+   double delta = 1e-5;
+   mfem::Vector nrm(dim);
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mfem::Vector q(dim + 2), w(dim + 2);
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+
+   // use nrm for x position, and get random time
+   const mfem::Vector x(nrm); 
+   std::default_random_engine gen(std::random_device{}());
+   std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
+   double time = uniform_rand(gen);
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   adept::Stack diff_stack;
+
+   // state is either w or q depending of entvar
+   mfem::Vector state(dim+2);
+   if constexpr(entvar)
+   {
+      state.SetDataAndSize(w.GetData(), dim+2);
+   }
+   else
+   {
+      state.SetDataAndSize(q.GetData(), dim+2);
+   }
+
+   // define the boundary condition state function
+   auto bnd_state = [](double t, const mfem::Vector &x, mfem::Vector &q)
+   {
+      double uL = 0.05;
+      double xL = uL*(1.0 - cos(t));
+      q[0] = 1.0/(1.0 - xL);
+      q[1] = q[0]*uL*sin(t);
+      q[2] = 0.0;
+      double press = pow(q[0], mach::euler::gamma);
+      q[3] = press/mach::euler::gami + 0.5*q[1]*q[1]/q[0];
+   };
+
+   SECTION("Jacobian of ent. cons. boundary flux w.r.t state is correct")
+   {
+      // Define the SBP elements and finite-element space
+      fec.reset(new mfem::SBPCollection(1, dim));
+      mach::EntropyConserveBC<dim, entvar> ec_bc(diff_stack, fec.get(), 
+                                                 bnd_state);
+      // create the perturbation vector
+      mfem::Vector v(dim + 2);
+      for (int i = 0; i < dim + 2; i++)
+      {
+         v(i) = vec_pert[i];
+      }
+
+      // set the time 
+      auto inputs = mach::MachInputs({{"time", time}});
+      setInputs(ec_bc, inputs);
+
+      // get derivative information from AD functions and form product
+      mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
+      mfem::Vector jac_v_ad(dim + 2);
+      ec_bc.calcFluxJacState(x, nrm, state, jac_ad);
+      jac_ad.Mult(v, jac_v_ad);
+
+      // FD approximation
+      mfem::Vector state_plus(state);
+      mfem::Vector state_minus(state);
+      state_plus.Add(delta, v);
+      state_minus.Add(-delta, v);
+
+      mfem::Vector flux_plus(dim + 2);
+      mfem::Vector flux_minus(dim + 2);
+      ec_bc.calcFlux(x, nrm, state_plus, flux_plus);
+      ec_bc.calcFlux(x, nrm, state_minus, flux_minus);
+
+      // finite difference jacobian
+      mfem::Vector jac_v_fd(dim + 2);
+      subtract(flux_plus, flux_minus, jac_v_fd);
+      jac_v_fd /= 2 * delta;
+
+      // compare
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
+      }
+   }
+
 }
 
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
@@ -1086,7 +1196,7 @@ TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
    }
 
    mfem::Vector w(dim + 2);
-   mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    SECTION("Gradient of pressure stress w.r.t w is correct")
    {
       // Define the SBP elements and finite-element space

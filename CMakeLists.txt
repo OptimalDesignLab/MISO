@@ -88,14 +88,20 @@ set_target_properties(tinysplinecxx
 
 set(JSON_Install ON)
 FetchContent_Declare(json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG v3.10.2)
+   URL https://github.com/nlohmann/json/releases/download/v3.10.5/json.tar.xz
+)
 
-FetchContent_GetProperties(json)
-if(NOT json_POPULATED)
-  FetchContent_Populate(json)
-  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
-endif()
+FetchContent_MakeAvailable(json)
+
+# FetchContent_Declare(json
+#   GIT_REPOSITORY https://github.com/nlohmann/json.git
+#   GIT_TAG v3.10.2)
+
+# FetchContent_GetProperties(json)
+# if(NOT json_POPULATED)
+#   FetchContent_Populate(json)
+#   add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
+# endif()
 
 # create build target library named mach
 add_library(mach "")

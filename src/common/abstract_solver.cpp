@@ -36,6 +36,10 @@ AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
 
    bool silent = options.value("silent", false);
    out = getOutStream(rank, silent);
+   if (options["print-options"])
+   {
+      *out << std::setw(3) << options << std::endl;
+   }
 }
 
 void AbstractSolver2::setState_(std::any function,
@@ -186,19 +190,14 @@ void AbstractSolver2::calcResidual(const MachInputs &inputs,
 
 double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
 {
-   // dt must be set to zero, so that the TimeDependentResidual knows to just
-   // evaluate the spatial residual.
-   MachInputs inputs{{"state", state}, {"dt", 0.0}};
+   MachInputs inputs{{"state", state}};
    return calcResidualNorm(inputs);
 }
 
 double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
 {
    work.SetSize(getSize(*spatial_res));
-   *out << "before calcResidual..." << std::endl;
-   *out << "work.Size() = " << work.Size() << std::endl;
    calcResidual(inputs, work);
-   *out << "after calcResidual..." << std::endl;
    return sqrt(InnerProduct(comm, work, work));
 }
 
@@ -551,7 +550,10 @@ double AbstractSolver2::calcStepSize(int iter,
                                      const mfem::Vector &state) const
 {
    auto dt = options["time-dis"]["dt"].get<double>();
-   dt = std::min(dt, t_final - t);
+   if (options["time-dis"].value("exact-t-final", true))
+   {
+      dt = std::min(dt, t_final - t);
+   }
    return dt;
 }
 

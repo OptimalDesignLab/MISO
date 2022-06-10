@@ -242,6 +242,57 @@ void calcNoSlipPenaltyFlux(const xdouble *dir,
    flux[dim + 1] = 0.0;
 }
 
+/// Computes an entropy stable no-slip, flow-control penalty
+/// \param[in] dir - desired (scaled) normal vector to the wall
+/// \param[in] Jac - mapping Jacobian at the wall
+/// \param[in] mu - nondimensionalized dynamic viscosity
+/// \param[in] Pr - Prandtl number
+/// \param[in] uc - control velocity magnitude (and sign)
+/// \param[in] qfs - a fixed state (e.g. free-stream value)
+/// \param[in] q - state at the wall location
+/// \param[out] flux - wall flux
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcControlPenaltyFlux(const xdouble *dir,
+                            const xdouble Jac,
+                            xdouble mu,
+                            double Pr,
+                            xdouble uc,
+                            const xdouble *qfs,
+                            const xdouble *q,
+                            xdouble *flux)
+{
+   // evaluate the difference w - w_bc, where
+   // w_bc = [w[0], rho*uc_x/p, rho*uc_y/p, ...,w[dim+1]]
+   xdouble dw[dim + 2];
+   dw[0] = 0.0;
+   dw[dim + 1] = 0.0;
+   auto p = pressure<xdouble, dim>(q);
+   xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+   for (int d = 0; d < dim; ++d)
+   {
+      dw[d + 1] = (q[d + 1] - q[0] * uc * dir[d] / dA) / p;
+   }
+   // initialize flux; recall that applyCijMatrix adds to its output
+   for (int k = 0; k < dim + 2; ++k)
+   {
+      flux[k] = 0.0;
+   }
+   for (int d = 0; d < dim; ++d)
+   {
+      applyCijMatrix<xdouble, dim>(d, d, mu, Pr, qfs, dw, flux);
+   }
+   // scale the penalty
+   xdouble fac = dA / Jac;
+   for (int k = 1; k < dim + 1; ++k)
+   {
+      flux[k] *= fac;
+   }
+   // zero out the last entry; first entry should be zeroed already
+   flux[dim + 1] = 0.0;
+}
+
 /// Computes the dual-consistent term for the no-slip wall penalty
 /// \param[in] dir - desired (scaled) normal vector to the wall
 /// \param[in] mu - nondimensionalized dynamic viscosity
@@ -300,6 +351,31 @@ void calcNoSlipDualFlux(const xdouble *dir,
       fluxes[d * num_state + dim + 1] -= flux_nrm * nrm[d];
    }
 #endif
+}
+
+/// A particular MMS Exact solution
+/// \param[in] x - location at which to evaluate the exact solution
+/// \param[out] u - the exact solution
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void viscousMMSExact(const xdouble *x, xdouble *u)
+{
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double U0 = 0.5;
+   const double Up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   u[0] = rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1]);
+   u[1] = 4.0 * U0 * x[1] * (1.0 - x[1]) +
+          Up * sin(2 * M_PI * x[1]) * pow(sin(M_PI * x[0]), 2);
+   u[2] = -Up * pow(sin(2 * M_PI * x[0]), 2) * sin(M_PI * x[1]);
+   double T = T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                         pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2));
+   double p = u[0] * T;  // T is nondimensionalized by 1/(R*a_infty^2)
+   u[3] = p / euler::gami + 0.5 * u[0] * (u[1] * u[1] + u[2] * u[2]);
+   u[1] *= u[0];
+   u[2] *= u[0];
 }
 
 /// MMS source term for a particular Navier-Stokes verification

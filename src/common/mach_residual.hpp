@@ -17,6 +17,12 @@ void linearize(T & /*unused*/, const MachInputs & /*unused*/)
 }
 
 template <typename T>
+MPI_Comm getMPIComm(const T & /*unused*/)
+{
+   throw MachException("getComm not specialized for concrete residual type!\n");
+}
+
+template <typename T>
 mfem::Operator &getJacobianTranspose(T & /*unused*/,
                                      const MachInputs & /*unused*/,
                                      const std::string & /*unused*/)
@@ -84,9 +90,24 @@ double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
 }
 
 template <typename T>
+mfem::Operator *getMassMatrix(T & /*unused*/, const nlohmann::json & /*unused*/)
+{
+   return nullptr;
+}
+
+template <typename T>
 mfem::Solver *getPreconditioner(T & /*unused*/)
 {
    return nullptr;
+}
+
+template <typename T>
+mfem::Operator &getJacobianBlock(T & /*unused*/,
+                                 const MachInputs & /*unused*/,
+                                 int)
+{
+   throw MachException(
+       "getJacobianBlock not specialized for concrete residual type!\n");
 }
 
 /// Defines a common interface for residual functions used by mach.
@@ -109,6 +130,15 @@ public:
    /// client side, and methods specific to the concrete type need to be called.
    template <typename T>
    friend T &getConcrete(MachResidual &residual);
+
+   template <typename T>
+   friend const T &getConcrete(const MachResidual &residual);
+
+   /// Get the MPI Communicator associated with the residual
+   /// \param[in] residual - the residual whose comm is desired
+   /// \returns the MPI Communicator for the residual
+   /// \note Optional.  Needed for some global operations (inner products)
+   friend MPI_Comm getMPIComm(const MachResidual &residual);
 
    /// Gets the number of equations/unknowns of the underlying residual type
    /// \param[inout] residual - the residual whose size is being queried
@@ -163,6 +193,15 @@ public:
    friend mfem::Operator &getJacobianTranspose(MachResidual &residual,
                                                const MachInputs &inputs,
                                                const std::string &wrt);
+
+   /// Get a reference to `iblock`th block of the Jacobian for a block system
+   /// \param[inout] residual - function whose Jacobian we want
+   /// \param[in] inputs - the variables needed to evaluate the Jacobian
+   /// \param[in] iblock - the block whose Jacobian is sought
+   /// \note this is for the state Jacobian only
+   friend mfem::Operator &getJacobianBlock(MachResidual &residual,
+                                           const MachInputs &inputs,
+                                           int iblock);
 
    friend void setUpAdjointSystem(MachResidual &residual,
                                   mfem::Solver &adj_solver,
@@ -233,16 +272,27 @@ public:
    /// \param[inout] residual - function with an associated entropy
    /// \param[in] inputs - the variables needed to evaluate the entropy
    /// \return the product `w^T res`
-   /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
-   /// `t+dt` \note optional, but must be implemented for relaxation RK
+   /// \note The entropy variables, `w`, are evaluated at `state`, and `res` is
+   /// equal to `-state_dot`.
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 
-   /// Return a preconditioner owned by the residual for inverting the
-   /// residual's state Jacobian \param[inout] residual - the object owning the
-   /// preconditioner \return non owning pointer to a preconditioner for
-   /// inverting the state Jacobian \note if a concrete residual type does not
-   /// define a getPreconditioner function a `nullptr` will be returned
+   /// Return the mass matrix corresponding to the residual
+   /// \param[inout] residual - the object owning the mass matrix
+   /// \param[in] options - options specific to the mass matrix (if needed)
+   /// \return pointer to the mass matrix
+   /// \note if a concrete residual type does not define a getMassMatrix
+   /// function a `nullptr` will be returned.
+   /// \note pointer owned by the residual.
+   friend mfem::Operator *getMassMatrix(MachResidual &residual,
+                                        const nlohmann::json &options);
+
+   /// Return a preconditioner for the residual's state Jacobian
+   /// \param[inout] residual - the object owning the preconditioner
+   /// \return pointer to preconditioner for the state Jacobian
+   /// \note if a concrete residual type does not define a getPreconditioner
+   /// function a `nullptr` will be returned.
+   /// \note pointer owned by the residual.
    friend mfem::Solver *getPreconditioner(MachResidual &residual);
 
    /// We need to support these overrides so that the MachResidual type can be
@@ -275,6 +325,7 @@ private:
    {
    public:
       virtual ~concept_t() = default;
+      virtual MPI_Comm getComm_() const = 0;
       virtual int getSize_() const = 0;
       virtual void setInputs_(const MachInputs &inputs) = 0;
       virtual void setOptions_(const nlohmann::json &options) = 0;
@@ -284,6 +335,8 @@ private:
                                       const std::string &wrt) = 0;
       virtual mfem::Operator &getJacT_(const MachInputs &inputs,
                                        const std::string &wrt) = 0;
+      virtual mfem::Operator &getJacBlock_(const MachInputs &inputs,
+                                           int iblock) = 0;
       virtual void setUpAdjointSystem_(mfem::Solver &adj_solver,
                                        const MachInputs &inputs,
                                        mfem::Vector &state_bar,
@@ -300,6 +353,7 @@ private:
                                           mfem::Vector &wrt_bar) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
+      virtual mfem::Operator *getMass_(const nlohmann::json &options) = 0;
       virtual mfem::Solver *getPrec_() = 0;
    };
 
@@ -310,6 +364,7 @@ private:
    {
    public:
       model(T x) : data_(std::move(x)) { }
+      MPI_Comm getComm_() const override { return getMPIComm(data_); }
       int getSize_() const override { return getSize(data_); }
       void setInputs_(const MachInputs &inputs) override
       {
@@ -336,6 +391,11 @@ private:
                                const std::string &wrt) override
       {
          return getJacobianTranspose(data_, inputs, wrt);
+      }
+      mfem::Operator &getJacBlock_(const MachInputs &inputs,
+                                   int iblock) override
+      {
+         return getJacobianBlock(data_, inputs, iblock);
       }
       void setUpAdjointSystem_(mfem::Solver &adj_solver,
                                const MachInputs &inputs,
@@ -374,6 +434,10 @@ private:
       {
          return calcEntropyChange(data_, inputs);
       }
+      mfem::Operator *getMass_(const nlohmann::json &options) override
+      {
+         return getMassMatrix(data_, options);
+      }
       mfem::Solver *getPrec_() override { return getPreconditioner(data_); }
 
       T data_;
@@ -395,6 +459,25 @@ inline T &getConcrete(MachResidual &residual)
    {
       return model->data_;
    }
+}
+
+template <typename T>
+inline const T &getConcrete(const MachResidual &residual)
+{
+   auto *model = dynamic_cast<MachResidual::model<T> *>(residual.self_.get());
+   if (model == nullptr)
+   {
+      throw MachException("getConcrete() called with inconsistent template!");
+   }
+   else
+   {
+      return model->data_;
+   }
+}
+
+inline MPI_Comm getMPIComm(const MachResidual &residual)
+{
+   return residual.self_->getComm_();
 }
 
 inline int getSize(const MachResidual &residual)
@@ -448,6 +531,15 @@ inline mfem::Operator &getJacobianTranspose(MachResidual &residual,
    return residual.self_->getJacT_(inputs, wrt);
 }
 
+inline mfem::Operator &getJacobianBlock(MachResidual &residual,
+                                        const MachInputs &inputs,
+                                        int iblock)
+{
+   // passes `inputs` and `res_vec` on to the `getJacobianBlock` function for
+   // the concrete residual type
+   return residual.self_->getJacBlock_(inputs, iblock);
+}
+
 inline void setUpAdjointSystem(MachResidual &residual,
                                mfem::Solver &adj_solver,
                                const MachInputs &inputs,
@@ -496,6 +588,12 @@ inline double calcEntropyChange(MachResidual &residual,
                                 const MachInputs &inputs)
 {
    return residual.self_->calcEntropyChange_(inputs);
+}
+
+inline mfem::Operator *getMassMatrix(MachResidual &residual,
+                                     const nlohmann::json &options)
+{
+   return residual.self_->getMass_(options);
 }
 
 inline mfem::Solver *getPreconditioner(MachResidual &residual)
