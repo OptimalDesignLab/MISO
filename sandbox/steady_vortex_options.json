@@ -26,8 +26,8 @@
       "res-exp": 2.0
    },
    "bcs": {
-      "vortex": [1, 1, 1, 0],
-      "slip-wall": [0, 0, 0, 1]
+      "vortex": [1, 2, 3],
+      "slip-wall": [4]
    },
    "nonlin-solver": {
       "printlevel": 1,
@@ -49,7 +49,7 @@
       "each-timestep": true,
       "entropy": {},
       "drag": {
-         "boundaries": [0, 0, 0, 1]
+         "boundaries": [4]
       }
    }
 }

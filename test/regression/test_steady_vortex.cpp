@@ -2,11 +2,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "adept.h"
 #include "catch.hpp"
-#include "mfem.hpp"
 
-#include "euler.hpp"
+#include "mach.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -26,21 +24,21 @@ auto options = R"(
       "basis-type": "csbp"
    },
    "time-dis": {
+      "type": "PTC",
       "steady": true,
       "steady-abstol": 1e-12,
       "steady-restol": 1e-10,
-      "ode-solver": "PTC",
       "t-final": 100,
       "dt": 1e12,
       "cfl": 1.0,
       "res-exp": 2.0
    },
    "bcs": {
-      "vortex": [1, 1, 1, 0],
-      "slip-wall": [0, 0, 0, 1]
+      "vortex": [1, 2, 3],
+      "slip-wall": [4]
    },
    "nonlin-solver": {
-      "printlevel": 0,
+      "printlevel": 1,
       "maxiter": 50,
       "reltol": 1e-1,
       "abstol": 1e-12
@@ -61,10 +59,18 @@ auto options = R"(
       "reltol": 1e-2,
       "abstol": 1e-12
    },
+   "lin-prec": {
+      "type": "hypreilu",
+      "ilu-reorder": 1,
+      "ilu-type": 0,
+      "lev-fill": 1,
+      "printlevel": 0
+   },
    "saveresults":false,
-   "outputs":
-   { 
-      "drag": [0, 0, 0, 1]
+   "outputs": {
+      "drag": {
+         "boundaries": [4]
+      }
    }
 })"_json;
 
@@ -111,28 +117,24 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
       DYNAMIC_SECTION("...for mesh sizing nx = " << nx)
       {
          // construct the solver, set the initial condition, and solve
-         auto smesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
-         auto solver = createSolver<EulerSolver<2,entvar>>(options,
-                                                           move(smesh));
-         solver->setInitialCondition(uexact);
-         if (!entvar && nx == 2)
-            solver->printSolution("steady_vtx");
-         solver->solveForState();
+         auto mesh = buildQuarterAnnulusMesh(mesh_degree, nx, nx);
+         options["flow-param"]["entropy-state"] = entvar;
+         FlowSolver<2, entvar> solver(MPI_COMM_WORLD, options, std::move(mesh));
+         Vector state_tv(solver.getStateSize());
+         solver.setState(uexact, state_tv);
+         MachInputs inputs({{"state", state_tv}});
+         solver.solveForState(inputs, state_tv);
 
          // Compute error and check against appropriate target:
          // Using calcConservativeVarsL2Error, we should have the same error 
          // for both entvar=true and entvar=false
-         double l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
-                            .calcConservativeVarsL2Error(uexact, 0));
-         //double l2_error = solver->calcL2Error(uexact, 0);
+         double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
          REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
 
-         // Compute drag and check against target
-         auto drag_opts = R"({ 
-            "boundaries": [4]
-         })"_json;
-         solver->createOutput("drag", drag_opts);
-         double drag_error = fabs(solver->calcOutput("drag") - (-1 /mach::euler::gamma));
+         // Compute drag and check against target 
+         solver.createOutput("drag", options["outputs"].at("drag"));
+         double drag = solver.calcOutput("drag", inputs);
+         double drag_error = fabs(drag - (-1 /mach::euler::gamma));
          REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }
