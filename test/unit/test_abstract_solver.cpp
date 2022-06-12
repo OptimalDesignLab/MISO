@@ -321,7 +321,7 @@ TEST_CASE("Testing AbstractSolver using RRK6", "[abstract-solver]")
       std::cout << "terminal solution error = " << error << std::endl;
       std::cout << "entropy error = " << entropy - entropy0 << std::endl;
    }
-   REQUIRE( error == Approx(6.95656e-09).margin(1e-12) );
+   REQUIRE( error == Approx(1.58305e-11).margin(1e-13) );
 
    REQUIRE( entropy == Approx(entropy0).margin(1e-12) );
 }

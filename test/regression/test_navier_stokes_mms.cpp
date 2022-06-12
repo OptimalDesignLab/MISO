@@ -53,13 +53,17 @@ auto options = R"(
       "reltol": 1e-2,
       "abstol": 1e-12
    },
+   "lin-prec": {
+      "type": "hypreilu",
+      "lev-fill": 4
+   },
    "bcs": {
-      "no-slip-adiabatic": [1, 0, 1, 0],
-      "viscous-mms": [0, 1, 0, 1]
+      "no-slip-adiabatic": [1, 3],
+      "viscous-mms": [2, 4]
    },
    "outputs":
    {
-      "drag": [1, 0, 1, 0],
+      "drag": [1, 3],
       "entropy": {}
    }
 })"_json;
