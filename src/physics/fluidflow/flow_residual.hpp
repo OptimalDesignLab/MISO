@@ -314,15 +314,13 @@ mfem::Operator *getMassMatrix(FlowResidual<dim, entvar> &residual,
 
 /// Return a preconditioner for the flow residual's state Jacobian
 /// \param[inout] residual - residual whose preconditioner is desired
-/// \param[in] prec_options - options specific to the preconditioner
 /// \return pointer to preconditioner for the state Jacobian
-/// \note Constructs the preconditioner, and the returned pointer is owned
-/// by the `residual`
+/// \note Constructs the preconditioner if necessary, and the returned pointer
+/// is owned by the `residual`
 template <int dim, bool entvar>
-mfem::Solver *getPreconditioner(FlowResidual<dim, entvar> &residual,
-                                const nlohmann::json &prec_options)
+mfem::Solver *getPreconditioner(FlowResidual<dim, entvar> &residual)
 {
-   return residual.getPreconditioner_(prec_options);
+   return residual.getPreconditioner_();
 }
 
 }  // namespace mach
