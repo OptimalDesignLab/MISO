@@ -88,7 +88,8 @@ set_target_properties(tinysplinecxx
 
 set(JSON_Install ON)
 FetchContent_Declare(json
-   URL https://github.com/nlohmann/json/releases/download/v3.10.5/json.tar.xz
+    GIT_REPOSITORY https://github.com/nlohmann/json
+    GIT_TAG v3.10.5
 )
 
 FetchContent_MakeAvailable(json)
