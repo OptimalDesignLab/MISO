@@ -256,6 +256,20 @@ public:
    void GetOperator(int di, DenseMatrix &D, bool trans = false) const;
 };
 
+/// Class for (diagonal-norm) summation-by-parts operator on tetrahedral elements
+class SBPTetrahedronElement : public SBPFiniteElement
+{
+   public:
+      /// Constructor for SBP operator on tetrahedron 
+      /// \param [in] degree - maximum poly degree for which operator is exact
+      /// \param[in] num_nodes - the number of nodes the operator has
+      SBPTetrahedronElement(int degree, int num_nodes);
+
+      void CalcShape(const IntegrationPoint &ip, Vector &shape) const override;
+      void ClacDShape(const IntegrationPoint &ip, 
+                      DenseMatrix &dShape) const override;
+};
+
 /// High order H1-conforming (continuous) Summation By Parts
 /// operators.
 /// Todo: members do not follow our naming convention

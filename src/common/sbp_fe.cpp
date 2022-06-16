@@ -926,6 +926,88 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    dshape.InvLeftScaling(H);
 }
 
+SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nodes)
+ : SBPFiniteElement(3,Geometry::TETRAHEDRON,num_nodes,degree)
+ {
+   /// Header file including SBP Dx and Dy matrix data
+   Q[0].SetSize(num_nodes);
+   Q[1].SetSize(num_nodes);
+   Q[2].SetSize(num_nodes);
+   // Populate the Q[i] matrices and create the element's Nodes   
+   switch (degree)
+   {
+   case 0:
+      Q[0] = sbp_operators::p0Qx_tet;
+      Q[1] = sbp_operators::p0Qy_tet;
+      Q[2] = sbp_operators::p0Qz_tet;
+      // vertices
+      Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.041666666666666664);
+      Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.041666666666666664);
+      Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.041666666666666664);
+      Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.041666666666666664);
+      break;
+   case 1:
+      Q[0] = sbp_operators::p1Qx_tet;
+      Q[1] = sbp_operators::p1Qy_tet;
+      Q[2] = sbp_operators::p1Qz_tet;
+      // vertices
+      Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.0026679395344347597);
+      Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.0026679395344347597);
+      Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.0026679395344347597);
+      Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.0026679395344347597);
+      // edges and faces
+      Nodes.IntPoint(4).Set(0.5,0.0,0.0,0.003996605685951749);
+      Nodes.IntPoint(5).Set(0.5,0.5,0.0,0.003996605685951749);
+      Nodes.IntPoint(6).Set(0.0,0.5,0.0,0.003996605685951749);
+      Nodes.IntPoint(7).Set(0.0,0.0,0.5,0.003996605685951749);
+      Nodes.IntPoint(8).Set(0.5,0.0,0.5,0.003996605685951749);
+      Nodes.IntPoint(9).Set(0.0,0.5,0.5,0.003996605685951749);
+      Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423);
+      Nodes.IntPoint(11).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
+      Nodes.IntPoint(12).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      // interior
+      Nodes.IntPoint(13).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      break;
+   default:
+      mfem_error(
+          "SBP elements are currently only supported for 0 <= order <= 1");
+      break;
+   }
+   // populate unordered_map with mapping from IntPoint address to index
+   for (int i = 0; i < dof; i++)
+   {
+      ipIdxMap[&(Nodes.IntPoint(i))] = i;
+   }
+
+   for (int i = 0; i < dof; i++)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      H(i)    = ip.weight;
+      x(i, 0) = ip.x;
+      x(i, 1) = ip.y;
+      x(i, 2) = ip.z;
+   }
+   // Construct the Vandermonde matrix in order to perform LPS projections;
+   V.SetSize(num_nodes, (degree + 1) * (degree + 2) * (degree + 3)/ 6);
+   // First, get node coordinates and shift to triangle with vertices
+   // (-1,-1,1),(-1,-1,0), (1,-1,0), (-1,1,0)
+   Vector xi;
+   Vector eta;
+   Vector zeta;
+   getNodeCoords(0, xi);
+   getNodeCoords(1, eta);
+   getNodeCoords(2, zeta);
+   xi *= 2.0;
+   xi -= 1.0;
+   eta *= 2.0;
+   eta -= 1.0;
+   zeta *= 2.0;
+   zeta -= 1.0;
+   mach::getVandermondeForTet(xi, eta, zeta, order, V);
+   // scale V to account for the different reference elements
+   V *= 2.0;
+ }
+
 SBPCollection::SBPCollection(const int p, const int dim)
  : FiniteElementCollection(p)
 {
