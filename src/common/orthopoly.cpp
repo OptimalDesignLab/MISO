@@ -136,6 +136,31 @@ void prorioPoly(const Vector &x,
    }
 }
 
+void prorioPoly(const Vector &x, const Vector &y, const Vector &z, const int i,
+                const int j, const int k, Vector &poly)
+{
+   int size = x.Size();
+   Vector poly_L(size);
+   Vector poly_J(size);
+   Vector poly_K(size);
+   Vector xi(size);
+   Vector eta(size);
+   MFEM_ASSERT(i >= 0 && j >= 0 && k >= 0, "");
+   for (int m = 0; m < size; ++m)
+   {
+      y(m) + z(m) != 0.0 ? xi(m) = -2 * (1 + x(m)) / (y(m) + z(m)) - 1 : xi(m) = -1;
+      z(m) != 1.0 ? eta(m) = 2 * (1 + y(m)) / (1 - z(m)) - 1 : eta(m) = -1;
+   }
+   jacobiPoly(xi, 0.0, 0.0, i, poly_L);
+   jacobiPoly(eta, 2 * i + 1, 0.0, j, poly_J);
+   jacobiPoly(z, 2 * i + 2 * j + 2, 0.0, k, poly_K);
+   for (int m = 0; m < size; ++m)
+   {
+      poly(m) = sqrt(8) * poly_L(m) * poly_J(m) * pow(1 - eta(m), i) *
+                poly_K(m) * pow(1 - z(m), i + j);
+   }
+}
+
 void getVandermondeForSeg(const Vector &x, const int degree, DenseMatrix &V)
 {
    int num_nodes = x.Size();
@@ -169,6 +194,32 @@ void getVandermondeForTri(const Vector &x,
          V.GetColumnReference(ptr, poly);
          mach::prorioPoly(x, y, r - j, j, poly);
          ptr += 1;
+      }
+   }
+}
+
+void getVandermondeForTet(const Vector &x,
+                          const Vector &y,
+                          const Vector &z,
+                          const int degree,
+                          DenseMatrix &V)
+{
+   MFEM_ASSERT(x.Size() == y.Size() && x.Size() == z.Size(), "");
+   int num_nodes = x.Size();
+   int N = (degree + 1) * (degree + 2) * (degree + 3) / 6;
+   V.SetSize(num_nodes, N);
+   Vector poly;
+   int ptr = 0;
+   for (int r = 0; r <= degree; ++r)
+   {
+      for (int k = 0; k <= r; ++k)
+      {
+         for (int j = 0; j <= r-k; ++j)
+         {
+            V.GetColumnReference(ptr, poly);
+            mach::prorioPoly(x, y, z, r - j - k, j, k, poly);
+            ptr += 1;
+         }
       }
    }
 }

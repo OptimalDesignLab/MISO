@@ -31,14 +31,30 @@ void jacobiPoly(const mfem::Vector &x,
 /// Evaluate Proriol orthogonal polynomial basis on right triangle.
 /// \param[in] x, y - locations at which to evaluate the polynomial
 /// \param[in] i, j - index pair that defines the basis function to evaluate
-/// \param[out] poly  - basis function at (x , y)
+/// \param[out] poly - basis function at (x , y)
 ///
 /// See Hesthaven and Warburton's Nodal DG book, for example, for a reference.
 /// \warning the reference triangle is (-1,-1), (1,-1), (-1,1) here.
 void prorioPoly(const mfem::Vector &x,
                 const mfem::Vector &y,
-                int i,
-                int j,
+                const int i,
+                const int j,
+                mfem::Vector &poly);
+
+/// Evaluate Proriol orthogonal polynomial basis on right tetrahedron.
+/// \param[in] x, y, z - locations at which to evaluate the polynomial
+/// \param[in] i, j, k - index pair that defines the basis function to evaluate
+/// \param[out] poly - basis function at (x , y, z)
+///
+/// See Hesthaven and Warburton's Nodal DG book, for example, for a reference.
+/// \warning the reference tetrahedron is (-1,-1,-1), (1,-1,-1), (-1,1,-1),
+/// (-1,-1,1) here.
+void prorioPoly(const mfem::Vector &x,
+                const mfem::Vector &y,
+                const mfem::Vector &z,
+                const int i,
+                const int j,
+                const int k,
                 mfem::Vector &poly);
 
 /// Constructs the Vandermonde matrix for the segment reference domain
@@ -61,6 +77,19 @@ void getVandermondeForSeg(const mfem::Vector &x,
 /// `y`, and scale `V` by 2.0 afterward.
 void getVandermondeForTri(const mfem::Vector &x,
                           const mfem::Vector &y,
+                          int degree,
+                          mfem::DenseMatrix &V);
+
+/// Constructs the Vandermonde matrix for the tetrahedron reference domain
+/// \param[in] x, y, z - locations at which to evaluate orthogonal polynomials
+/// \param[in] degree - maximum polynomial degree to evaluate the polynomials
+/// \param[out] V - the Vandermonde matrix
+/// \warning the reference tetrahedron is (-1,-1,-1), (1,-1,-1), (-1,1,-1),
+/// (-1,-1,1) here.  If you want to use this on `mfem`'s reference triangle,
+/// you need to adjust `x`, `y`, and `z`, and scale `V` by 2*sqrt(2) afterward.
+void getVandermondeForTet(const mfem::Vector &x,
+                          const mfem::Vector &y,
+                          const mfem::Vector &z,
                           int degree,
                           mfem::DenseMatrix &V);
 
