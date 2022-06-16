@@ -990,7 +990,7 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
    // Construct the Vandermonde matrix in order to perform LPS projections;
    V.SetSize(num_nodes, (degree + 1) * (degree + 2) * (degree + 3)/ 6);
    // First, get node coordinates and shift to triangle with vertices
-   // (-1,-1,1),(-1,-1,0), (1,-1,0), (-1,1,0)
+   // (-1,-1,-1), (1,-1,-1), (-1,1,-1), (-1,-1,1)
    Vector xi;
    Vector eta;
    Vector zeta;
@@ -1005,7 +1005,7 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
    zeta -= 1.0;
    mach::getVandermondeForTet(xi, eta, zeta, order, V);
    // scale V to account for the different reference elements
-   V *= 2.0;
+   V *= 2.0*sqrt(2.0);
  }
 
 SBPCollection::SBPCollection(const int p, const int dim)
