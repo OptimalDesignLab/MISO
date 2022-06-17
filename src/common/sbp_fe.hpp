@@ -265,9 +265,9 @@ class SBPTetrahedronElement : public SBPFiniteElement
       /// \param[in] num_nodes - the number of nodes the operator has
       SBPTetrahedronElement(int degree, int num_nodes);
 
-      // void CalcShape(const IntegrationPoint &ip, Vector &shape) const override;
-      // void ClacDShape(const IntegrationPoint &ip, 
-      //                 DenseMatrix &dShape) const override;
+      void CalcShape(const IntegrationPoint &ip, Vector &shape) const override;
+      void CalcDShape(const IntegrationPoint &ip, 
+                       DenseMatrix &dshape) const override; 
 };
 
 /// High order H1-conforming (continuous) Summation By Parts

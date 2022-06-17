@@ -926,6 +926,8 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    dshape.InvLeftScaling(H);
 }
 
+// ---------------------------------------------------------------------------------------------------------- //
+
 SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nodes)
  : SBPFiniteElement(3,Geometry::TETRAHEDRON,num_nodes,degree)
  {
@@ -1008,6 +1010,104 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
    V *= 2.0*sqrt(2.0);
  }
 
+/// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
+/// where ip is the integration point CalcShape is evaluated at.
+void SBPTetrahedronElement::CalcShape(const IntegrationPoint &ip, Vector &shape) const
+{
+   int ipIdx = -1;
+   try
+   {
+      ipIdx = ipIdxMap.at(&ip);
+   }
+   catch (const std::out_of_range &oor)
+   // error handling code to handle cases where the pointer to ip is not
+   // in the map. Problems arise in GridFunction::SaveVTK() (specifically
+   // GridFunction::GetValues()), which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
+   // and an out_of_range error is thrown.
+   {
+      // This projects the SBP "basis" onto the degree = order orthogonal polys;
+      // Such an approach is fine if LPS is used, but it will eliminate high
+      // frequencey modes that may be present in the true solution.  It has
+      // the advantage of being fast and not requiring a min-norm solution.
+      Vector xvec(1);  // Vector with 1 entry (needed by prorioPoly)
+      Vector yvec(1);
+      Vector zvec(1);
+      Vector poly(1);
+      xvec(0) = 2 * ip.x - 1;
+      yvec(0) = 2 * ip.y - 1;
+      zvec(0) = 2 * ip.z - 1;
+      int ptr = 0;
+      shape = 0.0;
+      for (int r = 0; r <= order; ++r)
+      {
+         for (int j = 0; j <= r; ++j)
+         {  
+            for (int k = 0; k <= r-j; ++k)
+            {
+               mach::prorioPoly(xvec, yvec, zvec, r-j-k, k, j, poly);
+               poly *= 2.0; // scale to mfem reference element
+
+               for (int l = 0; l < GetDof(); ++l)
+               {
+                  shape(l) += poly(0) * V(l, ptr) * H(l);
+               }
+               ++ptr;               
+            }
+         }
+      }
+      return;
+   }
+   shape = 0.0;
+   shape(ipIdx) = 1.0;
+}
+
+/// CalcDShape outputs ndof x ndim DenseMatrix dshape, where the first column
+/// is the ith row of Dx, the second column is the ith row of Dy, and the  
+/// third column is the ith row of Dz, where i is the integration point CalcDShape is evaluated at.
+void SBPTetrahedronElement::CalcDShape(const IntegrationPoint &ip, DenseMatrix &dshape) const
+{
+   int ipIdx = -1;
+   try
+   {
+      ipIdx = ipIdxMap.at(&ip);
+   }
+   catch (const std::out_of_range &oor)
+   // error handling code to handle cases where the pointer to ip is not
+   // in the map. Problems arise in GridFunction::SaveVTK() ->
+   // GridFunction::GetValues() which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap, and
+   // an out_of_range error is thrown. This code catches the error and uses
+   // float comparisons to determine the IntegrationPoint index.
+   {
+      double tol = 1e-12;
+      for (int i = 0; i < dof; i++)
+      {
+         double delta_x = ip.x - Nodes.IntPoint(i).x;
+         double delta_y = ip.y - Nodes.IntPoint(i).y;
+         double delta_z = ip.z - Nodes.IntPoint(i).z;
+         if (delta_x * delta_x + delta_y * delta_y + delta_z * delta_z < tol)
+         {
+            ipIdx = i;
+            break;
+         }
+      }
+   }
+   dshape = 0.0;
+
+   Vector tempVec(dof);
+   Q[0].GetColumnReference(ipIdx, tempVec);
+   dshape.SetCol(0, tempVec);
+   Q[1].GetColumnReference(ipIdx, tempVec);
+   dshape.SetCol(1, tempVec);
+   Q[2].GetColumnReference(ipIdx, tempVec);
+   dshape.SetCol(2, tempVec);
+   dshape.InvLeftScaling(H);
+}
+
+// ------------------------------------------------------------------------------------------------------------ //
 SBPCollection::SBPCollection(const int p, const int dim)
  : FiniteElementCollection(p)
 {
