@@ -67,7 +67,7 @@ public:
    /// Sets `D` to be the `i`th row of the deriv op. in direction `di`
    /// \param[in] di - desired reference direction for operator
    /// \param[in] i - row of the derivative operator to be returned
-   /// \param[ou] D - used to store the row of the operator
+   /// \param[out] D - used to store the row of the operator
    void getStrongOperator(int di, int i, Vector &D) const;
 
    /// Sets `Q` to be the weak derivative operator in direction `di`.

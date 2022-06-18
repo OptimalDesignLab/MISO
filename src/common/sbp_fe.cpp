@@ -966,9 +966,10 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
       Nodes.IntPoint(9).Set(0.0,0.5,0.5,0.003996605685951749);
       Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423);
       Nodes.IntPoint(11).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
-      Nodes.IntPoint(12).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423);
       // interior
-      Nodes.IntPoint(13).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      Nodes.IntPoint(12).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      // edge and faces
+      Nodes.IntPoint(13).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423);
       break;
    default:
       mfem_error(
@@ -1047,7 +1048,7 @@ void SBPTetrahedronElement::CalcShape(const IntegrationPoint &ip, Vector &shape)
             for (int k = 0; k <= r-j; ++k)
             {
                mach::prorioPoly(xvec, yvec, zvec, r-j-k, k, j, poly);
-               poly *= 2.0; // scale to mfem reference element
+               poly *= 2.0*sqrt(2.0); // scale to mfem reference element
 
                for (int l = 0; l < GetDof(); ++l)
                {
@@ -1112,7 +1113,7 @@ SBPCollection::SBPCollection(const int p, const int dim)
  : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
-   MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
+   MFEM_VERIFY(dim >=0 && dim <= 3, "SBPCollection requires 0 <= dim <= 3.");
 
    snprintf(SBPname, 32, "SBP_%dD_P%d", dim, p);
 
@@ -1232,13 +1233,37 @@ SBPCollection::SBPCollection(const int p, const int dim)
 
       SBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
    }
+
+   if (dim >= 3)
+   {
+      switch (p)
+      {
+         case 0:
+            SBPdof[Geometry::TETRAHEDRON] =  4 - 4 - (6 * p) - (4 * (3-3-3*p));
+            break;
+         case 1:
+            SBPdof[Geometry::TETRAHEDRON] = 14 - 4 - (6 * p) - (4 * (7-3-3*p));
+            break;
+         default:
+            mfem_error(
+                  "SBP elements are currently only supported for 0 <= order <= 1");
+            break;
+      }
+
+      const int &TetDof = SBPdof[Geometry::TETRAHEDRON] + 
+                          4 * SBPdof[Geometry::POINT] + 
+                          4 * SBPdof[Geometry::TRIANGLE] + 
+                          6 * SBPdof[Geometry::SEGMENT];
+
+      SBPElements[Geometry::TETRAHEDRON] = new SBPTetrahedronElement(p, TetDof);
+   }
 }
 
 const FiniteElement *SBPCollection::FiniteElementForGeometry(
     Geometry::Type GeomType) const
 {
    if (GeomType == Geometry::TRIANGLE || GeomType == Geometry::SEGMENT ||
-       GeomType == Geometry::POINT)
+       GeomType == Geometry::POINT || GeomType == Geometry::TETRAHEDRON)
    {
       return SBPElements[GeomType];
    }

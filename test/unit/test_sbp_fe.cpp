@@ -27,6 +27,18 @@ void polynomial2D(const Vector &x, int p, const Vector &y, int q, Vector &u)
    }
 }
 
+/// Used to build polynomials of the form u = x^p * y^q * z^m
+void polynomial3D(const Vector &x, int p, const Vector &y, int q,
+                  const Vector &z, int m, Vector &u)
+{
+   MFEM_ASSERT( x.Size() == y.Size() && x.Size() == z.Size() 
+                && x.Size() == u.Size() , "");
+   for (int i = 0; i < u.Size(); i++)
+   {
+      u(i) = std::pow(x(i),p)*std::pow(y(i),q)*std::pow(z(i),m);
+   }
+}
+
 TEST_CASE( "Segment SBP difference operator is accurate...", "[sbp-seg-D]")
 {
    int dim = 1;
@@ -208,6 +220,93 @@ TEST_CASE( "Triangle DSBP difference operator is accurate...", "[dsbp-tri-D]")
       } // DYNAMIC SECTION
    } // loop over p
 }
+
+// --------------------------------------------------------------------------------------------- //
+TEST_CASE( "Tetrahedron SBP different operator is accurate...", "sbp-tet-D" )
+{
+   int dim = 3;
+   for (int p = 0; p <= 1; p++)
+   {  
+      DYNAMIC_SECTION( "... for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(new SBPCollection(p, dim));
+         const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(
+            *(fec->FiniteElementForGeometry(Geometry::TETRAHEDRON)));
+         DenseMatrix D(sbp.GetDof());
+         Vector x, y, z;
+         sbp.getNodeCoords(0, x);
+         sbp.getNodeCoords(1, y);
+         sbp.getNodeCoords(2, z);
+         Vector u(sbp.GetDof());
+         Vector dudx(sbp.GetDof());
+         Vector dudy(sbp.GetDof());
+         Vector dudz(sbp.GetDof());
+         Vector du(sbp.GetDof());
+         Vector Dk(sbp.GetDof());
+         for (int r = 0; r <= p; ++r)
+         {
+            for (int j = 0; j <= r; ++j)
+            {  
+               for (int k = 0; k <= j; k++)
+               {
+                  int i = r-j-k;
+                  int m = j-k;
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0,k), u);
+                  polynomial3D(x, std::max<int>(0, i-1), y, std::max<int>(0,m), z, std::max<int>(0,k), dudx);
+                  dudx *= std::max<int>(0,i);
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0, m-1), z, std::max<int>(0,k), dudy);
+                  dudy *= std::max<int>(0,m);
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0, k-1), dudz);
+                  dudz *= std::max<int>(0,k);
+                  sbp.getStrongOperator(0,D);
+                  D.Mult(u, du);
+
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {  
+                     REQUIRE( du(l) == Approx(dudx(l)).margin(abs_tol) );
+
+                     // Check that row extraction of D is correct
+                     sbp.getStrongOperator(0, l, Dk);
+                     for (int col = 0; col < sbp.GetDof(); ++col)
+                     {
+                        REQUIRE(D(l, col) == Approx(Dk(col)).margin(abs_tol));
+                     }
+                  }    
+
+                  sbp.getStrongOperator(1, D);
+                  D.Mult(u, du);
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {  
+                     REQUIRE( du(l) == Approx(dudy(l)).margin(abs_tol) );
+
+                     // Check that row extraction of D is correct
+                     sbp.getStrongOperator(1, l, Dk);
+                     for (int col = 0; col < sbp.GetDof(); ++col)
+                     {
+                        REQUIRE(D(l, col) == Approx(Dk(col)).margin(abs_tol));
+                     }
+                  }  
+
+                  sbp.getStrongOperator(2, D);
+                  D.Mult(u, du);
+                  for (int l = 0; l < sbp.GetDof(); l++)
+                  {  
+                     REQUIRE( du(l) == Approx(dudz(l)).margin(abs_tol) );
+
+                     // Check that row extraction of D is correct
+                     sbp.getStrongOperator(2, l, Dk);
+                     for (int col = 0; col < sbp.GetDof(); col++)
+                     {
+                        REQUIRE( D(l, col) == Approx(Dk(col)).margin(abs_tol) );
+                     }
+                  }                              
+               }
+            }
+         }
+      } // DYNAMIC SECTION
+   } // loop over p
+}
+// --------------------------------------------------------------------------------------------- //
 
 TEST_CASE( "Segment SBP multWeak/StrongOperator are accurate...", "[sbp-seg-Q]")
 {
