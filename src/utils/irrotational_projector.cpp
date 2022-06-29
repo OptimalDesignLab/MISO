@@ -21,6 +21,15 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    div_x(&h1_fes),
    pcg(h1_fes.GetComm())
 {
+   psi = 0.0;
+   amg.SetPrintLevel(0);
+
+   pcg.SetRelTol(1e-14);
+   pcg.SetAbsTol(1e-14);
+   pcg.SetMaxIter(200);
+   pcg.SetPrintLevel(IterativeSolver::PrintLevel().Warnings().Errors());
+   pcg.SetPreconditioner(amg);
+
    /// not sure if theres a better way to handle this
    ess_bdr.SetSize(h1_fes.GetParMesh()->bdr_attributes.Max());
    ess_bdr = 1;
@@ -69,18 +78,10 @@ void IrrotationalProjector::Mult(const Vector &x, Vector &y) const
    div_x *= -1.0;
 
    // Apply essential BC and form linear system
-   psi = 0.0;
    HypreParMatrix D_mat;
    diffusion.FormLinearSystem(ess_bdr_tdofs, psi, div_x, D_mat, Psi, RHS);
 
-   amg.SetOperator(D_mat);
-   amg.SetPrintLevel(0);
-
    pcg.SetOperator(D_mat);
-   pcg.SetTol(1e-14);
-   pcg.SetMaxIter(200);
-   pcg.SetPrintLevel(0);
-   pcg.SetPreconditioner(amg);
 
    // Solve the linear system for Psi
    pcg.Mult(RHS, Psi);
@@ -117,14 +118,14 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       diffusion.FormLinearSystem(
           ess_bdr_tdofs, psi_bar, GTproj_bar, D_mat, Psi, RHS);
       auto D_matT = std::unique_ptr<HypreParMatrix>(D_mat.Transpose());
-      amg.SetOperator(*D_matT);
-      amg.SetPrintLevel(0);
+      // amg.SetOperator(*D_matT);
+      // amg.SetPrintLevel(0);
 
       pcg.SetOperator(*D_matT);
-      pcg.SetTol(1e-14);
-      pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(0);
-      pcg.SetPreconditioner(amg);
+      // pcg.SetTol(1e-14);
+      // pcg.SetMaxIter(200);
+      // pcg.SetPrintLevel(0);
+      // pcg.SetPreconditioner(amg);
 
       // Solve the linear system for Psi
       pcg.Mult(RHS, Psi);
@@ -150,14 +151,14 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       HypreParMatrix D_mat;
       diffusion.FormLinearSystem(ess_bdr_tdofs, psi, div_x, D_mat, Psi, RHS);
 
-      amg.SetOperator(D_mat);
-      amg.SetPrintLevel(0);
+      // amg.SetOperator(D_mat);
+      // amg.SetPrintLevel(0);
 
       pcg.SetOperator(D_mat);
-      pcg.SetTol(1e-14);
-      pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(0);
-      pcg.SetPreconditioner(amg);
+      // pcg.SetTol(1e-14);
+      // pcg.SetMaxIter(200);
+      // pcg.SetPrintLevel(0);
+      // pcg.SetPreconditioner(amg);
 
       // Solve the linear system for Psi
       pcg.Mult(RHS, Psi);
@@ -176,14 +177,14 @@ void IrrotationalProjector::vectorJacobianProduct(const mfem::Vector &x,
       diffusion.FormLinearSystem(
           ess_bdr_tdofs, psi_bar, GTproj_bar, D_mat, Psi, RHS);
       auto D_matT = std::unique_ptr<HypreParMatrix>(D_mat.Transpose());
-      amg.SetOperator(*D_matT);
-      amg.SetPrintLevel(0);
+      // amg.SetOperator(*D_matT);
+      // amg.SetPrintLevel(0);
 
       pcg.SetOperator(*D_matT);
-      pcg.SetTol(1e-14);
-      pcg.SetMaxIter(200);
-      pcg.SetPrintLevel(0);
-      pcg.SetPreconditioner(amg);
+      // pcg.SetTol(1e-14);
+      // pcg.SetMaxIter(200);
+      // pcg.SetPrintLevel(0);
+      // pcg.SetPreconditioner(amg);
 
       // Solve the linear system for Psi
       pcg.Mult(RHS, Psi);

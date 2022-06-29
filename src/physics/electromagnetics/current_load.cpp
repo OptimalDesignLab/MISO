@@ -7,6 +7,7 @@
 #include "current_source_functions.hpp"
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
+#include "mfem_extensions.hpp"
 
 #include "current_load.hpp"
 
@@ -192,6 +193,13 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
    scratch(&fes),
    // scratch(0),
    load(fes.GetTrueVSize()),
+   pcg(constructLinearSolver(fes.GetComm(),
+                             {{"type", "pcg"},
+                              {"reltol", 1e-12},
+                              {"abstol", 1e-12},
+                              {"maxiter", 250},
+                              {"printlevel", 2}},
+                             &amg)),
    div_free_proj(h1_fes,
                  fes,
                  h1_fes.GetElementTransformation(0)->OrderW() +
@@ -201,6 +209,14 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
    m_l_mesh_sens(new VectorFEMassIntegratorMeshSens),
    dirty(true)
 {
+   amg.SetPrintLevel(0);
+   dynamic_cast<mfem::IterativeSolver &>(*pcg).SetPrintLevel(
+       IterativeSolver::PrintLevel().Warnings().Errors().Iterations());
+
+   /// project current coeff as initial guess for iterative solve
+   j.ProjectCoefficient(current);
+   div_free_current_vec = 0.0;
+
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);
 
@@ -225,8 +241,6 @@ void CurrentLoad::assembleLoad()
    /// assemble linear form
    J.Assemble();
 
-   /// project current coeff as initial guess for iterative solve
-   j.ProjectCoefficient(current);
    // mfem::ParaViewDataCollection pv("CurrentDensity",
    //                                 j.ParFESpace()->GetParMesh());
    // pv.SetPrefixPath("ParaView");
@@ -236,16 +250,16 @@ void CurrentLoad::assembleLoad()
    // pv.RegisterField("CurrentDensity", &j);
    // pv.Save();
 
-   mfem::ParaViewDataCollection paraview_dc("current_density",
-                                            j.ParFESpace()->GetParMesh());
-   paraview_dc.SetPrefixPath("ParaView");
-   paraview_dc.SetLevelsOfDetail(2);
-   paraview_dc.SetDataFormat(VTKFormat::BINARY);
-   paraview_dc.SetHighOrderOutput(true);
-   paraview_dc.SetCycle(0);
-   paraview_dc.SetTime(0.0);
-   paraview_dc.RegisterField("current_density", &j);
-   paraview_dc.Save();
+   // mfem::ParaViewDataCollection paraview_dc("current_density",
+   //                                          j.ParFESpace()->GetParMesh());
+   // paraview_dc.SetPrefixPath("ParaView");
+   // paraview_dc.SetLevelsOfDetail(2);
+   // paraview_dc.SetDataFormat(VTKFormat::BINARY);
+   // paraview_dc.SetHighOrderOutput(true);
+   // paraview_dc.SetCycle(0);
+   // paraview_dc.SetTime(0.0);
+   // paraview_dc.RegisterField("current_density", &j);
+   // paraview_dc.Save();
 
    /// assemble mass matrix
    delete nd_mass.LoseMat();
@@ -255,10 +269,10 @@ void CurrentLoad::assembleLoad()
 
    // HypreParMatrix M;
    OperatorHandle M(Operator::Hypre_ParCSR);
-   Vector X;
-   Vector RHS;
-   Array<int> ess_tdof_list;
-   nd_mass.FormLinearSystem(ess_tdof_list, j, J, M, X, RHS);
+   // Vector X;
+   // Vector RHS;
+   // Array<int> ess_tdof_list;
+   nd_mass.FormLinearSystem(dummmy_ess_tdof_list, j, J, M, X, RHS);
 
    // OperatorHandle M(Operator::Hypre_ParCSR);
    // nd_mass.ParallelAssemble(M);
@@ -268,41 +282,42 @@ void CurrentLoad::assembleLoad()
    // Vector RHS(fes.GetTrueVSize());
    // J.ParallelAssemble(RHS);
 
-   HypreBoomerAMG amg(*M.As<HypreParMatrix>());
-   // HypreILU ilu;
-   // // HYPRE_ILUSetType(ilu, );
-   // HYPRE_ILUSetLevelOfFill(ilu, 4);
-   // HYPRE_ILUSetLocalReordering(ilu, );
-   // HYPRE_ILUSetPrintLevel(ilu, );
+   // HypreBoomerAMG amg(*M.As<HypreParMatrix>());
+   // // HypreILU ilu;
+   // // // HYPRE_ILUSetType(ilu, );
+   // // HYPRE_ILUSetLevelOfFill(ilu, 4);
+   // // HYPRE_ILUSetLocalReordering(ilu, );
+   // // HYPRE_ILUSetPrintLevel(ilu, );
 
-   // HypreBoomerAMG amg(M);
-   amg.SetPrintLevel(-1);
+   // // HypreBoomerAMG amg(M);
+   // amg.SetPrintLevel(-1);
 
    // HyprePCG pcg(*M.As<HypreParMatrix>());
-   HypreGMRES pcg(*M.As<HypreParMatrix>());
-   // HyprePCG pcg(M);
-   // MINRESSolver pcg(fes.GetComm());
-   pcg.SetTol(1e-12);
-   pcg.SetMaxIter(250);
-   pcg.SetPrintLevel(2);
-   pcg.SetPreconditioner(amg);
-   // pcg.SetPreconditioner(ilu);
-   pcg.SetKDim(250);
-   pcg.SetOperator(*M.As<HypreParMatrix>());
+   // // HypreGMRES pcg(*M.As<HypreParMatrix>());
+   // // HyprePCG pcg(M);
+   // // MINRESSolver pcg(fes.GetComm());
+   // pcg.SetTol(1e-12);
+   // pcg.SetMaxIter(250);
+   // pcg.SetPrintLevel(2);
+   // pcg.SetPreconditioner(amg);
+   // // pcg.SetPreconditioner(ilu);
+   // // pcg.SetKDim(250);
+   // pcg.SetOperator(*M.As<HypreParMatrix>());
+   pcg->SetOperator(*M);
 
    std::cout << "Inverting current load mass matrix:\n";
-   pcg.Mult(RHS, X);
+   // pcg.Mult(RHS, X);
+   pcg->Mult(RHS, X);
 
-   Vector res(RHS.Size());
-   M->Mult(X, res);
-   res -= RHS;
-   std::cout << "Residual Norm: " << res.Norml2() << "\n";
+   // Vector res(RHS.Size());
+   // M->Mult(X, res);
+   // res -= RHS;
+   // std::cout << "Residual Norm: " << res.Norml2() << "\n";
 
    nd_mass.RecoverFEMSolution(X, J, j);
    // j.SetFromTrueDofs(X);
 
    /// Compute the discretely divergence-free portion of j
-   div_free_current_vec = 0.0;
    div_free_proj.Mult(j, div_free_current_vec);
 
    /** alternative approaches for computing dual */

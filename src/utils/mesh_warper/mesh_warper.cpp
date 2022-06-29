@@ -250,40 +250,49 @@ MeshWarper::MeshWarper(MPI_Comm incomm,
 {
    auto num_states = mesh().SpaceDimension();
 
-   FiniteElementState state(mesh(), options["space-dis"], num_states, "state");
-   fields.emplace("state", std::move(state));
+   fields.emplace(
+       "state",
+       FiniteElementState(mesh(), options["space-dis"], num_states, "state"));
 
-   FiniteElementState adjoint(
-       mesh(), options["space-dis"], num_states, "adjoint");
-   fields.emplace("adjoint", std::move(adjoint));
+   fields.emplace(
+       "adjoint",
+       FiniteElementState(mesh(), options["space-dis"], num_states, "adjoint"));
 
-   FiniteElementDual residual(
-       mesh(), options["space-dis"], num_states, "residual");
-   duals.emplace("residual", std::move(residual));
+   duals.emplace(
+       "residual",
+       FiniteElementDual(mesh(), options["space-dis"], num_states, "residual"));
 
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh().GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
    /// create new state vector copying the mesh's fe space
-   fields.emplace(std::piecewise_construct,
-                  std::forward_as_tuple("mesh_coords"),
-                  std::forward_as_tuple(mesh(), *mesh_fespace, "mesh_coords"));
-   FiniteElementState &mesh_coords = fields.at("mesh_coords");
+   // fields.emplace(std::piecewise_construct,
+   //                std::forward_as_tuple("mesh_coords"),
+   //                std::forward_as_tuple(mesh(), *mesh_fespace,
+   //                "mesh_coords"));
+   // FiniteElementState & = fields.at("mesh_coords");
+
+   FiniteElementState mesh_coords(mesh(), *mesh_fespace, "mesh_coords");
    /// set the values of the new GF to those of the mesh's old nodes
    mesh_coords.gridFunc() = mesh_gf;
-   // mesh_coords.setTrueVec();  // distribute coords
+
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh().NewNodes(mesh_coords.gridFunc(), false);
 
    /// Set initial volume coords true vec
-   fields.at("mesh_coords").setTrueVec(vol_coords);
+   mesh_coords.setTrueVec(vol_coords);
+
+   /// Place mesh_coords into the solver's fields map
+   fields.emplace("mesh_coords", std::move(mesh_coords));
 
    /// Get the indices of the surface mesh dofs into the volume mesh
    mfem::Array<int> ess_bdr(mesh().bdr_attributes.Max());
    ess_bdr = 1;
    fes().GetEssentialTrueDofs(ess_bdr, surface_indices);
 
+   std::cout << "Creating MeshWarper with "
+             << fes().GetTrueVSize() - surface_indices.Size() << " dofs!\n";
    /// Set the initial surface coords
    vol_coords.GetSubVector(surface_indices, surf_coords);
 
