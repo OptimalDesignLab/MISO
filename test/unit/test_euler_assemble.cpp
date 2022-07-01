@@ -23,7 +23,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
-      {
+      {   
          std::unique_ptr<FiniteElementCollection> fec(
              new SBPCollection(p, dim));
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
@@ -75,6 +75,64 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
          VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<2>);
+         q.ProjectCoefficient(pert);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator &Jac = res.GetGradient(q);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(q), r(fes.get()), jac_v_fd(fes.get());
+         q_pert.Add(-delta, v);
+         res.Mult(q_pert, r);
+         q_pert.Add(2 * delta, v);
+         res.Mult(q_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2 * delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
+         }
+      }
+   }
+}
+
+TEST_CASE("EulerIntegrator::AssembleElementGrad3D", "[EulerIntegrator]")
+{
+   using namespace mfem;
+   using namespace euler_data;
+
+   const int dim = 3;
+   int num_state = dim + 2;
+   adept::Stack diff_stack;
+   double delta = 1e-5;
+
+   // generate a 2 element mesh - 3 nodes in x, y, and z - directions respectively.
+   int num_edge = 2;
+   Mesh mesh(Mesh::MakeCartesian3D(num_edge,num_edge,num_edge,
+                                   Element::TETRAHEDRON,1.0,1.0,1.0, true));
+   for (int p = 0; p <= 1; ++p)
+   {  
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {  
+         std::unique_ptr<FiniteElementCollection> fec(
+             new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
+
+         NonlinearForm res(fes.get());
+         res.AddDomainIntegrator(new mach::EulerIntegrator<3>(diff_stack));
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction q(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<3>);
          q.ProjectCoefficient(pert);
 
          // initialize the vector that the Jacobian multiplies

@@ -926,8 +926,6 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    dshape.InvLeftScaling(H);
 }
 
-// ---------------------------------------------------------------------------------------------------------- //
-
 SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nodes)
  : SBPFiniteElement(3,Geometry::TETRAHEDRON,num_nodes,degree)
  {
@@ -977,12 +975,12 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
       break;
    }
    // populate unordered_map with mapping from IntPoint address to index
-   for (int i = 0; i < dof; i++)
+   for (int i = 0; i < dof; ++i)
    {
       ipIdxMap[&(Nodes.IntPoint(i))] = i;
    }
 
-   for (int i = 0; i < dof; i++)
+   for (int i = 0; i < dof; ++i)
    {
       const IntegrationPoint &ip = Nodes.IntPoint(i);
       H(i)    = ip.weight;
@@ -1084,7 +1082,7 @@ void SBPTetrahedronElement::CalcDShape(const IntegrationPoint &ip, DenseMatrix &
    // float comparisons to determine the IntegrationPoint index.
    {
       double tol = 1e-12;
-      for (int i = 0; i < dof; i++)
+      for (int i = 0; i < dof; ++i)
       {
          double delta_x = ip.x - Nodes.IntPoint(i).x;
          double delta_y = ip.y - Nodes.IntPoint(i).y;
@@ -1108,7 +1106,6 @@ void SBPTetrahedronElement::CalcDShape(const IntegrationPoint &ip, DenseMatrix &
    dshape.InvLeftScaling(H);
 }
 
-// ------------------------------------------------------------------------------------------------------------ //
 SBPCollection::SBPCollection(const int p, const int dim)
  : FiniteElementCollection(p)
 {
@@ -1117,12 +1114,16 @@ SBPCollection::SBPCollection(const int p, const int dim)
 
    snprintf(SBPname, 32, "SBP_%dD_P%d", dim, p);
 
-   for (int g = 0; g < Geometry::NumGeom; g++)
+   for (int g = 0; g < Geometry::NumGeom; ++g)
    {
       SBPdof[g] = 0;
       SBPElements[g] = nullptr;
    }
    for (auto &i : SegDofOrd)
+   {
+      i = nullptr;
+   }
+   for (auto &i : TriDofOrd)
    {
       i = nullptr;
    }
@@ -1203,7 +1204,7 @@ SBPCollection::SBPCollection(const int p, const int dim)
    }
 
    if (dim >= 2)
-   {
+   {  
       switch (p)
       {
       case 0:
@@ -1230,6 +1231,24 @@ SBPCollection::SBPCollection(const int p, const int dim)
       const int &TriDof = SBPdof[Geometry::TRIANGLE] +
                           3 * SBPdof[Geometry::POINT] +
                           3 * SBPdof[Geometry::SEGMENT];
+      const int TriNodes = SBPdof[Geometry::TRIANGLE];
+      if (p >=1)
+      {
+          TriDofOrd[0] = new int[6*TriNodes];
+         for (int i = 1; i < 6; ++i)
+         {
+            TriDofOrd[i] = TriDofOrd[i-1] + TriNodes;
+         }
+         if (p==1)
+         {
+            TriDofOrd[0][0] = 0;
+            TriDofOrd[1][0] = 0;
+            TriDofOrd[2][0] = 0;
+            TriDofOrd[3][0] = 0;
+            TriDofOrd[4][0] = 0;
+            TriDofOrd[5][0] = 0;            
+         }
+      }
 
       SBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
    }
@@ -1280,6 +1299,10 @@ const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
    if (GeomType == Geometry::SEGMENT)
    {
       return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
+   }
+   if (GeomType == Geometry::TRIANGLE)
+   {
+      return TriDofOrd[Or%6];
    }
    return nullptr;
 }

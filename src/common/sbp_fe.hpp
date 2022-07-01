@@ -279,7 +279,7 @@ protected:
    char SBPname[32];
    FiniteElement *SBPElements[Geometry::NumGeom];
    int SBPdof[Geometry::NumGeom];
-   int *SegDofOrd[2];
+   int *SegDofOrd[2], *TriDofOrd[6];
 
 public:
    explicit SBPCollection(int p, int dim = 2);

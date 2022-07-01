@@ -138,3 +138,47 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
    });
    REQUIRE( calcEntropyChange(res, inputs) == Approx(0.0).margin(1e-14) );
 }
+
+/*  ----------------------------------------------------------------------------------------------- */
+// 3D tests
+TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
+{
+   const int dim = 3; // templating is hard here because mesh constructors
+   int num_state = dim + 2;
+   adept::Stack diff_stack;
+
+   // generate a 8 element mesh and build the finite-element space
+   int num_edge = 2;
+   Mesh smesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
+                                    1.0, 1.0, 1.0, true));
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   //int p = options["space-dis"]["degree"].get<int>();
+   int p = 1;
+   SBPCollection fec(p, dim);
+   ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
+   std::map<std::string, FiniteElementState> fields;
+   // construct the residual
+   FlowResidual<dim,false> res(options, fespace, fields, diff_stack);
+   int num_var = getSize(res);
+   //REQUIRE(num_var == 132);
+
+   // evaluate the residual using a constant state
+   Vector q(num_var);
+   double mach = options["flow-param"]["mach"].get<double>();
+   double aoa = options["flow-param"]["aoa"].get<double>();
+   for (int i = 0; i < num_var/num_state; ++i)
+   {
+      getFreeStreamQ<double, dim>(mach, aoa, 0, 1, q.GetData()+num_state*i);
+   }
+   auto inputs = MachInputs({{"state", q}});
+   Vector res_vec(num_var);
+   evaluate(res, inputs, res_vec);
+
+   // the res_vec should be zero, since we are differentiating a constant flux
+   REQUIRE( res_vec.Norml2() == Approx(0.0).margin(1e-14) );
+
+   // check the entropy calculation; grabs the first 4 vars from q.GetData() to
+   // compute the entropy, and then scales by domain size (which is 1 unit sqrd)
+   auto total_ent = entropy<double, 2, false>(q.GetData());
+   REQUIRE( calcEntropy(res, inputs) == Approx(total_ent) );
+}
