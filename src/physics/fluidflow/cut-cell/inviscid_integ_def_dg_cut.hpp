@@ -253,8 +253,6 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
       // fun += face_ip.weight * trans.Weight();
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
-   // cout << "edge length for element " << trans.Elem1No << " : " << fun <<
-   // endl;
    return fun;
 }
 
@@ -429,6 +427,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       double nx;
       double ny;
       double ds;
+
       // double xc, yc;
       // xc = 0.0;
       // yc = 0.0;
@@ -437,6 +436,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // ds = sqrt((nx * nx) + (ny * ny));
       // nrm(0) = phi.sign_phi * nx / ds;
       // nrm(1) = phi.sign_phi * ny / ds;
+
       /// n_hat = grad_phi/|\grad_phi|
       TinyVector<double, 2> beta, xs;
       xs(0) = x(0);
@@ -449,6 +449,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       nrm(1) = ny / ds;
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
+      /// this is used for area test
       double area = sqrt(trans.Weight());
       //fun += face_ip.weight * alpha * area;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
@@ -478,12 +479,8 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
    elvect = 0.0;
    const IntegrationRule *ir;
    ir = cutSegmentIntRules[trans.ElementNo];
-   if (ir == NULL)
-   {
-      elvect = 0.0;
-   }
-   else
-   {
+   if (ir != NULL)
+   {  
       shape.SetSize(dof);
       DenseMatrix u(elfun.GetData(), dof, num_states);
       DenseMatrix res(elvect.GetData(), dof, num_states);
@@ -502,8 +499,8 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
          // double xc, yc;
          // xc = 0.0;
          // yc = 0.0;
-         // nx = 2 * (x(0) - xc);
-         // ny = 2 * (x(1) - yc);
+         // nx = 2.0 * (x(0) - xc);
+         // ny = 2.0 * (x(1) - yc);
          // /// n_hat = grad_phi/|\grad_phi|
          // ds = sqrt((nx * nx) + (ny * ny));
          // nrm(0) = phi.sign_phi * nx / ds;
@@ -577,8 +574,8 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementGrad(
          // double xc, yc;
          // xc = 0.0;
          // yc = 0.0;
-         // nx = 2 * (x(0) - xc);
-         // ny = 2 * (x(1) - yc);
+         // nx = 2.0 * (x(0) - xc);
+         // ny = 2.0 * (x(1) - yc);
          // ds = sqrt((nx * nx) + (ny * ny));
          // nrm(0) = phi.sign_phi * nx / ds;
          // nrm(1) = phi.sign_phi * ny / ds;

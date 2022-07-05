@@ -370,37 +370,24 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       /// let us see if this works
       /// find the elements to refine
       CutCell<2, 1> cut_init(smesh.get());
-      Algoim::LevelSet<2> phi_init = cut_init.constructLevelSet();
+      /*Algoim::LevelSet<2>*/ circle<2> phi_init = cut_init.constructLevelSet();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
       int ncr = options["mesh"]["ncr"].template get<int>();
       int ncr_bdr = options["mesh"]["ncr2"].template get<int>();
-      for (int k = 0; k < -1; ++k)
+      for (int k = 0; k < ncr_bdr; ++k)
       {
          mfem::Array<int> marked_elements1;
          for (int i = 0; i < smesh->GetNE(); ++i)
          {
-#if 0
-            Vector cent;
-            cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
-            x_c(0) = cent(0);
-            x_c(1) = cent(1);
-            double lsv = phi_init(x_c);
-            cout << "LSF value is " << lsv << endl;
-            if (lsv > 0.0)
-            {
-               marked_elements1.Append(i);
-            }
-#endif
-            if (cut_init.cutByGeom(i) == true)
+            if (cut_init.cutByGeom(i) == true && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-#if 1
+#if 0
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -510,7 +497,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
  #endif
-
+ #if 0
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -532,6 +519,28 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
+       for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            TinyVector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            TinyVector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = sqrt(Algoim::magsqr(x_diff));
+            if (abs(dist) < 0.4 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+   #endif
 #if 0
       for (int k = 0; k < ncr; ++k)
       {
@@ -555,6 +564,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
 #endif
+#if 0
       for (int k = 0; k < ncr_bdr; ++k)
       {
          TinyVector<double, 2> lec, tec;
@@ -584,7 +594,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-
+#endif
       for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
       {
          mfem::Array<int> list;
@@ -1123,12 +1133,19 @@ double AbstractSolver::calcResidualNorm() const
       HypreParVector *u_true = u_gd->GetTrueDofs();
       HypreParVector *r_true = r.GetTrueDofs();
       res->Mult(*u_true, *r_true);
+      cout << "res sum " << r_true->Sum() << endl;
+      const char *res_vec_gd = "res_gd.dat";
+      r_true->Print(res_vec_gd);
       return std::sqrt(InnerProduct(comm, *r_true, *r_true));
    }
+   GridFunType r(fes.get());
+
    HypreParVector u_true(fes.get());
    u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
    u->SetTrueVector();
-   cout << "inside calcResidualNorm() " << endl;
+   HypreParVector *r_true = r.GetTrueDofs();
+   res->Mult(u_true, *r_true);
+   //mfem::out << "residual sum = " << r_true->Sum() << endl;
    return calcResidualNorm(*u);
 }
 

@@ -18,9 +18,10 @@ struct circle
    double yscale;
    double min_x;
    double min_y;
-   double radius;
-   double xc = 0.0;
-   double yc = 0.0;
+   double a;  // semi-major
+   double b;  // semi-minor
+   double xc;
+   double yc;
    double lsign;
    template <typename T>
    T operator()(const blitz::TinyVector<T, N> &x) const
@@ -29,11 +30,13 @@ struct circle
       // return -1 * (((x[0] - 5) * (x[0] - 5)) +
       //               ((x[1]- 5) * (x[1] - 5)) - (0.5 * 0.5));
       // level-set function for reference elements
-      return lsign * ((((x[0] * xscale) + min_x - xc) *
-                       ((x[0] * xscale) + min_x - xc)) +
-                      (((x[1] * yscale) + min_y - yc) *
-                       ((x[1] * yscale) + min_y - yc)) -
-                      (radius * radius));
+      return lsign * (((((x[0] * xscale) + min_x - xc) *
+                        ((x[0] * xscale) + min_x - xc)) /
+                       (a * a)) +
+                      ((((x[1] * yscale) + min_y - yc) *
+                        ((x[1] * yscale) + min_y - yc)) /
+                       (b * b)) -
+                      (1.0));
    }
    template <typename T>
    blitz::TinyVector<T, N> grad(const blitz::TinyVector<T, N> &x) const
@@ -41,10 +44,11 @@ struct circle
       // return blitz::TinyVector<T, N>(-1 * (2.0 * (x(0) - 5)), -1 * (2.0 *
       // (x(1) - 5)));
       return blitz::TinyVector<T, N>(
-          lsign * (2.0 * xscale * ((x(0) * xscale) + min_x - xc)),
-          lsign * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)));
+          lsign * (2.0 * xscale * ((x(0) * xscale) + min_x - xc)) / (a * a),
+          lsign * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)) / (b * b));
    }
 };
+
 template <int N, int ls>
 class CutCell
 {
@@ -83,7 +87,7 @@ public:
          if (i == nbnd - 1)
          {
             nsurf(0) = 1.0;
-            nsurf(1) = 0;
+            nsurf(1) = 0.0;
          }
          nor.push_back(nsurf);
       }
@@ -139,6 +143,30 @@ public:
       return kappa;
    }
 #if 1
+   /// construct exact levelset
+   circle<2> constructLevelSet() const
+   {
+      circle<2> phi_ls;
+      phi_ls.xscale = 1.0;
+      phi_ls.yscale = 1.0;
+      phi_ls.min_x = 0.0;
+      phi_ls.min_y = 0.0;
+      phi_ls.a = 4.0;
+      phi_ls.b = 1.0;
+      phi_ls.xc = 10.0;
+      phi_ls.yc = 10.0;
+      if (ls == 1)
+      {
+         phi_ls.lsign = -1.0;
+      }
+      else
+      {
+         phi_ls.lsign = 1.0;
+      }
+      return phi_ls;
+   }
+#endif
+#if 0
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
@@ -146,8 +174,8 @@ public:
       std::vector<TinyVector<double, N>> nor;
       std::vector<TinyVector<double, N - 1>> kappa;
       int nel = mesh->GetNE();
-      // int nbnd = 8 * sqrt(nel);
-
+      int nbnd;
+      // nbnd =  sqrt(nel) ; //128;
       /// parameters
       double delta = 1e-10;
       double xc = 0.0;
@@ -156,7 +184,7 @@ public:
       double a, b;
       if (ls == 1)
       {
-         a = 1.0;
+         a = 4.0;
          b = 1.0;
       }
       else
@@ -164,6 +192,7 @@ public:
          a = 3.0;
          b = 3.0;
       }
+/// use this if reading from file
 #if 1
       const char *geometry_file = "NACA_0012_200pts.dat";
       ifstream file;
@@ -184,22 +213,19 @@ public:
       nor = constructNormal(Xc);
       /// get the curvature vector for all boundary points
       kappa = getCurvature(Xc);
-#endif
       /// get the number of boundary points
-      int nbnd = Xc.size();
+      nbnd = Xc.size();
       cout << "nbnd " << nbnd << endl;
+#endif
       double rho = 10 * nbnd;
 /// use this if not reading from file
 #if 0
-
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
          TinyVector<double, N> x, nrm;
          x(0) = a * cos(theta);
          x(1) = b * sin(theta);
-         // nrm(0) = 2.0 * (x(0) - xc);
-         // nrm(1) = 2.0 * (x(1) - yc);
          nrm(0) = 2.0 * (x(0)) / (a * a);
          nrm(1) = 2.0 * (x(1)) / (b * b);
          double ds = mag(nrm);
@@ -230,10 +256,10 @@ public:
       {
          lsign = 1.0;
       }
-      /// translate airfoil
+      /// translate ellipse/airfoil
       TinyVector<double, N> xcent;
-      xcent(0) = 19.5;
-      xcent(1) = 20.0;
+      xcent(0) = 1.5;
+      xcent(1) = 2.0;
       std::vector<TinyVector<double, N>> Xcoord;
       for (int k = 0; k < nbnd; ++k)
       {
@@ -251,42 +277,24 @@ public:
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
       TinyVector<double, 2> xle, xte;
-      xle(0) = 19.5;
-      xle(1) = 20.0;
-      xte(0) = 19.997592;
-      xte(1) = 20.0;
+      // xle(0) = 19.5;
+      // xle(1) = 20.0;
+      // xte(0) = 19.997592;
+      // xte(1) = 20.0;
+      // xle(0) = 6.0;
+      // xle(1) = 10.0;
+      // xte(0) = 14.0;
+      // xte(1) = 10.0;
+      xle(0) = 1.5;
+      xle(1) = 2.0;
+      xte(0) = 2.5;
+      xte(1) = 2.0;
       std::cout << std::setprecision(10) << std::endl;
       cout << "phi , gradphi at leading edge: " << endl;
       cout << phi_ls(xle) << " , " << phi_ls.grad(xle) << endl;
       cout << "phi , gradphi at trailing edge: " << endl;
       cout << phi_ls(xte) << " , " << phi_ls.grad(xte) << endl;
       cout << "============================== " << endl;
-/// just checking normal vectors
-#if 0 
-      cout << "norm vectors " << endl;
-      blitz::TinyVector<double, 2> beta, beta_e;
-      beta = phi.grad(x);
-      beta_e = phi_e.grad(x);
-      double xc = 0.5;
-      double yc = 0.5;
-      double nx = beta(0);
-      double ny = beta(1);
-      double nx_e = beta_e(0);
-      double ny_e = beta_e(1);
-      double ds = sqrt((nx * nx) + (ny * ny));
-      double ds_e = sqrt((nx_e * nx_e) + (ny_e * ny_e));
-      Vector nrm, nrm_e;
-      nrm.SetSize(2);
-      nrm_e.SetSize(2);
-      nrm(0) = nx / ds;
-      nrm(1) = ny / ds;
-      nrm_e(0) = nx_e / ds_e;
-      nrm_e(1) = ny_e / ds_e;;
-      cout << "exact norm vector: " << endl;
-      nrm_e.Print();
-      cout << "norm vector using ls: " << endl;
-      nrm.Print();
-#endif
       return phi_ls;
    }
 #endif
@@ -463,7 +471,7 @@ public:
        std::map<int, IntegrationRule *> &cutSquareIntRules) const
    {
       cout << "#cut elements " << cutelems.size() << endl;
-      double tol = 1e-16;
+      double tol = 1e-14;
       QuadratureRule<N> qp;
       for (int k = 0; k < cutelems.size(); ++k)
       {
@@ -537,7 +545,7 @@ public:
       QuadratureRule<N> qp, qface;
       for (int k = 0; k < cutelems.size(); ++k)
       {
-         IntegrationRule *ir;
+         IntegrationRule *ir = NULL;
          blitz::TinyVector<double, N> xmin;
          blitz::TinyVector<double, N> xmax;
          blitz::TinyVector<double, N> xupper;
@@ -945,6 +953,7 @@ public:
                   {
                      cutBdrFaceIntRules[elemid] = ir;
                   }
+                  delete ir;
                }
             }
          }
@@ -959,8 +968,8 @@ public:
 protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
-   Algoim::LevelSet<N> phi;
-   // circle<N> phi;
+   // Algoim::LevelSet<N> phi;
+   circle<N> phi;
 };
 }  // namespace mach
 

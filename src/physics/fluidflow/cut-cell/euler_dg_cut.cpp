@@ -56,13 +56,14 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    sol_ofs.precision(14);
    mesh->PrintVTK(sol_ofs, 0);
    int order = options["space-dis"]["degree"].template get<int>();
-   int deg = min((order + 2) * (order + 2), 10);
-   deg = 2 * order;
+   int deg_vol = min((order + 2) * (order + 2), 10);
+   int deg_surf = min(((order + 2) * (order + 2)), 10);
+   // deg_vol = 2*order + 7;
+   // deg_surf = 2*order;
    CutCell<2, 1> cutcell(mesh.get());
    phi = cutcell.constructLevelSet();
    vector<int> cutelems_inner;
    vector<int> solid_elements;
-
    /// find the elements for which we don't need to solve
    for (int i = 0; i < mesh->GetNE(); ++i)
    {
@@ -76,10 +77,6 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       {
          embeddedElements.push_back(true); /*original*/
          solid_elements.push_back(i);
-         // temporary change to test quad rule
-         //  cutelems.push_back(i);
-         //  embeddedElements.push_back(false);
-         // cout << "embedded element id " << i << endl;
       }
       else
       {
@@ -150,7 +147,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    double radius = 0.3;
    /// int rule for cut elements
    auto elint_start = high_resolution_clock::now();
-   cutcell.GetCutElementIntRule(cutelems, deg, radius, cutSquareIntRules);
+   cutcell.GetCutElementIntRule(cutelems, deg_vol, radius, cutSquareIntRules);
    auto elint_stop = high_resolution_clock::now();
    auto elint_duration = duration_cast<seconds>(elint_stop - elint_start);
    cout << " ---- Time taken to get cut elements int rules  ---- " << endl;
@@ -161,7 +158,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    cout << "#interior faces " << cutInteriorFaces.size() << endl;
    cutcell.GetCutSegmentIntRule(cutelems,
                                 cutInteriorFaces,
-                                deg,
+                                deg_surf,
                                 radius,
                                 cutSegmentIntRules,
                                 cutInteriorFaceIntRules);
@@ -170,7 +167,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    {
       cout << "boundary faces are cut " << endl;
       cutcell.GetCutBdrSegmentIntRule(
-          cutelems, cutBdrFaces, deg, radius, cutBdrFaceIntRules);
+          cutelems, cutBdrFaces, deg_surf, radius, cutBdrFaceIntRules);
    }
    auto segint_stop = high_resolution_clock::now();
    auto segint_duration = duration_cast<seconds>(segint_stop - segint_start);
@@ -249,8 +246,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
    area = res->GetEnergy(x);
-   // double exact_area =  0.0817073; // airfoil
-   double exact_area = 1600.0 - 0.0817073;
+  // double exact_area = 1600 - 0.0817073;  // airfoil
+   double exact_area = 400.0 - M_PI*4.0;
    cout << "correct area: " << (exact_area) << endl;
    cout << "calculated area: " << area << endl;
    cout << "area err = " << abs(area - exact_area) << endl;
@@ -272,6 +269,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
+   double perimeter = res->GetEnergy(x);
+   cout << "calculated perimeter: " << perimeter - area << endl;
 #endif
 /// use this for testing purposes
 #if 0
@@ -280,27 +279,36 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
    area = res->GetEnergy(x);
-   double exact_area = 400.0 - M_PI*4.0;
+   std::cout << setprecision(14); 
+   double exact_area = 400.0 - M_PI*4.0; // ellipse
+   //double exact_area =  1600.0 - 0.0817073; // airfoil
    cout << "correct area: " << ( exact_area ) << endl;
    cout << "calculated area: " << area << endl;
    auto &bcs = options["bcs"];
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
-      cout << "slip-wall bc are present " << endl;
-      res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-          diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+      // cout << "slip-wall bc are present " << endl;
+      // res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+      //     diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
-   // res->AddDomainIntegrator(new CutDGIsentropicVortexBC<dim, entvar>(
-   //     diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+   if (bcs.find("far-field") != bcs.end())
+   {
+      // far-field boundary conditions on immersed boundary
+      mfem::Vector qfar(dim + 2); 
+      getFreeStreamState(qfar);
+      res->AddDomainIntegrator(new CutDGSlipFarFieldBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules, phi, qfar, alpha));
+   }
    double perimeter = res->GetEnergy(x);
-   double exact_peri = 17.156843550313663; //2.0*M_PI*4.0;
-   // cout << "correct perimeter of airfoil: " << 2.03955 << endl;
-   cout << "correct perimeter of ellipse: " <<  exact_peri << endl;
+   //double exact_peri = 17.156843550313663; // ellipse
+   double exact_peri = 2.03955; //airfoil
+   cout << "correct perimeter of airfoil: " << 2.03955 << endl;
+   //cout << "correct perimeter of ellipse: " <<  exact_peri << endl;
    cout << "calculated perimeter: " << perimeter - area << endl;
    cout << " +++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
    cout << "area error: " << endl;
    cout << abs(area - exact_area) << endl;
-   cout << "ellipse perimeter error: " << endl;
+   cout << "perimeter error: " << endl;
    cout << abs(perimeter - area - exact_peri) << endl;
    cout << " +++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
 #endif

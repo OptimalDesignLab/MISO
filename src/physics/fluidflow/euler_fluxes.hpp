@@ -651,7 +651,7 @@ void calcLaxFriedrichsFlux(const xdouble *dir, const xdouble *qL, const xdouble 
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
       q_diff[i] = -qR[i] + qL[i];
    }
-   xdouble lambda  = 1.0 * calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   xdouble lambda  = 1.0 * calcSpectralRadius<xdouble, dim>(dir, q_ave); 
    for (int k = 0; k < dim + 2; ++k)
    {
       flux[k] = fluxL[k] + fluxR[k] + (lambda * q_diff[k]);

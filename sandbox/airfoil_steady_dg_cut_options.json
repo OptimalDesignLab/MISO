@@ -6,30 +6,33 @@
       "pitch-axis": 1
    },
    "space-dis": {
-      "GD": false,
+      "GD": true,
       "GD-degree": 1,
       "degree": 1,
-      "lps-coeff": 1.0,
+      "lps-coeff": 0.0,
+      "iface-coeff": 1.0,
       "basis-type": "dg"
    },
    "time-dis": {
       "steady": true,
       "steady-abstol": 1e-12,
       "steady-reltol": 1e-10,
-      "res-exp": 2.0,
+      "res-exp": 1.0,
       "const-cfl": true,
       "ode-solver": "PTC",
       "t-final": 100,
-      "dt": 0.0001,
+      "dt": 0.03,
       "cfl": 1.0
    },
    "mesh": {
       "file": "airfoil_steady.mesh",
-      "refine": 3
+      "refine": -1,
+      "ncr": -1,
+      "ncr2": -1
    },
    "bcs": {
       "slip-wall": [0, 0, 1, 1],
-      "far-field": [1, 1, 0, 0]
+      "far-field": [1, 1, 1, 1]
    },
    "nonlin-solver": {
       "printlevel": 1,
@@ -46,7 +49,7 @@
       "printlevel": 0
    },
    "lin-solver": {
-      "type": "gmres",
+      "type": "hypregmres",
       "printlevel": 0,
       "filllevel": 3,
       "maxiter": 100,
@@ -55,9 +58,9 @@
       "kdim": 100
    },
    "lin-prec":{
-      "type": "blockilu",
+      "type": "hypreilu",
       "lev-fill": 1,
-      "ilu-type": 0,
+      "ilu-type": 1,
       "printlevel":0
    },
    "saveresults":false,

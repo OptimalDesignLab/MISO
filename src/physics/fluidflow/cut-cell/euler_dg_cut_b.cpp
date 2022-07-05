@@ -269,10 +269,10 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
    area = res->GetEnergy(x);
-   cout << "correct area: " << 2 * M_PI << endl;
-   cout << "calculated area: " << area << endl;
-   cout << "area err " << endl;
-   cout << abs(area - 2 * M_PI) << endl;
+   // cout << "correct area: " << 2 * M_PI << endl;
+   // cout << "calculated area: " << area << endl;
+   // cout << "area err " << endl;
+   // cout << abs(area - 2 * M_PI) << endl;
    auto &bcs = options["bcs"];
    if (bcs.find("vortex") != bcs.end())
    {  // isentropic vortex BC

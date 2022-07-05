@@ -67,13 +67,14 @@ int main(int argc, char *argv[])
       // solver...
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
       solver->setInitialCondition(qfar);
-      solver->printSolution("airfoil-steady-dg-cut-init");
-      // solver->checkJacobian(pert);
-      // solver->printResidual("residual-init");
+      solver->printSolution("airfoil-steady-dg-cut-init", 0);
+      //solver->checkJacobian(pert);
+      //solver->printResidual("residual-init", 0);
+      //solver->calcResidualNorm();
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
       solver->solveForState();
-      solver->printSolution("airfoil-steady-dg-cut-final");
+      solver->printSolution("airfoil-steady-dg-cut-final", 0);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
@@ -81,6 +82,7 @@ int main(int argc, char *argv[])
       double drag = abs(solver->calcOutput("drag"));
       mfem::out << "\nDrag error = " << drag << endl;
    }
+
    catch (MachException &exception)
    {
       exception.print_message();
@@ -106,6 +108,6 @@ void pert(const Vector &x, Vector &p)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 40.0, 40.0, true);
+       N, N, Element::QUADRILATERAL, true, 20.0, 20.0, true);
    return mesh;
 }

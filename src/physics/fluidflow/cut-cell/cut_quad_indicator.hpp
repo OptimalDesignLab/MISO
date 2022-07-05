@@ -124,7 +124,6 @@ public:
        std::vector<TinyVector<double, N>> Xc) const
    {
       std::vector<TinyVector<double, N>> nor;
-      nbnd = Xc.size();
       TinyVector<double, N> nsurf;
       for (int i = 0; i < nbnd; i++)
       {
@@ -162,7 +161,6 @@ public:
        std::vector<TinyVector<double, N>> Xc) const
    {
       std::vector<TinyVector<double, N - 1>> kappa;
-      nbnd = Xc.size();
       double a0 = 0.2969;
       double a1 = -0.126;
       double a2 = -0.3516;
@@ -195,7 +193,7 @@ public:
             double rle = 0.5 * pow(a0 * tc / 0.20, 2);
             kappa.push_back(1.0 / rle);
          }
-         else if (i == 0 || i == nbnd - 1)
+         else if (i == 0 || i == nbnd - 1 || i == nbnd - 2)
          {
             kappa.push_back(0.0);
          }
@@ -211,11 +209,12 @@ public:
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
-      // std::vector<TinyVector<double, N>> Xc;
+      std::vector<TinyVector<double, N>> Xc;
       // std::vector<TinyVector<double, N>> nor;
       // std::vector<TinyVector<double, N - 1>> kappa;
       int nel = mesh->GetNE();
-      nbnd = sqrt(nel);
+      //nbnd = sqrt(nel);
+     // nbnd = 5*sqrt(nel);
       /// parameters
       delta = 1e-10;
       double xc = 0.0;
@@ -232,7 +231,8 @@ public:
          a = 3.0;
          b = 3.0;
       }
-#if 0
+/// use this if reading from file
+#if 1
       const char *geometry_file = "NACA_0012_200pts.dat";
       ifstream file;
       file.open(geometry_file);
@@ -248,17 +248,18 @@ public:
          Xc.push_back(x);
       }
       file.close();
+      /// get the number of boundary points
+      nbnd = Xc.size();
       /// construct the normal vector for all boundary points
       nor = constructNormal(Xc);
       /// get the curvature vector for all boundary points
       kappa = getCurvature(Xc);
-      /// get the number of boundary points
-      nbnd = Xc.size();
+
       /// translate airfoil
       TinyVector<double, N> xcent;
       xcent(0) = 19.5;
       xcent(1) = 20.0;
-      std::vector<TinyVector<double, N>> Xcoord;
+      Xcoord.clear();
       for (int k = 0; k < nbnd; ++k)
       {
          TinyVector<double, N> xs;
@@ -272,7 +273,7 @@ public:
       cout << "nbnd " << nbnd << endl;
       rho = 10 * nbnd;
 /// use this if not reading from file
-#if 1
+#if 0
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
@@ -300,18 +301,7 @@ public:
          kappa.push_back(curv);
          //kappa.push_back(0.0);
       }
-#endif
-      double lsign;
-      /// initialize levelset
-      if (ls == 1)
-      {
-         lsign = -1.0;
-      }
-      else
-      {
-         lsign = 1.0;
-      }
-      /// translate ellipse
+       /// translate ellipse
       TinyVector<double, N> xcent;
       xcent(0) = 10.0;
       xcent(1) = 10.0;
@@ -325,6 +315,17 @@ public:
          }
          Xcoord.push_back(xs);
       }
+#endif
+      double lsign;
+      /// initialize levelset
+      if (ls == 1)
+      {
+         lsign = -1.0;
+      }
+      else
+      {
+         lsign = 1.0;
+      }
       Algoim::LevelSet<2> phi_ls;
       phi_ls.initializeLevelSet(Xcoord, nor, kappa, rho, lsign, delta);
       phi_ls.xscale = 1.0;
@@ -332,14 +333,18 @@ public:
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
       TinyVector<double, 2> xle, xte;
-      // xle(0) = 19.5;
+      xle(0) = 19.5;
+      xle(1) = 20.0;
+      xte(0) = 20.0;
+      xte(1) = 20.0;
+      // xle(0) = 16.0;
       // xle(1) = 20.0;
-      // xte(0) = 19.997592;
+      // xte(0) = 24.0;
       // xte(1) = 20.0;
-      xle(0) = 6.0;
-      xle(1) = 10.0;
-      xte(0) = 14.0;
-      xte(1) = 10.0;
+      // xle(0) = 1.5;
+      // xle(1) = 2.0;
+      // xte(0) = 2.5;
+      // xte(1) = 2.0;
       std::cout << std::setprecision(10) << std::endl;
       cout << "phi , gradphi at leading edge: " << endl;
       cout << phi_ls(xle) << " , " << phi_ls.grad(xle) << endl;
@@ -894,7 +899,6 @@ public:
                         }
                      }
                   }
-                  cout << "qface.nodes.size() " << qface.nodes.size() << endl;
                   ir = new IntegrationRule(qface.nodes.size());
                   int i = 0;
                   for (const auto &pt : qface.nodes)
@@ -965,11 +969,11 @@ public:
                      MFEM_ASSERT(ip.weight > 0,
                                  "integration point weight is negative from "
                                  "Saye's method");
-                     MFEM_ASSERT(
-                         (phi(pt.x) < tol),
-                         " phi = " << phi(pt.x) << " : "
-                                   << "levelset function positive at the "
-                                      "quadrature point (Saye's method)");
+                     // MFEM_ASSERT(
+                     //     (phi(pt.x) < tol),
+                     //     " phi = " << phi(pt.x) << " : "
+                     //               << "levelset function positive at the "
+                     //                  "quadrature point (Saye's method)");
                      MFEM_ASSERT(
                          (xq <= (max(v1coord[0], v2coord[0]))) &&
                              (xq >= (min(v1coord[0], v2coord[0]))),
@@ -1185,7 +1189,7 @@ protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
    Algoim::LevelSet<N> phi;
-   mutable std::vector<TinyVector<double, N>> Xc, Xcoord;
+   mutable std::vector<TinyVector<double, N>> Xcoord;
    mutable std::vector<TinyVector<double, N>> nor;
    mutable std::vector<TinyVector<double, N - 1>> kappa;
    mutable int nbnd;

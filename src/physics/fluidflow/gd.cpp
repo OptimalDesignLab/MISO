@@ -457,39 +457,40 @@ void mfem::buildLSInterpolation(int dim,
          }
       }
    }
-   // ---------------------------------------------------------------------------
-   /// use this for triangle elements
-   // Set the RHS for the LS problem (it's the identity matrix)
-   // This will store the solution, that is, the basis coefficients, hence
-   // the name `coeff`
-   // mfem::DenseMatrix coeff(num_elem, num_elem);
-   // coeff = 0.0;
-   // for (int i = 0; i < num_elem; ++i)
-   // {
-   //    coeff(i, i) = 1.0;
-   // }
-
-   // // Set-up and solve the least-squares problem using LAPACK's dgels
-   // char TRANS = 'N';
-   // int info;
-   // int lwork = 2 * num_elem * num_basis;
-   // double work[lwork];
-   // dgels_(&TRANS,
-   //        &num_elem,
-   //        &num_basis,
-   //        &num_elem,
-   //        V.GetData(),
-   //        &num_elem,
-   //        coeff.GetData(),
-   //        &num_elem,
-   //        work,
-   //        &lwork,
-   //        &info);
-   // MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
-
-   // -------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+/// use this for triangle elements
+// Set the RHS for the LS problem (it's the identity matrix)
+// This will store the solution, that is, the basis coefficients, hence
+// the name `coeff`
+#if 0
+   mfem::DenseMatrix coeff(num_elem, num_elem);
+   coeff = 0.0;
+   for (int i = 0; i < num_elem; ++i)
+   {
+      coeff(i, i) = 1.0;
+   }
+   // Set-up and solve the least-squares problem using LAPACK's dgels
+   char TRANS = 'N';
+   int info;
+   int lwork = 2 * num_elem * num_basis;
+   double work[lwork];
+   dgels_(&TRANS,
+          &num_elem,
+          &num_basis,
+          &num_elem,
+          V.GetData(),
+          &num_elem,
+          coeff.GetData(),
+          &num_elem,
+          work,
+          &lwork,
+          &info);
+   MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
+#endif
+// -------------------------------------------------------------------------------
 
    /// use this for quad elements
+
    // Set the RHS for the LS problem (it's the identity matrix)
    // This will store the solution, that is, the basis coefficients, hence
    // the name `coeff`
@@ -512,9 +513,19 @@ void mfem::buildLSInterpolation(int dim,
    jpvt = 0;
    double rcond = 1e-16;
 
-   dgelsy_(&num_elem, &num_basis, &num_elem, V.GetData(), &num_elem,
-   coeff.GetData(),
-           &LDB, jpvt.GetData(), &rcond, &rank, work, &lwork, &info);
+   dgelsy_(&num_elem,
+           &num_basis,
+           &num_elem,
+           V.GetData(),
+           &num_elem,
+           coeff.GetData(),
+           &LDB,
+           jpvt.GetData(),
+           &rcond,
+           &rank,
+           work,
+           &lwork,
+           &info);
 
    MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
 
@@ -581,11 +592,11 @@ void mfem::buildLSInterpolation(int dim,
                //           endl;
                if ((p == 0) && (q == 0))
                {
-               MFEM_ASSERT(fabs(exact - poly_at_quad) <= 1e-12,
-                           " p = " << p << " , q = " << q << ", "
-                                   << fabs(exact - poly_at_quad) << " : "
-                                   << "Interpolation operator does not "
-                                      "interpolate exactly!\n");
+                  MFEM_ASSERT(fabs(exact - poly_at_quad) <= 1e-12,
+                              " p = " << p << " , q = " << q << ", "
+                                      << fabs(exact - poly_at_quad) << " : "
+                                      << "Interpolation operator does not "
+                                         "interpolate exactly!\n");
                }
             }
          }

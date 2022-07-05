@@ -365,9 +365,8 @@ void DGInterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
    {
       // mach::calcRoeFaceFlux<double, dim>(
       //     dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
-      mach::calcLaxFriedrichsFlux<double, dim>(dir.GetData(),qL.GetData(),
-      qR.GetData(),
-                                               flux.GetData());
+      mach::calcLaxFriedrichsFlux<double, dim>(
+          dir.GetData(), qL.GetData(), qR.GetData(), flux.GetData());
    }
 }
 

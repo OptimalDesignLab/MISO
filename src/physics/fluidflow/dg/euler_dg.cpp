@@ -100,7 +100,6 @@ template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
-   #if 0
    GridFunction x(fes.get());
    res->AddDomainIntegrator(
        new EulerDGIntegrator<dim>(diff_stack, alpha));
@@ -110,7 +109,6 @@ void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    cout << "calculated area: " << area << endl;
    cout << "airfoil area " << endl;
    cout << abs(M_PI * 900 - area) << endl;
-   #endif
    // add the LPS stabilization
    // auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    // res->AddDomainIntegrator(
@@ -138,7 +136,7 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           bndry_marker[idx]);
       idx++;
    }
-#if 1
+
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
       vector<int> tmp = bcs["slip-wall"].template get<vector<int>>();
@@ -148,12 +146,12 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           new DGSlipWallBC<dim, entvar>(diff_stack, fec.get(), alpha),
           bndry_marker[idx]);
       idx++;
-      GridFunction x(fes.get());
-      double peri_airfoil;
-      peri_airfoil = res->GetEnergy(x);
-      cout << "airfoil perimeter: " << peri_airfoil << endl;
+      // GridFunction x(fes.get());
+      // double peri_airfoil;
+      // peri_airfoil = res->GetEnergy(x);
+      // cout << "airfoil perimeter: " << peri_airfoil << endl;
    }
-#endif
+
    if (bcs.find("far-field") != bcs.end())
    {
       GridFunction x(fes.get());
@@ -167,12 +165,12 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           new DGFarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
           bndry_marker[idx]);
       idx++;
-      double peri_far;
-   peri_far = res->GetEnergy(x);
-   cout << "farfield perimeter: " << 2 * M_PI * 30 << endl;
-   cout << "calculated perimeter: " << peri_far << endl;
-   cout << "error: " << endl;
-   cout << abs(2 * M_PI * 30 - peri_far) << endl;
+      //double peri_far;
+   // peri_far = res->GetEnergy(x);
+   // cout << "farfield perimeter: " << 2 * M_PI * 30 << endl;
+   // cout << "calculated perimeter: " << peri_far << endl;
+   // cout << "error: " << endl;
+   // cout << abs(2 * M_PI * 30 - peri_far) << endl;
    }
 }
 
@@ -543,7 +541,7 @@ void EulerDGSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(iroll + 1) = q_ref(0) * mach_fs * cos(aoa_fs);
       q_ref(ipitch + 1) = q_ref(0) * mach_fs * sin(aoa_fs);
    }
-   q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+   q_ref(dim + 1) = 1.0 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
 template <int dim, bool entvar>

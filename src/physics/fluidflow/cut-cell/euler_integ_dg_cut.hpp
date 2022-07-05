@@ -19,6 +19,8 @@ class CutEulerDGIntegrator
 public:
    /// Construct an integrator for the Euler flux over elements
    /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] cutSquareIntRules - integration rule for cut cells
+   /// \param[in] embeddedElements - elements completely inside the geometry
    /// \param[in] a - factor, usually used to move terms to rhs
    CutEulerDGIntegrator(adept::Stack &diff_stack,
                         std::map<int, IntegrationRule *> cutSquareIntRules,
@@ -79,16 +81,19 @@ public:
    /// Constructs an integrator for isentropic vortex boundary flux
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] cutSegmentIntRules - integration rule for cut segments
+   /// \param[in] phi - level-set function
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGIsentropicVortexBC(adept::Stack &diff_stack,
                            const mfem::FiniteElementCollection *fe_coll,
-                           std::map<int, IntegrationRule *> cutSegmentIntRules, 
-                           Algoim::LevelSet<2> phi, 
+                           std::map<int, IntegrationRule *> cutSegmentIntRules,
+                           /*Algoim::LevelSet<2>*/ circle<2> phi,
                            double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGIsentropicVortexBC<dim, entvar>>(
           diff_stack,
           fe_coll,
-          cutSegmentIntRules, phi, 
+          cutSegmentIntRules,
+          phi,
           dim + 2,
           a)
    { }
@@ -144,16 +149,19 @@ public:
    /// Constructs an integrator for a slip-wall boundary flux
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] cutSegmentIntRules - integration rule for cut segments
+   /// \param[in] phi - level-set function
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGSlipWallBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
-                   std::map<int, IntegrationRule *> cutSegmentIntRules, 
-                   Algoim::LevelSet<2> phi,
+                   std::map<int, IntegrationRule *> cutSegmentIntRules,
+                   /*Algoim::LevelSet<2>*/ circle<2> phi,
                    double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipWallBC<dim, entvar>>(
           diff_stack,
           fe_coll,
-          cutSegmentIntRules, phi, 
+          cutSegmentIntRules,
+          phi,
           dim + 2,
           a)
    { }
@@ -195,6 +203,85 @@ public:
                        const mfem::Vector &dir,
                        const mfem::Vector &q,
                        mfem::DenseMatrix &flux_jac);
+
+private:
+};
+/// Integrator for applying inviscid far-field boundary condition on slip-wall
+/// boundary for testing purposes \tparam dim - number of spatial dimensions (1,
+/// 2, or 3) \tparam entvar - if true, states = ent. vars; otherwise, states =
+/// conserv. \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class CutDGSlipFarFieldBC
+ : public CutDGInviscidBoundaryIntegrator<CutDGSlipFarFieldBC<dim, entvar>>
+{
+public:
+   /// Constructs an integrator for a far-field boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] cutSegmentIntRules - integration rule for cut segments
+   /// \param[in] phi - level-set function
+   /// \param[in] q_far - state at the far-field
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   CutDGSlipFarFieldBC(adept::Stack &diff_stack,
+                       const mfem::FiniteElementCollection *fe_coll,
+                       std::map<int, IntegrationRule *> cutSegmentIntRules,
+                       /*Algoim::LevelSet<2>*/ circle<2> phi,
+                       const mfem::Vector &q_far,
+                       double a = 1.0)
+    : CutDGInviscidBoundaryIntegrator<CutDGSlipFarFieldBC<dim, entvar>>(
+          diff_stack,
+          fe_coll,
+          cutSegmentIntRules,
+          phi,
+          dim + 2,
+          a),
+      qfs(q_far),
+      work_vec(dim + 2)
+   { }
+
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Compute an adjoint-consistent slip-wall boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec);
+
+   /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
+
+private:
+   /// Stores the far-field state
+   mfem::Vector qfs;
+   /// Work vector for boundary flux computation
+   mfem::Vector work_vec;
 };
 
 /// Integrator for inviscid far-field boundary condition
@@ -267,7 +354,8 @@ private:
    /// Work vector for boundary flux computation
    mfem::Vector work_vec;
 };
-/// Integrator for inviscid far-field boundary condition
+
+/// Integrator for vortex boundary condition
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
 /// \note This derived class uses the CRTP
@@ -276,21 +364,24 @@ class CutDGVortexBC
  : public CutDGEulerBoundaryIntegrator<CutDGVortexBC<dim, entvar>>
 {
 public:
-   /// Constructs an integrator for a far-field boundary flux
+   /// Constructs an integrator for a vortex boundary flux
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
-   /// \param[in] q_far - state at the far-field
+   /// \param[in] cutBdrFaceIntRules - integration rule for the outer cut bdr faces
+   /// \param[in] embeddedElements - elements completely inside geometry 
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGVortexBC(adept::Stack &diff_stack,
-                const mfem::FiniteElementCollection *fe_coll,
-                std::map<int, IntegrationRule *> cutBdrFaceIntRules,
-                std::vector<bool> embeddedElements,
-                double a = 1.0)
-    : CutDGEulerBoundaryIntegrator<CutDGVortexBC<dim, entvar>>(diff_stack,
-                                                              fe_coll,cutBdrFaceIntRules,
-                                                              embeddedElements,
-                                                              dim + 2,
-                                                              a)
+                 const mfem::FiniteElementCollection *fe_coll,
+                 std::map<int, IntegrationRule *> cutBdrFaceIntRules,
+                 std::vector<bool> embeddedElements,
+                 double a = 1.0)
+    : CutDGEulerBoundaryIntegrator<CutDGVortexBC<dim, entvar>>(
+          diff_stack,
+          fe_coll,
+          cutBdrFaceIntRules,
+          embeddedElements,
+          dim + 2,
+          a)
    { }
 
    /// Contracts flux with the entropy variables
@@ -350,7 +441,10 @@ public:
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] coeff - scales the dissipation (must be non-negative!)
    /// \param[in] fe_coll - pointer to a finite element collection
-   /// \param[in] a - factor, usually used to move terms to rhs
+   /// \param[in] immersedFaces - interior faces completely inside the geometry
+   /// \param[in] cutInteriorFaceIntRules - integration rule for the interior faces cut by the geometry 
+   /// \param[in] a - factor, usually used to move
+   /// terms to rhs
    CutDGInterfaceIntegrator(
        adept::Stack &diff_stack,
        double coeff,
@@ -412,11 +506,14 @@ class CutDGMassIntegrator : public mfem::BilinearFormIntegrator
 {
 public:
    /// Constructs a diagonal-mass matrix integrator.
+   /// \param[in] _cutSquareIntRules - integration rule for the elements cut by the geometry 
+   /// \param[in] _embeddedElements - elements completely inside the geometry
    /// \param[in] nvar - number of state variables
    CutDGMassIntegrator(std::map<int, IntegrationRule *> _cutSquareIntRules,
                        std::vector<bool> _embeddedElements,
                        int nvar = 1)
-    : num_state(nvar), cutSquareIntRules(_cutSquareIntRules),
+    : num_state(nvar),
+      cutSquareIntRules(_cutSquareIntRules),
       embeddedElements(_embeddedElements)
    { }
 
@@ -486,6 +583,7 @@ protected:
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
 };
+
 /// Integrator for forces due to pressure
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
@@ -499,15 +597,18 @@ public:
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] force_dir - unit vector specifying the direction of the force
+   /// \param[in] cutSegmentIntRules - integration rule for cut segments
+   /// \param[in] phi - level-set function (required for normal vector calculations)
    CutDGPressureForce(adept::Stack &diff_stack,
                       const mfem::FiniteElementCollection *fe_coll,
                       const mfem::Vector &force_dir,
-                      std::map<int, IntegrationRule *> cutSegmentIntRules, 
-                      Algoim::LevelSet<2> phi)
+                      std::map<int, IntegrationRule *> cutSegmentIntRules,
+                      /*Algoim::LevelSet<2>*/ circle<2> phi)
     : CutDGInviscidBoundaryIntegrator<CutDGPressureForce<dim, entvar>>(
           diff_stack,
           fe_coll,
-          cutSegmentIntRules, phi,
+          cutSegmentIntRules,
+          phi,
           dim + 2,
           1.0),
       force_nrm(force_dir),

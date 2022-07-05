@@ -191,8 +191,8 @@ double DGInviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
       // get the normal vector, and then add contribution to function
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      fun += face_ip.weight * trans.Weight();
-      //fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
+      //fun += face_ip.weight * trans.Weight();
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;
 }
