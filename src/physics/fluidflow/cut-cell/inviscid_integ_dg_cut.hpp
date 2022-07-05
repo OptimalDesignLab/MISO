@@ -15,6 +15,8 @@ class CutDGInviscidIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// Construct an integrator for "inviscid" type fluxes
    /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] _cutSquareIntRules - integration rule for cut cells
+   /// \param[in] _embeddedElements - elements completely inside geometry
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - factor, usually used to move terms to rhs
    /// \note `num_state_vars` is not necessarily the same as the number of
@@ -150,6 +152,8 @@ public:
    /// Constructs a boundary integrator based on a given boundary flux
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] _cutBdrFaceIntRules - integration rule for cut boundary faces
+   /// \param[in] _embeddedElements - elements completely inside geometry
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGEulerBoundaryIntegrator(adept::Stack &diff_stack,
@@ -219,7 +223,9 @@ protected:
    mfem::Vector flux_face;
    /// stores the jacobian of the flux with respect to the state at `u_face`
    mfem::DenseMatrix flux_jac_face;
+   /// map of (cut) boundary face int rules
    std::map<int, IntegrationRule *> cutBdrFaceIntRules;
+   /// vector that determiens if element is embedded or not
    std::vector<bool> embeddedElements;
 #endif
 
@@ -283,7 +289,7 @@ protected:
       static_cast<Derived *>(this)->calcFluxJacDir(x, nrm, u, flux_dir);
    }
 };
-/// Integrator for inviscid boundary fluxes (fluxes that do not need gradient)
+/// Integrator for cut boubdary faces
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
 class CutDGInviscidBoundaryIntegrator : public mfem::NonlinearFormIntegrator
@@ -292,6 +298,8 @@ public:
    /// Constructs a boundary integrator based on a given boundary flux
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] _cutSegmentIntRules - integration rule for cut segments
+   /// \param[in] _phi - level-set function
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGInviscidBoundaryIntegrator(adept::Stack &diff_stack, 
@@ -356,7 +364,7 @@ protected:
    mfem::DenseMatrix flux_jac_face;
    /// integration rule for embedded geom boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
-   // /// levelset to calculate normal vectors
+   /// levelset to calculate normal vectors
    circle<2> phi;
    //Algoim::LevelSet<2> phi;
 #endif
@@ -431,6 +439,8 @@ public:
    /// Constructs a face integrator based on a given interface flux
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] _immersedFaces - interior faces completely inside the geometry
+   /// \param[in] _cutInteriorFaceIntRules - integration rule for cut interior faces
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGInviscidFaceIntegrator(
