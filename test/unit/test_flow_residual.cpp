@@ -147,27 +147,30 @@ TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
    int num_state = dim + 2;
    adept::Stack diff_stack;
 
-   // generate a 8 element mesh and build the finite-element space
-   int num_edge = 2;
+   // generate a 6 element mesh and build the finite-element space
+   int num_edge = 1;
    Mesh smesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                     1.0, 1.0, 1.0, true));
    ParMesh mesh(MPI_COMM_WORLD, smesh);
-   //int p = options["space-dis"]["degree"].get<int>();
-   int p = 1;
+   int p = options["space-dis"]["degree"].get<int>();
+   //int p = 1;
    SBPCollection fec(p, dim);
    ParFiniteElementSpace fespace(&mesh, &fec, num_state, Ordering::byVDIM);
+   int ndofs = fespace.GetNDofs();
    std::map<std::string, FiniteElementState> fields;
    // construct the residual
    FlowResidual<dim,false> res(options, fespace, fields, diff_stack);
    int num_var = getSize(res);
-   //REQUIRE(num_var == 132);
+   std::cout << "num_var = " << num_var << "\n";
+   REQUIRE(num_var == num_state*ndofs);
 
    // evaluate the residual using a constant state
    Vector q(num_var);
    double mach = options["flow-param"]["mach"].get<double>();
    double aoa = options["flow-param"]["aoa"].get<double>();
-   for (int i = 0; i < num_var/num_state; ++i)
-   {
+   for (int i = 0; i < ndofs; ++i)
+   {  
+      std::cout << q.GetData()+num_state*i << "\n";
       getFreeStreamQ<double, dim>(mach, aoa, 0, 1, q.GetData()+num_state*i);
    }
    auto inputs = MachInputs({{"state", q}});

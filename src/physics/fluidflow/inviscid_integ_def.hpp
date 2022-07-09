@@ -442,6 +442,9 @@ double InviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::GetFaceEnergy())\n"
@@ -565,6 +568,9 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::AssembleFaceGrad())\n"
@@ -632,6 +638,9 @@ double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(
@@ -702,6 +711,8 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
@@ -774,6 +785,8 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"

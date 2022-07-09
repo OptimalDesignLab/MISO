@@ -48,8 +48,11 @@ void setVectorFromInputs(const MachInputs &inputs,
 {
    auto input = inputs.find(key);
    if (input != inputs.end())
-   {
+   {  
+      std::cout << "we are out here I guess \n";
+      std::cout << "Deep bool is: " << deep_copy << "\n";
       setVectorFromInput(input->second, vec, deep_copy);
+      std::cout << "Size of formed vector is: " << vec.Size() << "\n";
    }
    else if (error_if_not_found)
    {
