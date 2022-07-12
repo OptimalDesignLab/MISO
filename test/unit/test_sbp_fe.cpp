@@ -221,7 +221,6 @@ TEST_CASE( "Triangle DSBP difference operator is accurate...", "[dsbp-tri-D]")
    } // loop over p
 }
 
-// --------------------------------------------------------------------------------------------- //
 TEST_CASE( "Tetrahedron SBP different operator is accurate...", "sbp-tet-D" )
 {
    int dim = 3;
@@ -306,7 +305,6 @@ TEST_CASE( "Tetrahedron SBP different operator is accurate...", "sbp-tet-D" )
       } // DYNAMIC SECTION
    } // loop over p
 }
-// --------------------------------------------------------------------------------------------- //
 
 TEST_CASE( "Segment SBP multWeak/StrongOperator are accurate...", "[sbp-seg-Q]")
 {
@@ -435,6 +433,88 @@ TEST_CASE( "Triangle SBP multWeak/StrongOperator are accurate...", "[sbp-tri-Q]"
                   sbp.multStrongOperator(1, k, u_mat, du_vec);
                   REQUIRE( du_vec(0) == Approx(dudy(k)).margin(abs_tol) );
                }
+            }
+         }
+
+      } // DYNAMIC SECTION
+   } // loop over p
+}
+
+TEST_CASE( "Tetrahedron SBP multWeak/StrongOperator are accurate...", "[sbp-tet-Q]")
+{
+   // This test indirectly checks multWeakOperator by forming H^{-}*Q*u = D*u
+   int dim = 3;
+   for (int p = 0; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(new SBPCollection(p, dim));
+         const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(
+            *(fec->FiniteElementForGeometry(Geometry::TETRAHEDRON)));
+         Vector x, y, z;
+         sbp.getNodeCoords(0, x);
+         sbp.getNodeCoords(1, y);
+         sbp.getNodeCoords(2, z);
+         Vector u(sbp.GetDof());
+         DenseMatrix u_mat(u.GetData(), 1, sbp.GetDof());
+         Vector du(sbp.GetDof());
+         DenseMatrix du_mat(du.GetData(), 1, sbp.GetDof());
+         Vector dudx(sbp.GetDof());
+         Vector dudy(sbp.GetDof());
+         Vector dudz(sbp.GetDof());
+         Vector du_vec(1);
+         for (int r = 0; r <= p; ++r)
+         {
+            for (int j = 0; j <= r; ++j)
+            {  
+               for (int k = 0; k <= j; ++k){
+                  int i = r - j - k;
+                  int m = j - k;
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0,k), u);
+                  polynomial3D(x, std::max<int>(0, i-1), y, std::max<int>(0,m), z, std::max<int>(0,k), dudx);
+                  dudx *= std::max<int>(0,i);
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0, m-1), z, std::max<int>(0,k), dudy);
+                  dudy *= std::max<int>(0,m);
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0, k-1), dudz);
+                  dudz *= std::max<int>(0,k);
+
+                  du *= 0.0;
+                  sbp.multWeakOperator(0, u_mat, du_mat, false);
+                  sbp.multNormMatrixInv(du_mat, du_mat);
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {
+                     REQUIRE( du(l) == Approx(dudx(l)).margin(abs_tol) );
+
+                     // Now test the application at a node
+                     sbp.multStrongOperator(0, l, u_mat, du_vec);
+                     REQUIRE( du_vec(0) == Approx(dudx(l)).margin(abs_tol) );
+                  }
+
+                  du *= 0.0;
+                  sbp.multWeakOperator(1, u_mat, du_mat, false);
+                  sbp.multNormMatrixInv(du_mat, du_mat);
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {
+                     REQUIRE( du(l) == Approx(dudy(l)).margin(abs_tol) );
+
+                     // Now test the application at a node
+                     sbp.multStrongOperator(1, l, u_mat, du_vec);
+                     REQUIRE( du_vec(0) == Approx(dudy(l)).margin(abs_tol) );
+                  }
+
+                  du *= 0.0;
+                  sbp.multWeakOperator(2, u_mat, du_mat, false);
+                  sbp.multNormMatrixInv(du_mat, du_mat);
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {
+                     REQUIRE( du(l) == Approx(dudz(l)).margin(abs_tol) );
+
+                     // Now test the application at a node
+                     sbp.multStrongOperator(2, l, u_mat, du_vec);
+                     REQUIRE( du_vec(0) == Approx(dudz(l)).margin(abs_tol) );
+                  }
+               }
+            
             }
          }
 
@@ -578,6 +658,46 @@ TEST_CASE( "Triangle SBP projection operator is accurate...", "[sbp-tri-proj]")
                for (int k = 0; k < sbp.GetDof(); ++k)
                {
                   REQUIRE( Pu(k) == Approx(0.0).margin(abs_tol) );
+               }
+            }
+         }
+
+      } // DYNAMIC SECTION
+   } // loop over p
+}
+
+TEST_CASE( "Tetrahedron SBP projection operator is accurate...", "[sbp-tet-proj]")
+{
+   int dim = 3;
+   for (int p = 0; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(new SBPCollection(p, dim));
+         const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(
+            *(fec->FiniteElementForGeometry(Geometry::TETRAHEDRON)));
+         DenseMatrix P(sbp.GetDof());
+         sbp.getProjOperator(P);
+         Vector x, y, z;
+         sbp.getNodeCoords(0, x);
+         sbp.getNodeCoords(1, y);
+         sbp.getNodeCoords(2, z);
+         Vector u(sbp.GetDof());
+         Vector Pu(sbp.GetDof());
+         for (int r = 0; r <= p; ++r)
+         {
+            for (int j = 0; j <= r; ++j)
+            {  
+               for (int k = 0; k <= j; ++k)
+               {
+                  int i = r - j - k;
+                  int m = j - k;
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0,k), u);
+                  P.Mult(u, Pu);
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {
+                     REQUIRE( Pu(l) == Approx(0.0).margin(abs_tol) );
+                  }
                }
             }
          }
@@ -743,6 +863,52 @@ TEST_CASE( "Triangle SBP multProjOperator is accurate...", "[sbp-tri-Prj]")
                {
                   REQUIRE( Pu(k) == Approx(Pu_check(k)).margin(abs_tol) );
                }
+            }
+         }
+
+      } // DYNAMIC SECTION
+   } // loop over p
+}
+
+TEST_CASE( "Tetrahedron SBP multProjOperator is accurate...", "[sbp-tet-Prj]")
+{
+   int dim = 3;
+   for (int p = 0; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         std::unique_ptr<FiniteElementCollection> fec(new SBPCollection(p, dim));
+         const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement&>(
+            *(fec->FiniteElementForGeometry(Geometry::TETRAHEDRON)));
+         DenseMatrix P(sbp.GetDof());
+         sbp.getProjOperator(P);
+         Vector x, y, z;
+         sbp.getNodeCoords(0, x);
+         sbp.getNodeCoords(1, y);
+         sbp.getNodeCoords(2, z);
+         Vector u(sbp.GetDof());
+         DenseMatrix u_mat(u.GetData(), 1, sbp.GetDof());
+         Vector Pu(sbp.GetDof());
+         DenseMatrix Pu_mat(Pu.GetData(), 1, sbp.GetDof());
+         Vector Pu_check(sbp.GetDof());
+         for (int r = 0; r <= p; ++r)
+         {
+            for (int j = 0; j <= r; ++j)
+            {  
+               for (int k = 0; k <= j; ++k)
+               {
+                  int i = r - j - k;
+                  int m = j - k;
+                  polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0,k), u);
+                  // first check the non-transposed version
+                  P.Mult(u, Pu_check);
+                  sbp.multProjOperator(u_mat, Pu_mat, false);
+                  for (int l = 0; l < sbp.GetDof(); ++l)
+                  {
+                     REQUIRE( Pu(l) == Approx(Pu_check(l)).margin(abs_tol) );
+                  }
+               }
+               
             }
          }
 

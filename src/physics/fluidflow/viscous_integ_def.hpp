@@ -276,6 +276,9 @@ double ViscousBoundaryIntegrator<Derived>::GetFaceEnergy(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3: 
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
@@ -366,6 +369,9 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(
@@ -490,6 +496,9 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(

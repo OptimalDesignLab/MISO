@@ -48,7 +48,7 @@ void setVectorFromInputs(const MachInputs &inputs,
 {
    auto input = inputs.find(key);
    if (input != inputs.end())
-   {
+   {  
       setVectorFromInput(input->second, vec, deep_copy);
    }
    else if (error_if_not_found)

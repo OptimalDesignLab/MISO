@@ -208,7 +208,7 @@ void FlowResidual<dim, entvar>::addFlowBoundaryIntegrators(
       addViscousBoundaryIntegrators(flow, space_dis, bcs);
    }
    else
-   {
+   {  
       addInviscidBoundaryIntegrators(flow, space_dis, bcs);
    }
 }

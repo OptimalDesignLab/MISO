@@ -442,6 +442,9 @@ double InviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::GetFaceEnergy())\n"
@@ -497,6 +500,9 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(
@@ -561,6 +567,9 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(
@@ -630,6 +639,9 @@ double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
@@ -698,6 +710,9 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(
@@ -770,6 +785,9 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(

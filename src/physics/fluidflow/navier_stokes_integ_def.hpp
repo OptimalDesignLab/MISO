@@ -1443,6 +1443,9 @@ double SurfaceForce<dim>::GetFaceEnergy(const mfem::FiniteElement &el_bnd,
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
@@ -1534,6 +1537,9 @@ void SurfaceForce<dim>::AssembleFaceVector(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw mach::MachException(
