@@ -139,8 +139,6 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
    REQUIRE( calcEntropyChange(res, inputs) == Approx(0.0).margin(1e-14) );
 }
 
-/*  ----------------------------------------------------------------------------------------------- */
-// 3D tests
 TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
 {
    const int dim = 3; // templating is hard here because mesh constructors
@@ -148,7 +146,7 @@ TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
    adept::Stack diff_stack;
 
    // generate a 6 element mesh and build the finite-element space
-   int num_edge = 1;
+   int num_edge = 2;
    Mesh smesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge, Element::TETRAHEDRON,
                                     1.0, 1.0, 1.0, true));
    ParMesh mesh(MPI_COMM_WORLD, smesh);
@@ -161,7 +159,6 @@ TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
    // construct the residual
    FlowResidual<dim,false> res(options, fespace, fields, diff_stack);
    int num_var = getSize(res);
-   std::cout << "num_var = " << num_var << "\n";
    REQUIRE(num_var == num_state*ndofs);
 
    // evaluate the residual using a constant state
@@ -170,7 +167,6 @@ TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
    double aoa = options["flow-param"]["aoa"].get<double>();
    for (int i = 0; i < ndofs; ++i)
    {  
-      std::cout << q.GetData()+num_state*i << "\n";
       getFreeStreamQ<double, dim>(mach, aoa, 0, 1, q.GetData()+num_state*i);
    }
    auto inputs = MachInputs({{"state", q}});
@@ -182,6 +178,6 @@ TEST_CASE("FlowResidual construction and evaluation 3D", "[FlowResidual]")
 
    // check the entropy calculation; grabs the first 4 vars from q.GetData() to
    // compute the entropy, and then scales by domain size (which is 1 unit sqrd)
-   auto total_ent = entropy<double, 2, false>(q.GetData());
+   auto total_ent = entropy<double, dim, false>(q.GetData());
    REQUIRE( calcEntropy(res, inputs) == Approx(total_ent) );
 }

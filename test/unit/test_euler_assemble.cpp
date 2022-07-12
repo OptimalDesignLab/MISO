@@ -1087,7 +1087,72 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad",
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)));
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
+            //std::cout << "jac_v(" << i << ") = " << jac_v(i) << std::endl;
+            //std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
+         }
+      }
+   } // loop different order of elements
+}
+
+TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad3D", 
+                        "[InterfaceIntegrator]",
+                       ((bool entvar), entvar), false, true)
+{
+   using namespace euler_data;
+   using namespace mfem;
+   const int dim = 3;
+   double delta = 1e-5;
+   int num_state = dim + 2;
+   adept::Stack diff_stack;
+   double diss_coeff = 1.0;
+
+   // generate a 2 element mesh
+   int num_edge = 2;
+   Mesh mesh(Mesh::MakeCartesian3D(num_edge,num_edge,num_edge,
+                                    Element::TETRAHEDRON,1.0,1.0,1.0, true));
+   const int max_degree = 1;
+   for (int p = 0; p <= max_degree; ++p)
+   {
+      DYNAMIC_SECTION("Jacobian of Interface flux (3D) w.r.t state is correct (SBP) " << p)
+      {
+         std::unique_ptr<FiniteElementCollection> fec(
+             new SBPCollection(p, dim));
+         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
+             &mesh, fec.get(), num_state, Ordering::byVDIM));
+
+         NonlinearForm res(fes.get());
+         res.AddInteriorFaceIntegrator(
+             new mach::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
+                                                        fec.get()));
+         
+         // initialize state; here we randomly perturb a constant state
+         GridFunction w(fes.get());
+         VectorFunctionCoefficient pert(num_state, randBaselineVectorPert<dim, entvar>);
+         w.ProjectCoefficient(pert);
+         
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(fes.get());
+         VectorFunctionCoefficient v_rand(num_state, randVectorState);
+         v.ProjectCoefficient(v_rand);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator &Jac = res.GetGradient(w);
+         GridFunction jac_v(fes.get());
+         Jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction w_pert(w), r(fes.get()), jac_v_fd(fes.get());
+         w_pert.Add(-delta, v);
+         res.Mult(w_pert, r);
+         w_pert.Add(2 * delta, v);
+         res.Mult(w_pert, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2 * delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-10));
             //std::cout << "jac_v(" << i << ") = " << jac_v(i) << std::endl;
             //std::cout << "jac_v_fd = " << jac_v_fd(i) << std::endl;
          }

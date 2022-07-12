@@ -713,6 +713,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       break;
    case 3:
       sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
@@ -787,6 +788,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
       break;
    case 3:
       sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
+      break;
    default:
       throw mach::MachException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
