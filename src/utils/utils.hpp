@@ -462,11 +462,12 @@ double secant(const std::function<double(double)> &func,
               double xtol,
               int maxiter);
 
-/// build the reconstruction matrix that interpolate the GD dofs to quadrature
-/// points \param[in] degree - order of reconstructio operator \param[in] x_cent
-/// - coordinates of barycenters \param[in] x_quad - coordinates of quadrature
-/// points \param[out] interp - interpolation operator \note This uses minimum
-/// norm reconstruction
+/// build the reconstruction matrix from the GD dofs to quadrature points
+/// \param[in] degree - order of reconstruction operator
+/// \param[in] x_cent - coordinates of barycenters
+/// \param[in] x_quad - coordinates of quadrature points
+/// \param[out] interp - interpolation operator
+/// \note This uses minimum norm reconstruction
 #ifdef MFEM_USE_LAPACK
 void buildInterpolation(int dim,
                         int degree,
