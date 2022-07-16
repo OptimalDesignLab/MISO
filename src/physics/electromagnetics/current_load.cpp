@@ -194,10 +194,12 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
    // scratch(0),
    load(fes.GetTrueVSize()),
    pcg(constructLinearSolver(fes.GetComm(),
-                             {{"type", "pcg"},
+                             {{"type", "gmres"},
+                              {"kdim", 500},
+                           //   {{"type", "pcg"},
                               {"reltol", 1e-12},
                               {"abstol", 1e-12},
-                              {"maxiter", 250},
+                              {"maxiter", 500},
                               {"printlevel", 2}},
                              &amg)),
    div_free_proj(h1_fes,
@@ -209,7 +211,8 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
    m_l_mesh_sens(new VectorFEMassIntegratorMeshSens),
    dirty(true)
 {
-   amg.SetPrintLevel(0);
+   // amg.SetPrintLevel(0);
+   amg.SetMaxIter(5);
    dynamic_cast<mfem::IterativeSolver &>(*pcg).SetPrintLevel(
        IterativeSolver::PrintLevel().Warnings().Errors().Iterations());
 
@@ -250,6 +253,7 @@ void CurrentLoad::assembleLoad()
    // pv.RegisterField("CurrentDensity", &j);
    // pv.Save();
 
+   // j.ProjectCoefficient(current);
    // mfem::ParaViewDataCollection paraview_dc("current_density",
    //                                          j.ParFESpace()->GetParMesh());
    // paraview_dc.SetPrefixPath("ParaView");

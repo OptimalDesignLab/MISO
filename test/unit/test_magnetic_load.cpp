@@ -63,7 +63,9 @@ TEST_CASE("MagneticLoad Value Test")
    })"_json;
    mfem::ConstantCoefficient nu(1.0); ///(M_PI*4e-7));
 
-   MagneticLoad load(diff_stack, fes, fields, options, material_library, nu);
+   MagneticLoad load_0(diff_stack, fes, fields, options, material_library, nu);
+
+   MagneticLoad load(std::move(load_0));
 
    MachInputs inputs;
    setInputs(load, inputs);

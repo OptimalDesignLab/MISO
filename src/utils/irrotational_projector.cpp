@@ -27,7 +27,8 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    pcg.SetRelTol(1e-14);
    pcg.SetAbsTol(1e-14);
    pcg.SetMaxIter(200);
-   pcg.SetPrintLevel(IterativeSolver::PrintLevel().Warnings().Errors());
+   pcg.SetKDim(200);
+   pcg.SetPrintLevel(IterativeSolver::PrintLevel().Warnings().Errors().Iterations().All());
    pcg.SetPreconditioner(amg);
 
    /// not sure if theres a better way to handle this
