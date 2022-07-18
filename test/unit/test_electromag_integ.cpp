@@ -6,6 +6,71 @@
 #include "electromag_integ.hpp"
 #include "electromag_test_data.hpp"
 
+TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   const int dim = 2;  // templating is hard here because mesh constructors
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         FunctionCoefficient A([](const mfem::Vector &x)
+         {
+            return x(0);
+         });
+         a.ProjectCoefficient(A);
+
+         NonLinearCoefficient nu;
+         // LinearCoefficient nu;
+         NonlinearForm res(&fes);
+         res.AddDomainIntegrator(new mach::NonlinearDiffusionIntegrator(nu));
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         // v.ProjectCoefficient(pert);
+         v.ProjectCoefficient(A);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(a);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         a.Add(-delta, v);
+         res.Mult(a, r);
+         a.Add(2*delta, v);
+         res.Mult(a, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6) );
+         }
+      }
+   }
+}
+
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
           "[CurlCurlNLFIntegrator]")
 {

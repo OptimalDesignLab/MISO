@@ -47,6 +47,46 @@ double calcMagneticEnergyDoubleDot(mfem::ElementTransformation &trans,
                                    StateCoefficient &nu,
                                    double B);
 
+/// Integrator for (m(u) grad u, grad v)
+class NonlinearDiffusionIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   NonlinearDiffusionIntegrator(StateCoefficient &m, double a = 1.0)
+    : model(m), alpha(a)
+   { }
+
+   /// Construct the element local residual
+   /// \param[in] el - the finite element whose residual we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state vector
+   /// \param[out] elvect - element local residual
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
+
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state vector
+   /// \param[out] elmat - element local Jacobian
+   void AssembleElementGrad(const mfem::FiniteElement &el,
+                            mfem::ElementTransformation &trans,
+                            const mfem::Vector &elfun,
+                            mfem::DenseMatrix &elmat) override;
+
+private:
+   /// material (thus mesh) dependent model describing electromagnetic behavior
+   StateCoefficient &model;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape, dshapedxt, point_flux_2_dot;
+   mfem::Vector pointflux_norm_dot;
+#endif
+};
+
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
 {

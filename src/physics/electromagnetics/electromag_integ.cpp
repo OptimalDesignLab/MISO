@@ -85,6 +85,171 @@ double calcMagneticEnergyDoubleDot(ElementTransformation &trans,
    return d2endB2;
 }
 
+void NonlinearDiffusionIntegrator::AssembleElementVector(
+    const FiniteElement &el,
+    ElementTransformation &trans,
+    const Vector &elfun,
+    Vector &elvect)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   elvect.SetSize(ndof);
+
+   int dim = el.GetDim();
+   int space_dim = trans.GetSpaceDim();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+#endif
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, space_dim);
+
+   double pointflux_buffer[3];
+   Vector pointflux(pointflux_buffer, space_dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
+
+      if (el.Space() == FunctionSpace::rQk)
+      {
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      }
+      else
+      {
+         ir = &IntRules.Get(el.GetGeomType(), order);
+      }
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double w = alpha * ip.weight / trans.Weight();
+
+      el.CalcDShape(ip, dshape);
+      Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+
+      dshapedxt.MultTranspose(elfun, pointflux);
+
+      const double pointflux_norm = pointflux.Norml2();
+      const double pointflux_mag = pointflux_norm / trans.Weight();
+
+      double model_val = model.Eval(trans, ip, pointflux_mag);
+
+      pointflux *= w * model_val;
+
+      dshapedxt.AddMult(pointflux, elvect);
+   }
+}
+
+void NonlinearDiffusionIntegrator::AssembleElementGrad(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   elmat.SetSize(ndof);
+   elmat = 0.0;
+
+   int dim = el.GetDim();
+   int space_dim = trans.GetSpaceDim();
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   DenseMatrix point_flux_2_dot;
+   Vector scratch;
+#endif
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, space_dim);
+   point_flux_2_dot.SetSize(ndof, space_dim);
+   pointflux_norm_dot.SetSize(ndof);
+
+   double pointflux_buffer[3];
+   Vector pointflux(pointflux_buffer, space_dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
+
+      if (el.Space() == FunctionSpace::rQk)
+      {
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      }
+      else
+      {
+         ir = &IntRules.Get(el.GetGeomType(), order);
+      }
+   }
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+
+      double w = alpha * ip.weight / trans_weight;
+
+      el.CalcDShape(ip, dshape);
+      Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+
+      dshapedxt.MultTranspose(elfun, pointflux);
+
+      const double pointflux_norm = pointflux.Norml2();
+
+      pointflux_norm_dot = 0.0;
+      dshapedxt.AddMult_a(1.0/pointflux_norm, pointflux, pointflux_norm_dot);
+
+      const double pointflux_mag = pointflux_norm / trans_weight;
+      pointflux_norm_dot /= trans_weight;
+
+      double model_val = model.Eval(trans, ip, pointflux_mag);
+      
+      double model_deriv = model.EvalStateDeriv(trans, ip, pointflux_mag);
+      pointflux_norm_dot *= model_deriv;
+
+      point_flux_2_dot = dshapedxt;
+      point_flux_2_dot *= model_val;
+
+      AddMultVWt(pointflux_norm_dot, pointflux, point_flux_2_dot);
+      point_flux_2_dot *= w;
+
+      AddMultABt(dshapedxt, point_flux_2_dot, elmat);
+   }
+}
+
 void CurlCurlNLFIntegrator::AssembleElementVector(const FiniteElement &el,
                                                   ElementTransformation &trans,
                                                   const Vector &elfun,
@@ -243,14 +408,14 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
       /////////////////////////////////////////////////////////////////////////
       if (abs(b_mag) > 1e-14)
       {
-         /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so
-         /// we can take outer product of result to generate matrix
+         /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix
+         /// so we can take outer product of result to generate matrix
          scratch = 0.0;
          curlshape_dFt.Mult(b_vec, scratch);
 
-         /// evaluate the derivative of the material model with respect to the
-         /// norm of the grid function associated with the model at the point
-         /// defined by ip, and scale by integration point weight
+         /// evaluate the derivative of the material model with respect to
+         /// the norm of the grid function associated with the model at the
+         /// point defined by ip, and scale by integration point weight
          double model_deriv = model.EvalStateDeriv(trans, ip, b_mag);
          model_deriv *= w;
          model_deriv /= b_mag;
@@ -667,9 +832,8 @@ void MagnetizationIntegrator::AssembleElementGrad(
       if (abs(b_mag) > 1e-14)
       {
          /// TODO - is this thread safe?
-         /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix so
-we
-         /// can take outer product of result to generate matrix
+         /// calculate curl(N_i) dot curl(A), need to store in a DenseMatrix
+         /// so we can take outer product of result to generate matrix
          temp_vec = 0.0;
          curlshape_dFt.Mult(b_vec, temp_vec);
          DenseMatrix temp_matrix(temp_vec.GetData(), ndof, 1);
@@ -681,8 +845,8 @@ we
          curlshape_dFt.Mult(mag_vec, temp_vec2);
          DenseMatrix temp_matrix2(temp_vec2.GetData(), ndof, 1);
 
-         /// evaluate the derivative of the material model with respect to the
-         /// norm of the grid function associated with the model at the point
+         /// evaluate the derivative of the material model with respect to
+         /// the norm of the grid function associated with the model at the point
          /// defined by ip, and scale by integration point weight
          double nu_deriv = nu->EvalStateDeriv(trans, ip, b_mag);
          nu_deriv *= w;
@@ -1716,8 +1880,8 @@ double MagneticCoenergyIntegrator::FDintegrateBH(
 
    double fd_val;
    fd_val = integrateBH(ir, trans, old_ip, lower_bound, upper_bound + delta);
-   fd_val -= integrateBH(ir, trans, old_ip, lower_bound, upper_bound - delta);
-   return fd_val / (2*delta);
+   fd_val -= integrateBH(ir, trans, old_ip, lower_bound, upper_bound -
+delta); return fd_val / (2*delta);
 }
 
 double MagneticCoenergyIntegrator::RevADintegrateBH(
@@ -1748,8 +1912,8 @@ double MagneticCoenergyIntegrator::RevADintegrateBH(
       double xi = ip.x * (upper_bound - lower_bound);
       // qp_en += ip.weight * xi / nu->Eval(trans, old_ip, xi);
       double xi_bar = qp_en_bar * ip.weight / nu->Eval(trans, old_ip, xi);
-      xi_bar -= (qp_en_bar * ip.weight * xi * nu->EvalStateDeriv(trans, old_ip,
-xi) / pow(nu->Eval(trans, old_ip, xi), 2.0));
+      xi_bar -= (qp_en_bar * ip.weight * xi * nu->EvalStateDeriv(trans,
+old_ip, xi) / pow(nu->Eval(trans, old_ip, xi), 2.0));
       // double xi = ip.x * (upper_bound - lower_bound);
       upper_bound_bar += ip.x*xi_bar;
    }
@@ -2473,7 +2637,8 @@ void nuBNormdJdx::AssembleRHSElementVect(const FiniteElement &mesh_el,
       //    isotrans.WeightRevDiff(PointMat_bar);
       //    PointMat_bar *= weight_bar;
       //    // This is out of order because WeightRevDiff needs to scale
-      //    PointMat_bar first isotrans.JacobianRevDiff(Jac_bar, PointMat_bar);
+      //    PointMat_bar first isotrans.JacobianRevDiff(Jac_bar,
+      //    PointMat_bar);
       //    // code to insert PointMat_bar into elvect;
 
       for (int j = 0; j < ndof; ++j)
@@ -2707,7 +2872,8 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
-// void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
+// void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs
+// &inputs)
 // {
 //    setValueFromInputs(inputs, "rms_current", integ.rms_current);
 // }
@@ -3332,7 +3498,8 @@ void ForceIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
       double dBds_bar = force_bar * energy_dot;
       double energy_dot_bar = force_bar * dBds;
 
-      /// const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      /// const double energy_dot = calcMagneticEnergyDot(trans, ip, nu,
+      /// b_mag);
       auto energy_double_dot =
           calcMagneticEnergyDoubleDot(trans, ip, nu, b_mag);
       b_mag_bar += energy_dot_bar * energy_double_dot;
@@ -3590,7 +3757,8 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
       double energy_dot_bar = force_bar * dBds;
       // double dBds_bar = force_bar;
 
-      /// const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      /// const double energy_dot = calcMagneticEnergyDot(trans, ip, nu,
+      /// b_mag);
       auto energy_double_dot =
           calcMagneticEnergyDoubleDot(trans, ip, nu, b_mag);
       b_mag_bar += energy_dot_bar * energy_double_dot;
@@ -3666,8 +3834,8 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
 
       /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
       DenseMatrix curlshape_dFt_bar(
-          dimc, el_ndof);  // transposed dimensions of curlshape_dFt so I don't
-                           // have to transpose J later
+          dimc, el_ndof);  // transposed dimensions of curlshape_dFt so I
+                           // don't have to transpose J later
       MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
       /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
