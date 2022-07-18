@@ -230,13 +230,13 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
       const double pointflux_norm = pointflux.Norml2();
 
       pointflux_norm_dot = 0.0;
-      dshapedxt.AddMult_a(1.0/pointflux_norm, pointflux, pointflux_norm_dot);
+      dshapedxt.AddMult_a(1.0 / pointflux_norm, pointflux, pointflux_norm_dot);
 
       const double pointflux_mag = pointflux_norm / trans_weight;
       pointflux_norm_dot /= trans_weight;
 
       double model_val = model.Eval(trans, ip, pointflux_mag);
-      
+
       double model_deriv = model.EvalStateDeriv(trans, ip, pointflux_mag);
       pointflux_norm_dot *= model_deriv;
 
@@ -846,7 +846,8 @@ void MagnetizationIntegrator::AssembleElementGrad(
          DenseMatrix temp_matrix2(temp_vec2.GetData(), ndof, 1);
 
          /// evaluate the derivative of the material model with respect to
-         /// the norm of the grid function associated with the model at the point
+         /// the norm of the grid function associated with the model at the
+point
          /// defined by ip, and scale by integration point weight
          double nu_deriv = nu->EvalStateDeriv(trans, ip, b_mag);
          nu_deriv *= w;
