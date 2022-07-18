@@ -2,6 +2,8 @@
 #include <string>
 
 #include "adept.h"
+#include "electromag_integ.hpp"
+#include "mach_linearform.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -9,6 +11,7 @@
 #include "magnetostatic_load.hpp"
 
 #include "magnetostatic_residual.hpp"
+#include "utils.hpp"
 
 namespace
 {
@@ -16,10 +19,21 @@ std::unique_ptr<mfem::Solver> constructPreconditioner(
     mfem::ParFiniteElementSpace &fes,
     const nlohmann::json &prec_options)
 {
-   auto ams = std::make_unique<mfem::HypreAMS>(&fes);
-   ams->SetPrintLevel(prec_options["printlevel"].get<int>());
-   ams->SetSingularProblem();
-   return ams;
+   auto prec_type = prec_options["type"].get<std::string>();
+   if (prec_type == "hypreams")
+   {
+      auto ams = std::make_unique<mfem::HypreAMS>(&fes);
+      ams->SetPrintLevel(prec_options["printlevel"].get<int>());
+      ams->SetSingularProblem();
+      return ams;
+   }
+   else if (prec_type == "hypreboomeramg")
+   {
+      auto amg = std::make_unique<mfem::HypreBoomerAMG>();
+      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
+      return amg;
+   }
+   return nullptr;
 }
 
 }  // namespace
@@ -34,13 +48,13 @@ int getSize(const MagnetostaticResidual &residual)
 void setInputs(MagnetostaticResidual &residual, const mach::MachInputs &inputs)
 {
    setInputs(residual.res, inputs);
-   setInputs(residual.load, inputs);
+   setInputs(*residual.load, inputs);
 }
 
 void setOptions(MagnetostaticResidual &residual, const nlohmann::json &options)
 {
    setOptions(residual.res, options);
-   setOptions(residual.load, options);
+   setOptions(*residual.load, options);
 }
 
 void evaluate(MagnetostaticResidual &residual,
@@ -48,8 +62,8 @@ void evaluate(MagnetostaticResidual &residual,
               mfem::Vector &res_vec)
 {
    evaluate(residual.res, inputs, res_vec);
-   setInputs(residual.load, inputs);
-   addLoad(residual.load, res_vec);
+   setInputs(*residual.load, inputs);
+   addLoad(*residual.load, res_vec);
 
    // mfem::Vector state;
    // setVectorFromInputs(inputs, "state", state);
@@ -93,7 +107,7 @@ double jacobianVectorProduct(MagnetostaticResidual &residual,
                              const std::string &wrt)
 {
    auto res_dot = jacobianVectorProduct(residual.res, wrt_dot, wrt);
-   res_dot += jacobianVectorProduct(residual.load, wrt_dot, wrt);
+   res_dot += jacobianVectorProduct(*residual.load, wrt_dot, wrt);
    return res_dot;
 }
 
@@ -103,7 +117,7 @@ void jacobianVectorProduct(MagnetostaticResidual &residual,
                            mfem::Vector &res_dot)
 {
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
-   jacobianVectorProduct(residual.load, wrt_dot, wrt, res_dot);
+   jacobianVectorProduct(*residual.load, wrt_dot, wrt, res_dot);
 }
 
 double vectorJacobianProduct(MagnetostaticResidual &residual,
@@ -111,7 +125,7 @@ double vectorJacobianProduct(MagnetostaticResidual &residual,
                              const std::string &wrt)
 {
    auto wrt_bar = vectorJacobianProduct(residual.res, res_bar, wrt);
-   wrt_bar += vectorJacobianProduct(residual.load, res_bar, wrt);
+   wrt_bar += vectorJacobianProduct(*residual.load, res_bar, wrt);
    return wrt_bar;
 }
 
@@ -121,7 +135,7 @@ void vectorJacobianProduct(MagnetostaticResidual &residual,
                            mfem::Vector &wrt_bar)
 {
    vectorJacobianProduct(residual.res, res_bar, wrt, wrt_bar);
-   vectorJacobianProduct(residual.load, res_bar, wrt, wrt_bar);
+   vectorJacobianProduct(*residual.load, res_bar, wrt, wrt_bar);
 }
 
 mfem::Solver *getPreconditioner(MagnetostaticResidual &residual)
@@ -137,10 +151,34 @@ MagnetostaticResidual::MagnetostaticResidual(
     const nlohmann::json &materials,
     StateCoefficient &nu)
  : res(fes, fields),
-   load(diff_stack, fes, fields, options, materials, nu),
+   // load(diff_stack, fes, fields, options, materials, nu),
    prec(constructPreconditioner(fes, options["lin-prec"]))
 {
-   res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
+   auto *mesh = fes.GetParMesh();
+   auto space_dim = mesh->SpaceDimension();
+   if (space_dim == 3)
+   {
+      res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
+      load = std::make_unique<MachLoad>(
+          MagnetostaticLoad(diff_stack, fes, fields, options, materials, nu));
+   }
+   else if (space_dim == 2)
+   {
+      res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
+
+      MachLinearForm linear_form(fes, fields);
+      current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
+          diff_stack, options["current"]);
+      linear_form.addDomainIntegrator(
+          new mfem::DomainLFIntegrator(*current_coeff));
+
+      load = std::make_unique<MachLoad>(std::move(linear_form));
+   }
+   else
+   {
+      throw MachException(
+          "Invalid mesh dimension for Magnetostatic Residual!\n");
+   }
 }
 
 }  // namespace mach

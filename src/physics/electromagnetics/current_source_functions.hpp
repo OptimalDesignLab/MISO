@@ -56,6 +56,46 @@ private:
    std::map<std::string, double> cached_inputs;
 };
 
+class CurrentDensityCoefficient2D : public mfem::Coefficient
+{
+public:
+   /// Cache the currently set current density values for each current group
+   void cacheCurrentDensity();
+   /// Set the current density for each current group to zero
+   void zeroCurrentDensity();
+   /// Reset the current density for each current group to the values stored
+   /// in the cache
+   /// \note If values have not previously been cached, defaults to zero
+   void resetCurrentDensityFromCache();
+
+   /// Variation on setInputs that returns true if any inputs were actually
+   /// updated
+   friend bool setInputs(CurrentDensityCoefficient2D &current,
+                         const MachInputs &inputs);
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override;
+
+   CurrentDensityCoefficient2D(adept::Stack &diff_stack,
+                               const nlohmann::json &current_options);
+
+private:
+   /// The underlying coefficient that does all the heavy lifting
+   MeshDependentCoefficient current_coeff;
+   /// Map that holds coefficients for each current group so that the scalar
+   /// input may be set for each group
+   std::map<std::string, mfem::ConstantCoefficient> group_map;
+   /// Map that owns all of the underlying source coefficients
+   std::map<int, mfem::FunctionCoefficient> source_coeffs;
+   /// Inputs to be passed by reference to source-wrapping lambdas
+   std::map<std::string, double> cached_inputs;
+};
+
 // /// Construct vector coefficient that describes the current source direction
 // /// \param[in] options - JSON options dictionary that maps mesh element
 // /// attributes to known current source functions

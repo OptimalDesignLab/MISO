@@ -3,9 +3,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "adept.h"
+#include "mach_load.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -80,7 +82,10 @@ private:
    /// Nonlinear form that handles the curl curl term of the weak form
    MachNonlinearForm res;
    /// Load vector for current and magnetic sources
-   MagnetostaticLoad load;
+   // MagnetostaticLoad load;
+   std::unique_ptr<MachLoad> load;
+   std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
 };

@@ -32,7 +32,7 @@ auto options = R"(
    },
    "lin-solver": {
       "type": "minres",
-      "printlevel": 0,
+      "printlevel": 1,
       "maxiter": 100,
       "abstol": 1e-14,
       "reltol": 1e-14
@@ -43,7 +43,7 @@ auto options = R"(
    },
    "nonlin-solver": {
       "type": "newton",
-      "printlevel": 3,
+      "printlevel": 1,
       "maxiter": 15,
       "reltol": 1e-10,
       "abstol": 1e-9
@@ -110,10 +110,10 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 1; ++order)
+   for (int order = 1; order <= 4; ++order)
    {
       options["space-dis"]["degree"] = order;
-      int nxy = 4;
+      int nxy = 1;
       for (int ref = 1; ref <= 1; ++ref)
       {  
          nxy *= 2;
@@ -127,24 +127,34 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
 
             /// Set initial/boundary conditions
             solver.setState(aexact, state_tv);
+
+            /// Log initial condition
+            ParaViewLogger logger_init("2d_magnetostatic_initND", &state.mesh());
+            logger_init.registerField("state", state.gridFunc());
+            logger_init.saveState(state_tv, "state", 0, 0.0, 0);
+
             solver.solveForState(state_tv);
+
+            ParaViewLogger logger("2d_magnetostaticND", &state.mesh());
+            logger.registerField("state", state.gridFunc());
+            logger.saveState(state_tv, "state", 0, 0.0, 0);
 
             /// Compute state error and check against target error
             double error = solver.calcStateError(aexact, state_tv);
             std::cout.precision(10);
             std::cout << "error: " << error << "\n";
-            // REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
+            REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
 
             /// Calculate the magnetic energy and check against target energy
             solver.createOutput("energy");
             MachInputs inputs{{"state", state_tv}};
             double energy = solver.calcOutput("energy", inputs);
             std::cout << "energy: " << energy << "\n";
-            // REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
+            REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
 
-            solver.solveForState({{"current_density:box", 2.0}}, state_tv);
-            solver.solveForState({{"current_density:box", 3.0}}, state_tv);
-            solver.solveForState({{"current_density:box", 4.0}}, state_tv);
+            // solver.solveForState({{"current_density:box", 2.0}}, state_tv);
+            // solver.solveForState({{"current_density:box", 3.0}}, state_tv);
+            // solver.solveForState({{"current_density:box", 4.0}}, state_tv);
          }
       }
    }

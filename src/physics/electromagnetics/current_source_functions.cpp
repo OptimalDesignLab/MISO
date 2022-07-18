@@ -211,6 +211,24 @@ void box2_current(const xdouble *x, xdouble *J)
    J[2] = 6 * y;
 }
 
+template <typename xdouble = double>
+xdouble box1_current2D(const xdouble *x)
+{
+   auto y = x[1] - .5;
+
+   // J[2] = -current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   return -6 * y;
+}
+
+template <typename xdouble = double>
+xdouble box2_current2D(const xdouble *x)
+{
+   auto y = x[1] - .5;
+
+   // J[2] = current_density*6*y*(1/(M_PI*4e-7)); // for real scaled problem
+   return 6 * y;
+}
+
 /// function to get the sign of a number
 template <typename T>
 int sgn(T val)
@@ -534,6 +552,61 @@ void box2CurrentSourceRevDiff(adept::Stack &diff_stack,
    // calculate the jacobian w.r.t state vaiables
    diff_stack.jacobian(source_jac.GetData());
    source_jac.MultTranspose(V_bar, x_bar);
+}
+
+double box1CurrentSource2D(const mfem::Vector &x)
+{
+   return box1_current2D(x.GetData());
+}
+
+void box1CurrentSource2DRevDiff(adept::Stack &diff_stack,
+                                const mfem::Vector &x,
+                                const double &J_bar,
+                                mfem::Vector &x_bar)
+{
+   // mfem::DenseMatrix source_jac(3);
+   // // declare vectors of active input variables
+   // std::vector<adouble> x_a(x.Size());
+   // // copy data from mfem::Vector
+   // adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // // start recording
+   // diff_stack.new_recording();
+   // // the depedent variable must be declared after the recording
+   // std::vector<adouble> J_a(x.Size());
+   // box1_current<adouble>(x_a.data(), J_a.data());
+   // // set the independent and dependent variable
+   // diff_stack.independent(x_a.data(), x.Size());
+   // diff_stack.dependent(J_a.data(), x.Size());
+   // // calculate the jacobian w.r.t state vaiables
+   // diff_stack.jacobian(source_jac.GetData());
+   // source_jac.MultTranspose(V_bar, x_bar);
+}
+
+double box2CurrentSource2D(const mfem::Vector &x)
+{
+   return box2_current2D(x.GetData());
+}
+
+void box2CurrentSource2DRevDiff(adept::Stack &diff_stack,
+                                const mfem::Vector &x,
+                                const double &J_bar,
+                                mfem::Vector &x_bar)
+{
+   // mfem::DenseMatrix source_jac(3);
+   // // declare vectors of active input variables
+   // std::vector<adouble> x_a(x.Size());
+   // // copy data from mfem::Vector
+   // adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // // start recording
+   // diff_stack.new_recording();
+   // // the depedent variable must be declared after the recording
+   // adouble J_a = box2_current2D<adouble>(x_a.data());
+   // // set the independent and dependent variable
+   // diff_stack.independent(x_a.data(), x.Size());
+   // diff_stack.dependent(J_a);
+   // // calculate the jacobian w.r.t state vaiables
+   // diff_stack.jacobian(source_jac.GetData());
+   // source_jac.MultTranspose(V_bar, x_bar);
 }
 
 void team13CurrentSource(const mfem::Vector &x, mfem::Vector &J)
@@ -897,6 +970,170 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
                    attr,
                    std::make_unique<mfem::ScalarVectorProductCoefficient>(
                        group_coeff, source_coeff));
+            }
+         }
+      }
+   }
+}
+
+void CurrentDensityCoefficient2D::cacheCurrentDensity()
+{
+   for (auto &[group, coeff] : group_map)
+   {
+      cached_inputs.at(group) = coeff.constant;
+   }
+}
+
+void CurrentDensityCoefficient2D::zeroCurrentDensity()
+{
+   for (auto &[group, coeff] : group_map)
+   {
+      coeff.constant = 0.0;
+   }
+}
+
+void CurrentDensityCoefficient2D::resetCurrentDensityFromCache()
+{
+   for (auto &[group, value] : cached_inputs)
+   {
+      group_map.at(group).constant = value;
+   }
+}
+
+bool setInputs(CurrentDensityCoefficient2D &current, const MachInputs &inputs)
+{
+   bool updated = false;
+   for (auto &[group, coeff] : current.group_map)
+   {
+      auto old_const = coeff.constant;
+      std::string cd_group_id = "current_density:" + group;
+      setValueFromInputs(inputs, cd_group_id, coeff.constant);
+      if (coeff.constant != old_const)
+      {
+         updated = true;
+      }
+   }
+
+   for (auto &[input, value] : current.cached_inputs)
+   {
+      auto old_value = value;
+      setValueFromInputs(inputs, input, value);
+      if (value != old_value)
+      {
+         updated = true;
+      }
+   }
+   return updated;
+}
+
+double CurrentDensityCoefficient2D::Eval(mfem::ElementTransformation &trans,
+                                         const mfem::IntegrationPoint &ip)
+{
+   return -1.0 * current_coeff.Eval(trans, ip);
+}
+
+void CurrentDensityCoefficient2D::EvalRevDiff(
+    double Q_bar,
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    mfem::DenseMatrix &PointMat_bar)
+{
+   Q_bar *= 1.0;
+   current_coeff.EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+}
+
+CurrentDensityCoefficient2D::CurrentDensityCoefficient2D(
+    adept::Stack &diff_stack,
+    const nlohmann::json &current_options)
+{
+   for (auto &[group, group_details] : current_options.items())
+   {
+      group_map.emplace(group, mfem::ConstantCoefficient{1.0});
+      auto &group_coeff = group_map.at(group);
+
+      cached_inputs.emplace(group, 0.0);
+
+      for (auto &[source, attrs] : group_details.items())
+      {
+         if (source == "z")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(
+                   attr,
+                   mfem::FunctionCoefficient([](const mfem::Vector &x)
+                                             { return 1.0; },
+                                             [](const mfem::Vector &x,
+                                                const double Q_bar,
+                                                mfem::Vector &x_bar) {}));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ProductCoefficient>(group_coeff,
+                                                              source_coeff));
+            }
+         }
+         else if (source == "-z")
+         {
+            for (auto &attr : attrs)
+            {
+               // source_coeffs.emplace(attr, mfem::FunctionCoefficient(-1.0));
+               source_coeffs.emplace(
+                   attr,
+                   mfem::FunctionCoefficient([](const mfem::Vector &)
+                                             { return -1.0; },
+                                             [](const mfem::Vector &x,
+                                                const double Q_bar,
+                                                mfem::Vector &x_bar) {}));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ProductCoefficient>(group_coeff,
+                                                              source_coeff));
+            }
+         }
+         else if (source == "box1")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(attr,
+                                     mfem::FunctionCoefficient(
+                                         box1CurrentSource2D,
+                                         [&diff_stack](const mfem::Vector &x,
+                                                       const double &J_bar,
+                                                       mfem::Vector &x_bar) {
+                                            box1CurrentSource2DRevDiff(
+                                                diff_stack, x, J_bar, x_bar);
+                                         }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ProductCoefficient>(group_coeff,
+                                                              source_coeff));
+            }
+         }
+         else if (source == "box2")
+         {
+            for (auto &attr : attrs)
+            {
+               source_coeffs.emplace(attr,
+                                     mfem::FunctionCoefficient(
+                                         box2CurrentSource2D,
+                                         [&diff_stack](const mfem::Vector &x,
+                                                       const double &J_bar,
+                                                       mfem::Vector &x_bar) {
+                                            box2CurrentSource2DRevDiff(
+                                                diff_stack, x, J_bar, x_bar);
+                                         }));
+               auto &source_coeff = source_coeffs.at(attr);
+
+               current_coeff.addCoefficient(
+                   attr,
+                   std::make_unique<mfem::ProductCoefficient>(group_coeff,
+                                                              source_coeff));
             }
          }
       }
