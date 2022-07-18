@@ -33,21 +33,13 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
          FunctionCoefficient pert(randState);
          a.ProjectCoefficient(pert);
 
-         FunctionCoefficient A([](const mfem::Vector &x)
-         {
-            return x(0);
-         });
-         a.ProjectCoefficient(A);
-
          NonLinearCoefficient nu;
-         // LinearCoefficient nu;
          NonlinearForm res(&fes);
          res.AddDomainIntegrator(new mach::NonlinearDiffusionIntegrator(nu));
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(&fes);
-         // v.ProjectCoefficient(pert);
-         v.ProjectCoefficient(A);
+         v.ProjectCoefficient(pert);
 
          // evaluate the Jacobian and compute its product with v
          Operator& jac = res.GetGradient(a);
@@ -65,7 +57,7 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
 
          for (int i = 0; i < jac_v.Size(); ++i)
          {
-            REQUIRE( jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6) );
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
          }
       }
    }
