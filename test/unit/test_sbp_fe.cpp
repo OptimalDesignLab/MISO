@@ -221,7 +221,7 @@ TEST_CASE( "Triangle DSBP difference operator is accurate...", "[dsbp-tri-D]")
    } // loop over p
 }
 
-TEST_CASE( "Tetrahedron SBP different operator is accurate...", "sbp-tet-D" )
+TEST_CASE( "Tetrahedron SBP difference operator is accurate...", "sbp-tet-D" )
 {
    int dim = 3;
    for (int p = 0; p <= 1; p++)

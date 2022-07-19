@@ -262,7 +262,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
 }
 
 TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian", "[Ismail-face]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    // copy the data into mfem vectors for convenience
@@ -347,7 +347,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian", "[Ismail-face]",
 }
 
 TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian based on entropy variables", "[Ismail-face-ent]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    // copy the data into mfem vectors for convenience
@@ -1020,6 +1020,131 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    }
 }
 
+TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians 3D", "[Slip Wall]",
+                       ((bool entvar), entvar), false, true)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   const int dim = 3;
+   double delta = 1e-5;
+   mfem::Vector nrm(dim);
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mfem::Vector q(dim + 2), w(dim + 2);
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+
+   // dummy const vector x for calcFlux - unused
+   const mfem::Vector x(nrm);
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   adept::Stack diff_stack;
+
+   // state is either w or q depending of entvar
+   mfem::Vector state(dim+2);
+   if constexpr(entvar)
+   {
+      state.SetDataAndSize(w.GetData(), dim+2);
+   }
+   else
+   {
+      state.SetDataAndSize(q.GetData(), dim+2);
+   }
+
+   for (int p = 0; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION("Jacobian of slip wall flux w.r.t state failed for degree p = " << p)
+      {
+         // Define the SBP elements and finite-element space
+         fec.reset(new mfem::SBPCollection(p, dim));
+         mach::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
+         // create the perturbation vector
+         mfem::Vector v(dim + 2);
+         for (int i = 0; i < dim + 2; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+
+         // get derivative information from AD functions and form product
+         mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
+         mfem::Vector jac_v_ad(dim + 2);
+         slip_wall.calcFluxJacState(x, nrm, state, jac_ad);
+         jac_ad.Mult(v, jac_v_ad);
+
+         // FD approximation
+         mfem::Vector state_plus(state);
+         mfem::Vector state_minus(state);
+         state_plus.Add(delta, v);
+         state_minus.Add(-delta, v);
+
+         mfem::Vector flux_plus(dim + 2);
+         mfem::Vector flux_minus(dim + 2);
+         slip_wall.calcFlux(x, nrm, state_plus, flux_plus);
+         slip_wall.calcFlux(x, nrm, state_minus, flux_minus);
+
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(dim + 2);
+         subtract(flux_plus, flux_minus, jac_v_fd);
+         jac_v_fd /= 2 * delta;
+
+         // compare
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
+         }
+      }
+
+      DYNAMIC_SECTION("Jacobian of slip wall flux w.r.t dir failed for degree p = " << p)
+      {
+         // Define the SBP elements and finite-element space
+         fec.reset(new mfem::SBPCollection(p, dim));
+         mach::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
+         // create the perturbation vector
+         mfem::Vector v(dim);
+         for (int i = 0; i < dim; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+
+         // get derivative information from AD functions and form product
+         mfem::DenseMatrix jac_ad(dim + 2, dim);
+         mfem::Vector jac_v_ad(dim + 2);
+         slip_wall.calcFluxJacDir(x, nrm, state, jac_ad);
+         jac_ad.Mult(v, jac_v_ad);
+
+         // FD approximation
+         mfem::Vector nrm_plus(nrm);
+         mfem::Vector nrm_minus(nrm);
+         nrm_plus.Add(delta, v);
+         nrm_minus.Add(-delta, v);
+
+         mfem::Vector flux_plus(dim + 2);
+         mfem::Vector flux_minus(dim + 2);
+         slip_wall.calcFlux(x, nrm_plus, state, flux_plus);
+         slip_wall.calcFlux(x, nrm_minus, state, flux_minus);
+
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(dim + 2);
+         subtract(flux_plus, flux_minus, jac_v_fd);
+         jac_v_fd /= 2 * delta;
+
+         // compare
+         for (int i = 0; i < dim; ++i)
+         {
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
+         }
+      }
+   }
+}
+
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
 TEMPLATE_TEST_CASE_SIG("EC Boundary Flux Jacobians", "[EC-Boundary]",
                        ((bool entvar), entvar), false, true)
@@ -1123,9 +1248,115 @@ TEMPLATE_TEST_CASE_SIG("EC Boundary Flux Jacobians", "[EC-Boundary]",
 
 }
 
+TEMPLATE_TEST_CASE_SIG("EC Boundary Flux Jacobians 3D", "[EC-Boundary]",
+                       ((bool entvar), entvar), false, true)
+{
+   using namespace euler_data;
+   // copy the data into mfem vectors for convenience
+   const int dim = 3;
+   double delta = 1e-5;
+   mfem::Vector nrm(dim);
+   for (int di = 0; di < dim; ++di)
+   {
+      nrm(di) = dir[di];
+   }
+   mfem::Vector q(dim + 2), w(dim + 2);
+   q(0) = rho;
+   q(dim + 1) = rhoe;
+   for (int di = 0; di < dim; ++di)
+   {
+      q(di + 1) = rhou[di];
+   }
+   mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+
+   // use nrm for x position, and get random time
+   const mfem::Vector x(nrm); 
+   std::default_random_engine gen(std::random_device{}());
+   std::uniform_real_distribution<double> uniform_rand(0.0, 1.0);
+   double time = uniform_rand(gen);
+
+   /// finite element or SBP operators
+   std::unique_ptr<mfem::FiniteElementCollection> fec;
+   adept::Stack diff_stack;
+
+   // state is either w or q depending of entvar
+   mfem::Vector state(dim+2);
+   if constexpr(entvar)
+   {
+      state.SetDataAndSize(w.GetData(), dim+2);
+   }
+   else
+   {
+      state.SetDataAndSize(q.GetData(), dim+2);
+   }
+
+   // define the boundary condition state function
+   auto bnd_state = [](double t, const mfem::Vector &x, mfem::Vector &q)
+   {
+      double uL = 0.05;
+      double xL = uL*(1.0 - cos(t));
+      q[0] = 1.0/(1.0 - xL);
+      q[1] = q[0]*uL*cos(t);
+      q[2] = q[0]*uL*sin(t);
+      q[3] = 0.0;
+      double press = pow(q[0], mach::euler::gamma);
+      q[4] = press/mach::euler::gami + 0.5*q[1]*q[1]/q[0];
+   };
+
+   for (int p = 0; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION("Jacobian of ent. cons. boundary flux w.r.t state failed for degree p = " << p)
+      {
+         // Define the SBP elements and finite-element space
+         fec.reset(new mfem::SBPCollection(p, dim));
+         mach::EntropyConserveBC<dim, entvar> ec_bc(diff_stack, fec.get(), 
+                                                   bnd_state);
+         // create the perturbation vector
+         mfem::Vector v(dim + 2);
+         for (int i = 0; i < dim + 2; i++)
+         {
+            v(i) = vec_pert[i];
+         }
+
+         // set the time 
+         auto inputs = mach::MachInputs({{"time", time}});
+         setInputs(ec_bc, inputs);
+
+         // get derivative information from AD functions and form product
+         mfem::DenseMatrix jac_ad(dim + 2, dim + 2);
+         mfem::Vector jac_v_ad(dim + 2);
+         ec_bc.calcFluxJacState(x, nrm, state, jac_ad);
+         jac_ad.Mult(v, jac_v_ad);
+
+         // FD approximation
+         mfem::Vector state_plus(state);
+         mfem::Vector state_minus(state);
+         state_plus.Add(delta, v);
+         state_minus.Add(-delta, v);
+
+         mfem::Vector flux_plus(dim + 2);
+         mfem::Vector flux_minus(dim + 2);
+         ec_bc.calcFlux(x, nrm, state_plus, flux_plus);
+         ec_bc.calcFlux(x, nrm, state_minus, flux_minus);
+
+         // finite difference jacobian
+         mfem::Vector jac_v_fd(dim + 2);
+         subtract(flux_plus, flux_minus, jac_v_fd);
+         jac_v_fd /= 2 * delta;
+
+         // compare
+         for (int i = 0; i < dim + 2; ++i)
+         {
+            REQUIRE(jac_v_ad(i) == Approx(jac_v_fd(i)).margin(1e-10));
+         }
+      }      
+   }
+
+}
+
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
 TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    // copy the data into mfem vectors for convenience

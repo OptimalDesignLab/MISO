@@ -1234,19 +1234,19 @@ SBPCollection::SBPCollection(const int p, const int dim)
       const int TriNodes = SBPdof[Geometry::TRIANGLE];
       if (p >=1)
       {
-          TriDofOrd[0] = new int[6*TriNodes];
+         TriDofOrd[0] = new int[6*TriNodes];
          for (int i = 1; i < 6; ++i)
          {
             TriDofOrd[i] = TriDofOrd[i-1] + TriNodes;
          }
          if (p==1)
          {
-            TriDofOrd[0][0] = 0;
-            TriDofOrd[1][0] = 0;
-            TriDofOrd[2][0] = 0;
-            TriDofOrd[3][0] = 0;
-            TriDofOrd[4][0] = 0;
-            TriDofOrd[5][0] = 0;            
+            TriDofOrd[0][0] = {0};
+            TriDofOrd[1][0] = {0};
+            TriDofOrd[2][0] = {0};
+            TriDofOrd[3][0] = {0};
+            TriDofOrd[4][0] = {0};
+            TriDofOrd[5][0] = {0};            
          }
       }
 
