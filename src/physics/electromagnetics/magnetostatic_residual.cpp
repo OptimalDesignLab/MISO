@@ -167,10 +167,23 @@ MagnetostaticResidual::MagnetostaticResidual(
       res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
 
       MachLinearForm linear_form(fes, fields);
-      current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
-          diff_stack, options["current"]);
-      linear_form.addDomainIntegrator(
-          new mfem::DomainLFIntegrator(*current_coeff));
+      if (options.contains("current"))
+      {
+         current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
+             diff_stack, options["current"]);
+         linear_form.addDomainIntegrator(
+             new mfem::DomainLFIntegrator(*current_coeff));
+      }
+      if (options.contains("magnets"))
+      {
+         mag_coeff = std::make_unique<MagnetizationCoefficient>(
+             diff_stack, options["magnets"], materials, 2);
+         nuM = std::make_unique<mfem::ScalarVectorProductCoefficient>(
+             nu, *mag_coeff);
+
+         linear_form.addDomainIntegrator(
+             new MagnetizationSource2DIntegrator(*nuM, 1.0));
+      }
 
       load = std::make_unique<MachLoad>(std::move(linear_form));
    }

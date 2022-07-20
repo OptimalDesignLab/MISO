@@ -86,6 +86,10 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
    nonlinear_solver =
        mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*spatial_res);
+
+   mach::ParaViewLogger paraview("magnetostatic", &mesh());
+   paraview.registerField("state", fields.at("state").gridFunc());
+   addLogger(std::move(paraview), {});
 }
 
 void MagnetostaticSolver::addOutput(const std::string &fun,

@@ -87,6 +87,30 @@ private:
 #endif
 };
 
+class MagnetizationSource2DIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   MagnetizationSource2DIntegrator(mfem::VectorCoefficient &M,
+                                   double alpha = 1.0)
+    : M(M), alpha(alpha)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
+
+private:
+   /// vector coefficient from linear form
+   mfem::VectorCoefficient &M;
+   /// scaling term if the linear form has a negative sign in the residual
+   const double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape, dshapedxt;
+   mfem::Vector scratch;
+#endif
+};
+
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator
 {

@@ -1,4 +1,4 @@
-#include <iomanip>
+#include <memory>
 
 #include "mach_input.hpp"
 
@@ -784,6 +784,65 @@ public:
    }
 };
 
+class CurlMagnitudeOperator2D : public mach::L2TransferOperation
+{
+public:
+   void apply(const mfem::FiniteElement &state_fe,
+              const mfem::FiniteElement &output_fe,
+              mfem::ElementTransformation &trans,
+              const mfem::Vector &el_state,
+              mfem::Vector &el_output) const override
+   {
+      int state_dof = state_fe.GetDof();
+
+      int el_dim = state_fe.GetDim();
+      int space_dim = trans.GetSpaceDim();
+      int curl_dim = space_dim;
+
+      mfem::DenseMatrix dshape(state_dof, el_dim);
+      mfem::DenseMatrix dshapedxt(state_dof, space_dim);
+      mfem::DenseMatrix curlshape(state_dof, curl_dim);
+
+      double curl_vec_buffer[3];
+      mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
+
+      const auto &ir = output_fe.GetNodes();
+      for (int i = 0; i < ir.GetNPoints(); ++i)
+      {
+         const auto &ip = ir.IntPoint(i);
+         trans.SetIntPoint(&ip);
+
+         state_fe.CalcDShape(ip, dshape);
+         Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+
+         mfem::DenseMatrix tmp(curlshape.GetData(), space_dim * state_dof, 1);
+         dshapedxt.GradToCurl(tmp);
+
+         curlshape.MultTranspose(el_state, curl_vec);
+
+         const double curl_vec_norm = curl_vec.Norml2();
+         const double trans_weight = trans.Weight();
+         const double curl_mag = curl_vec_norm / trans_weight;
+         el_output(i) = curl_mag;
+      }
+   }
+
+   void apply_state_bar(const mfem::FiniteElement &state_fe,
+                        const mfem::FiniteElement &output_fe,
+                        mfem::ElementTransformation &trans,
+                        const mfem::Vector &el_output_adj,
+                        const mfem::Vector &el_state,
+                        mfem::Vector &el_state_bar) const override
+   { }
+   void apply_mesh_coords_bar(const mfem::FiniteElement &state_fe,
+                              const mfem::FiniteElement &output_fe,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &el_output_adj,
+                              const mfem::Vector &el_state,
+                              mfem::Vector &mesh_coords_bar) const override
+   { }
+};
+
 }  // anonymous namespace
 
 namespace mach
@@ -823,7 +882,17 @@ L2CurlMagnitudeProjection::L2CurlMagnitudeProjection(
  : L2TransferOperator(state,
                       mesh_coords,
                       output,
-                      std::make_unique<CurlMagnitudeOperator>())
+                      [&state]() -> std::unique_ptr<L2TransferOperation>
+                      {
+                         if (state.mesh().SpaceDimension() == 3)
+                         {
+                            return std::make_unique<CurlMagnitudeOperator>();
+                         }
+                         else
+                         {
+                            return std::make_unique<CurlMagnitudeOperator2D>();
+                         }
+                      }())
 { }
 
 void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)

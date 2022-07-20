@@ -85,6 +85,8 @@ private:
    // MagnetostaticLoad load;
    std::unique_ptr<MachLoad> load;
    std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+   std::unique_ptr<MagnetizationCoefficient> mag_coeff;
+   std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM;
 
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;

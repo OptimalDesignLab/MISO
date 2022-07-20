@@ -140,7 +140,9 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
-      double w = alpha * ip.weight / trans.Weight();
+      double trans_weight = trans.Weight();
+
+      double w = alpha * ip.weight / trans_weight;
 
       el.CalcDShape(ip, dshape);
       Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
@@ -148,7 +150,7 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
       dshapedxt.MultTranspose(elfun, pointflux);
 
       const double pointflux_norm = pointflux.Norml2();
-      const double pointflux_mag = pointflux_norm / trans.Weight();
+      const double pointflux_mag = pointflux_norm / trans_weight;
 
       double model_val = model.Eval(trans, ip, pointflux_mag);
 
@@ -243,10 +245,94 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
       point_flux_2_dot = dshapedxt;
       point_flux_2_dot *= model_val;
 
-      AddMultVWt(pointflux_norm_dot, pointflux, point_flux_2_dot);
+      if (abs(pointflux_norm) > 1e-14)
+      {
+         AddMultVWt(pointflux_norm_dot, pointflux, point_flux_2_dot);
+      }
       point_flux_2_dot *= w;
 
       AddMultABt(dshapedxt, point_flux_2_dot, elmat);
+   }
+}
+
+void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &elvect)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   elvect.SetSize(ndof);
+
+   int dim = el.GetDim();
+   int space_dim = trans.GetSpaceDim();
+   if (space_dim != 2)
+   {
+      mfem_error(
+          "MagnetizationSource2DIntegrator only supports 2D space dim!\n");
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   Vector scratch;
+#endif
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, space_dim);
+   scratch.SetSize(ndof);
+
+   double mag_flux_buffer[3];
+   Vector mag_flux(mag_flux_buffer, space_dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
+
+      if (el.Space() == FunctionSpace::rQk)
+      {
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      }
+      else
+      {
+         ir = &IntRules.Get(el.GetGeomType(), order);
+      }
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double w = alpha * ip.weight;
+
+      el.CalcDShape(ip, dshape);
+      Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+
+      M.Eval(mag_flux, trans, ip);
+      mag_flux *= w;
+
+      scratch = 0.0;
+      Vector grad_column;
+      dshapedxt.GetColumnReference(0, grad_column);
+      scratch.Add(mag_flux(1), grad_column);
+
+      dshapedxt.GetColumnReference(1, grad_column);
+      scratch.Add(-mag_flux(0), grad_column);
+
+      elvect += scratch;
    }
 }
 
