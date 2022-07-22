@@ -29,12 +29,14 @@ double calcEntropyTotalExact();
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
 mfem::Vector buildBasisCenters(int, int);
+mfem::Vector buildBasisCenters2(int, int);
 /// Generate quarter annulus mesh 
 /// \param[in] degree - polynomial degree of the mapping
 /// \param[in] num_rad - number of nodes in the radial direction
 /// \param[in] num_ang - number of nodes in the angular direction
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
+unique_ptr<Mesh> buildQuarterAnnulusMeshPert(int degree, int num_rad, int num_ang, double pert);
 template<typename T>
 void writeBasisCentervtp(const mfem::Vector &q, T& stream);
 
@@ -67,7 +69,7 @@ int main(int argc, char *argv[])
    {
       string opt_file_name(options_file);
 
-      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree, numRad, numTheta);
+      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMeshPert(degree, numRad, numTheta,0.25);
       int numBasis = bmesh->GetNE();
       Vector center(2*numBasis);
       Vector loc(2);
@@ -77,6 +79,9 @@ int main(int argc, char *argv[])
          center(k*2) = loc(0);
          center(k*2+1) = loc(1);
       }
+
+      //mfem::Vector center = buildBasisCenters2(numRad,numTheta);
+      std::cout << "Number of basis is " << center.Size()/2 << std::endl;
       ofstream centerwrite("center.vtp");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
@@ -108,6 +113,7 @@ int main(int argc, char *argv[])
       res_error = solver->calcResidualNorm();
       double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
       double entropy = solver->calcOutput("entropy");
+      std::cout << "Number of basis is " << center.Size()/2 << std::endl;
 
       if (0==myid)
       {
@@ -241,6 +247,41 @@ mfem::Vector buildBasisCenters(int numRad, int numTheta)
    return basisCenter;
 }
 
+mfem::Vector buildBasisCenters2(int nx, int ny)
+{
+   int numBasis = nx * ny;
+   double dx = 3./(nx-1);
+   double dy = 3./(ny-1);
+   std::vector<double> cent;
+
+   double x,y;
+   int row, col;
+   double dist;
+   for (int i = 0; i < numBasis; i++)
+   {
+      row = i/ny;
+      col = i%ny;
+
+      x = row * dx;
+      y = col * dy;
+      dist = sqrt(pow(x,2)+ pow(y,2));
+
+      if (1.0 < dist && dist < 3.0)
+      {
+         cent.push_back(x);
+         cent.push_back(y);
+      }
+   }
+   cout << "cent size is " << cent.size() << '\n';
+   mfem::Vector center(cent.size());
+
+   for (int i = 0; i < cent.size()/2; i++)
+   {
+      center(2*i) = cent[2*i];
+      center(2*i+1) = cent[2*i+1];
+   }
+   return center;
+}
 
 template <typename T>
 void writeBasisCentervtp(const mfem::Vector &center, T &stream)
@@ -277,4 +318,53 @@ void writeBasisCentervtp(const mfem::Vector &center, T &stream)
    stream << "</Piece>\n";
    stream << "</PolyData>\n";
    stream << "</VTKFile>\n";
+}
+
+unique_ptr<Mesh> buildQuarterAnnulusMeshPert(int degree, int num_rad, int num_ang, double pert)
+{
+   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
+                                             Element::TRIANGLE, true /* gen. edges */,
+                                             2.0, M_PI*0.5, true));
+
+   // Randomly perturb interior nodes
+   std::default_random_engine gen(std::random_device{}());
+   std::uniform_real_distribution<double> uni_rand(-pert, pert);
+   static constexpr double eps = std::numeric_limits<double>::epsilon();
+   for (int i = 0; i < mesh_ptr->GetNV(); ++i)
+   {
+      double *vertex = mesh_ptr->GetVertex(i);
+      // make sure vertex is interior
+      if (vertex[0] > eps && vertex[0] < 2.0 - eps && 
+          vertex[1] > eps && vertex[1] < M_PI * 0.5 - eps)
+      {
+         // perturb coordinates 
+         vertex[0] += uni_rand(gen)*2.0/num_rad;
+         vertex[1] += uni_rand(gen)*M_PI * 0.5/num_ang;
+      }
+   }
+
+   // strategy:
+   // 1) generate a fes for Lagrange elements of desired degree
+   // 2) create a Grid Function using a VectorFunctionCoefficient
+   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
+   
+   // Problem: fes does not own fec, which is generated in this function's scope
+   // Solution: the grid function can own both the fec and fes
+   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
+   FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
+                                                    Ordering::byVDIM);
+
+   // This lambda function transforms from (r,\theta) space to (x,y) space
+   auto xy_fun = [](const Vector& rt, Vector &xy)
+   {
+      xy(0) = (rt(0) + 1.0)*cos(rt(1)); // need + 1.0 to shift r away from origin
+      xy(1) = (rt(0) + 1.0)*sin(rt(1));
+   };
+   VectorFunctionCoefficient xy_coeff(2, xy_fun);
+   GridFunction *xy = new GridFunction(fes);
+   xy->MakeOwner(fec);
+   xy->ProjectCoefficient(xy_coeff);
+
+   mesh_ptr->NewNodes(*xy, true);
+   return mesh_ptr;
 }
