@@ -2,7 +2,7 @@
 #include "utils.hpp"
 #include <numeric> 
 #include <algorithm> 
-
+#include <vector>
 using namespace std;
 using namespace mfem;
 using namespace mach;
@@ -46,7 +46,9 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
    int i,j,k;
    // initialize the all element centers for later used
    elementBasisDist.SetSize(GetMesh()->GetNE());
+   sortedEBDistRank.SetSize(GetMesh()->GetNE());
    selectedBasis.SetSize(GetMesh()->GetNE());
+   extraBasis.assign(GetMesh()->GetNE(),false);
    coef.SetSize(GetMesh()->GetNE());
    selectedElement.SetSize(numBasis);
    Vector elemCenter(dim);
@@ -62,6 +64,7 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
    for (i = 0; i < GetMesh()->GetNE(); i++)
    {
       elementBasisDist[i] = new std::vector<double>;
+      sortedEBDistRank[i] = new std::vector<size_t>;
       selectedBasis[i] = new Array<int>;
       coef[i] = new DenseMatrix(numPolyBasis,numLocalBasis);
       GetMesh()->GetElementCenter(i,elemCenter);
@@ -74,17 +77,19 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
          elementBasisDist[i]->push_back(dist);
       }
       // build element/basis stencil based on distance
-      temp = sort_indexes(*elementBasisDist[i]);
+      (*sortedEBDistRank[i]) = sort_indexes(*elementBasisDist[i]);
+      int b_id_temp;
       for (k = 0;  k < numLocalBasis; k++)
       {
-         selectedBasis[i]->Append(temp[k]);
-         selectedElement[temp[k]]->Append(i);
+         b_id_temp = (*sortedEBDistRank[i])[k];
+         selectedBasis[i]->Append(b_id_temp);
+         selectedElement[b_id_temp]->Append(i);
       }
-
+      delete elementBasisDist[i];
    }
 
    // cout << "------Check the stencil------\n";
-   // cout << "------Basis center loca------\n";
+   // cout << "------Basis center local------\n";
    // for (int i = 0; i < numBasis; i++)
    // {  
    //    cout << "basis " << i << ": ";
@@ -122,33 +127,6 @@ void DGDSpace::GetBasisCenter(const int b_id, Vector &center,
       center(i) = basisCenter(b_id*dim+i);
    }
 }
-
-// void DGDSpace::buildProlongation() const
-// {
-//    // initialize the prolongation matrix
-//    cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
-//    // declare soma matrix variables
-//    DenseMatrix V, Vn;
-//    DenseMatrix localMat;
-//    // loop over element to build local and global prolongation matrix
-//    for (int i = 0; i < GetMesh()->GetNE(); i++)
-//    {
-//       // 1. build basis matrix
-//       buildDataMat(i,V,Vn);
-
-//       // 2. build the interpolation matrix
-//       solveLocalProlongationMat(i,V,Vn,localMat);
-
-//       // 3. Assemble prolongation matrix
-//       AssembleProlongationMatrix(i,localMat);
-//    }
-//    cP->Finalize();
-//    cP_is_set = true;
-//    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-//    // ofstream cp_save("prolong_init.txt");
-// 	// cP->PrintMatlab(cp_save);
-// 	// cp_save.close();
-// }
 
 void DGDSpace::buildProlongationMatrix(const Vector &x)
 {
@@ -195,6 +173,18 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    Vn.SetSize(numDofs,numPolyBasis);
    // build the data matrix
    buildElementPolyBasisMat(el_id,x,numDofs,dofs_coord,V,Vn);
+
+   // int vrank = V.Rank(1e-10);
+   // if (vrank < numPolyBasis)
+   // {
+   //    extraBasis[el_id] = true;
+   // }
+
+   // while (vrank < numPolyBasis)
+   // {
+   //    addOneExtraBasis();
+   //    vrank = V.Rank(1e-10);
+   // }
    
    // free the aux variable
    for (int k = 0; k < numDofs; k++)
@@ -202,6 +192,13 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
       delete dofs_coord[k];
    }
 }
+
+
+// void DGDSpace::addOneExtraBasis(int el_id, )
+// {
+   
+// }
+
 
 void DGDSpace::solveLocalProlongationMat(const int el_id,
                                          const DenseMatrix &V,
@@ -394,7 +391,7 @@ DGDSpace::~DGDSpace()
    for (int k = 0; k < GetMesh()->GetNE(); k++)
    {
       delete selectedBasis[k];
-      delete elementBasisDist[k];
+      delete sortedEBDistRank[k];
       delete coef[k];
    }
 

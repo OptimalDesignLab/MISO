@@ -91,8 +91,11 @@ protected:
    mfem::Array<mfem::Array<int> *> selectedBasis;
    mfem::Array<mfem::Array<int> *> selectedElement;
    /// array of map that holds the distance from element center to basisCenter
-   // mfem::Array<std::map<int, double> *> elementBasisDist;
    mfem::Array<std::vector<double> *> elementBasisDist;
+   mfem::Array<std::vector<size_t> *> sortedEBDistRank;
+   
+   mutable std::vector<bool> extraBasis;
+
    // local element prolongation matrix coefficient
    mutable mfem::Array<mfem::DenseMatrix *> coef;
    /// Initialize the patches/stencil given poly order
