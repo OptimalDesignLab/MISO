@@ -13,7 +13,7 @@ double calcMagneticEnergy(ElementTransformation &trans,
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
 
    /// compute int_0^{B} \nuB dB
    double en = 0.0;
@@ -34,7 +34,7 @@ double calcMagneticEnergyDot(ElementTransformation &trans,
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
 
    /// compute int_0^{B} \nuB dB
    double en = 0.0;
@@ -63,7 +63,7 @@ double calcMagneticEnergyDoubleDot(ElementTransformation &trans,
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 40);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
 
    /// compute int_0^{B} \nuB dB
    double d2endB2 = 0.0;
@@ -3323,23 +3323,21 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
    /// number of degrees of freedom
    int ndof = el.GetDof();
    int dim = el.GetDim();
-
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
-   int dimc = (dim == 3) ? 3 : 1;
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = (dim == 3) ? 3 : space_dim;
 
 #ifdef MFEM_THREAD_SAFE
    DenseMatrix dshape(v_el.GetDof(), v_el.GetDim());
-   DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc);
+   DenseMatrix curlshape(ndof, curl_dim), curlshape_dFt(ndof, curl_dim);
    DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
-   Vector b_vec(dimc), b_hat(dimc);
+   Vector b_vec(curl_dim), b_hat(curl_dim);
 #else
    dshape.SetSize(v_el.GetDof(), v_el.GetDim());
-   curlshape.SetSize(ndof, dimc);
-   curlshape_dFt.SetSize(ndof, dimc);
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
    dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
-   b_vec.SetSize(dimc);
-   b_hat.SetSize(dimc);
+   b_vec.SetSize(curl_dim);
+   b_hat.SetSize(curl_dim);
 #endif
 
    // cast the ElementTransformation
@@ -3369,37 +3367,42 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
+      const double trans_weight = trans.Weight();
       /// holds quadrature weight
-      const double w = ip.weight * trans.Weight();
+      const double w = ip.weight * trans_weight;
       if (dim == 3)
       {
          el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
       }
-      else
+      else  // Dealing with scalar H1 field representing Az
       {
-         el.CalcCurlShape(ip, curlshape_dFt);
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         // el.CalcCurlShape(ip, curlshape_dFt);
       }
 
       b_vec = 0.0;
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_vec_norm = b_vec.Norml2();
-      const double b_mag = b_vec_norm / trans.Weight();
+      const double b_mag = b_vec_norm / trans_weight;
 
       /// the following computes `\partial (||B||/|J|) / \partial J`
-      DenseMatrix dBmdJ(dimc);
+      double dBmdJ_buffer[9];
+      DenseMatrix dBmdJ(dBmdJ_buffer, curl_dim, curl_dim);
       dBmdJ = 0.0;
       b_hat = 0.0;
       curlshape.AddMultTranspose(elfun, b_hat);
-      DenseMatrix BB_hatT(dimc);
+      double BB_hatT_buffer[9];
+      DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
       MultVWt(b_vec, b_hat, BB_hatT);
 
       auto inv_jac_transposed = trans.InverseJacobian();
       inv_jac_transposed.Transpose();
 
-      Add(1.0 / (trans.Weight() * b_vec_norm),
+      Add(1.0 / (trans_weight * b_vec_norm),
           BB_hatT,
-          -b_vec_norm / trans.Weight(),
+          -b_vec_norm / trans_weight,
           inv_jac_transposed,
           dBmdJ);
 
@@ -3410,7 +3413,7 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
       double dBds = 0.0;
       for (int j = 0; j < v_el.GetDof(); ++j)
       {
-         for (int d = 0; d < dimc; ++d)
+         for (int d = 0; d < curl_dim; ++d)
          {
             dBds += dBdX(d, j) * dXds(j, d);
          }
@@ -3419,8 +3422,10 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
       auto force = dBds * energy_dot;
 
       v_el.CalcDShape(ip, dshape);
-      DenseMatrix JinvdJds(3);
-      DenseMatrix dJds(3);
+      double JinvdJds_buffer[9];
+      DenseMatrix JinvdJds(JinvdJds_buffer, space_dim, space_dim);
+      double dJds_buffer[9];
+      DenseMatrix dJds(dJds_buffer, space_dim, space_dim);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
       double JinvdJdsTrace = JinvdJds.Trace();

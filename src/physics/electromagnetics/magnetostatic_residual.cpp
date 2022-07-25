@@ -156,6 +156,7 @@ MagnetostaticResidual::MagnetostaticResidual(
 {
    auto *mesh = fes.GetParMesh();
    auto space_dim = mesh->SpaceDimension();
+   // auto space_dim = mesh->Dimension();
    if (space_dim == 3)
    {
       res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));

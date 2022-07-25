@@ -15,8 +15,10 @@ void setOptions(ForceFunctional &output, const nlohmann::json &options)
 {
    auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
    auto &&axis = options["axis"].get<std::vector<double>>();
+
+   auto space_dim = output.fields.at("vforce").mesh().SpaceDimension();
    mfem::VectorConstantCoefficient axis_vector(
-       mfem::Vector(&axis[0], axis.size()));
+       mfem::Vector(&axis[0], space_dim));
 
    auto &v = output.fields.at("vforce").gridFunc();
    v = 0.0;
@@ -33,18 +35,30 @@ void setOptions(TorqueFunctional &output, const nlohmann::json &options)
    auto &&about = options["about"].get<std::vector<double>>();
    mfem::Vector axis_vector(&axis[0], axis.size());
    axis_vector /= axis_vector.Norml2();
-   mfem::Vector about_vector(&about[0], axis.size());
+
+   auto space_dim = output.fields.at("vtorque").mesh().SpaceDimension();
+   mfem::Vector about_vector(&about[0], space_dim);
    double r_data[3];
-   mfem::Vector r(r_data, axis.size());
+   mfem::Vector r(r_data, space_dim);
+
    mfem::VectorFunctionCoefficient v_vector(
-       3,
-       [&axis_vector, &about_vector, &r](const mfem::Vector &x, mfem::Vector &v)
+       space_dim,
+       [&axis_vector, &about_vector, &r, space_dim](const mfem::Vector &x,
+                                                    mfem::Vector &v)
        {
           subtract(x, about_vector, r);
-          // r /= r.Norml2();
-          v(0) = axis_vector(1) * r(2) - axis_vector(2) * r(1);
-          v(1) = axis_vector(2) * r(0) - axis_vector(0) * r(2);
-          v(2) = axis_vector(0) * r(1) - axis_vector(1) * r(0);
+          if (space_dim == 3)
+          {
+             // r /= r.Norml2();
+             v(0) = axis_vector(1) * r(2) - axis_vector(2) * r(1);
+             v(1) = axis_vector(2) * r(0) - axis_vector(0) * r(2);
+             v(2) = axis_vector(0) * r(1) - axis_vector(1) * r(0);
+          }
+          else
+          {
+             v(0) = -axis_vector(2) * r(1);
+             v(1) = axis_vector(2) * r(0);
+          }
           // if (v.Norml2() > 1e-12)
           //    v /= v.Norml2();
        });

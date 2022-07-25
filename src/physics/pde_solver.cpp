@@ -1,3 +1,4 @@
+#include <cstddef>
 #include "finite_element_dual.hpp"
 #include "mfem.hpp"
 
@@ -204,6 +205,11 @@ MachMesh constructMesh(MPI_Comm comm,
    {
       throw MachException("Unrecognized mesh file extension!\n");
    }
+   // auto *nodes = mesh.mesh->GetNodes();
+   // if (nodes == nullptr)
+   // {
+   //    mesh.mesh->SetCurvature(1, false, 3, mfem::Ordering::byVDIM);
+   // }
    mesh.mesh->EnsureNodes();
 
    if (!keep_boundaries)

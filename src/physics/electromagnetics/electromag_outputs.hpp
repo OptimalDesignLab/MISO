@@ -149,8 +149,18 @@ public:
       setOptions(*this, options);
 
       auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
-      output.addOutputDomainIntegrator(
-          new ForceIntegrator(nu, fields.at("vtorque").gridFunc(), attrs));
+      if (options.contains("air_attributes"))
+      {
+         auto &&air_attrs = options["air_attributes"].get<std::vector<int>>();
+         output.addOutputDomainIntegrator(
+             new ForceIntegrator(nu, fields.at("vtorque").gridFunc(), attrs),
+             air_attrs);
+      }
+      else
+      {
+         output.addOutputDomainIntegrator(
+             new ForceIntegrator(nu, fields.at("vtorque").gridFunc(), attrs));
+      }
    }
 
 private:

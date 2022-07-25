@@ -58,9 +58,11 @@ class MachState(om.ImplicitComponent):
         ext_fields = "external-fields" in solver_options
         for input in self.options["depends"]:
             if input == "mesh_coords":
+                mesh_size = solver.getFieldSize(input)
                 self.add_input("mesh_coords",
-                               distributed=True,
-                               shape_by_conn=True,
+                            #    distributed=True,
+                               shape=mesh_size,
+                            #    shape_by_conn=True,
                                desc="volume mesh node coordinates",
                                tags=["mphys_coordinates"])
                 self.vectors["mesh_coords"] = np.empty(0)
