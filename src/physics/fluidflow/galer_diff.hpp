@@ -20,9 +20,10 @@ public:
    //void buildProlongation() const;
    /// build the prolongation matrix based on the initialized stencil
    void buildProlongationMatrix(const mfem::Vector &bcenter);
+   void addExtraBasis(int el_id);
    
    void buildDataMat(const int el_id, const mfem::Vector &basisCenter,
-                     mfem::DenseMatrix &V, mfem::DenseMatrix &Vn) const;
+                     mfem::DenseMatrix &V, mfem::DenseMatrix &Vn);
 
    /// Solve and store the local prolongation coefficient
    /// \param[in] el_id - the element id
@@ -34,8 +35,9 @@ public:
 
    /// build the element-wise polynomial basis matrix
    void buildElementPolyBasisMat(const int el_id,
+                                 const int startOrder,
+                                 const int endOrder,
                                  const mfem::Vector &basisCenter,
-                                 const int numDofs,
                                  const mfem::Array<mfem::Vector *> &dofs_coord,
                                  mfem::DenseMatrix &V,
                                  mfem::DenseMatrix &Vn) const;
@@ -70,18 +72,26 @@ public:
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
    virtual const Operator *GetProlongationMatrix() const { return cP; }
+   void GetElementInfo(int el_id, mfem::Array<mfem::Vector *> &dofs_coord) const;
 protected:
    /// mesh dimension
    int dim;
    /// number of radial basis function
    int numBasis;
-   /// number of polynomial basis
-   int numPolyBasis;
-   /// polynomial order
-   int polyOrder;
+   /// interpolatory polynomial order
+   int interpOrder;
    /// number of required basis to constructe certain order polynomial
-   int numLocalBasis;
-   int extra;
+   int numReqBasis;
+   int extra; // dummy variable, not used
+
+
+   /// individual number of local basis
+   // mutable std::vector<int> numLocalBasis;
+   /// indicator of whether using extra basis
+   mutable std::vector<int> extraCenter;
+   /// the actual polynomial order of on each element
+   mutable std::vector<int> polyOrder;
+
    
    /// location of the basis centers
    mfem::Vector basisCenterDummy;
@@ -94,17 +104,14 @@ protected:
    mfem::Array<std::vector<double> *> elementBasisDist;
    mfem::Array<std::vector<size_t> *> sortedEBDistRank;
    
-   mutable std::vector<bool> extraBasis;
+   
 
-   // local element prolongation matrix coefficient
+   /// local element prolongation matrix coefficient
    mutable mfem::Array<mfem::DenseMatrix *> coef;
-   /// Initialize the patches/stencil given poly order
 
-
-   // some protected function
+   /// some protected function
    void InitializeStencil(const mfem::Vector &basisCenter);
-   /// Initialize the shape parameters
-   void InitializeShapeParameter();
+   /// function  that sort the element-basis distance
    std::vector<std::size_t> sort_indexes(const std::vector<double> &v);
 };
 
