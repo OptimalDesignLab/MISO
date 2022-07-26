@@ -13,7 +13,7 @@ public:
    /// class constructor
    DGDSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
             mfem::Vector center, int degree, int extra, int vdim = 1,
-            int ordering = mfem::Ordering::byVDIM);
+            int ordering = mfem::Ordering::byVDIM, double c = 1e4);
    virtual ~DGDSpace();
 
    /// build the prolongation matrix
@@ -83,6 +83,7 @@ protected:
    /// number of required basis to constructe certain order polynomial
    int numReqBasis;
    int extra; // dummy variable, not used
+   double cond;
 
 
    /// individual number of local basis

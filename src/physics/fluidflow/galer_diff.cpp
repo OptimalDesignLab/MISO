@@ -12,9 +12,9 @@ namespace mfem
 
 DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f, 
                    Vector center, int degree, int e,
-                   int vdim, int ordering)
+                   int vdim, int ordering, double c)
    : SpaceType(m, f, vdim, ordering), interpOrder(degree), extra(e),
-     basisCenterDummy(center)
+     basisCenterDummy(center), cond(c)
 {
    dim = m->Dimension();
    numBasis = center.Size()/dim;
@@ -154,18 +154,19 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    Vector sv;
    V.SingularValues(sv);
    // int vrank = V.Rank(1e-4);
-   if (sv(0) > 1e4 * sv(numReqBasis-1))
+
+   if (sv(0) > cond * sv(numReqBasis-1))
    {
-      cout << el_id <<  " condition # = " << sv(0)/sv(numReqBasis-1) << ". ";
+      cout << el_id <<  " cond = " << sv(0)/sv(numReqBasis-1) << " (> " << cond << ") ";
    }
-   while (sv(0) > 1e4 * sv(numReqBasis-1))
+   while (sv(0) > cond * sv(numReqBasis-1))
    {
       addExtraBasis(el_id);
       buildElementPolyBasisMat(el_id,0,interpOrder,x,dofs_coord,V,Vn);
       if (extraCenter[el_id] > 10) // a tentative cap
       {
+         cout << "fail to find\n";
          throw MachException("DGDSpace::buildDataMat(): Too much centers added...");
-         break;
       }
       V.SingularValues(sv);
       extraCenter[el_id]++;
