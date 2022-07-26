@@ -151,12 +151,14 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    buildElementPolyBasisMat(el_id,0,interpOrder,x,dofs_coord,V,Vn);
 
    // if V is rank deficit, append more basis
-   int vrank = V.Rank(1e-10);
-   if (vrank != numReqBasis)
+   Vector sv;
+   V.SingularValues(sv);
+   // int vrank = V.Rank(1e-4);
+   if (sv(0) > 1e4 * sv(numReqBasis-1))
    {
-      cout << "elememt " << el_id << " rank is " << vrank << ". ";
+      cout << el_id <<  " condition # = " << sv(0)/sv(numReqBasis-1) << ". ";
    }
-   while (vrank < numReqBasis)
+   while (sv(0) > 1e4 * sv(numReqBasis-1))
    {
       addExtraBasis(el_id);
       buildElementPolyBasisMat(el_id,0,interpOrder,x,dofs_coord,V,Vn);
@@ -165,12 +167,12 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
          throw MachException("DGDSpace::buildDataMat(): Too much centers added...");
          break;
       }
-      vrank = V.Rank(1e-10);
+      V.SingularValues(sv);
       extraCenter[el_id]++;
    }
    if (extraCenter[el_id])
    {
-      cout << "elememt " << el_id << " rank is " << vrank << ". ";
+      cout << "elememt " << el_id << " cond is " << sv(0)/sv(numReqBasis-1) << ". ";
       cout << "extra center is " <<  extraCenter[el_id] << '\n';
    }
 
