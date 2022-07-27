@@ -1743,6 +1743,71 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
    }
 }
 
+TEST_CASE("ForceIntegrator2::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   // auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+   //                                   Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+
+   /// construct elements
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         // ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(dim, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction a(&fes);
+         FunctionCoefficient apert(randState);
+         a.ProjectCoefficient(apert);
+         // a.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator2(nu, v));
+
+         auto force = functional.GetEnergy(a);
+
+         NonlinearForm energy(&fes);
+         energy.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(nu));
+         
+         add(x_nodes, -delta, v, x_nodes);
+         auto dWds = -energy.GetEnergy(a);
+         add(x_nodes, 2*delta, v, x_nodes);
+         dWds += energy.GetEnergy(a);
+         dWds /= 2*delta;
+
+         // std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
+         REQUIRE(force == Approx(-dWds));
+      }
+   }
+}
+
 TEST_CASE("ForceIntegrator::GetElementEnergy")
 {
    using namespace mfem;

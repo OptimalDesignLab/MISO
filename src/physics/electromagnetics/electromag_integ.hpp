@@ -1155,6 +1155,47 @@ private:
 #endif
 };
 
+class ForceIntegrator2 : public mfem::NonlinearFormIntegrator
+{
+public:
+   ForceIntegrator2(StateCoefficient &nu, mfem::GridFunction &v) : nu(nu), v(v)
+   { }
+
+   /// \brief - Compute forces/torques based on the virtual work method
+   /// \param[in] nu - model describing reluctivity
+   /// \param[in] v - the grid function containing virtual displacements for
+   ///                each mesh node
+   /// \param[in] attrs - the regions the force is acting on
+   ForceIntegrator2(StateCoefficient &nu,
+                    mfem::GridFunction &v,
+                    std::unordered_set<int> attrs)
+    : nu(nu), v(v), attrs(std::move(attrs))
+   { }
+
+   /// \brief - Compute element contribution to global force/torque
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global force/torque
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// material dependent model describing reluctivity
+   StateCoefficient &nu;
+   /// grid function containing virtual displacements for each mesh node
+   mfem::GridFunction &v;
+   /// set of attributes the force is acting on
+   std::unordered_set<int> attrs;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape, curlshape, curlshape_dFt, dBdX;
+   mfem::Vector b_vec, b_hat;
+   mfem::Array<int> vdofs;
+   mfem::Vector vfun;
+#endif
+};
+
 /// Functional integrator to compute forces/torques based on the virtual work
 /// method
 class ForceIntegrator : public mfem::NonlinearFormIntegrator
