@@ -35,8 +35,6 @@ public:
 
    /// build the element-wise polynomial basis matrix
    void buildElementPolyBasisMat(const int el_id,
-                                 const int startOrder,
-                                 const int endOrder,
                                  const mfem::Vector &basisCenter,
                                  const mfem::Array<mfem::Vector *> &dofs_coord,
                                  mfem::DenseMatrix &V,
@@ -88,14 +86,9 @@ protected:
    int extra; // dummy variable, not used
    double cond;
 
-
-   /// individual number of local basis
-   // mutable std::vector<int> numLocalBasis;
    /// indicator of whether using extra basis
    mutable std::vector<int> extraCenter;
    /// the actual polynomial order of on each element
-   mutable std::vector<int> polyOrder;
-
    
    /// location of the basis centers
    mfem::Vector basisCenterDummy;

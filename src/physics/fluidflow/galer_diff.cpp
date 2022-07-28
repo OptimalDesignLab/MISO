@@ -26,10 +26,8 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
    extraCenter.assign(GetMesh()->GetNE(),0);
-   polyOrder.assign(GetMesh()->GetNE(),interpOrder);
 
    cout << "Number of total basis center is " << center.Size()/dim << '\n';
-   cout << "Number of required polynomial basis is " << numReqBasis << '\n';
    
    // initialize the stencil/patch based on the given interpolatory order
    InitializeStencil(center);
@@ -148,7 +146,7 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    Array<Vector *> dofs_coord;
    GetElementInfo(el_id,dofs_coord);
    // build the data matrix
-   buildElementPolyBasisMat(el_id,0,interpOrder,x,dofs_coord,V,Vn);
+   buildElementPolyBasisMat(el_id,x,dofs_coord,V,Vn);
 
    // if V is rank deficit, append more basis
    Vector sv;
@@ -162,7 +160,7 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    while (sv(0) > cond * sv(numReqBasis-1))
    {
       addExtraBasis(el_id);
-      buildElementPolyBasisMat(el_id,0,interpOrder,x,dofs_coord,V,Vn);
+      buildElementPolyBasisMat(el_id,x,dofs_coord,V,Vn);
       V.SingularValues(sv);
       extraCenter[el_id]++;
       if (extraCenter[el_id] > extra) // a tentative cap
@@ -194,8 +192,6 @@ void DGDSpace::addExtraBasis(int el_id)
 }
 
 void DGDSpace::buildElementPolyBasisMat(const int el_id,
-                                        const int startOrder,
-                                        const int endOrder,
                                         const Vector &basisCenter,
                                         const Array<Vector *> &dofs_coord,
                                         DenseMatrix &V, DenseMatrix &Vn) const
@@ -206,24 +202,11 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
    Vector loc_coord(dim);
    Vector el_center(dim);
    GetMesh()->GetElementCenter(el_id,el_center);
-   // initialize V, Vn
-   int localBasis1, localBasis2;
-   switch(dim)
-   {
-      case 1: localBasis1 = startOrder + 1; localBasis2 = endOrder+1; break;
-      case 2: localBasis1 = (startOrder+1) * (startOrder+2) / 2; 
-              localBasis2 = (endOrder+1) * (endOrder + 2) / 2; break;
-      case 3: localBasis1 = (startOrder+1) * (startOrder+2) * (startOrder+3) / 6; 
-              localBasis2 = (endOrder+1) * (endOrder+2) * (endOrder+3) / 6; break;
-      default: throw MachException("dim must be 1, 2 or 3.\n");
-   }
-
    // find the range of row and col
    int numCenter = selectedBasis[el_id]->Size();
-   int basisRange = localBasis2 - localBasis1 + 1;
-   
-   V.SetSize(numCenter,basisRange);
-   Vn.SetSize(numDofs,basisRange);
+   // initialize V, Vn
+   V.SetSize(numCenter,numReqBasis);
+   Vn.SetSize(numDofs,numReqBasis);
    if (1 == dim)
    {
       double dx;
@@ -233,7 +216,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
          b_id = (*selectedBasis[el_id])[i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
          dx = loc_coord[0] - el_center[0];
-         for (j = startOrder; j <= endOrder; j++)
+         for (j = 0; j <= interpOrder; j++)
          {
             V(i,j) = pow(dx,j);
          }
@@ -244,7 +227,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       {
          loc_coord = *dofs_coord[i];
          dx = loc_coord[0] - el_center[0];
-         for (j = startOrder; j <= endOrder; j++)
+         for (j = 0; j <= interpOrder; j++)
          {
             Vn(i,j) = pow(dx,j);
          }
@@ -261,7 +244,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
          dx = loc_coord[0] - el_center[0];
          dy = loc_coord[1] - el_center[1];
          int col = 0;
-         for (j = startOrder; j <= endOrder; j++)
+         for (j = 0; j <= interpOrder; j++)
          {
             for (k = 0; k <= j; k++)
             {
@@ -277,7 +260,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
          dx = loc_coord[0] - el_center[0];
          dy = loc_coord[1] - el_center[1];
          int col = 0;
-         for (j = startOrder; j <= endOrder; j++)
+         for (j = 0; j <= interpOrder; j++)
          {
             for (k = 0; k <= j; k++)
             {
@@ -300,7 +283,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
          dy = loc_coord[1] - el_center[1];
          dz = loc_coord[2] - el_center[2];
          int col = 0;
-         for (j = startOrder; j <= endOrder; j++)
+         for (j = 0; j <= interpOrder; j++)
          {
             for (k = 0; k <= j; k++)
             {
@@ -321,7 +304,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
          dy = loc_coord[1] - el_center[1];
          dz = loc_coord[2] - el_center[2];
          int col = 0;
-         for (j = startOrder; j <= endOrder; j++)
+         for (j = 0; j <= interpOrder; j++)
          {
             for (k = 0; k <= j; k++)
             {
