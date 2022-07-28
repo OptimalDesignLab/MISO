@@ -73,8 +73,9 @@ public:
    SparseMatrix *GetCP() { return cP; }
    virtual const Operator *GetProlongationMatrix() const { return cP; }
    void GetElementInfo(int el_id, mfem::Array<mfem::Vector *> &dofs_coord) const;
-   double calcInterpScale(const mfem::Vector &el_center,
-                          const mfem::Vector &basisCenter);
+   double calcVandScale(const int el_id,
+                        const mfem::Vector &el_center,
+                        const mfem::Vector &basisCenter) const;
 protected:
    /// mesh dimension
    int dim;

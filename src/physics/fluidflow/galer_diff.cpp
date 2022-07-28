@@ -206,7 +206,6 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
    Vector loc_coord(dim);
    Vector el_center(dim);
    GetMesh()->GetElementCenter(el_id,el_center);
-   double vandScale = calcInterpScale(el_center,basisCenter);
    // initialize V, Vn
    int localBasis1, localBasis2;
    switch(dim)
@@ -711,7 +710,9 @@ void DGDSpace::GetElementInfo(int el_id, Array<Vector *> &dofs_coord) const
    }
 }
 
-double DGDSpace::calcInterpOrder(const int el_id, const Vector &el_center, const Vector &basisCenter)
+double DGDSpace::calcVandScale(const int el_id, 
+                               const Vector &el_center,
+                               const Vector &basisCenter) const
 {
    // get the most furthe basis 
    int numCenter = selectedBasis[el_id]->Size();
