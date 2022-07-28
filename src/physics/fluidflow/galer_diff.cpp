@@ -163,18 +163,18 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    {
       addExtraBasis(el_id);
       buildElementPolyBasisMat(el_id,0,interpOrder,x,dofs_coord,V,Vn);
-      if (extraCenter[el_id] > 10) // a tentative cap
+      V.SingularValues(sv);
+      extraCenter[el_id]++;
+      if (extraCenter[el_id] > extra) // a tentative cap
       {
          cout << "fail to find\n";
          throw MachException("DGDSpace::buildDataMat(): Too much centers added...");
       }
-      V.SingularValues(sv);
-      extraCenter[el_id]++;
    }
    if (extraCenter[el_id])
    {
-      cout << "elememt " << el_id << " cond is " << sv(0)/sv(numReqBasis-1) << ". ";
-      cout << "extra center is " <<  extraCenter[el_id] << '\n';
+      cout << " ---> cond now is " << sv(0)/sv(numReqBasis-1) << ", "
+           <<  extraCenter[el_id] << " extra basis \n";
    }
 
 
@@ -206,6 +206,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
    Vector loc_coord(dim);
    Vector el_center(dim);
    GetMesh()->GetElementCenter(el_id,el_center);
+   double vandScale = calcInterpScale(el_center,basisCenter);
    // initialize V, Vn
    int localBasis1, localBasis2;
    switch(dim)
@@ -708,6 +709,18 @@ void DGDSpace::GetElementInfo(int el_id, Array<Vector *> &dofs_coord) const
       eltransf->Transform(fe->GetNodes().IntPoint(k), coord);
       *dofs_coord[k] = coord;
    }
+}
+
+double DGDSpace::calcInterpOrder(const int el_id, const Vector &el_center, const Vector &basisCenter)
+{
+   // get the most furthe basis 
+   int numCenter = selectedBasis[el_id]->Size();
+   int bid = (*selectedBasis[el_id])[numCenter-1];
+   Vector center(dim);
+   GetBasisCenter(bid,center,basisCenter);
+   // compute the scale
+   center -= el_center;
+   return center.Norml2();
 }
 
 DGDSpace::~DGDSpace()
