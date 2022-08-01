@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
 
       // Build mesh over the square domain
-      const int num = 20;
+      const int num = 30;
       auto smesh = std::make_unique<Mesh>(Mesh::MakeCartesian2D(
          num, num, Element::TRIANGLE, true /* gen. edges */, 1.0, 1.0, true));
 

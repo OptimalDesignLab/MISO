@@ -6,7 +6,7 @@
       "directory": "forced-box"
    },
    "flow-param": {
-      "viscous": true,
+      "viscous": false,
       "Re": 1000,
       "Pr": 0.72,
       "mu": -1.0,
@@ -15,7 +15,7 @@
    },
    "space-dis": {
       "degree": 2,
-      "lps-coeff": 1.0,
+      "lps-coeff": 0.0,
       "basis-type": "csbp",
       "flux-fun": "IR"
    },
@@ -48,7 +48,7 @@
       "lev-fill": 0
    },
    "bcs": {
-      "no-slip-adiabatic": [1, 1, 1, 0],
+      "slip-wall": [1, 1, 1, 0],
       "control": [0, 0, 0, 1]
    },
    "saveresults":false,

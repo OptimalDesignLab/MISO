@@ -129,8 +129,9 @@ void evaluate(ControlResidual &residual,
          // Residual is defined on left-hand side!
          res_vec(0) = -0.05 * residual.x(1);
          res_vec(1) = 0.05 * residual.x(0);
-         double error = residual.target_entropy - residual.boundary_entropy;
-         res_vec(1) -= error;
+         //double error = residual.target_entropy - residual.boundary_entropy;
+         //res_vec(1) += error;
+         res_vec(1) += residual.boundary_entropy;
       }
       else
       {
@@ -201,7 +202,8 @@ double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
    {
       if (residual.test_ode)
       {
-         ent += residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
+         ent += 0.5*(residual.x(0) * residual.x(0) + 
+                     residual.x(1) * residual.x(1));
       }
       else
       {

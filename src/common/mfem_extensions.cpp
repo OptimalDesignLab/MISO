@@ -87,7 +87,7 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    const double ftol = 1e-12;
    const double xtol = 1e-12;
    const int maxiter = 30;
-   // double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
+   //double gamma = bisection(entropyFun, 0.50, 1.5, ftol, xtol, maxiter);
    double gamma = secant(entropyFun, 0.99, 1.01, ftol, xtol, maxiter);
    if (out != nullptr)
    {

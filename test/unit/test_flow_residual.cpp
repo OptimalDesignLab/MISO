@@ -33,6 +33,9 @@ auto options = R"(
       "basis-type": "csbp",
       "flux-fun": "Euler"
    },
+   "time-dis": {
+      "steady": false
+   },
    "bcs": {
       "far-field": [0, 1, 1, 1],
       "slip-wall": [1, 0, 0, 0]
