@@ -151,7 +151,6 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    // if V is rank deficit, append more basis
    Vector sv;
    V.SingularValues(sv);
-   // int vrank = V.Rank(1e-4);
 
    if (sv(0) > cond * sv(numReqBasis-1))
    {
@@ -159,19 +158,21 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
    }
    while (sv(0) > cond * sv(numReqBasis-1))
    {
+      // build new V/Vn matrices
       addExtraBasis(el_id);
       buildElementPolyBasisMat(el_id,x,dofs_coord,V,Vn);
+
+      // check new condition number
       V.SingularValues(sv);
-      extraCenter[el_id]++;
       if (extraCenter[el_id] > extra) // a tentative cap
       {
-         cout << "fail to find\n";
+         cout << "fail to reduce the V condition number...\n";
          throw MachException("DGDSpace::buildDataMat(): Too much centers added...");
       }
    }
    if (extraCenter[el_id])
    {
-      cout << " ---> cond now is " << sv(0)/sv(numReqBasis-1) << ", "
+      cout << " ---> new cond is " << sv(0)/sv(numReqBasis-1) << ", "
            <<  extraCenter[el_id] << " extra basis \n";
    }
 
@@ -188,6 +189,7 @@ void DGDSpace::addExtraBasis(int el_id)
    int numAppendedCenter = extraCenter[el_id];
    int b_id = (*sortedEBDistRank[el_id])[numReqBasis-1+numAppendedCenter+1];
    selectedBasis[el_id]->Append(b_id);
+   extraCenter[el_id]++;
    selectedElement[b_id]->Append(el_id);
 }
 
@@ -202,9 +204,9 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
    Vector loc_coord(dim);
    Vector el_center(dim);
    GetMesh()->GetElementCenter(el_id,el_center);
-   // find the range of row and col
-   int numCenter = selectedBasis[el_id]->Size();
+   double vandScale = calcVandScale(el_id,el_center,basisCenter);
    // initialize V, Vn
+   int numCenter = selectedBasis[el_id]->Size();
    V.SetSize(numCenter,numReqBasis);
    Vn.SetSize(numDofs,numReqBasis);
    if (1 == dim)
@@ -215,7 +217,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       {
          b_id = (*selectedBasis[el_id])[i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
-         dx = loc_coord[0] - el_center[0];
+         dx = (loc_coord[0] - el_center[0])/vandScale;
          for (j = 0; j <= interpOrder; j++)
          {
             V(i,j) = pow(dx,j);
@@ -226,7 +228,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       for (i = 0; i < numDofs; i++)
       {
          loc_coord = *dofs_coord[i];
-         dx = loc_coord[0] - el_center[0];
+         dx = (loc_coord[0] - el_center[0])/vandScale;
          for (j = 0; j <= interpOrder; j++)
          {
             Vn(i,j) = pow(dx,j);
@@ -241,8 +243,8 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       {
          b_id = (*selectedBasis[el_id])[i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
+         dx = (loc_coord[0] - el_center[0])/vandScale;
+         dy = (loc_coord[1] - el_center[1])/vandScale;
          int col = 0;
          for (j = 0; j <= interpOrder; j++)
          {
@@ -257,8 +259,8 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       for (i = 0; i < numDofs; i++)
       {
          loc_coord = *dofs_coord[i];
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
+         dx = (loc_coord[0] - el_center[0])/vandScale;
+         dy = (loc_coord[1] - el_center[1])/vandScale;
          int col = 0;
          for (j = 0; j <= interpOrder; j++)
          {
@@ -279,9 +281,9 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       {
          b_id = (*selectedBasis[el_id])[i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
-         dz = loc_coord[2] - el_center[2];
+         dx = (loc_coord[0] - el_center[0])/vandScale;
+         dy = (loc_coord[1] - el_center[1])/vandScale;
+         dz = (loc_coord[2] - el_center[2])/vandScale;
          int col = 0;
          for (j = 0; j <= interpOrder; j++)
          {
@@ -300,9 +302,9 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       for (i = 0; i < numDofs; i++)
       {
          loc_coord = *dofs_coord[i];
-         dx = loc_coord[0] - el_center[0];
-         dy = loc_coord[1] - el_center[1];
-         dz = loc_coord[2] - el_center[2];
+         dx = (loc_coord[0] - el_center[0])/vandScale;
+         dy = (loc_coord[1] - el_center[1])/vandScale;
+         dz = (loc_coord[2] - el_center[2])/vandScale;
          int col = 0;
          for (j = 0; j <= interpOrder; j++)
          {
@@ -429,6 +431,7 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
    DenseMatrix V;
    DenseMatrix dV;
    DenseMatrix Vn;
+   DenseMatrix dVn;
    DenseMatrix dpdc_block;
    //cout << "Selected elements are: ";
    //selectedElement[b_id]->Print(cout,numLocalElem);
@@ -529,28 +532,17 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
                                  DenseMatrix &Vn) const
 {
    // get element related data
-   const Element *el = mesh->GetElement(el_id);
-   const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
-   const int numDofs = fe->GetDof();
-   ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
-   
-   // get the dofs coord
    Array<Vector *> dofs_coord;
    dofs_coord.SetSize(numDofs);
    Vector coord(dim);
-   for (int k = 0; k <numDofs; k++)
-   {
-      dofs_coord[k] = new Vector(dim);
-      eltransf->Transform(fe->GetNodes().IntPoint(k), coord);
-      *dofs_coord[k] = coord;
-   }
+   GetElementInfo(el_id, dofs_coord);
 
    V.SetSize(numReqBasis,numReqBasis);
    dV.SetSize(numReqBasis,numReqBasis);
    Vn.SetSize(numDofs,numReqBasis);
 
    // build the data matrix
-   buildElementDerivMat(el_id,b_id,basisCenter,xyz,numDofs,dofs_coord,dV);
+   buildElementDerivMat(el_id,b_id,basisCenter,xyz,numDofs,dofs_coord,dV,dVn);
    //buildElementPolyBasisMat(el_id,basisCenter,numDofs,dofs_coord,V,Vn);
    // free the aux variable
    for (int k = 0; k < numDofs; k++)
@@ -563,7 +555,7 @@ void DGDSpace::buildElementDerivMat(const int el_id, const int b_id,
                                     const Vector &basisCenter,
                                     const int xyz, const int numDofs,
                                     const Array<Vector*> &dofs_coord,
-                                    DenseMatrix &dV) const
+                                    DenseMatrix &dV, DenseMatrix &dVn) const
 {
    int i,j,k,col;
    double dx,dy,dz;
