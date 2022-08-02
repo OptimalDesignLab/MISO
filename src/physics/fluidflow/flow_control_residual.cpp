@@ -464,7 +464,8 @@ MachOutput FlowControlResidual<dim, entvar>::constructOutput(
     const std::string &fun,
     const nlohmann::json &options)
 {
-   if (fun == "drag" || fun == "lift" || fun == "boundary-entropy")
+   if (fun == "drag" || fun == "lift" || fun == "boundary-entropy" || 
+       fun == "far-field-supply-rate")
    {
       return flow_res.constructOutput(fun, options);
    }

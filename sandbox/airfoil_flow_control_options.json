@@ -73,6 +73,9 @@
         },
         "lift": {
             "boundaries": [0, 0, 1, 1]
+        },
+        "far-field-supply-rate": {
+            "boundaries": [1, 1, 0, 0]
         }
     }
  }

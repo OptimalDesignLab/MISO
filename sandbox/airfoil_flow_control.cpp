@@ -118,6 +118,8 @@ int main(int argc, char *argv[])
                           options["outputs"].at("boundary-entropy"));
       solver.createOutput("drag", options["outputs"].at("drag"));
       solver.createOutput("lift", options["outputs"].at("lift"));
+      solver.createOutput("far-field-supply-rate",
+                          options["outputs"].at("far-field-supply-rate"));
 
       // Solve for the state
       solver.solveForState(inputs, state_tv);

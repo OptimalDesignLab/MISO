@@ -978,6 +978,22 @@ double BoundaryEntropy<dim, entvar>::calcBndryFun(const mfem::Vector &x,
    return scale * S * dA;
 }
 
+template <int dim, bool entvar>
+double SupplyRate<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                             const mfem::Vector &dir,
+                                             const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFarFieldFlux2<double, dim, entvar>(dir.GetData(),
+                                          qfs.GetData(),
+                                          q.GetData(),
+                                          work_vec.GetData(),
+                                          flux_vec.GetData());
+   mfem::Vector w(q.Size());
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
+   return dot<double, dim>(dir.GetData(), q.GetData()+1) - w * flux_vec;
+}
+
 }  // namespace mach
 
 #endif
