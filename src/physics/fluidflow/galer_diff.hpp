@@ -87,6 +87,7 @@ protected:
    int numReqBasis;
    int extra; // dummy variable, not used
    double cond;
+   bool adjustCondition;
 
    /// indicator of whether using extra basis
    mutable std::vector<int> extraCenter;

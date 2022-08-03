@@ -28,6 +28,9 @@ void uexact(const Vector &x, Vector& u);
 /// \param[in] num_ang - number of nodes in the angular direction
 std::unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree, int num_rad,
                                               int num_ang);
+std::unique_ptr<Mesh> buildQuarterAnnulusMeshPert(int degree, int num_rad,
+                                                  int num_ang, double pert);
+
 mfem::Vector buildBasisCenter(mfem::Mesh *mesh, int numBasis);
 mfem::Vector buildBasisCenter2(int numt, int numr);
 
@@ -73,13 +76,21 @@ int main(int argc, char *argv[])
 
 
       // mesh for basis
-      // unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree + 1,numRad,numTheta);
-      // int numBasis = bmesh->GetNE();
-      // Vector center = buildBasisCenter(bmesh.get(),numBasis);
+      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMeshPert(degree, numRad, numTheta,0.25);
+      //unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree, numRad, numTheta);
+      int numBasis = bmesh->GetNE();
+      Vector center(dim*numBasis);
+      Vector loc(dim);
+      for (int k = 0; k < numBasis; k++)
+      {  
+         bmesh->GetElementCenter(k,loc);
+         center(k*2) = loc(0);
+         center(k*2+1) = loc(1);
+      }
 
 
-      Vector center = buildBasisCenter2(numRad,numTheta);
-      int numBasis = center.Size()/2;
+      // Vector center = buildBasisCenter2(numRad,numTheta);
+      // int numBasis = center.Size()/2;
 
 
       ofstream centerwrite("center_initial.vtp");
@@ -96,7 +107,7 @@ int main(int argc, char *argv[])
       // cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      BFGSNewtonSolver bfgsSolver(0.1,1e3,1e-4,0.9,20);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
@@ -267,4 +278,53 @@ void writeBasisCentervtp(const mfem::Vector &center, T &stream)
    stream << "</Piece>\n";
    stream << "</PolyData>\n";
    stream << "</VTKFile>\n";
+}
+
+unique_ptr<Mesh> buildQuarterAnnulusMeshPert(int degree, int num_rad, int num_ang, double pert)
+{
+   auto mesh_ptr = unique_ptr<Mesh>(new Mesh(num_rad, num_ang,
+                                             Element::TRIANGLE, true /* gen. edges */,
+                                             2.0, M_PI*0.5, true));
+
+   // Randomly perturb interior nodes
+   std::default_random_engine gen(std::random_device{}());
+   std::uniform_real_distribution<double> uni_rand(-pert, pert);
+   static constexpr double eps = std::numeric_limits<double>::epsilon();
+   for (int i = 0; i < mesh_ptr->GetNV(); ++i)
+   {
+      double *vertex = mesh_ptr->GetVertex(i);
+      // make sure vertex is interior
+      if (vertex[0] > eps && vertex[0] < 2.0 - eps && 
+          vertex[1] > eps && vertex[1] < M_PI * 0.5 - eps)
+      {
+         // perturb coordinates 
+         vertex[0] += uni_rand(gen)*2.0/num_rad;
+         vertex[1] += uni_rand(gen)*M_PI * 0.5/num_ang;
+      }
+   }
+
+   // strategy:
+   // 1) generate a fes for Lagrange elements of desired degree
+   // 2) create a Grid Function using a VectorFunctionCoefficient
+   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
+   
+   // Problem: fes does not own fec, which is generated in this function's scope
+   // Solution: the grid function can own both the fec and fes
+   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
+   FiniteElementSpace *fes = new FiniteElementSpace(mesh_ptr.get(), fec, 2,
+                                                    Ordering::byVDIM);
+
+   // This lambda function transforms from (r,\theta) space to (x,y) space
+   auto xy_fun = [](const Vector& rt, Vector &xy)
+   {
+      xy(0) = (rt(0) + 1.0)*cos(rt(1)); // need + 1.0 to shift r away from origin
+      xy(1) = (rt(0) + 1.0)*sin(rt(1));
+   };
+   VectorFunctionCoefficient xy_coeff(2, xy_fun);
+   GridFunction *xy = new GridFunction(fes);
+   xy->MakeOwner(fec);
+   xy->ProjectCoefficient(xy_coeff);
+
+   mesh_ptr->NewNodes(*xy, true);
+   return mesh_ptr;
 }

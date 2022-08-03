@@ -43,9 +43,10 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	// construct fespaces
 	int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();
 	int extra = options["space-dis"]["extra-basis"].get<int>();
+	double condv = options["space-dis"]["condv"].get<double>();
 	fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),dim));
 	fes_dgd.reset(new DGDSpace(mesh.get(),fec.get(),designVar,dgd_degree,extra,
-							num_state,Ordering::byVDIM));
+							num_state,Ordering::byVDIM,condv));
 	fes_full.reset(new FiniteElementSpace(mesh.get(),fec.get(),num_state,
 							 Ordering::byVDIM));
 
@@ -215,7 +216,6 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	pRpu->MultTranspose(r,temp_vec1);
 	pPupc.MultTranspose(temp_vec1,y);
 	y *= 2.0;
-
 	// ofstream pjpc_save("pjpc.txt");
 	// y.Print(pjpc_save,1);
 	// pjpc_save.close();
@@ -224,7 +224,6 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	SparseMatrix *P = fes_dgd->GetCP();
 	P->MultTranspose(temp_vec1,pJpuc);
 	pJpuc *= 2.0;
-
 	// ofstream p_save("p.txt");
 	// P->PrintMatlab(p_save);
 	// p_save.close();
@@ -258,7 +257,6 @@ void DGDOptimizer::Mult(const Vector &x, Vector &y) const
 	umfsolver.SetOperator(*pRt_dgdpuc);
 	umfsolver.Mult(pJpuc,adj);
 	delete pRt_dgdpuc;
-
 	// ofstream adj_sasve("adj.txt");
 	// adj.Print(adj_save,1);
 	// adj_save.close();
