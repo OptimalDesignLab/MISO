@@ -52,13 +52,15 @@ public:
                           const mfem::Vector &center,
                           mfem::DenseMatrix &V,
                           mfem::DenseMatrix &dV,
-                          mfem::DenseMatrix &Vn) const;
+                          mfem::DenseMatrix &Vn,
+                          mfem::DenseMatrix &dVn) const;
    
    void buildElementDerivMat(const int el_id, const int b_id,
                              const mfem::Vector &basisCenter,
                              const int xyz,
                              const mfem::Array<mfem::Vector *> &dofs_coord,
-                             mfem::DenseMatrix &dV) const;
+                             mfem::DenseMatrix &dV,
+                             mfem::DenseMatrix &dVn) const;
    
    void AssembleDerivMatrix(const int el_id, const DenseMatrix &dpdc_block,
                             mfem::SparseMatrix &dpdc) const;
