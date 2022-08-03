@@ -1761,8 +1761,9 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
          // transposed dimensions of curlshape_dFt so I don't have to transpose
          // jac_bar later
-         // DenseMatrix curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(), curl_dim, el_ndof);
-         // DenseMatrix curlshape_dFt_bar_(curl_dim, el_ndof);
+         // DenseMatrix curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(),
+         // curl_dim, el_ndof); DenseMatrix curlshape_dFt_bar_(curl_dim,
+         // el_ndof);
          curlshape_dFt_bar.SetSize(curl_dim, el_ndof);
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
@@ -1776,8 +1777,9 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
       else  // Dealing with scalar H1 field representing Az
       {
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-         // DenseMatrix curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(), el_ndof, curl_dim);
-         // DenseMatrix curlshape_dFt_bar_(el_ndof, curl_dim);
+         // DenseMatrix curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(),
+         // el_ndof, curl_dim); DenseMatrix curlshape_dFt_bar_(el_ndof,
+         // curl_dim);
          curlshape_dFt_bar.SetSize(el_ndof, curl_dim);
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
@@ -3555,7 +3557,8 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
          // transposed dimensions of curlshape_dFt so I don't have to transpose
          // jac_bar later
-         DenseMatrix curlshape_dFt_bar(curlshape_dFt_bar_buffer.GetData(), curl_dim, ndof);
+         DenseMatrix curlshape_dFt_bar(
+             curlshape_dFt_bar_buffer.GetData(), curl_dim, ndof);
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
          /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
@@ -3568,7 +3571,8 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
       else  // Dealing with scalar H1 field representing Az
       {
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-         DenseMatrix curlshape_dFt_bar(curlshape_dFt_bar_buffer.GetData(), ndof, curl_dim);
+         DenseMatrix curlshape_dFt_bar(
+             curlshape_dFt_bar_buffer.GetData(), ndof, curl_dim);
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
          /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
