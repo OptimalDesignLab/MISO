@@ -56,10 +56,9 @@ public:
    
    void buildElementDerivMat(const int el_id, const int b_id,
                              const mfem::Vector &basisCenter,
-                             const int xyz, const int numDofs,
+                             const int xyz,
                              const mfem::Array<mfem::Vector *> &dofs_coord,
-                             mfem::DenseMatrix &dV,
-                             mfem::DenseMatrix &dVn) const;
+                             mfem::DenseMatrix &dV) const;
    
    void AssembleDerivMatrix(const int el_id, const DenseMatrix &dpdc_block,
                             mfem::SparseMatrix &dpdc) const;

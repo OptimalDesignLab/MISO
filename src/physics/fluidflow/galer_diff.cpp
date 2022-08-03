@@ -533,19 +533,16 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
 {
    // get element related data
    Array<Vector *> dofs_coord;
-   dofs_coord.SetSize(numDofs);
-   Vector coord(dim);
    GetElementInfo(el_id, dofs_coord);
 
    V.SetSize(numReqBasis,numReqBasis);
    dV.SetSize(numReqBasis,numReqBasis);
-   Vn.SetSize(numDofs,numReqBasis);
 
    // build the data matrix
-   buildElementDerivMat(el_id,b_id,basisCenter,xyz,numDofs,dofs_coord,dV,dVn);
+   buildElementDerivMat(el_id,b_id,basisCenter,xyz,dofs_coord,dV);
    //buildElementPolyBasisMat(el_id,basisCenter,numDofs,dofs_coord,V,Vn);
    // free the aux variable
-   for (int k = 0; k < numDofs; k++)
+   for (int k = 0; k < dofs_coord.Size(); k++)
    {
       delete dofs_coord[k];
    }
@@ -553,13 +550,14 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
 
 void DGDSpace::buildElementDerivMat(const int el_id, const int b_id,
                                     const Vector &basisCenter,
-                                    const int xyz, const int numDofs,
+                                    const int xyz,
                                     const Array<Vector*> &dofs_coord,
-                                    DenseMatrix &dV, DenseMatrix &dVn) const
+                                    DenseMatrix &dV) const
 {
    int i,j,k,col;
    double dx,dy,dz;
    const int row_idx = selectedBasis[el_id]->Find(b_id);
+   const int numDofs = dofs_coord.Size();
    Vector loc_coord(dim);
    Vector el_center(dim);
    GetBasisCenter(b_id,loc_coord,basisCenter);

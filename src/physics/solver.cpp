@@ -186,7 +186,7 @@ void AbstractSolver::initDerived()
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState(); // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
-   if (options["space-dis"]["GD"].get<bool>() == true ||
+   if (options["space-dis"]["DGD"].get<bool>() == true ||
        options["space-dis"]["basis-type"].get<string>() == "dsbp")
    {
       int gd_degree = options["space-dis"]["GD-degree"].get<int>();
