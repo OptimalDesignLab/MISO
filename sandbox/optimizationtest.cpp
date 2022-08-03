@@ -107,7 +107,8 @@ int main(int argc, char *argv[])
       // cout << "initial objective value is " << l2norm << '\n';
       // dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(0.1,1e3,1e-4,0.9,20);
+      //BFGSNewtonSolver bfgsSolver(0.1,1e3,1e-4,0.9,20);
+      BFGSNewtonSolver bfgsSolver(optfile);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);

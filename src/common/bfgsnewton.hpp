@@ -15,6 +15,8 @@ class BFGSNewtonSolver
 public:
    BFGSNewtonSolver(double a_init = 1.0, double a_max = 1e3, double cc1 = 1e-4,
                     double cc2 = 0.9, double max = 40);
+   BFGSNewtonSolver(const std::string &opt_file_name = 
+                     std::string("optimizationtest_options.json"));
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`

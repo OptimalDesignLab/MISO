@@ -1,5 +1,6 @@
 #include "bfgsnewton.hpp"
 #include "utils.hpp"
+#include "json.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -20,6 +21,23 @@ BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
    rel_tol = 1e-6;
    max_iter = max;
    zoom_max_iter = 50;
+}
+
+BFGSNewtonSolver::BFGSNewtonSolver(const string &opt_file_name)
+{
+   nlohmann::json file_options;
+   ifstream options_file(opt_file_name);
+	options_file >> file_options;
+
+   alpha_init = file_options["BFGSNewton"]["alpha-init"].get<double>();
+   alpha_max = file_options["BFGSNewton"]["alpha-max"].get<double>();
+   c1 = file_options["BFGSNewton"]["c1"].get<double>();
+   c2 = file_options["BFGSNewton"]["c2"].get<double>();
+   max_iter = file_options["BFGSNewton"]["max-iter"].get<int>();
+   zoom_max_iter = file_options["BFGSNewton"]["zoom-max-iter"].get<int>();
+   print_level = file_options["BFGSNewton"]["print-level"].get<int>();
+   abs_tol = file_options["BFGSNewton"]["abs-tol"].get<double>();
+   rel_tol = file_options["BFGSNewton"]["rel-tol"].get<double>();
 }
 
 void BFGSNewtonSolver::SetOperator(const Operator &op)

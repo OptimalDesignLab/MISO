@@ -4,10 +4,21 @@
       "DGD": true,
       "DGD-degree": 1,
       "extra-basis": 4,
-      "shape-param": 10.0,
+      "condv": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
       "basis-type": "dsbp"
+   },
+   "BFGSNewton":{
+      "alpha-init": 1e-1,
+      "alpha-max": 1e3,
+      "c1":1e-4,
+      "c2":0.9,
+      "max-iter":20,
+      "zoom-max-iter":50,
+      "print-level": 1,
+      "abs-tol":1e-12,
+      "rel-tol":1e-6
    },
    "steady": true,
    "time-dis": {
