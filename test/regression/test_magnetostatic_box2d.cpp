@@ -111,6 +111,7 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
          {
             // construct the solver, set the initial condition, and solve
             unique_ptr<Mesh> smesh = buildMesh(nxy);
+
             MagnetostaticSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
             mfem::Vector state_tv(solver.getStateSize());
 
@@ -183,7 +184,8 @@ unique_ptr<Mesh> buildMesh(int nxy)
       bool below = true;
       for (int i = 0; i < verts.Size(); ++i)
       {
-         auto vtx = mesh->GetVertex(verts[i]);
+         auto *vtx = mesh->GetVertex(verts[i]);
+         // std::cout << "mesh vtx: " << vtx[0] << ", " << vtx[1] << "\n";
          if (vtx[1] <= 0.5)
          {
             below = below;
@@ -202,5 +204,7 @@ unique_ptr<Mesh> buildMesh(int nxy)
          elem->SetAttribute(2);
       }
    }
+   mesh->SetAttributes();
+
    return mesh;
 }
