@@ -186,11 +186,11 @@ unique_ptr<Mesh> buildMesh(int nxy)
          auto vtx = mesh->GetVertex(verts[i]);
          if (vtx[1] <= 0.5)
          {
-            below = below & true;
+            below = below;
          }
          else
          {
-            below = below & false;
+            below = false;
          }
       }
       if (below)
