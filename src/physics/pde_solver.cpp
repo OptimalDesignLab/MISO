@@ -150,7 +150,7 @@ MachMesh::~MachMesh()
    /// If we started PCU and we're the last one using it, close it
    if (!PCU_previously_initialized && pumi_mesh_count == 0)
    {
-#ifdef HAVE_EGADS
+#ifdef MFEM_USE_EGADS
       gmi_egads_stop();
 #endif
 #ifdef HAVE_SIMMETRIX

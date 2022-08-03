@@ -4,6 +4,7 @@
 #include "adept.h"
 #include "electromag_integ.hpp"
 #include "mach_linearform.hpp"
+#include "mach_load.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -36,7 +37,21 @@ std::unique_ptr<mfem::Solver> constructPreconditioner(
    return nullptr;
 }
 
-}  // namespace
+std::vector<int> getCurrentAttributes(const nlohmann::json &options)
+{
+   std::vector<int> attributes;
+   for (const auto &group : options["current"])
+   {
+      for (const auto &source : group)
+      {
+         auto attrs = source.get<std::vector<int>>();
+         attributes.insert(attributes.end(), attrs.begin(), attrs.end());
+      }
+   }
+   return attributes;
+}
+
+}  // anonymous namespace
 
 namespace mach
 {
@@ -49,6 +64,10 @@ void setInputs(MagnetostaticResidual &residual, const mach::MachInputs &inputs)
 {
    setInputs(residual.res, inputs);
    setInputs(*residual.load, inputs);
+   if (residual.current_coeff)
+   {
+      setInputs(*residual.current_coeff, inputs);
+   }
 }
 
 void setOptions(MagnetostaticResidual &residual, const nlohmann::json &options)
@@ -172,8 +191,10 @@ MagnetostaticResidual::MagnetostaticResidual(
       {
          current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
              diff_stack, options["current"]);
+
+         auto current_attrs = getCurrentAttributes(options);
          linear_form.addDomainIntegrator(
-             new mfem::DomainLFIntegrator(*current_coeff));
+             new mfem::DomainLFIntegrator(*current_coeff), current_attrs);
       }
       if (options.contains("magnets"))
       {

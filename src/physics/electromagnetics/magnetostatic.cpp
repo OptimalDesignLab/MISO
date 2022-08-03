@@ -99,7 +99,16 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    if (fun.rfind("energy", 0) == 0)
    {
       FunctionalOutput out(fes(), fields);
-      out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu));
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu),
+                                       attributes);
+      }
+      else
+      {
+         out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu));
+      }
       outputs.emplace(fun, std::move(out));
    }
    else if (fun.rfind("force", 0) == 0)
