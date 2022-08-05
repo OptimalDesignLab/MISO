@@ -47,6 +47,8 @@ public:
    void checkJacobian(mfem::Vector &x);
    void getFreeStreamState(mfem::Vector &q_ref);
 
+   double calcFullSpaceL2Error(int entry) const;
+
    void printSolution(const mfem::Vector &c, const std::string &file_name);
    /// class destructor
    ~DGDOptimizer();
@@ -63,6 +65,7 @@ protected:
    int numDesignVar;
    mfem::Vector designVar;
 
+   void (*u_exact)(const mfem::Vector &, mfem::Vector &);
 
    // airfoil variables
    double mach_fs;

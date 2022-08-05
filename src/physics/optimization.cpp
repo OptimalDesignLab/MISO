@@ -112,7 +112,8 @@ void DGDOptimizer::InitializeSolver()
 void DGDOptimizer::SetInitialCondition(void (*u_init)(const mfem::Vector &,
                                         					mfem::Vector &))
 {
-   VectorFunctionCoefficient u0(num_state, u_init);
+	u_exact = u_init;
+   VectorFunctionCoefficient u0(num_state, u_exact);
    u_dgd->ProjectCoefficient(u0);
    u_full->ProjectCoefficient(u0);
 
@@ -396,11 +397,77 @@ void DGDOptimizer::getFreeStreamState(mfem::Vector &q_ref)
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
 }
 
+double DGDOptimizer::calcFullSpaceL2Error(int entry) const
+{
+   // TODO: need to generalize to parallel
+   VectorFunctionCoefficient exsol(num_state, u_exact);
+   //return u->ComputeL2Error(ue);
+
+   double loc_norm = 0.0;
+   const FiniteElement *fe;
+   ElementTransformation *T;
+   DenseMatrix vals, exact_vals;
+   Vector loc_errs;
+
+   if (entry < 0)
+   {
+      fes_dgd->GetProlongationMatrix()->Mult(*u_dgd, *u_full);
+      // sum up the L2 error over all states
+      for (int i = 0; i < fes_full->GetNE(); i++)
+      {
+         fe = fes_full->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes_full->GetElementTransformation(i);
+         u_full->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.Norm2(loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+         }
+      }
+   }
+   else
+   {
+      // calculate the L2 error for component index `entry`
+      fes_dgd->GetProlongationMatrix()->Mult(*u_dgd, *u_full);
+      for (int i = 0; i < fes_full->GetNE(); i++)
+      {
+         fe = fes_full->GetFE(i);
+         const IntegrationRule *ir = &(fe->GetNodes());
+         T = fes_full->GetElementTransformation(i);
+         u_full->GetVectorValues(*T, *ir, vals);
+         exsol.Eval(exact_vals, *T, *ir);
+         vals -= exact_vals;
+         loc_errs.SetSize(vals.Width());
+         vals.GetRow(entry, loc_errs);
+         for (int j = 0; j < ir->GetNPoints(); j++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(j);
+            T->SetIntPoint(&ip);
+            loc_norm += ip.weight * T->Weight() * (loc_errs(j) * loc_errs(j));
+            //cout << "loc_norm is " << loc_errs(j) <<'\n';
+         }
+      }
+   }
+   double norm;
+
+   norm = loc_norm;
+   if (norm < 0.0) // This was copied from mfem...should not happen for us
+   {
+      return -sqrt(-norm);
+   }
+   return sqrt(norm);
+}
+
 void DGDOptimizer::checkJacobian(Vector &x)
 {
 	Vector b(numBasis);
 	newton_solver->Mult(b,*u_dgd);
-	SparseMatrix *prolong = fes_dgd->GetCP();
 	// get analytic jacobian
 	Vector dJdc_analytic;
 	Mult(x,dJdc_analytic);

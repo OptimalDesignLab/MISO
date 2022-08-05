@@ -88,10 +88,8 @@ int main(int argc, char *argv[])
          center(k*2+1) = loc(1);
       }
 
-
       // Vector center = buildBasisCenter2(numRad,numTheta);
-      // int numBasis = center.Size()/2;
-
+      // int numBasis = center.Size()/dim;
 
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
@@ -226,7 +224,7 @@ mfem::Vector buildBasisCenter2(int nx, int ny)
       y = col * dy;
       dist = sqrt(pow(x,2)+ pow(y,2));
 
-      if (1.0 < dist && dist < 3.0)
+      if (1.1 < dist && dist < 2.9)
       {
          cent.push_back(x);
          cent.push_back(y);
@@ -235,11 +233,11 @@ mfem::Vector buildBasisCenter2(int nx, int ny)
    cout << "cent size is " << cent.size() << '\n';
    mfem::Vector center(cent.size());
 
-   for (int i = 0; i < cent.size()/2; i++)
+   for (int i = 0; i < cent.size(); i++)
    {
-      center(2*i) = cent[2*i];
-      center(2*i+1) = cent[2*i+1];
+      center(i) = cent[i];
    }
+   cout << "Cent size is " << center.Size() << '\n';
    return center;
 }
 

@@ -68,16 +68,16 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       ident(i,i) = 1.0;
    }
    int it;
-   double norm0, norm_goal;
+   double norm0, norm_goal, l2error_init, l2error_final;
 
    norm0 = norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
    cout << "norm goal is " << norm_goal << '\n';
    cout << "initial objective value is " << norm0 <<'\n';
-
+   l2error_init = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
+   cout << "Initial full space L2 error is " << l2error_init <<'\n';
    // initialize the jacobian
    oper->Mult(x,jac);
-   
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
@@ -135,6 +135,9 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    opt = x;
    final_iter = it;
    final_norm = norm;
+   l2error_final = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
+   cout << "final l2 error is " << l2error_final << '\n';
+   cout << "l2 reduction ratio = " << l2error_final/l2error_init << '\n';
 }
 
 void BFGSNewtonSolver::UpdateHessianInverse(const Vector &s, const Vector &jac,
@@ -222,7 +225,6 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
          // c2 < 1e-6, this is not quite often
       }
 
-
       // curvature condition is not satisfied,
       // and phi_new < phi_old
       if (dphi_new >= 0)
@@ -236,7 +238,6 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
       alpha_old = alpha_new;
       phi_old = phi_new;
       dphi_old = dphi_new;
-
       // update step size
       if (quad_coeff > 0.0)
       {

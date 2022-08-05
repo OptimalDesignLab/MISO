@@ -33,9 +33,10 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
    InitializeStencil(center);
    
    // build the initial prolongation matrix
-   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
+   
    cP_is_set = true;
    adjustCondition = true;
+   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
    buildProlongationMatrix(center);
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
    adjustCondition = false;
@@ -136,9 +137,9 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
       AssembleProlongationMatrix(i,localMat);
    }
    cP->Finalize();
-   ofstream cp_save("prolong.txt");
-	cP->PrintMatlab(cp_save);
-	cp_save.close();
+   // ofstream cp_save("prolong.txt");
+	// cP->PrintMatlab(cp_save);
+	// cp_save.close();
 }
 
 void DGDSpace::buildDataMat(int el_id, const Vector &x,
@@ -699,13 +700,14 @@ double DGDSpace::calcVandScale(const int el_id,
                                const Vector &basisCenter) const
 {
    // get the most furthe basis 
-   int numCenter = selectedBasis[el_id]->Size();
-   int bid = (*selectedBasis[el_id])[numCenter-1];
-   Vector center(dim);
-   GetBasisCenter(bid,center,basisCenter);
-   // compute the scale
-   center -= el_center;
-   return center.Norml2();
+   // int numCenter = selectedBasis[el_id]->Size();
+   // int bid = (*selectedBasis[el_id])[numCenter-1];
+   // Vector center(dim);
+   // GetBasisCenter(bid,center,basisCenter);
+   // // compute the scale
+   // center -= el_center;
+   // return center.Norml2();
+   return 1.0;
 }
 
 DGDSpace::~DGDSpace()
