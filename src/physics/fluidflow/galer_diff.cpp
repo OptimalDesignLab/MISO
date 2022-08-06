@@ -529,7 +529,7 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
       // assemble is back to the derivative matrix
       AssembleDerivMatrix(el_id,dpdc_block,dpdc);
    }
-   dpdc.Finalize();
+   dpdc.Finalize(0);
 }
 
 void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
@@ -642,7 +642,7 @@ void DGDSpace::AssembleDerivMatrix(const int el_id, const DenseMatrix &localMat,
    for (int v = 0; v < vdim; v++)
    {
       el_dofs.GetSubArray(v * numDofs, numDofs, row_index);
-      dpdc.SetSubMatrix(row_index, col_index, localMat, 1);
+      dpdc.SetSubMatrix(row_index, col_index, localMat, 0);
       // elements id also need to be shift accordingly
       for (int e = 0; e < numCenter; e++)
       {

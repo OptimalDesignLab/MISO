@@ -68,28 +68,33 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       ident(i,i) = 1.0;
    }
    int it;
-   double norm0, norm_goal, l2error_init, l2error_final;
-
+   double norm0, norm_goal, l2error_init, l2error_final, jacnorm;
    norm0 = norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
    cout << "norm goal is " << norm_goal << '\n';
    cout << "initial objective value is " << norm0 <<'\n';
    l2error_init = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
    cout << "Initial full space L2 error is " << l2error_init <<'\n';
+   remove("optimizationlog.txt");
+   ofstream optimizationlog;
+   optimizationlog.open("optimizationlog.txt", fstream::app);
+   optimizationlog << setprecision(16);
    // initialize the jacobian
    oper->Mult(x,jac);
+   jacnorm = jac.Norml2();
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
+      optimizationlog << it << ' ' << norm << ' ' << jacnorm << '\n';
       MFEM_ASSERT(IsFinite(norm), "norm = " << norm);
       if (print_level >= 0)
       {
          mfem::out << "BFGS optimization iteration " << setw(2) << it
-                   << " : J = " << norm;
+                   << ": J = " << norm;
          if (it > 0)
          {
             mfem::out << ", J/J_0 = " << norm/norm0;
-            mfem::out << " . jac norm is " << jac.Norml2();
+            mfem::out << ", ||Jac|| = " << jacnorm;
          }
          mfem::out<<'\n';
       }
@@ -128,6 +133,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
 
       // update hessian
       oper->Mult(x,jac_new);
+      jacnorm = jac_new.Norml2();
       UpdateHessianInverse(c,jac,jac_new,ident,B);
       // update jac
       jac = jac_new;
@@ -135,6 +141,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    opt = x;
    final_iter = it;
    final_norm = norm;
+   optimizationlog.close();
    l2error_final = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
    cout << "final l2 error is " << l2error_final << '\n';
    cout << "l2 reduction ratio = " << l2error_final/l2error_init << '\n';
