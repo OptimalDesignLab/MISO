@@ -238,6 +238,7 @@ double BFGSNewtonSolver::ComputeStepSize(const Vector &x, const Vector &c,
       alpha_old = alpha_new;
       phi_old = phi_new;
       dphi_old = dphi_new;
+
       // update step size
       if (quad_coeff > 0.0)
       {

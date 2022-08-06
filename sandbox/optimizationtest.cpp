@@ -76,20 +76,20 @@ int main(int argc, char *argv[])
 
 
       // mesh for basis
-      unique_ptr<Mesh> bmesh = buildQuarterAnnulusMeshPert(degree, numRad, numTheta,0.25);
-      //unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree, numRad, numTheta);
-      int numBasis = bmesh->GetNE();
-      Vector center(dim*numBasis);
-      Vector loc(dim);
-      for (int k = 0; k < numBasis; k++)
-      {  
-         bmesh->GetElementCenter(k,loc);
-         center(k*2) = loc(0);
-         center(k*2+1) = loc(1);
-      }
+      // unique_ptr<Mesh> bmesh = buildQuarterAnnulusMeshPert(degree, numRad, numTheta,0.25);
+      // //unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree, numRad, numTheta);
+      // int numBasis = bmesh->GetNE();
+      // Vector center(dim*numBasis);
+      // Vector loc(dim);
+      // for (int k = 0; k < numBasis; k++)
+      // {  
+      //    bmesh->GetElementCenter(k,loc);
+      //    center(k*2) = loc(0);
+      //    center(k*2+1) = loc(1);
+      // }
 
-      // Vector center = buildBasisCenter2(numRad,numTheta);
-      // int numBasis = center.Size()/dim;
+      Vector center = buildBasisCenter2(numRad,numTheta);
+      int numBasis = center.Size()/dim;
 
       ofstream centerwrite("center_initial.vtp");
       writeBasisCentervtp(center, centerwrite);
