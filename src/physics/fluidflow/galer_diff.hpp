@@ -90,6 +90,10 @@ protected:
    bool adjustCondition;
 
    /// indicator of whether using extra basis
+   std::vector<std::vector<int>> selectedBasis;
+   std::vector<std::vector<int>> selectedElement;
+   std::vector<std::vector<double>> elementBasisDist;
+   std::vector<std::vector<size_t>> sortedEBDistRank;
    mutable std::vector<int> extraCenter;
    /// the actual polynomial order of on each element
    
@@ -98,11 +102,10 @@ protected:
 
 
    /// selected basis for each element (currently it is fixed upon setup)
-   mfem::Array<mfem::Array<int> *> selectedBasis;
-   mfem::Array<mfem::Array<int> *> selectedElement;
-   /// array of map that holds the distance from element center to basisCenter
-   mfem::Array<std::vector<double> *> elementBasisDist;
-   mfem::Array<std::vector<size_t> *> sortedEBDistRank;
+   // mfem::Array<mfem::Array<int> *> selectedBasis;
+   // mfem::Array<mfem::Array<int> *> selectedElement;
+   // mfem::Array<std::vector<double> *> elementBasisDist;
+   // mfem::Array<std::vector<size_t> *> sortedEBDistRank;
    
    
 

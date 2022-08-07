@@ -25,52 +25,43 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
       case 3: numReqBasis = (interpOrder+1) * (interpOrder+2) * (interpOrder+3) / 6; break;
       default: throw MachException("dim must be 1, 2 or 3.\n");
    }
-   extraCenter.assign(GetMesh()->GetNE(),0);
-
-   cout << "Number of total basis center is " << center.Size()/dim << '\n';
+   
+   // initialize member variables
+   int nel = GetMesh()->GetNE();
+   extraCenter.assign(nel,0);
+   selectedBasis.resize(nel);
+   sortedEBDistRank.resize(nel);
+   selectedElement.resize(numBasis);
+   coef.SetSize(nel);
    
    // initialize the stencil/patch based on the given interpolatory order
    InitializeStencil(center);
    
    // build the initial prolongation matrix
-   
    cP_is_set = true;
    adjustCondition = true;
    cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
    buildProlongationMatrix(center);
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
    adjustCondition = false;
+   ofstream cp_save("prolong.txt");
+	cP->PrintMatlab(cp_save);
+	cp_save.close();
 }
 
 void DGDSpace::InitializeStencil(const Vector &basisCenter)
 {
-
-   // delcare the basis/element related data
-   elementBasisDist.SetSize(GetMesh()->GetNE());
-   sortedEBDistRank.SetSize(GetMesh()->GetNE());
-   selectedBasis.SetSize(GetMesh()->GetNE());
-   coef.SetSize(GetMesh()->GetNE());
-   selectedElement.SetSize(numBasis);
-
    // declare some intermediate variable
    Vector elemCenter(dim);
    Vector center(dim);
    double dist;
-   int i,j,k;
-
-
-   for (i = 0; i < numBasis; i++)
-   {
-      selectedElement[i] = new Array<int>;
-   }
-
+   int i,j,k,bid;
    // loop over all the elements to construct the stencil
    vector<size_t> temp;
+   vector<double> elementBasisDist;
    for (i = 0; i < GetMesh()->GetNE(); i++)
    {
-      elementBasisDist[i] = new std::vector<double>;
-      sortedEBDistRank[i] = new std::vector<size_t>;
-      selectedBasis[i] = new Array<int>;
+      elementBasisDist.clear();
       GetMesh()->GetElementCenter(i,elemCenter);
       // loop over all basis
       for (j = 0; j < numBasis; j++)
@@ -78,18 +69,16 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
          GetBasisCenter(j,center,basisCenter);
          center -= elemCenter;
          dist = center.Norml2();
-         elementBasisDist[i]->push_back(dist);
+         elementBasisDist.push_back(dist);
       }
       // build element/basis stencil based on distance
-      (*sortedEBDistRank[i]) = sort_indexes(*elementBasisDist[i]);
-      int b_id_temp;
+      sortedEBDistRank[i] = sort_indexes(elementBasisDist);
       for (k = 0;  k < numReqBasis; k++)
       {
-         b_id_temp = (*sortedEBDistRank[i])[k];
-         selectedBasis[i]->Append(b_id_temp);
-         selectedElement[b_id_temp]->Append(i);
+         bid = sortedEBDistRank[i][k];
+         selectedBasis[i].push_back(bid);
+         selectedElement[bid].push_back(i);
       }
-      delete elementBasisDist[i];
    }
    // cout << "------Basis center local------\n";
    // for (int i = 0; i < numBasis; i++)
@@ -137,9 +126,6 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
       AssembleProlongationMatrix(i,localMat);
    }
    cP->Finalize(0);
-   ofstream cp_save("prolong.txt");
-	cP->PrintMatlab(cp_save);
-	cp_save.close();
 }
 
 void DGDSpace::buildDataMat(int el_id, const Vector &x,
@@ -193,10 +179,10 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
 void DGDSpace::addExtraBasis(int el_id)
 {
    int numAppendedCenter = extraCenter[el_id];
-   int b_id = (*sortedEBDistRank[el_id])[numReqBasis-1+numAppendedCenter+1];
-   selectedBasis[el_id]->Append(b_id);
+   int b_id = sortedEBDistRank[el_id][numReqBasis-1+numAppendedCenter+1];
+   selectedBasis[el_id].push_back(b_id);
    extraCenter[el_id]++;
-   selectedElement[b_id]->Append(el_id);
+   selectedElement[b_id].push_back(el_id);
 }
 
 void DGDSpace::buildElementPolyBasisMat(const int el_id,
@@ -212,7 +198,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
    GetMesh()->GetElementCenter(el_id,el_center);
    double vandScale = calcVandScale(el_id,el_center,basisCenter);
    // initialize V, Vn
-   int numCenter = selectedBasis[el_id]->Size();
+   int numCenter = selectedBasis[el_id].size();
    V.SetSize(numCenter,numReqBasis);
    Vn.SetSize(numDofs,numReqBasis);
    if (1 == dim)
@@ -221,7 +207,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       // form the V matrix
       for (i = 0; i < numCenter; i++)
       {
-         b_id = (*selectedBasis[el_id])[i];
+         b_id = selectedBasis[el_id][i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
          dx = (loc_coord[0] - el_center[0])/vandScale;
          for (j = 0; j <= interpOrder; j++)
@@ -247,7 +233,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       // form the V matrix
       for (i = 0; i < numCenter; i++)
       {
-         b_id = (*selectedBasis[el_id])[i];
+         b_id = selectedBasis[el_id][i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
          dx = (loc_coord[0] - el_center[0])/vandScale;
          dy = (loc_coord[1] - el_center[1])/vandScale;
@@ -285,7 +271,7 @@ void DGDSpace::buildElementPolyBasisMat(const int el_id,
       // form the V matrix
       for (i = 0; i < numCenter; i++)
       {
-         b_id = (*selectedBasis[el_id])[i];
+         b_id = selectedBasis[el_id][i];
          GetBasisCenter(b_id,loc_coord,basisCenter);
          dx = (loc_coord[0] - el_center[0])/vandScale;
          dy = (loc_coord[1] - el_center[1])/vandScale;
@@ -333,7 +319,7 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
                                          DenseMatrix &localMat) const
 {
    int numDofs = Vn.Height();
-   int numCenter = selectedBasis[el_id]->Size();
+   int numCenter = selectedBasis[el_id].size();
    DenseMatrix b(numCenter,numCenter);
    b = 0.0;
    for (int i = 0; i < numCenter; i++)
@@ -403,7 +389,7 @@ void DGDSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &lo
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int numDofs = fe->GetDof();
 
-   int numCenter = selectedBasis[el_id]->Size();
+   int numCenter = selectedBasis[el_id].size();
    Array<int> el_dofs;
    Array<int> col_index(numCenter);
    Array<int> row_index(numDofs);
@@ -411,7 +397,7 @@ void DGDSpace::AssembleProlongationMatrix(const int el_id, const DenseMatrix &lo
    GetElementVDofs(el_id, el_dofs);
    for(int e = 0; e < numCenter; e++)
    {
-      col_index[e] = vdim * (*selectedBasis[el_id])[e];
+      col_index[e] = vdim * selectedBasis[el_id][e];
    }
    for (int v = 0; v < vdim; v++)
    {
@@ -432,19 +418,18 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
    int xyz = id % dim; // determine whether it is x, y, or z
    int b_id = id / dim; // determine the basis id
 
-   int numLocalElem = selectedElement[b_id]->Size();
+   int numLocalElem = selectedElement[b_id].size();
    int el_id;
    DenseMatrix V;
    DenseMatrix dV;
    DenseMatrix Vn;
    DenseMatrix dVn;
    DenseMatrix dpdc_block;
-   //selectedElement[b_id]->Print(cout,numLocalElem);
    int numCenter;
    for (int i = 0; i < numLocalElem; i++)
    {
-      el_id = (*selectedElement[b_id])[i];
-      numCenter = selectedBasis[el_id]->Size();
+      el_id = selectedElement[b_id][i];
+      numCenter = selectedBasis[el_id].size();
       buildDerivDataMat(el_id,b_id,xyz,basisCenter,V,dV,Vn,dVn);
       dpdc_block.SetSize(Vn.Height(),numCenter);
       
@@ -559,9 +544,11 @@ void DGDSpace::buildElementDerivMat(const int el_id, const int b_id,
 {
    int i,j,k,col;
    double dx,dy,dz;
-   const int row_idx = selectedBasis[el_id]->Find(b_id);
-   const int numCenter = selectedBasis[el_id]->Size();
+   const int numCenter = selectedBasis[el_id].size();
    const int numDofs = dofs_coord.Size();
+
+   auto it = find(selectedBasis[el_id].begin(),selectedBasis[el_id].end(),b_id);
+   const int row_idx = it - selectedBasis[el_id].begin();
 
    Vector loc_coord(dim);
    GetBasisCenter(b_id,loc_coord,basisCenter);
@@ -628,7 +615,7 @@ void DGDSpace::AssembleDerivMatrix(const int el_id, const DenseMatrix &localMat,
    const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
    const int numDofs = fe->GetDof();
 
-   int numCenter= selectedBasis[el_id]->Size();
+   int numCenter= selectedBasis[el_id].size();
    Array<int> el_dofs;
    Array<int> col_index(numCenter);
    Array<int> row_index(numDofs);
@@ -636,7 +623,7 @@ void DGDSpace::AssembleDerivMatrix(const int el_id, const DenseMatrix &localMat,
    GetElementVDofs(el_id,el_dofs);
    for(int e = 0; e < numCenter; e++)
    {
-      col_index[e] = vdim * (*selectedBasis[el_id])[e];
+      col_index[e] = vdim * selectedBasis[el_id][e];
    }
 
    for (int v = 0; v < vdim; v++)
@@ -700,8 +687,8 @@ double DGDSpace::calcVandScale(const int el_id,
                                const Vector &basisCenter) const
 {
    //get the most furthe basis 
-   int numCenter = selectedBasis[el_id]->Size();
-   int bid = (*selectedBasis[el_id])[numCenter-1];
+   int numCenter = selectedBasis[el_id].size();
+   int bid = selectedBasis[el_id][numCenter-1];
    Vector center(dim);
    GetBasisCenter(bid,center,basisCenter);
    // compute the scale
@@ -713,16 +700,8 @@ DGDSpace::~DGDSpace()
 {
    for (int k = 0; k < GetMesh()->GetNE(); k++)
    {
-      delete selectedBasis[k];
-      delete sortedEBDistRank[k];
       delete coef[k];
    }
-
-   for (int k = 0; k < numBasis; k++)
-   {
-      delete selectedElement[k];
-   }
-
 }
 
 } // end of namespace mfem
