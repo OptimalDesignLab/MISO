@@ -133,9 +133,22 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       // update jacobian and hessian
       if (it != 0 && it % updatecircle == 0 && stencilupdate)
       {
+         // recompute the stencil at new basis location
          dynamic_cast<const DGDOptimizer*>(oper)->updateStencil(x);
+
+         // 1. resolve the problem
+         dynamic_cast<const DGDOptimizer*>(oper)->reSolve();
+
+         // 2. recompute the objective function
+         norm = dynamic_cast<const DGDOptimizer*>(oper)->computeObj();
+
+
+         // 3. update the jacobian
          oper->Mult(x,jac_new);
-         // reset hessian inverse
+         //dynamic_cast<const DGDOptimizer*>(oper)->checkJacobian(x);
+
+         // 4. reset hessian inverse
+         B = 0.0;
          for (int i = 0; i < numvar; i++)
          {
             B(i,i) = 1.0;
@@ -155,8 +168,12 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    final_norm = norm;
    optimizationlog.close();
    l2error_final = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
-   cout << "final l2 error is " << l2error_final << '\n';
-   cout << "l2 reduction ratio = " << l2error_final/l2error_init << '\n';
+   cout << "L2 error: " << l2error_init << " ----> "
+        << l2error_final
+        << ". Ratio: " << l2error_final/l2error_init << '\n';
+   cout << "Objective: " << norm0 << " ----> "
+        << norm
+        << ". Ratio: " << norm/norm0 << '\n';
 }
 
 void BFGSNewtonSolver::UpdateHessianInverse(const Vector &s, const Vector &jac,

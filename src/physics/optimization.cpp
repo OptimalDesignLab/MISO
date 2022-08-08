@@ -141,18 +141,23 @@ double DGDOptimizer::GetEnergy(const Vector &x) const
 {
 	// build new DGD operators
 	fes_dgd->buildProlongationMatrix(x);
-	// solve for DGD solution
-	Vector b(numBasis);
-	newton_solver->Mult(b,*u_dgd);
-	SparseMatrix *prolong = fes_dgd->GetCP();
+
+	reSolve();
+	return computeObj();	
+	// Vector r(FullSize);
+	// res_full->Mult(*u_full,r);
+	// return r * r;
+	// // solve for DGD solution
+	// Vector b(numBasis);
+	// newton_solver->Mult(b,*u_dgd);
+	// SparseMatrix *prolong = fes_dgd->GetCP();
+
+	// prolong->Mult(*u_dgd,*u_full); 
+
 	// milliseconds ms = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
 	// ofstream cp_save("prolong"+to_string(ms.count())+".txt");
 	// prolong->PrintMatlab(cp_save);
 	// cp_save.close();
-	prolong->Mult(*u_dgd,*u_full); 
-	Vector r(FullSize);
-	res_full->Mult(*u_full,r);
-	return r * r;
 }
 
 void DGDOptimizer::Mult(const Vector &x, Vector &y) const
@@ -464,7 +469,7 @@ double DGDOptimizer::calcFullSpaceL2Error(int entry) const
    return sqrt(norm);
 }
 
-void DGDOptimizer::checkJacobian(Vector &x)
+void DGDOptimizer::checkJacobian(Vector &x) const
 {
 	Vector b(numBasis);
 	newton_solver->Mult(b,*u_dgd);
@@ -496,6 +501,21 @@ void DGDOptimizer::updateStencil(const Vector &center) const
 	fes_dgd->InitializeStencil(center);
 	fes_dgd->buildProlongationMatrix(center);
 	res_dgd->UpdateProlong();
+}
+
+void DGDOptimizer::reSolve() const
+{
+	Vector b(numBasis);
+	newton_solver->Mult(b,*u_dgd);
+	SparseMatrix *prolong = fes_dgd->GetCP();
+	prolong->Mult(*u_dgd,*u_full);
+}
+
+double DGDOptimizer::computeObj() const
+{
+	Vector r(FullSize);
+	res_full->Mult(*u_full,r);
+	return r * r;
 }
 
 void DGDOptimizer::printSolution(const Vector &c, const std::string &file_name)

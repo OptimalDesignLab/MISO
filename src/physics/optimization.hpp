@@ -45,11 +45,14 @@ public:
    void addInterfaceIntegrators(double alpha);
 
    void updateStencil(const mfem::Vector &basisCenter) const;
+   void reSolve() const;
+   double computeObj() const;
 
-   void checkJacobian(mfem::Vector &x);
+   void checkJacobian(mfem::Vector &x) const;
    void getFreeStreamState(mfem::Vector &q_ref);
 
    double calcFullSpaceL2Error(int entry) const;
+
 
    void printSolution(const mfem::Vector &c, const std::string &file_name);
    /// class destructor
