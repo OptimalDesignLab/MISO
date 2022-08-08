@@ -10,7 +10,7 @@ namespace mfem
 {
 
 BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
-                                   double cc2, double max)
+                                   double cc2, double max, bool up)
 {
    alpha_init = a_init;
    alpha_max = a_max;
@@ -21,6 +21,7 @@ BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
    rel_tol = 1e-6;
    max_iter = max;
    zoom_max_iter = 50;
+   stencilupdate = up;
 }
 
 BFGSNewtonSolver::BFGSNewtonSolver(const string &opt_file_name)
@@ -38,6 +39,8 @@ BFGSNewtonSolver::BFGSNewtonSolver(const string &opt_file_name)
    print_level = file_options["BFGSNewton"]["print-level"].get<int>();
    abs_tol = file_options["BFGSNewton"]["abs-tol"].get<double>();
    rel_tol = file_options["BFGSNewton"]["rel-tol"].get<double>();
+   stencilupdate = file_options["BFGSNewton"]["update"].get<bool>();
+   updatecircle = file_options["BFGSNewton"]["updatecircle"].get<int>();
 }
 
 void BFGSNewtonSolver::SetOperator(const Operator &op)
@@ -82,6 +85,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    // initialize the jacobian
    oper->Mult(x,jac);
    jacnorm = jac.Norml2();
+
    // x_{i+1} = x_i - [DF(x_i)]^{-1} [F(x_i)-b]
    for (it = 0; true; it++)
    {
@@ -117,25 +121,33 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       c.Neg();
       // compute step size
       double c_scale = ComputeStepSize(x,c,norm);
-      cout << "step size is " <<  c_scale << ". ";
+      cout << "step size is " <<  c_scale << ".\n";
       if (c_scale == 0.0)
       {
          converged = 0;
          break;
       }
       c *= c_scale;
-      // update the state
       x += c;
 
-      // update objective new value and derivative
-      // norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
-      cout << "new objective value is " << norm << '\n';
-
-      // update hessian
-      oper->Mult(x,jac_new);
+      // update jacobian and hessian
+      if (it != 0 && it % updatecircle == 0 && stencilupdate)
+      {
+         dynamic_cast<const DGDOptimizer*>(oper)->updateStencil(x);
+         oper->Mult(x,jac_new);
+         // reset hessian inverse
+         for (int i = 0; i < numvar; i++)
+         {
+            B(i,i) = 1.0;
+         }
+      }
+      else
+      {
+         oper->Mult(x,jac_new);
+         UpdateHessianInverse(c,jac,jac_new,ident,B);
+      }
+      // replace old jac
       jacnorm = jac_new.Norml2();
-      UpdateHessianInverse(c,jac,jac_new,ident,B);
-      // update jac
       jac = jac_new;
    }
    opt = x;

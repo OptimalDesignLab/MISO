@@ -77,7 +77,6 @@ int main(int argc, char *argv[])
 
       // mesh for basis
       // unique_ptr<Mesh> bmesh = buildQuarterAnnulusMeshPert(degree, numRad, numTheta,0.25);
-      // //unique_ptr<Mesh> bmesh = buildQuarterAnnulusMesh(degree, numRad, numTheta);
       // int numBasis = bmesh->GetNE();
       // Vector center(dim*numBasis);
       // Vector loc(dim);

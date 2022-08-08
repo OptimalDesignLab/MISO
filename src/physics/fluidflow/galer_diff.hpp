@@ -67,7 +67,8 @@ public:
    mfem::Vector GetBasisCenter() { return basisCenterDummy; }
    void GetBasisCenter(const int b_id, mfem::Vector &center,
                        const mfem::Vector &basisCenter) const;
-   
+   /// some protected function
+   void InitializeStencil(const mfem::Vector &basisCenter);
    virtual int GetTrueVSize() const {return vdim * numBasis;}
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
@@ -99,21 +100,14 @@ protected:
    
    /// location of the basis centers
    mfem::Vector basisCenterDummy;
-
-
    /// selected basis for each element (currently it is fixed upon setup)
    // mfem::Array<mfem::Array<int> *> selectedBasis;
    // mfem::Array<mfem::Array<int> *> selectedElement;
    // mfem::Array<std::vector<double> *> elementBasisDist;
    // mfem::Array<std::vector<size_t> *> sortedEBDistRank;
-   
-   
 
    /// local element prolongation matrix coefficient
    mutable mfem::Array<mfem::DenseMatrix *> coef;
-
-   /// some protected function
-   void InitializeStencil(const mfem::Vector &basisCenter);
    /// function  that sort the element-basis distance
    std::vector<std::size_t> sort_indexes(const std::vector<double> &v);
 };

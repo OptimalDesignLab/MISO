@@ -44,6 +44,8 @@ public:
    void addBoundaryIntegrators(double alpha);
    void addInterfaceIntegrators(double alpha);
 
+   void updateStencil(const mfem::Vector &basisCenter) const;
+
    void checkJacobian(mfem::Vector &x);
    void getFreeStreamState(mfem::Vector &q_ref);
 

@@ -14,7 +14,7 @@ class BFGSNewtonSolver
 {
 public:
    BFGSNewtonSolver(double a_init = 1.0, double a_max = 1e3, double cc1 = 1e-4,
-                    double cc2 = 0.9, double max = 40);
+                    double cc2 = 0.9, double max = 40, bool up = false);
    BFGSNewtonSolver(const std::string &opt_file_name = 
                      std::string("optimizationtest_options.json"));
 
@@ -35,9 +35,9 @@ protected:
 
    /// BFGS newton method variable
    double rel_tol,abs_tol;
-   bool converged;
+   bool converged, stencilupdate;
    double final_norm;
-   int print_level, final_iter, max_iter;
+   int print_level, final_iter, max_iter, updatecircle;
    double norm;
 
    /// strong wolfe condition variable

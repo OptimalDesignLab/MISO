@@ -38,15 +38,12 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
    InitializeStencil(center);
    
    // build the initial prolongation matrix
-   cP_is_set = true;
-   adjustCondition = true;
-   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
    buildProlongationMatrix(center);
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
-   adjustCondition = false;
-   ofstream cp_save("prolong.txt");
-	cP->PrintMatlab(cp_save);
-	cp_save.close();
+   cP_is_set = true;
+   // ofstream cp_save("prolong.txt");
+	// cP->PrintMatlab(cp_save);
+	// cp_save.close();
 }
 
 void DGDSpace::InitializeStencil(const Vector &basisCenter)
@@ -56,12 +53,20 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
    Vector center(dim);
    double dist;
    int i,j,k,bid;
+   // clear selected element
+   for (i = 0; i < numBasis; i++)
+   {
+      selectedElement[i].clear(); 
+   }
+   extraCenter.assign(GetMesh()->GetNE(),0);
    // loop over all the elements to construct the stencil
    vector<size_t> temp;
    vector<double> elementBasisDist;
    for (i = 0; i < GetMesh()->GetNE(); i++)
    {
       elementBasisDist.clear();
+      sortedEBDistRank[i].clear();
+      selectedBasis[i].clear();
       GetMesh()->GetElementCenter(i,elemCenter);
       // loop over all basis
       for (j = 0; j < numBasis; j++)
@@ -80,6 +85,19 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
          selectedElement[bid].push_back(i);
       }
    }
+
+   // check if the stencil selection is valid
+   for (i = 0; i < numBasis; i++)
+   {
+      if (selectedElement[i].empty())
+      {
+         cout << "Basis " << i << " is not selected.\n";
+         throw MachException("Basis center is not selected.");
+      }
+   }
+   if (cP) delete cP;
+   cP = new mfem::SparseMatrix(GetVSize(),vdim*numBasis);
+   adjustCondition = true;
    // cout << "------Basis center local------\n";
    // for (int i = 0; i < numBasis; i++)
    // {  
@@ -126,6 +144,10 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
       AssembleProlongationMatrix(i,localMat);
    }
    cP->Finalize(0);
+   adjustCondition = false;
+   ofstream cp_save("prolong.txt");
+	cP->PrintMatlab(cp_save);
+	cp_save.close();
 }
 
 void DGDSpace::buildDataMat(int el_id, const Vector &x,

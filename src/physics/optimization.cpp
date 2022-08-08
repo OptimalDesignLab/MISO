@@ -491,6 +491,12 @@ void DGDOptimizer::checkJacobian(Vector &x)
 	cout << ", difference norm is " << dJdc_fd.Norml2() << '\n';
 }
 
+void DGDOptimizer::updateStencil(const Vector &center) const
+{
+	fes_dgd->InitializeStencil(center);
+	fes_dgd->buildProlongationMatrix(center);
+	res_dgd->UpdateProlong();
+}
 
 void DGDOptimizer::printSolution(const Vector &c, const std::string &file_name)
 {
