@@ -44,9 +44,10 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();
 	int extra = options["space-dis"]["extra-basis"].get<int>();
 	double condv = options["space-dis"]["condv"].get<double>();
+	int print_level = options["space-dis"]["print-level"].get<int>();
 	fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(),dim));
 	fes_dgd.reset(new DGDSpace(mesh.get(),fec.get(),designVar,dgd_degree,extra,
-							num_state,Ordering::byVDIM,condv));
+							num_state,Ordering::byVDIM,condv,print_level));
 	fes_full.reset(new FiniteElementSpace(mesh.get(),fec.get(),num_state,
 							 Ordering::byVDIM));
 

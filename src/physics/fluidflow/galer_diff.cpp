@@ -12,9 +12,9 @@ namespace mfem
 
 DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f, 
                    Vector center, int degree, int e,
-                   int vdim, int ordering, double c)
+                   int vdim, int ordering, double c, int pl)
    : SpaceType(m, f, vdim, ordering), interpOrder(degree), extra(e),
-     basisCenterDummy(center), cond(c)
+     basisCenterDummy(center), cond(c), print_level(pl)
 {
    dim = m->Dimension();
    numBasis = center.Size()/dim;
@@ -166,7 +166,8 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
       V.SingularValues(sv);
       if (sv(0) > cond * sv(numReqBasis-1))
       {
-         cout << el_id <<  " cond = " << sv(0)/sv(numReqBasis-1) << " (> " << cond << ") ";
+         if (print_level)
+            cout << el_id <<  " cond = " << sv(0)/sv(numReqBasis-1) << " (> " << cond << ") ";
       }
       while (sv(0) > cond * sv(numReqBasis-1))
       {
@@ -177,15 +178,19 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
          // check new condition number
          V.SingularValues(sv);
          if (extraCenter[el_id] > extra) // a tentative cap
-         {
-            cout << "fail to reduce the V condition number...\n";
+         {  
+            if (print_level)
+               cout << "fail to reduce the V condition number...\n";
             throw MachException("DGDSpace::buildDataMat(): Too much centers added...");
          }
       }
       if (extraCenter[el_id])
       {
-         cout << " ---> new cond is " << sv(0)/sv(numReqBasis-1) << ", "
-            <<  extraCenter[el_id] << " extra center added.\n";
+         if (print_level)
+         {
+            cout << " ---> new cond is " << sv(0)/sv(numReqBasis-1) << ", "
+                 <<  extraCenter[el_id] << " extra center added.\n";
+         }
       }
    }
 

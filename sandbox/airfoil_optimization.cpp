@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
    {
       // mesh for basis
       unique_ptr<Mesh> bmesh(new Mesh("airfoil_p2_r0.mesh",1));
-      ofstream savevtk("airfoil.vtk");
+      ofstream savevtk("airfoil_basis.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
       int dim = bmesh->Dimension();
@@ -85,7 +85,8 @@ int main(int argc, char *argv[])
       dgdopt.SetInitialCondition(qfar);
       //dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      //BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      BFGSNewtonSolver bfgsSolver(optfile);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);

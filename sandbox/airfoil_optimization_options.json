@@ -13,7 +13,21 @@
       "shape-param": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
-      "basis-type": "dsbp"
+      "basis-type": "dsbp",
+      "print-level": 1
+   },
+   "BFGSNewton":{
+      "alpha-init": 1.0,
+      "alpha-max": 1e4,
+      "c1":1e-4,
+      "c2":0.9,
+      "max-iter":20,
+      "zoom-max-iter":60,
+      "print-level": 1,
+      "abs-tol":1e-12,
+      "rel-tol":1e-6,
+      "update":true,
+      "updatecircle":3
    },
    "steady": false,
    "time-dis": {

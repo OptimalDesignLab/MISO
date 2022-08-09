@@ -133,6 +133,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       // update jacobian and hessian
       if (it != 0 && it % updatecircle == 0 && stencilupdate)
       {
+         cout << "Update stencil...\n";
          // recompute the stencil at new basis location
          dynamic_cast<const DGDOptimizer*>(oper)->updateStencil(x);
 

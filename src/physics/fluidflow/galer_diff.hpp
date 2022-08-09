@@ -13,7 +13,8 @@ public:
    /// class constructor
    DGDSpace(mfem::Mesh *m, const mfem::FiniteElementCollection *fec,
             mfem::Vector center, int degree, int extra, int vdim = 1,
-            int ordering = mfem::Ordering::byVDIM, double c = 1e4);
+            int ordering = mfem::Ordering::byVDIM, double c = 1e4,
+            int pl = 0);
    virtual ~DGDSpace();
 
    /// build the prolongation matrix
@@ -89,6 +90,7 @@ protected:
    int extra; // dummy variable, not used
    double cond;
    bool adjustCondition;
+   int print_level;
 
    /// indicator of whether using extra basis
    std::vector<std::vector<int>> selectedBasis;
