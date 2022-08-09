@@ -10,7 +10,7 @@
       "DGD": true,
       "DGD-degree": 1,
       "extra-basis": 2,
-      "shape-param": 10.0,
+      "condv": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
       "basis-type": "dsbp",
@@ -40,7 +40,7 @@
       "max-iter": 1e4
    },
    "mesh": {
-      "file": "airfoil_p2_r0.mesh",
+      "file": "airfoil_p2_r1.mesh",
       "refine": 0
    },
    "bcs": {

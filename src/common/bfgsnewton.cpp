@@ -75,8 +75,8 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    norm0 = norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
    norm_goal = std::max(rel_tol*norm, abs_tol);
    cout << "norm goal is " << norm_goal << '\n';
-   cout << "initial objective value is " << norm0 <<'\n';
-   l2error_init = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
+   cout << "Initial objective value is " << norm0 <<'\n';
+   l2error_init = dynamic_cast<const DGDOptimizer*>(oper)->calcFunctional();
    cout << "Initial full space L2 error is " << l2error_init <<'\n';
    remove("optimizationlog.txt");
    ofstream optimizationlog;
@@ -168,7 +168,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    final_iter = it;
    final_norm = norm;
    optimizationlog.close();
-   l2error_final = dynamic_cast<const DGDOptimizer*>(oper)->calcFullSpaceL2Error(0);
+   l2error_final = dynamic_cast<const DGDOptimizer*>(oper)->calcFunctional();
    cout << "L2 error: " << l2error_init << " ----> "
         << l2error_final
         << ". Ratio: " << l2error_final/l2error_init << '\n';

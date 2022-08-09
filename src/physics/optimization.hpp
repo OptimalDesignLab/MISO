@@ -43,6 +43,7 @@ public:
    void addVolumeIntegrators(double alpha);
    void addBoundaryIntegrators(double alpha);
    void addInterfaceIntegrators(double alpha);
+   void addOutputs();
 
    void updateStencil(const mfem::Vector &basisCenter) const;
    void reSolve() const;
@@ -51,6 +52,7 @@ public:
    void checkJacobian(mfem::Vector &x) const;
    void getFreeStreamState(mfem::Vector &q_ref);
 
+   double calcFunctional() const;
    double calcFullSpaceL2Error(int entry) const;
 
 
@@ -79,6 +81,7 @@ protected:
    int ipitch;
 
    // aux variables
+   std::map<std::string, NonlinearFormType> output;
    std::vector<mfem::Array<int>> bndry_marker;
    std::vector<mfem::Array<int>> output_bndry_marker;
 

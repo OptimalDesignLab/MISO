@@ -81,6 +81,7 @@ DGDOptimizer::DGDOptimizer(Vector init,
 		aoa_fs = options["flow-param"]["aoa"].get<double>()*M_PI/180;
 		iroll = options["flow-param"]["roll-axis"].get<int>();
 		ipitch = options["flow-param"]["pitch-axis"].get<int>();
+		addOutputs();
 	}
 }
 
@@ -387,6 +388,36 @@ void DGDOptimizer::addInterfaceIntegrators(double alpha)
 			InterfaceIntegrator<2,false>(diff_stack,diss_coeff,fec.get(),alpha));
 }
 
+void DGDOptimizer::addOutputs()
+{
+	output_bndry_marker.resize(1);
+   auto &fun = options["outputs"];
+   int idx = 0;
+   if (fun.find("drag") != fun.end())
+   { 
+      // drag on the specified boundaries
+      vector<int> tmp = fun["drag"].get<vector<int>>();
+      output_bndry_marker[idx].SetSize(tmp.size(), 0);
+      output_bndry_marker[idx].Assign(tmp.data());
+      output.emplace("drag", fes_dgd.get());
+      mfem::Vector drag_dir(dim);
+      drag_dir = 0.0;
+      if (dim == 1)
+      {
+         drag_dir(0) = 1.0;
+      }
+      else 
+      {
+         drag_dir(iroll) = cos(aoa_fs);
+         drag_dir(ipitch) = sin(aoa_fs);
+      }
+      output.at("drag").AddBdrFaceIntegrator(
+          new PressureForce<2, false>(diff_stack, fec.get(), drag_dir),
+          output_bndry_marker[idx]);
+      idx++;
+   }
+}
+
 void DGDOptimizer::getFreeStreamState(mfem::Vector &q_ref)
 {
    q_ref = 0.0;
@@ -401,6 +432,14 @@ void DGDOptimizer::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(ipitch+1) = q_ref(0)*mach_fs*sin(aoa_fs);
    }
    q_ref(dim+1) = 1/(euler::gamma*euler::gami) + 0.5*mach_fs*mach_fs;
+}
+
+double DGDOptimizer::calcFunctional() const
+{
+	if (options["problem-type"].get<string>() == "airfoil")
+		return output.at("drag").GetEnergy(*u_dgd);
+	else
+		return calcFullSpaceL2Error(0);
 }
 
 double DGDOptimizer::calcFullSpaceL2Error(int entry) const
