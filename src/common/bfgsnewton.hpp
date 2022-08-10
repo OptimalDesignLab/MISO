@@ -20,18 +20,19 @@ public:
 
    /// Set the operator that defines the nonlinear system
    /// \param[in] op - problem operator `r` in `r(x) = b`
-   void SetOperator(const mfem::Operator &op);
+   void SetOperator(mfem::Operator &op);
 
    void Mult(mfem::Vector &x, mfem::Vector &opt);
 
 protected:
+   nlohmann::json options;
    int numvar;
 
    /// the hessian inverse approximation
    mfem::DenseMatrix B;
    mfem::Vector jac;
    mfem::Vector jac_new;
-   const mfem::Operator *oper; 
+   mfem::Operator *oper; 
 
    /// BFGS newton method variable
    double rel_tol,abs_tol;

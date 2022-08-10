@@ -229,14 +229,12 @@ mfem::Vector buildBasisCenter2(int nx, int ny)
          cent.push_back(y);
       }
    }
-   cout << "cent size is " << cent.size() << '\n';
    mfem::Vector center(cent.size());
 
    for (int i = 0; i < cent.size(); i++)
    {
       center(i) = cent[i];
    }
-   cout << "Cent size is " << center.Size() << '\n';
    return center;
 }
 

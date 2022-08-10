@@ -45,7 +45,7 @@ public:
    void addInterfaceIntegrators(double alpha);
    void addOutputs();
 
-   void updateStencil(const mfem::Vector &basisCenter) const;
+   void updateStencil(const mfem::Vector &basisCenter);
    void reSolve() const;
    double computeObj() const;
 

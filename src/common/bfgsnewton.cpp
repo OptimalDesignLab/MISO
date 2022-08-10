@@ -26,26 +26,25 @@ BFGSNewtonSolver::BFGSNewtonSolver(double a_init, double a_max, double cc1,
 
 BFGSNewtonSolver::BFGSNewtonSolver(const string &opt_file_name)
 {
-   nlohmann::json file_options;
    ifstream options_file(opt_file_name);
-	options_file >> file_options;
+	options_file >> options;
 
-   alpha_init = file_options["BFGSNewton"]["alpha-init"].get<double>();
-   alpha_max = file_options["BFGSNewton"]["alpha-max"].get<double>();
-   c1 = file_options["BFGSNewton"]["c1"].get<double>();
-   c2 = file_options["BFGSNewton"]["c2"].get<double>();
-   max_iter = file_options["BFGSNewton"]["max-iter"].get<int>();
-   zoom_max_iter = file_options["BFGSNewton"]["zoom-max-iter"].get<int>();
-   print_level = file_options["BFGSNewton"]["print-level"].get<int>();
-   abs_tol = file_options["BFGSNewton"]["abs-tol"].get<double>();
-   rel_tol = file_options["BFGSNewton"]["rel-tol"].get<double>();
-   stencilupdate = file_options["BFGSNewton"]["update"].get<bool>();
-   updatecircle = file_options["BFGSNewton"]["updatecircle"].get<int>();
+   alpha_init = options["BFGSNewton"]["alpha-init"].get<double>();
+   alpha_max = options["BFGSNewton"]["alpha-max"].get<double>();
+   c1 = options["BFGSNewton"]["c1"].get<double>();
+   c2 = options["BFGSNewton"]["c2"].get<double>();
+   max_iter = options["BFGSNewton"]["max-iter"].get<int>();
+   zoom_max_iter = options["BFGSNewton"]["zoom-max-iter"].get<int>();
+   print_level = options["BFGSNewton"]["print-level"].get<int>();
+   abs_tol = options["BFGSNewton"]["abs-tol"].get<double>();
+   rel_tol = options["BFGSNewton"]["rel-tol"].get<double>();
+   stencilupdate = options["BFGSNewton"]["update"].get<bool>();
+   updatecircle = options["BFGSNewton"]["updatecircle"].get<int>();
 }
 
-void BFGSNewtonSolver::SetOperator(const Operator &op)
+void BFGSNewtonSolver::SetOperator(Operator &op)
 {
-   oper = dynamic_cast<const DGDOptimizer*>(&op);
+   oper = dynamic_cast<DGDOptimizer*>(&op);
 }
 
 void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
@@ -135,7 +134,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       {
          cout << "Update stencil...\n";
          // recompute the stencil at new basis location
-         dynamic_cast<const DGDOptimizer*>(oper)->updateStencil(x);
+         dynamic_cast<DGDOptimizer*>(oper)->updateStencil(x);
 
          // 1. resolve the problem
          dynamic_cast<const DGDOptimizer*>(oper)->reSolve();

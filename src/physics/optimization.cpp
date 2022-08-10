@@ -28,7 +28,7 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	ifstream options_file(opt_file_name);
 	options_file >> file_options;
 	options.merge_patch(file_options);
-	cout << setw(3) << options << endl;
+	cout << setw(3) << options << '\n';
 
 	// construct mesh
 	if (smesh == nullptr)
@@ -536,11 +536,15 @@ void DGDOptimizer::checkJacobian(Vector &x) const
 	cout << ", difference norm is " << dJdc_fd.Norml2() << '\n';
 }
 
-void DGDOptimizer::updateStencil(const Vector &center) const
+void DGDOptimizer::updateStencil(const Vector &center)
 {
 	fes_dgd->InitializeStencil(center);
 	fes_dgd->buildProlongationMatrix(center);
 	res_dgd->UpdateProlong();
+	if (options["problem-type"].get<string>() == "airfoil")
+	{
+		output.at("drag").UpdateProlong();
+	}
 }
 
 void DGDOptimizer::reSolve() const
