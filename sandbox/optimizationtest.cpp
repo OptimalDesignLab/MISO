@@ -235,6 +235,7 @@ mfem::Vector buildBasisCenter2(int nx, int ny)
    {
       center(i) = cent[i];
    }
+
    return center;
 }
 

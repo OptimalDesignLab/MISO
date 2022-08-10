@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
    {
       // mesh for basis
       unique_ptr<Mesh> bmesh(new Mesh(nx,ny,Element::TRIANGLE,true,2.0,1.0,true));
-      ofstream savevtk("wedgeshock.vtk");
+      ofstream savevtk("wedgeshock_basis.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
       int dim = bmesh->Dimension();
@@ -87,7 +87,8 @@ int main(int argc, char *argv[])
       dgdopt.printSolution(center,"wedgeshock-initial");
       //dgdopt.checkJacobian(center);
 
-      BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      //BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      BFGSNewtonSolver bfgsSolver(optfile);
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);

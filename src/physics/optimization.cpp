@@ -66,6 +66,7 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	res_full.reset(new NonlinearForm(fes_full.get()));
 
 	// check some intermediate info
+	cout << "Num of total basis cetner: " << numBasis << '\n';
    cout << "Num of state variables: " << num_state << '\n';
    cout << "dgd_degree is: " << dgd_degree << '\n';
    cout << "u_dgd size is " << u_dgd->Size() << '\n';

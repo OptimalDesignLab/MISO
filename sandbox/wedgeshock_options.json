@@ -3,10 +3,11 @@
        "DGD": true,
        "DGD-degree": 1,
        "extra-basis": 4,
-       "shape-param": 10.0,
+       "condv": 10.0,
        "degree": 1,
        "lps-coeff": 1.0,
-       "basis-type": "dsbp"
+       "basis-type": "dsbp",
+       "print-level": 1
     },
     "steady": true,
     "time-dis": {
