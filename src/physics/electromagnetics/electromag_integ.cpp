@@ -1,4 +1,4 @@
-#include <cstddef>
+#include <iostream>
 #include "coefficient.hpp"
 #include "electromag_integ.hpp"
 #include "mach_input.hpp"
@@ -3432,6 +3432,238 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
+double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
+                                          ElementTransformation &trans,
+                                          const Vector &elfun)
+{
+   if (attrs.count(trans.Attribute) == 1)
+   {
+      return 0.0;
+   }
+   /// get the proper element, transformation, and v vector
+#ifdef MFEM_THREAD_SAFE
+   Array<int> vdofs;
+   Vector vfun;
+#endif
+   int element = trans.ElementNo;
+   const auto &v_el = *v.FESpace()->GetFE(element);
+   v.FESpace()->GetElementVDofs(element, vdofs);
+   v.GetSubVector(vdofs, vfun);
+   DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
+   if (vfun.Normlinf() < 1e-14)
+   {
+      return 0.0;
+   }
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape;
+   DenseMatrix curlshape_dFt;
+   DenseMatrix curlshape_dFt_bar;
+   DenseMatrix PointMat_bar;
+#endif
+   dshape.SetSize(v_el.GetDof(), v_el.GetDim());
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
+
+   DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
+
+   // PointMat_bar.SetSize(space_dim, v_el.GetDof());
+
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, curl_dim);
+
+   // double b_vec_bar_buffer[3];
+   // Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+      /// holds quadrature weight
+      double w = ip.weight * trans_weight;
+      if (dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else  // Dealing with scalar H1 field representing Az
+      {
+         /// Not exactly the curl matrix, but since we just want the magnitude
+         /// of the curl it's okay
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+      }
+
+      b_vec = 0.0;
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans_weight;
+
+      // const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+
+      // /// Compute d(energy)/d(b_mag)
+      // const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+
+      /// compute d(b_mag)/dJ
+      double db_magdJ_buffer[9];
+      DenseMatrix db_magdJ(db_magdJ_buffer, space_dim, space_dim);
+      db_magdJ = 0.0;
+      if (dim == 3)
+      {
+         double b_hat_buffer[3];
+         Vector b_hat(b_hat_buffer, curl_dim);
+         b_hat = 0.0;
+
+         curlshape.AddMultTranspose(elfun, b_hat);
+         double BB_hatT_buffer[9];
+         DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
+         MultVWt(b_vec, b_hat, BB_hatT);
+
+         db_magdJ.Add(-b_vec_norm / pow(trans_weight, 2),
+                      trans.AdjugateJacobian());
+         db_magdJ.Transpose();
+
+         db_magdJ.Add(1.0 / (trans_weight * b_vec_norm), BB_hatT);
+      }
+      else
+      {
+         double b_adjJT_buffer[3];
+         Vector b_adjJT(b_adjJT_buffer, curl_dim);
+         trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
+
+         AddMult_a_VWt(-1 / (b_vec_norm * pow(trans_weight, 2)), b_vec, b_adjJT, db_magdJ);
+      }
+
+      /// contract d(b_mag)/dJ with dJ/dX
+      dBdX = 0.0;
+      isotrans.JacobianRevDiff(db_magdJ, dBdX);
+
+      double dBds = 0.0;
+      for (int j = 0; j < v_el.GetDof(); ++j)
+      {
+         for (int d = 0; d < curl_dim; ++d)
+         {
+            dBds += dBdX(d, j) * dXds(j, d);
+         }
+      }
+      const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      auto force = dBds * energy_dot;
+
+      v_el.CalcDShape(ip, dshape);
+      double JinvdJds_buffer[9];
+      DenseMatrix JinvdJds(JinvdJds_buffer, space_dim, space_dim);
+      double dJds_buffer[9];
+      DenseMatrix dJds(dJds_buffer, space_dim, space_dim);
+      MultAtB(dXds, dshape, dJds);
+      Mult(trans.InverseJacobian(), dJds, JinvdJds);
+      double JinvdJdsTrace = JinvdJds.Trace();
+
+      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      double force2 = energy * JinvdJdsTrace;
+      fun -= (force + force2) * w;
+   }
+   return fun;
+
+   //    const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+   //    // fun += energy * w;
+   //    double fun_bar = 1.0;
+
+   //    double energy_bar = 0.0;
+   //    double w_bar = 0.0;
+   //    energy_bar += fun_bar * w;
+   //    w_bar += fun_bar * energy;
+
+   //    /// const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+   //    double b_mag_bar = 0.0;
+   //    const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+   //    b_mag_bar += energy_bar * energy_dot;
+
+   //    double b_vec_norm_bar = 0.0;
+   //    double trans_weight_bar = 0.0;
+   //    /// const double b_mag = b_vec_norm / trans_weight;
+   //    b_vec_norm_bar += b_mag_bar / trans_weight;
+   //    trans_weight_bar -= b_mag_bar * b_vec_norm / pow(trans_weight, 2);
+
+   //    b_vec_bar = 0.0;
+   //    /// const double b_vec_norm = b_vec.Norml2();
+   //    add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
+
+   //    PointMat_bar = 0.0;
+   //    if (dim == 3)
+   //    {
+   //       /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+   //       // transposed dimensions of curlshape_dFt
+   //       // so I don't have to transpose jac_bar later
+   //       curlshape_dFt_bar.SetSize(curl_dim, ndof);
+   //       MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
+
+   //       /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+   //       double jac_bar_buffer[9];
+   //       DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
+   //       jac_bar = 0.0;
+   //       AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+   //       isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+   //    }
+   //    else  // Dealing with scalar H1 field representing Az
+   //    {
+   //       /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+   //       curlshape_dFt_bar.SetSize(ndof, curl_dim);
+   //       MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
+
+   //       /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+   //       double adj_bar_buffer[9];
+   //       DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
+   //       adj_bar = 0.0;
+   //       MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
+   //       isotrans.AdjugateJacobianRevDiff(adj_bar, PointMat_bar);
+   //    }
+
+   //    /// const double w = ip.weight * trans_weight;
+   //    trans_weight_bar += w_bar * ip.weight;
+
+   //    isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+   //    // code to insert PointMat_bar into mesh_coords_bar;
+   //    for (int j = 0; j < v_el.GetDof(); ++j)
+   //    {
+   //       for (int d = 0; d < space_dim; ++d)
+   //       {
+   //          fun -= dXds(j, d) * PointMat_bar(d, j);
+   //       }
+   //    }
+   // }
+   // return fun;
+}
+
 double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
                                           ElementTransformation &trans,
                                           const Vector &elfun)
@@ -3461,21 +3693,20 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
    int curl_dim = space_dim;
 
 #ifdef MFEM_THREAD_SAFE
-   DenseMatrix dshape(v_el.GetDof(), v_el.GetDim());
-   DenseMatrix curlshape(ndof, curl_dim), curlshape_dFt(ndof, curl_dim);
-   DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
-   Vector b_vec(curl_dim), b_hat(curl_dim);
-#else
-   dshape.SetSize(v_el.GetDof(), v_el.GetDim());
+   DenseMatrix curlshape;
+   DenseMatrix curlshape_dFt;
+   DenseMatrix curlshape_dFt_bar;
+   DenseMatrix PointMat_bar;
+#endif
    curlshape.SetSize(ndof, curl_dim);
    curlshape_dFt.SetSize(ndof, curl_dim);
-   // dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
-   b_vec.SetSize(curl_dim);
-   b_hat.SetSize(curl_dim);
-#endif
+   PointMat_bar.SetSize(space_dim, v_el.GetDof());
 
-   Vector curlshape_dFt_bar_buffer(curl_dim * ndof);
-   DenseMatrix PointMat_bar(space_dim, v_el.GetDof());
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, curl_dim);
+
+   double b_vec_bar_buffer[3];
+   Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
    auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
@@ -3545,8 +3776,6 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
       b_vec_norm_bar += b_mag_bar / trans_weight;
       trans_weight_bar -= b_mag_bar * b_vec_norm / pow(trans_weight, 2);
 
-      double b_vec_bar_buffer[3];
-      Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
       b_vec_bar = 0.0;
       /// const double b_vec_norm = b_vec.Norml2();
       add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
@@ -3555,10 +3784,9 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
       if (dim == 3)
       {
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-         // transposed dimensions of curlshape_dFt so I don't have to transpose
-         // jac_bar later
-         DenseMatrix curlshape_dFt_bar(
-             curlshape_dFt_bar_buffer.GetData(), curl_dim, ndof);
+         // transposed dimensions of curlshape_dFt
+         // so I don't have to transpose jac_bar later
+         curlshape_dFt_bar.SetSize(curl_dim, ndof);
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
          /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
@@ -3571,8 +3799,7 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
       else  // Dealing with scalar H1 field representing Az
       {
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-         DenseMatrix curlshape_dFt_bar(
-             curlshape_dFt_bar_buffer.GetData(), ndof, curl_dim);
+         curlshape_dFt_bar.SetSize(ndof, curl_dim);
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
          /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
@@ -3598,6 +3825,197 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
       }
    }
    return fun;
+}
+
+void ForceIntegrator2::AssembleElementVector(const FiniteElement &el,
+                                             ElementTransformation &trans,
+                                             const Vector &elfun,
+                                             Vector &elfun_bar)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+   int dim = el.GetDim();
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
+
+   elfun_bar.SetSize(ndof);
+   elfun_bar = 0.0;
+   if (attrs.count(trans.Attribute) == 1)
+   {
+      return;
+   }
+
+   /// get the proper element, transformation, and v vector
+#ifdef MFEM_THREAD_SAFE
+   Array<int> vdofs;
+   Vector vfun;
+#endif
+   int element = trans.ElementNo;
+   const auto &v_el = *v.FESpace()->GetFE(element);
+   v.FESpace()->GetElementVDofs(element, vdofs);
+   v.GetSubVector(vdofs, vfun);
+   DenseMatrix dXds(vfun.GetData(), v_el.GetDof(), v_el.GetDim());
+   if (vfun.Normlinf() < 1e-14)
+   {
+      return;
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix curlshape;
+   DenseMatrix curlshape_dFt;
+   DenseMatrix curlshape_dFt_bar;
+   DenseMatrix PointMat_bar;
+#endif
+   dshape.SetSize(v_el.GetDof(), space_dim);
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
+   PointMat_bar.SetSize(space_dim, v_el.GetDof());
+
+   double b_vec_buffer[3];
+   Vector b_vec(b_vec_buffer, curl_dim);
+
+   double b_vec_bar_buffer[3];
+   Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+
+      /// holds quadrature weight
+      const double w = ip.weight * trans_weight;
+
+      if (dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+      }
+
+      b_vec = 0.0;
+      curlshape_dFt.AddMultTranspose(elfun, b_vec);
+
+      const double b_vec_norm = b_vec.Norml2();
+      const double b_mag = b_vec_norm / trans_weight;
+
+      const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      // energy_fun += energy * w;
+      double energy_fun_bar = 1.0;
+
+      double energy_bar = 0.0;
+      double w_bar = 0.0;
+      energy_bar += energy_fun_bar * w;
+      w_bar += energy_fun_bar * energy;
+
+      /// const double energy = calcMagneticEnergy(trans, ip, nu, b_mag);
+      double b_mag_bar = 0.0;
+      const double energy_dot = calcMagneticEnergyDot(trans, ip, nu, b_mag);
+      b_mag_bar += energy_bar * energy_dot;
+
+      double b_vec_norm_bar = 0.0;
+      double trans_weight_bar = 0.0;
+      /// const double b_mag = b_vec_norm / trans_weight;
+      b_vec_norm_bar += b_mag_bar / trans_weight;
+      trans_weight_bar -= b_mag_bar * b_vec_norm / pow(trans_weight, 2);
+
+      b_vec_bar = 0.0;
+      /// const double b_vec_norm = b_vec.Norml2();
+      add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
+
+      PointMat_bar = 0.0;
+      if (dim == 3)
+      {
+         /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+         // transposed dimensions of curlshape_dFt
+         // so I don't have to transpose jac_bar later
+         curlshape_dFt_bar.SetSize(curl_dim, ndof);
+         MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
+
+         /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         double jac_bar_buffer[9];
+         DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
+         jac_bar = 0.0;
+         AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+         isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+      }
+      else  // Dealing with scalar H1 field representing Az
+      {
+         /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+         curlshape_dFt_bar.SetSize(ndof, curl_dim);
+         MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
+
+         /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         double adj_bar_buffer[9];
+         DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
+         adj_bar = 0.0;
+         MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
+         isotrans.AdjugateJacobianRevDiff(adj_bar, PointMat_bar);
+      }
+
+      /// const double w = ip.weight * trans_weight;
+      trans_weight_bar += w_bar * ip.weight;
+
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      // for (int j = 0; j < v_el.GetDof(); ++j)
+      // {
+      //    for (int d = 0; d < space_dim; ++d)
+      //    {
+      //       fun -= dXds(j, d) * PointMat_bar(d, j);
+      //    }
+      // }
+
+      /// start reverse pass...
+      double fun_bar = 1.0;
+      DenseMatrix PointMat_bar_bar(space_dim, v_el.GetDof());
+      PointMat_bar_bar = 0.0;
+      // DenseMatrix dXds_bar(v_el.GetDof(), space_dim);
+      // dXds_bar = 0.0;
+      for (int j = 0; j < v_el.GetDof(); ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            /// fun -= dXds(j, d) * PointMat_bar(d, j);
+            PointMat_bar_bar(d, j) -= fun_bar * dXds(j, d);
+            // dXds_bar(j, d) -= fun_bar * PointMat_bar(d, j); // Don't need!
+         }
+      }
+
+      /// isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+      ///
+
+      // Weight(Matrix) -> scalar
+      // WeightRevDiff(scalar) -> Matrix
+      // WeightRevDiffRevDiff(Matrix) -> scalar ?
+   }
 }
 
 double ForceIntegrator::GetElementEnergy(const FiniteElement &el,

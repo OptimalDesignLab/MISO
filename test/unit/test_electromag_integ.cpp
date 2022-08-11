@@ -1920,7 +1920,66 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
    }
 }
 
-TEST_CASE("ForceIntegrator2::GetElementEnergy")
+TEST_CASE("ForceIntegrator3::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   // NonLinearCoefficient nu;
+   LinearCoefficient nu;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(dim, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction a(&fes);
+         a.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator3(nu, v));
+
+         auto force = functional.GetEnergy(a);
+
+         NonlinearForm energy(&fes);
+         energy.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(nu));
+         
+         add(x_nodes, -delta, v, x_nodes);
+         auto dWds = -energy.GetEnergy(a);
+         add(x_nodes, 2*delta, v, x_nodes);
+         dWds += energy.GetEnergy(a);
+         dWds /= 2*delta;
+
+         // std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
+         REQUIRE(force == Approx(-dWds));
+      }
+   }
+}
+
+TEST_CASE("ForceIntegrator3::GetElementEnergy - 2D")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -1931,8 +1990,126 @@ TEST_CASE("ForceIntegrator2::GetElementEnergy")
    int num_edge = 2;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                      Element::TRIANGLE);
-   // auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-   //                                   Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   // NonLinearCoefficient nu;
+   LinearCoefficient nu;
+
+   for (int p = 1; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(dim, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction a(&fes);
+         FunctionCoefficient apert(randState);
+         a.ProjectCoefficient(apert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator3(nu, v));
+
+         auto force = functional.GetEnergy(a);
+
+         NonlinearForm energy(&fes);
+         energy.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(nu));
+         
+         add(x_nodes, -delta, v, x_nodes);
+         auto dWds = -energy.GetEnergy(a);
+         add(x_nodes, 2*delta, v, x_nodes);
+         dWds += energy.GetEnergy(a);
+         dWds /= 2*delta;
+
+         // std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
+         REQUIRE(force == Approx(-dWds));
+      }
+   }
+}
+
+TEST_CASE("ForceIntegrator2::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // H1_FECollection fec(p, dim);
+         ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(dim, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction a(&fes);
+         a.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator2(nu, v));
+
+         auto force = functional.GetEnergy(a);
+
+         NonlinearForm energy(&fes);
+         energy.AddDomainIntegrator(
+            new mach::MagneticEnergyIntegrator(nu));
+         
+         add(x_nodes, -delta, v, x_nodes);
+         auto dWds = -energy.GetEnergy(a);
+         add(x_nodes, 2*delta, v, x_nodes);
+         dWds += energy.GetEnergy(a);
+         dWds /= 2*delta;
+
+         // std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
+         REQUIRE(force == Approx(-dWds));
+      }
+   }
+}
+
+TEST_CASE("ForceIntegrator2::GetElementEnergy - 2D")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
@@ -1980,6 +2157,136 @@ TEST_CASE("ForceIntegrator2::GetElementEnergy")
 
          // std::cout << "-dWds: " << -dWds << " Force: " << force << "\n";
          REQUIRE(force == Approx(-dWds));
+      }
+   }
+}
+
+TEST_CASE("ForceIntegrator2::AssembleElementVector")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                     Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient pert(dim, randVectorState);
+         v.ProjectCoefficient(pert);
+
+         // initialize state
+         GridFunction a(&fes);
+         a.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator(nu, v));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(&fes);
+         functional.Mult(a, dJdu);
+         double dJdu_dot_p = InnerProduct(dJdu, p);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(a);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
+TEST_CASE("ForceIntegrator2::AssembleElementVector - 2D")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   // auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+   //                                   Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         // ND_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(
+            new mach::ForceIntegrator2(nu, v));
+
+         // initialize the vector that dJdu multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(&fes);
+         functional.Mult(a, dJdu);
+         double dJdu_dot_p = InnerProduct(dJdu, p);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(a);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
       }
    }
 }
