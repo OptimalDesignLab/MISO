@@ -402,7 +402,7 @@ void FlowResidual<dim, entvar>::setOptions_(const nlohmann::json &options)
 template <int dim, bool entvar>
 void FlowResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
                                           Vector &res_vec)
-{
+{  
    setInputs(res, inputs);
    evaluate(res, inputs, res_vec);
 }
