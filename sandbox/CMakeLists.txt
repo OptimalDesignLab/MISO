@@ -24,7 +24,9 @@ set(SANDBOX_SRCS
    airfoil_steady
    airfoil_steady_dg
    airfoil_steady_dg_cut
+   airfoil_steady_dg_mms_cut
    airfoil_chaotic
+   exLaplace_cut
    # magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire

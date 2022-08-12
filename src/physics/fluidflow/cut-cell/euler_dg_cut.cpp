@@ -240,14 +240,14 @@ template <int dim, bool entvar>
 void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    GridFunction x(fes.get());
-  // ParCentGridFunction x(fes_gd.get());
+   // ParCentGridFunction x(fes_gd.get());
 #if 1
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
    area = res->GetEnergy(x);
-  // double exact_area = 1600 - 0.0817073;  // airfoil
-   double exact_area = 400.0 - M_PI*4.0;
+   // double exact_area = 1600 - 0.0817073;  // airfoil
+   double exact_area = 400.0 - M_PI * 4.0;
    cout << "correct area: " << (exact_area) << endl;
    cout << "calculated area: " << area << endl;
    cout << "area err = " << abs(area - exact_area) << endl;
@@ -271,6 +271,18 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    }
    double perimeter = res->GetEnergy(x);
    cout << "calculated perimeter: " << perimeter - area << endl;
+   if (options["flow-param"]["inviscid-mms"].template get<bool>())
+   {
+      if (dim != 2)
+      {
+         throw MachException("Inviscid MMS problem only available for 2D!");
+      }
+      res->AddDomainIntegrator(new CutEulerMMSIntegrator<dim>(
+          diff_stack, cutSquareIntRules, embeddedElements, alpha));
+      res->AddDomainIntegrator(new CutDGInviscidExactBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+   }
+
 #endif
 /// use this for testing purposes
 #if 0
@@ -353,6 +365,18 @@ void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       res->AddBdrFaceIntegrator(
           new DGFarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
           bndry_marker[idx]);
+      idx++;
+   }
+   if (bcs.find("inviscid-mms") != bcs.end())
+   {
+      // viscous MMS boundary conditions
+      vector<int> tmp = bcs["inviscid-mms"].template get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new InviscidExactBC<dim>(
+              this->diff_stack, this->fec.get(), inviscidMMSExact, alpha),
+          this->bndry_marker[idx]);
       idx++;
    }
 }
@@ -866,7 +890,7 @@ void CutEulerDGSolver<dim, entvar>::setSolutionError(
    u->SetFromTrueDofs(*u_true);
 }
 
-// explicit instantiation
+/// explicit instantiation
 template class CutEulerDGSolver<1, true>;
 template class CutEulerDGSolver<1, false>;
 template class CutEulerDGSolver<2, true>;
@@ -874,4 +898,30 @@ template class CutEulerDGSolver<2, false>;
 template class CutEulerDGSolver<3, true>;
 template class CutEulerDGSolver<3, false>;
 
+/// MMS for checking euler solver
+void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q)
+{
+   q.SetSize(4);
+   Vector u(4);
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double u0 = 0.5;
+   const double up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   /// define the exact solution
+   double rho = rho0 + rhop * pow(sin(M_PI * x(0)), 2) * sin(M_PI * x(1));
+   double ux = 4.0 * u0 * x(1) * (1.0 - x(1)) +
+               (up * sin(2.0 * M_PI * x(1)) * pow(sin(M_PI * x(0)), 2));
+   double uy = -up * pow(sin(2.0 * M_PI * x(0)), 2) * sin(M_PI * x(1));
+   double T = T0 + Tp * (pow(x(0), 4) - (2.0 * pow(x(0), 3)) + pow(x(0), 2) +
+                         pow(x(1), 4) - (2.0 * pow(x(1), 3)) + pow(x(1), 2));
+   double p = rho * T;
+   double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
+   u(0) = rho;
+   u(1) = ux;  // multiply by rho ?
+   u(2) = uy;
+   u(3) = e;
+   q = u;
+}
 }  // namespace mach

@@ -451,7 +451,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       u.MultTranspose(shape, u_face);
       /// this is used for area test
       double area = sqrt(trans.Weight());
-      //fun += face_ip.weight * alpha * area;
+      // fun += face_ip.weight * alpha * area;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
              alpha;
    }
@@ -480,7 +480,7 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
    const IntegrationRule *ir;
    ir = cutSegmentIntRules[trans.ElementNo];
    if (ir != NULL)
-   {  
+   {
       shape.SetSize(dof);
       DenseMatrix u(elfun.GetData(), dof, num_states);
       DenseMatrix res(elvect.GetData(), dof, num_states);

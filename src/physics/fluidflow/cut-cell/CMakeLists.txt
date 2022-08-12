@@ -8,10 +8,12 @@ target_sources(mach
       inviscid_integ_dg_cut.hpp
       cut_quad.hpp
       cut_quad_indicator.hpp
+      mms_integ_dg_cut.hpp
+      mms_integ_def_dg_cut.hpp
      )
 
 target_include_directories(mach
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )
-
+add_subdirectory(poisson)

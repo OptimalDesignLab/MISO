@@ -1,6 +1,8 @@
-#ifndef POISSON_DG_DEF_CUT
-#define POISSON_DG_DEF_CUT
+#ifndef MACH_POISSON_DG_DEF_CUT
+#define MACH_POISSON_DG_DEF_CUT
 #include "poisson_dg_cut.hpp"
+#include "cut_quad.hpp"
+using namespace blitz;
 namespace mach
 {
 void CutDomainLFIntegrator::AssembleRHSElementVect(const FiniteElement &el,
@@ -223,15 +225,24 @@ void CutBoundaryFaceIntegrator::AssembleElementMatrix(
             //  double ds = sqrt((eip1.x*eip1.x) + (eip1.y*eip1.y));
             Vector v(dim);
             Trans.Transform(eip1, v);
-            double xc = 10.0;
-            double yc = 10.0;
-            double a = 4.0;
-            double b = 1.0;
-            double nx = 2 * (v(0) - xc) / (a * a);
-            double ny = 2 * (v(1) - yc) / (b * b);
-            ds = sqrt((nx * nx) + (ny * ny));
-            nor(0) = -nx / ds;
-            nor(1) = -ny / ds;
+            // double xc = 10.0;
+            // double yc = 10.0;
+            // double a = 4.0;
+            // double b = 1.0;
+            // double nx = 2 * (v(0) - xc) / (a * a);
+            // double ny = 2 * (v(1) - yc) / (b * b);
+            // ds = sqrt((nx * nx) + (ny * ny));
+            // nor(0) = -nx / ds;
+            // nor(1) = -ny / ds;
+            TinyVector<double, 2> beta, xs;
+            xs(0) = v(0);
+            xs(1) = v(1);
+            beta = phi.grad(xs);
+            ds = mag(beta);
+            double nx = beta(0);
+            double ny = beta(1);
+            nor(0) = nx / ds;
+            nor(1) = ny / ds;
          }
          el.CalcShape(eip1, shape1);
          el.CalcDShape(eip1, dshape1);
@@ -624,15 +635,24 @@ void CutDGDirichletLFIntegrator::AssembleRHSElementVect(
          {
             Vector v(dim);
             Trans.Transform(eip, v);
-            double xc = 10.0;
-            double yc = 10.0;
-            double a = 4.0;
-            double b = 1.0;
-            double nx = 2 * (v(0) - xc) / (a * a);
-            double ny = 2 * (v(1) - yc) / (b * b);
-            double ds = sqrt((nx * nx) + (ny * ny));
-            nor(0) = -nx / ds;
-            nor(1) = -ny / ds;
+            // double xc = 10.0;
+            // double yc = 10.0;
+            // double a = 4.0;
+            // double b = 1.0;
+            // double nx = 2 * (v(0) - xc) / (a * a);
+            // double ny = 2 * (v(1) - yc) / (b * b);
+            // double ds = sqrt((nx * nx) + (ny * ny));
+            // nor(0) = -nx / ds;
+            // nor(1) = -ny / ds;
+            TinyVector<double, 2> beta, xs;
+            xs(0) = v(0);
+            xs(1) = v(1);
+            beta = phi.grad(xs);
+            ds = mag(beta);
+            double nx = beta(0);
+            double ny = beta(1);
+            nor(0) = nx / ds;
+            nor(1) = ny / ds;
          }
          el.CalcShape(eip, shape);
          el.CalcDShape(eip, dshape);
@@ -712,15 +732,24 @@ void CutDGNeumannLFIntegrator::AssembleRHSElementVect(
          Vector v(dim);
          // transform the integration point to original element
          Trans.Transform(ip, v);
-         double xc = 10.0;
-         double yc = 10.0;
-         double a = 4.0;
-         double b = 1.0;
-         double nx = 2 * (v(0) - xc) / (a * a);
-         double ny = 2 * (v(1) - yc) / (b * b);
-         double ds = sqrt((nx * nx) + (ny * ny));
-         nor(0) = -nx / ds;
-         nor(1) = -ny / ds;
+         // double xc = 10.0;
+         // double yc = 10.0;
+         // double a = 4.0;
+         // double b = 1.0;
+         // double nx = 2 * (v(0) - xc) / (a * a);
+         // double ny = 2 * (v(1) - yc) / (b * b);
+         // double ds = sqrt((nx * nx) + (ny * ny));
+         // nor(0) = -nx / ds;
+         // nor(1) = -ny / ds;
+            TinyVector<double, 2> beta, xs;
+            xs(0) = v(0);
+            xs(1) = v(1);
+            beta = phi.grad(xs);
+            ds = mag(beta);
+            double nx = beta(0);
+            double ny = beta(1);
+            nor(0) = nx / ds;
+            nor(1) = ny / ds;
          elvect.Add(ip.weight * sqrt(Trans.Weight()) * (Qvec * nor), shape);
       }
    }

@@ -135,34 +135,40 @@ void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
-void calcRoeFaceFlux(const xdouble *dir, const xdouble *qL,
-                     const xdouble *qR, xdouble *flux)
+void calcRoeFaceFlux(const xdouble *dir,
+                     const xdouble *qL,
+                     const xdouble *qR,
+                     xdouble *flux)
 {
    using adept::max;
    using std::max;
 
    // Define some constants
-   const xdouble sat_Vn = 0.025; // 0.25 (with shocks)
+   const xdouble sat_Vn = 0.025;  // 0.25 (with shocks)
    const xdouble sat_Vl = 0.025;
 
-   // Define the Roe-average state 
+   // Define the Roe-average state
    const xdouble sqL = sqrt(qL[0]);
    const xdouble sqR = sqrt(qR[0]);
-   const xdouble facL = 1.0/qL[0];
-   const xdouble facR = 1.0/qR[0];
-   const xdouble fac = 1.0/(sqL + sqR);
-   xdouble u[dim]; // should pass in another work array?
+   const xdouble facL = 1.0 / qL[0];
+   const xdouble facR = 1.0 / qR[0];
+   const xdouble fac = 1.0 / (sqL + sqR);
+   xdouble u[dim];  // should pass in another work array?
    for (int i = 0; i < dim; ++i)
    {
-      u[i] = (sqL*qL[i+1]*facL + sqR*qR[i+1]*facR)*fac;
+      u[i] = (sqL * qL[i + 1] * facL + sqR * qR[i + 1] * facR) * fac;
    }
-   const xdouble phi = 0.5*dot<xdouble, dim>(u, u);
+   const xdouble phi = 0.5 * dot<xdouble, dim>(u, u);
    const xdouble Un = dot<xdouble, dim>(dir, u);
-   const xdouble HL = (euler::gamma * qL[dim + 1] - 0.5 * euler::gami *         
-                       dot<xdouble, dim>(qL + 1, qL + 1) * facL) * facL;
-   const xdouble HR = (euler::gamma * qR[dim + 1] - 0.5 * euler::gami *         
-                       dot<xdouble, dim>(qR + 1, qR + 1) * facR) * facR;
-   const xdouble H = (sqL*HL + sqR*HR)*fac;
+   const xdouble HL =
+       (euler::gamma * qL[dim + 1] -
+        0.5 * euler::gami * dot<xdouble, dim>(qL + 1, qL + 1) * facL) *
+       facL;
+   const xdouble HR =
+       (euler::gamma * qR[dim + 1] -
+        0.5 * euler::gami * dot<xdouble, dim>(qR + 1, qR + 1) * facR) *
+       facR;
+   const xdouble H = (sqL * HL + sqR * HR) * fac;
    const xdouble a = sqrt(euler::gami * (H - phi));
    const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
 
@@ -173,14 +179,14 @@ void calcRoeFaceFlux(const xdouble *dir, const xdouble *qL,
    const xdouble lambda3 = 0.5 * max(fabs(Un), sat_Vl * rhoA);
 
    // start flux computation by averaging the Euler flux
-   xdouble dq[dim+2];
+   xdouble dq[dim + 2];
    calcEulerFlux<xdouble, dim>(dir, qL, flux);
    calcEulerFlux<xdouble, dim>(dir, qR, dq);
    for (int i = 0; i < dim + 2; ++i)
    {
-      flux[i] = 0.5*(flux[i] + dq[i]);
+      flux[i] = 0.5 * (flux[i] + dq[i]);
       dq[i] = qL[i] - qR[i];
-      flux[i] += lambda3 * dq[i]; // diagonal matrix multiply 
+      flux[i] += lambda3 * dq[i];  // diagonal matrix multiply
    }
 
    // some scalars needed for E1*dq, E2*dq, E3*dq, and E4*dq
@@ -631,14 +637,18 @@ void applyLPSScaling(const xdouble *adjJ,
 
 /// Lax-Friedrichs flux function
 /// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
 /// \param[in] qL - conservative variables at "left" state
 /// \param[in] qR - conservative variables at "right" state
 /// \param[out] flux - fluxes in the direction `di`
 /// \tparam double - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 template <typename xdouble, int dim>
-void calcLaxFriedrichsFlux(const xdouble *dir, const xdouble *qL, const xdouble *qR,
-                       xdouble *flux)
+void calcLaxFriedrichsFlux(const xdouble *dir,
+                           xdouble diss_coeff,
+                           const xdouble *qL,
+                           const xdouble *qR,
+                           xdouble *flux)
 {
    xdouble fluxL[dim + 2];
    xdouble fluxR[dim + 2];
@@ -651,7 +661,7 @@ void calcLaxFriedrichsFlux(const xdouble *dir, const xdouble *qL, const xdouble 
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
       q_diff[i] = -qR[i] + qL[i];
    }
-   xdouble lambda  = 1.0 * calcSpectralRadius<xdouble, dim>(dir, q_ave); 
+   xdouble lambda = diss_coeff * calcSpectralRadius<xdouble, dim>(dir, q_ave);
    for (int k = 0; k < dim + 2; ++k)
    {
       flux[k] = fluxL[k] + fluxR[k] + (lambda * q_diff[k]);
@@ -1146,6 +1156,201 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    }
 }
 
+/// MMS source term for a particular Euler solution verification
+/// \param[in] x - location at which to evaluate the source
+/// \param[out] src - the source value
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcInviscidMMS(const xdouble *x, xdouble *src)
+{
+   double gamma = euler::gamma;
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double u0 = 0.5;
+   const double up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   src[0] =
+       M_PI *
+       (-up * rhop * pow(sin(M_PI * x[0]), 2) * pow(sin(2 * M_PI * x[0]), 2) *
+            sin(M_PI * x[1]) * cos(M_PI * x[1]) +
+        2 * up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+            sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) * cos(M_PI * x[0]) -
+        up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+            pow(sin(2 * M_PI * x[0]), 2) * cos(M_PI * x[1]) -
+        2 * rhop *
+            (4 * u0 * x[1] * (x[1] - 1) -
+             up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+            sin(M_PI * x[0]) * sin(M_PI * x[1]) * cos(M_PI * x[0]));
+   src[1] =
+       2 * Tp * x[0] *
+           (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+           (2 * pow(x[0], 2) - 3 * x[0] + 1) +
+       M_PI * up * rhop *
+           (4 * u0 * x[1] * (x[1] - 1) -
+            up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+           pow(sin(M_PI * x[0]), 2) * pow(sin(2 * M_PI * x[0]), 2) *
+           sin(M_PI * x[1]) * cos(M_PI * x[1]) -
+       4 * M_PI * up *
+           (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+           (4 * u0 * x[1] * (x[1] - 1) -
+            up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+           sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) * cos(M_PI * x[0]) +
+       M_PI * up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+           (4 * u0 * x[1] * (x[1] - 1) -
+            up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+           pow(sin(2 * M_PI * x[0]), 2) * cos(M_PI * x[1]) +
+       2 * up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+           (2 * u0 * x[1] + 2 * u0 * (x[1] - 1) -
+            M_PI * up * pow(sin(M_PI * x[0]), 2) * cos(2 * M_PI * x[1])) *
+           pow(sin(2 * M_PI * x[0]), 2) * sin(M_PI * x[1]) +
+       (1.0 / 2.0) * M_PI * rhop *
+           (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                       pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+           (cos(M_PI * (2 * x[0] - x[1])) - cos(M_PI * (2 * x[0] + x[1]))) +
+       2 * M_PI * rhop *
+           pow(4 * u0 * x[1] * (x[1] - 1) -
+                   up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1]),
+               2) *
+           sin(M_PI * x[0]) * sin(M_PI * x[1]) * cos(M_PI * x[0]);
+   src[2] = 2 * Tp * x[1] *
+                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                (2 * pow(x[1], 2) - 3 * x[1] + 1) +
+            M_PI * pow(up, 2) * rhop * pow(sin(M_PI * x[0]), 2) *
+                pow(sin(2 * M_PI * x[0]), 4) * pow(sin(M_PI * x[1]), 2) *
+                cos(M_PI * x[1]) -
+            16 * M_PI * pow(up, 2) *
+                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                pow(sin(M_PI * x[0]), 3) * pow(sin(M_PI * x[1]), 2) *
+                pow(cos(M_PI * x[0]), 3) * cos(M_PI * x[1]) +
+            2 * M_PI * pow(up, 2) *
+                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                pow(sin(2 * M_PI * x[0]), 4) * sin(M_PI * x[1]) *
+                cos(M_PI * x[1]) +
+            2 * M_PI * up * rhop *
+                (4 * u0 * x[1] * (x[1] - 1) -
+                 up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+                sin(M_PI * x[0]) * pow(sin(2 * M_PI * x[0]), 2) *
+                pow(sin(M_PI * x[1]), 2) * cos(M_PI * x[0]) +
+            4 * M_PI * up *
+                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                (4 * u0 * x[1] * (x[1] - 1) -
+                 up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+                sin(2 * M_PI * x[0]) * sin(M_PI * x[1]) * cos(2 * M_PI * x[0]) +
+            M_PI * rhop *
+                (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                            pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+                pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]);
+   src[4] =
+       (M_PI * up *
+            (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+            (2 * T0 +
+             2 * Tp *
+                 (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                  pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2)) +
+             (gamma - 1) *
+                 (2 * T0 +
+                  2 * Tp *
+                      (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                       pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2)) +
+                  pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
+                      pow(sin(M_PI * x[1]), 2) +
+                  pow(4 * u0 * x[1] * (x[1] - 1) -
+                          up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1]),
+                      2))) *
+            sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) * cos(M_PI * x[0]) -
+        1.0 / 2.0 * M_PI * up *
+            (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+            (2 * T0 +
+             2 * Tp *
+                 (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                  pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2)) +
+             (gamma - 1) *
+                 (2 * T0 +
+                  2 * Tp *
+                      (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                       pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2)) +
+                  pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
+                      pow(sin(M_PI * x[1]), 2) +
+                  pow(4 * u0 * x[1] * (x[1] - 1) -
+                          up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1]),
+                      2))) *
+            pow(sin(2 * M_PI * x[0]), 2) * cos(M_PI * x[1]) -
+        1.0 / 2.0 * up *
+            (4 * Tp * x[1] *
+                 (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                 (2 * pow(x[1], 2) - 3 * x[1] + 1) +
+             2 * M_PI * rhop *
+                 (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                             pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+                 pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]) +
+             (gamma - 1) *
+                 (4 * Tp * x[1] *
+                      (rho0 +
+                       rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                      (2 * pow(x[1], 2) - 3 * x[1] + 1) +
+                  2 * M_PI * rhop *
+                      (T0 +
+                       Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                             pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+                      pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]) +
+                  M_PI * rhop *
+                      (pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
+                           pow(sin(M_PI * x[1]), 2) +
+                       pow(4 * u0 * x[1] * (x[1] - 1) -
+                               up * pow(sin(M_PI * x[0]), 2) *
+                                   sin(2 * M_PI * x[1]),
+                           2)) *
+                      pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]) +
+                  2 * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                      (M_PI * pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
+                           sin(M_PI * x[1]) * cos(M_PI * x[1]) +
+                       2 * (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+                           (2 * u0 * x[1] + 2 * u0 * (x[1] - 1) -
+                            M_PI * up * pow(sin(M_PI * x[0]), 2) *
+                                cos(2 * M_PI * x[1]))))) *
+            pow(sin(2 * M_PI * x[0]), 2) * sin(M_PI * x[1]) -
+        (4 * u0 * x[1] * (x[1] - 1) -
+         up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+            (2 * Tp * x[0] *
+                 (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                 (2 * pow(x[0], 2) - 3 * x[0] + 1) +
+             (1.0 / 2.0) * M_PI * rhop *
+                 (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                             pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+                 (cos(M_PI * (2 * x[0] - x[1])) -
+                  cos(M_PI * (2 * x[0] + x[1]))) +
+             (gamma - 1) *
+                 (2 * Tp * x[0] *
+                      (rho0 +
+                       rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                      (2 * pow(x[0], 2) - 3 * x[0] + 1) +
+                  2 * M_PI * up *
+                      (rho0 +
+                       rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                      (2 * up * pow(sin(2 * M_PI * x[0]), 3) *
+                           pow(sin(M_PI * x[1]), 2) * cos(2 * M_PI * x[0]) -
+                       (4 * u0 * x[1] * (x[1] - 1) -
+                        up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+                           sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) *
+                           cos(M_PI * x[0])) +
+                  (1.0 / 2.0) * M_PI * rhop *
+                      (T0 +
+                       Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                             pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+                      (cos(M_PI * (2 * x[0] - x[1])) -
+                       cos(M_PI * (2 * x[0] + x[1]))) +
+                  M_PI * rhop *
+                      (pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
+                           pow(sin(M_PI * x[1]), 2) +
+                       pow(4 * u0 * x[1] * (x[1] - 1) -
+                               up * pow(sin(M_PI * x[0]), 2) *
+                                   sin(2 * M_PI * x[1]),
+                           2)) *
+                      sin(M_PI * x[0]) * sin(M_PI * x[1]) *
+                      cos(M_PI * x[0])))) /
+       (gamma - 1);
+}
 }  // namespace mach
 
 #endif

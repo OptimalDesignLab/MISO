@@ -223,7 +223,7 @@ protected:
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);
 };
-
+void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q);
 }  // namespace mach
 
 #endif

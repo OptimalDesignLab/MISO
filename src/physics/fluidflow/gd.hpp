@@ -49,6 +49,7 @@ public:
 
    virtual HYPRE_Int GlobalTrueVSize() const
    {
+      std::cout << "inside GlobalTrueVSize() " << std::endl;
       return Dof_TrueDof_Matrix()->GetGlobalNumCols();
    }
 

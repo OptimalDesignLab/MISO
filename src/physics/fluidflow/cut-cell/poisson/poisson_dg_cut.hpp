@@ -1,9 +1,10 @@
-#ifndef POISSON_DG_CUT
-#define POISSON_DG_CUT
+#ifndef MACH_POISSON_DG_CUT
+#define MACH_POISSON_DG_CUT
 #include "mfem.hpp"
 #include <fstream>
 #include <iostream>
 #include <list>
+#include "cut_quad.hpp"
 /// Class for domain integration L(v) := (f, v)
 using namespace mfem;
 using namespace std;
@@ -93,12 +94,14 @@ public:
        Coefficient &q,
        const double s,
        const double k,
+       circle<2> _phi,
        std::map<int, IntegrationRule *> cutSegmentIntRules)
     : uD(&u),
       Q(&q),
       MQ(NULL),
       sigma(s),
       kappa(k),
+      phi(_phi),
       cutSegmentIntRules(cutSegmentIntRules),
       DeltaLFIntegrator(q)
    { }
@@ -108,22 +111,18 @@ public:
    virtual void AssembleDeltaElementVect(const FiniteElement &fe,
                                          ElementTransformation &Trans,
                                          Vector &elvect);
+
+protected:
+   circle<2> phi;
 };
 
 class CutDGNeumannLFIntegrator : public LinearFormIntegrator
 {
-protected:
-   VectorFunctionCoefficient &QN;
-   MatrixCoefficient *MQ;
-   // these are not thread-safe!
-   Vector shape, dshape_dn, nor, nh, ni;
-   DenseMatrix dshape, mq, adjJ;
-   std::map<int, IntegrationRule *> cutSegmentIntRules;
-
 public:
    CutDGNeumannLFIntegrator(VectorFunctionCoefficient &QN,
+                            circle<2> _phi,
                             std::map<int, IntegrationRule *> cutSegmentIntRules)
-    : QN(QN), MQ(NULL), cutSegmentIntRules(cutSegmentIntRules)
+    : QN(QN), MQ(NULL), phi(_phi), cutSegmentIntRules(cutSegmentIntRules)
    { }
    virtual void AssembleRHSElementVect(const FiniteElement &el,
                                        ElementTransformation &Tr,
@@ -132,6 +131,14 @@ public:
    // virtual void AssembleDeltaElementVect(const FiniteElement &fe,
    //                                       ElementTransformation &Trans,
    //                                       Vector &elvect);
+protected:
+   VectorFunctionCoefficient &QN;
+   MatrixCoefficient *MQ;
+   // these are not thread-safe!
+   Vector shape, dshape_dn, nor, nh, ni;
+   DenseMatrix dshape, mq, adjJ;
+   std::map<int, IntegrationRule *> cutSegmentIntRules;
+   circle<2> phi;
 };
 
 /** Class for integrating the bilinear form a(u,v) := (Q grad u, grad v) where Q
@@ -301,11 +308,13 @@ public:
        Coefficient &q,
        const double s,
        const double k,
+       circle<2> _phi,
        std::map<int, IntegrationRule *> cutSegmentIntRules)
     : Q(&q),
       MQ(NULL),
       sigma(s),
       kappa(k),
+      phi(_phi),
       cutSegmentIntRules(cutSegmentIntRules)
    { }
    virtual ~CutBoundaryFaceIntegrator()
@@ -319,6 +328,9 @@ public:
    virtual void AssembleElementMatrix(const FiniteElement &el,
                                       ElementTransformation &Trans,
                                       DenseMatrix &elmat);
+
+protected:
+   circle<2> phi;
 };
 
 /** Integrator for the DG form:
@@ -458,4 +470,5 @@ public:
    //                                  const Vector &elfun, DenseMatrix &elmat);
 };
 }  // namespace mach
+#include "poisson_dg_def_cut.hpp"
 #endif
