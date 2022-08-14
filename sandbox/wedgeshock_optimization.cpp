@@ -84,7 +84,6 @@ int main(int argc, char *argv[])
       DGDOptimizer dgdopt(center,optfile,move(smesh));
       dgdopt.InitializeSolver();
       dgdopt.SetInitialCondition(uexact);
-      dgdopt.printSolution(center,"wedgeshock-initial");
       //dgdopt.checkJacobian(center);
 
       //BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
@@ -92,8 +91,6 @@ int main(int argc, char *argv[])
       bfgsSolver.SetOperator(dgdopt);
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
-
-      dgdopt.printSolution(opti_value,"wedgeshock-final");
 
       ofstream optwrite("center_optimal.vtp");
       writeBasisCentervtp(opti_value, optwrite);

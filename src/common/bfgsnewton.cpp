@@ -72,6 +72,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    int it;
    double norm0, norm_goal, l2error_init, l2error_final, jacnorm;
    norm0 = norm = dynamic_cast<const DGDOptimizer*>(oper)->GetEnergy(x);
+   dynamic_cast<const DGDOptimizer*>(oper)->printSolution("optimal-initial");
    norm_goal = std::max(rel_tol*norm, abs_tol);
    cout << "norm goal is " << norm_goal << '\n';
    cout << "Initial objective value is " << norm0 <<'\n';
@@ -174,6 +175,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
    cout << "Objective: " << norm0 << " ----> "
         << norm
         << ". Ratio: " << norm/norm0 << '\n';
+   dynamic_cast<const DGDOptimizer*>(oper)->printSolution("optimal-final");
 }
 
 void BFGSNewtonSolver::UpdateHessianInverse(const Vector &s, const Vector &jac,

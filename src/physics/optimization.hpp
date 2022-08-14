@@ -56,7 +56,7 @@ public:
    double calcFullSpaceL2Error(int entry) const;
 
 
-   void printSolution(const mfem::Vector &c, const std::string &file_name);
+   void printSolution(const std::string &file_name) const;
    /// class destructor
    ~DGDOptimizer();
    

@@ -91,8 +91,6 @@ int main(int argc, char *argv[])
       Vector opti_value(center.Size());
       bfgsSolver.Mult(center,opti_value);
 
-      dgdopt.printSolution(opti_value,"airfoil-opt-final");
-
       ofstream optwrite("center_optimal.vtp");
       writeBasisCentervtp(opti_value, optwrite);
       optwrite.close();

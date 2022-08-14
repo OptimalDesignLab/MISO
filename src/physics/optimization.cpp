@@ -34,6 +34,10 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	if (smesh == nullptr)
 	{
 		smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(),1,1));
+		// smesh->UniformRefinement();
+		// ofstream saveMesh("airfoil_new.mesh");
+		// smesh->Print(saveMesh);
+		// saveMesh.close();
 	}
 	mesh.reset(new Mesh(*smesh));
 	dim = mesh->Dimension();
@@ -563,20 +567,20 @@ double DGDOptimizer::computeObj() const
 	return r * r;
 }
 
-void DGDOptimizer::printSolution(const Vector &c, const std::string &file_name)
+void DGDOptimizer::printSolution(const std::string &file_name) const
 {
    // TODO: These mfem functions do not appear to be parallelized
-   fes_dgd->buildProlongationMatrix(c);
-   GridFunType u_test(fes_full.get());
+   GridFunType u_test(fes_full.get()), r_test(fes_full.get());
    dynamic_cast<DGDSpace *>(fes_dgd.get())->GetProlongationMatrix()->Mult(*u_dgd, u_test);
+	res_full->Mult(u_test, r_test);
 
    ofstream initial(file_name+".vtk");
    initial.precision(14);
    mesh->PrintVTK(initial, 0);
    u_test.SaveVTK(initial, "solution", 0);
+	r_test.SaveVTK(initial, "residual",0);
    initial.close();
 }
-
 
 DGDOptimizer::~DGDOptimizer()
 {
