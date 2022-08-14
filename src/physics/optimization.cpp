@@ -35,15 +35,20 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	{
 		smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(),1,1));
 		// smesh->UniformRefinement();
-		// ofstream saveMesh("airfoil_new.mesh");
+		// ofstream saveMesh("naca0012-r1.mesh");
 		// smesh->Print(saveMesh);
 		// saveMesh.close();
 	}
 	mesh.reset(new Mesh(*smesh));
+	// ofstream initial("naca0012-r1.vtk");
+   // initial.precision(14);
+   // mesh->PrintVTK(initial, 0);
+   // initial.close();
+
+
 	dim = mesh->Dimension();
 	num_state = dim+2;
 	cout << "Number of elements: " << mesh->GetNE() << '\n';
-
 	// construct fespaces
 	int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();
 	int extra = options["space-dis"]["extra-basis"].get<int>();

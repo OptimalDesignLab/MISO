@@ -1,15 +1,16 @@
 {
    "problem-type": "airfoil",
    "flow-param": {
-      "mach": 0.5,
+      "mach": 0.8,
       "aoa": 0.0,
       "roll-axis": 0,
       "pitch-axis": 1
    },
    "space-dis": {
+      "basis-file":"airfoil_p2_r0.mesh",
       "DGD": true,
       "DGD-degree": 1,
-      "extra-basis": 2,
+      "extra-basis": 4,
       "condv": 10.0,
       "degree": 1,
       "lps-coeff": 1.0,
@@ -40,7 +41,7 @@
       "max-iter": 1e4
    },
    "mesh": {
-      "file": "airfoil_p2_r1.mesh",
+      "file": "naca0012-r1.mesh",
       "refine": 0
    },
    "bcs": {

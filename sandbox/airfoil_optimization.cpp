@@ -58,8 +58,13 @@ int main(int argc, char *argv[])
    }
    try
    {
+      nlohmann::json options;
+      ifstream readoption("airfoil_optimization_options.json");
+      readoption >> options;
+
       // mesh for basis
-      unique_ptr<Mesh> bmesh(new Mesh("airfoil_p2_r0.mesh",1));
+      std::string basis_file = options["space-dis"]["basis-file"].get<std::string>();
+      unique_ptr<Mesh> bmesh(new Mesh(basis_file.c_str(),1));
       ofstream savevtk("airfoil_basis.vtk");
       bmesh->PrintVTK(savevtk, 0);
       savevtk.close();
