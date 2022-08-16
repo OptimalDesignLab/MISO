@@ -80,7 +80,7 @@ public:
       auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
       output.addOutputDomainIntegrator(
           new ForceIntegrator3(nu, fields.at("vforce").gridFunc(), attrs));
-         //  new ForceIntegrator(nu, fields.at("vforce").gridFunc(), attrs));
+      //  new ForceIntegrator(nu, fields.at("vforce").gridFunc(), attrs));
    }
 
 private:
