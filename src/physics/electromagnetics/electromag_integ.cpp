@@ -3839,7 +3839,7 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
                                  trans.AdjugateJacobian()(j, k) /
                                  pow(trans_weight, 2);
                // trans_weight_bar += db_magdJ_bar(j, k) * b_vec_norm *
-               //                     trans.AdjugateJacobian()(j, k) / 
+               //                     trans.AdjugateJacobian()(j, k) /
                //                     pow(trans_weight, 3);
             }
          }
@@ -4121,7 +4121,7 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
 
       /// Matrix inverse reverse mode rule:
       /// C = A^-1,
-      /// A_bar = -C^T * C_bar * C^T 
+      /// A_bar = -C^T * C_bar * C^T
       double scratch_buffer[9] = {0};
       DenseMatrix scratch(scratch_buffer, space_dim, space_dim);
       double jac_bar_buffer[9] = {0};
@@ -4166,7 +4166,6 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       // dBmdJ_bar = 0.0;
       // v_el.CalcDShape(ip, dshape);
       // AddMult(dBdX_bar, dshape, dBmdJ_bar);
-
 
       double b_vec_norm_bar = 0.0;
       double trans_weight_bar = 0.0;
@@ -4214,7 +4213,7 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
                                  trans.AdjugateJacobian()(j, k) /
                                  pow(trans_weight, 2);
                trans_weight_bar += 2 * db_magdJ_bar(j, k) * b_vec_norm *
-                                   trans.AdjugateJacobian()(j, k) / 
+                                   trans.AdjugateJacobian()(j, k) /
                                    pow(trans_weight, 3);
             }
          }
