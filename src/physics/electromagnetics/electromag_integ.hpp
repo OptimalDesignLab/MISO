@@ -1181,15 +1181,15 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-   // /// \brief - Computes dJdu, for solving for the adjoint
-   // /// \param[in] el - the finite element
-   // /// \param[in] trans - defines the reference to physical element mapping
-   // /// \param[in] elfun - state vector of the element
-   // /// \param[out] elfun_bar - \partial J \partial u for this functional
-   // void AssembleElementVector(const mfem::FiniteElement &el,
-   //                            mfem::ElementTransformation &trans,
-   //                            const mfem::Vector &elfun,
-   //                            mfem::Vector &elfun_bar) override;
+   /// \brief - Computes dJdu, for solving for the adjoint
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elfun_bar - \partial J \partial u for this functional
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override;
 
 private:
    /// material dependent model describing reluctivity
@@ -1201,9 +1201,44 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape;
    mfem::DenseMatrix curlshape, curlshape_dFt, curlshape_dFt_bar;
-   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix dBdX;
    mfem::Array<int> vdofs;
    mfem::Vector vfun;
+#endif
+   /// class that implements mesh sensitivities for ForceIntegrator
+   friend class ForceIntegratorMeshSens3;
+};
+
+/// Linear form integrator to assemble the vector dJdX for the ForceIntegrator
+class ForceIntegratorMeshSens3 : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - Compute forces/torques based on the virtual work method
+   /// \param[in] state - the state vector to evaluate force at
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrators
+   ForceIntegratorMeshSens3(mfem::GridFunction &state, ForceIntegrator3 &integ)
+    : state(state), force_integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating force
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   ForceIntegrator3 &force_integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Vector elfun;
 #endif
 };
 
