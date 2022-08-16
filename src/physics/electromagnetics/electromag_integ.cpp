@@ -106,7 +106,7 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
    dshape.SetSize(ndof, dim);
    dshapedxt.SetSize(ndof, space_dim);
 
-   double pointflux_buffer[3];
+   double pointflux_buffer[3] = {};
    Vector pointflux(pointflux_buffer, space_dim);
 
    const IntegrationRule *ir = IntRule;
@@ -186,7 +186,7 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
    point_flux_2_dot.SetSize(ndof, space_dim);
    pointflux_norm_dot.SetSize(ndof);
 
-   double pointflux_buffer[3];
+   double pointflux_buffer[3] = {};
    Vector pointflux(pointflux_buffer, space_dim);
 
    const IntegrationRule *ir = IntRule;
@@ -282,7 +282,7 @@ void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
    dshapedxt.SetSize(ndof, space_dim);
    scratch.SetSize(ndof);
 
-   double mag_flux_buffer[3];
+   double mag_flux_buffer[3] = {};
    Vector mag_flux(mag_flux_buffer, space_dim);
 
    const IntegrationRule *ir = IntRule;
@@ -358,7 +358,7 @@ void CurlCurlNLFIntegrator::AssembleElementVector(const FiniteElement &el,
    // b_vec.SetSize(dimc);
 #endif
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
@@ -432,7 +432,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
    scratch.SetSize(ndof);
 #endif
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
@@ -642,9 +642,9 @@ void CurlCurlNLFIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &nu = integ.model;
 
    /// these vector's size is the spatial dimension we can stack allocate
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, dim);
-   double curl_psi_buffer[3];
+   double curl_psi_buffer[3] = {};
    Vector curl_psi(curl_psi_buffer, dim);
 
    // cast the ElementTransformation
@@ -719,13 +719,13 @@ void CurlCurlNLFIntegratorMeshRevSens::AssembleRHSElementVect(
       trans_weight_bar -= b_mag_bar * b_vec_norm / pow(trans.Weight(), 2);
 
       /// const double b_vec_norm = b_vec.Norml2();
-      double b_vec_bar_buffer[3];
+      double b_vec_bar_buffer[3] = {};
       Vector b_vec_bar(b_vec_bar_buffer, dim);
       b_vec_bar = 0.0;
       add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
 
       /// const double curl_psi_dot_b = curl_psi * b_vec;
-      double curl_psi_bar_buffer[3];
+      double curl_psi_bar_buffer[3] = {};
       Vector curl_psi_bar(curl_psi_bar_buffer, dim);
       curl_psi_bar = 0.0;
       add(curl_psi_bar, curl_psi_dot_b_bar, b_vec, curl_psi_bar);
@@ -738,7 +738,7 @@ void CurlCurlNLFIntegratorMeshRevSens::AssembleRHSElementVect(
       AddMultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
       /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      double jac_bar_buffer[9];
+      double jac_bar_buffer[9] = {};
       DenseMatrix jac_bar(jac_bar_buffer, dim, dim);
       jac_bar = 0.0;
       AddMult(curlshape_dFt_bar, curlshape, jac_bar);
@@ -1476,7 +1476,7 @@ double MagneticEnergyIntegrator::GetElementEnergy(const FiniteElement &el,
    curlshape.SetSize(ndof, curl_dim);
    curlshape_dFt.SetSize(ndof, curl_dim);
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
    const IntegrationRule *ir = IntRule;
@@ -1550,10 +1550,10 @@ void MagneticEnergyIntegrator::AssembleElementVector(
 
    // Vector curlshape_dFt_bar_buffer(curl_dim * ndof);
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   double b_vec_bar_buffer[3];
+   double b_vec_bar_buffer[3] = {};
    Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    const IntegrationRule *ir = IntRule;
@@ -1676,10 +1676,10 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
 
    // Vector curlshape_dFt_bar_buffer(curl_dim * ndof);
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   double b_vec_bar_buffer[3];
+   double b_vec_bar_buffer[3] = {};
    Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
@@ -1768,7 +1768,7 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
          /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-         double jac_bar_buffer[9];
+         double jac_bar_buffer[9] = {};
          DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
          jac_bar = 0.0;
          AddMult(curlshape_dFt_bar, curlshape, jac_bar);
@@ -1784,7 +1784,7 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
          /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
-         double adj_bar_buffer[9];
+         double adj_bar_buffer[9] = {};
          DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
          // adj_bar = 0.0;
          MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
@@ -2422,7 +2422,7 @@ double BNormSquaredIntegrator::GetElementEnergy(const FiniteElement &el,
    curlshape_dFt.SetSize(ndof, dimc);
 #endif
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, dimc);
 
    const IntegrationRule *ir = IntRule;
@@ -3474,10 +3474,10 @@ double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
    // DenseMatrix dBdX(v_el.GetDim(), v_el.GetDof());
    // PointMat_bar.SetSize(space_dim, v_el.GetDof());
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   // double b_vec_bar_buffer[3];
+   // double b_vec_bar_buffer[3] = {};
    // Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
@@ -3530,17 +3530,17 @@ double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
       const double b_mag = b_vec_norm / trans_weight;
 
       /// compute d(b_mag)/dJ
-      double db_magdJ_buffer[9];
+      double db_magdJ_buffer[9] = {};
       DenseMatrix db_magdJ(db_magdJ_buffer, space_dim, space_dim);
       db_magdJ = 0.0;
       if (dim == 3)
       {
-         double b_hat_buffer[3];
+         double b_hat_buffer[3] = {};
          Vector b_hat(b_hat_buffer, curl_dim);
          b_hat = 0.0;
 
          curlshape.AddMultTranspose(elfun, b_hat);
-         double BB_hatT_buffer[9];
+         double BB_hatT_buffer[9] = {};
          DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
          MultVWt(b_vec, b_hat, BB_hatT);
 
@@ -3552,7 +3552,7 @@ double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
       }
       else
       {
-         double b_adjJT_buffer[3];
+         double b_adjJT_buffer[3] = {};
          Vector b_adjJT(b_adjJT_buffer, curl_dim);
          trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
 
@@ -3577,9 +3577,9 @@ double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
       auto force = dBds * energy_dot;
 
       v_el.CalcDShape(ip, dshape);
-      double JinvdJds_buffer[9];
+      double JinvdJds_buffer[9] = {};
       DenseMatrix JinvdJds(JinvdJds_buffer, space_dim, space_dim);
-      double dJds_buffer[9];
+      double dJds_buffer[9] = {};
       DenseMatrix dJds(dJds_buffer, space_dim, space_dim);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
@@ -3636,10 +3636,10 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
    curlshape_dFt.SetSize(ndof, curl_dim);
    dBdX.SetSize(v_el.GetDim(), v_el.GetDof());
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   double b_vec_bar_buffer[3];
+   double b_vec_bar_buffer[3] = {};
    Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
@@ -3692,17 +3692,17 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
       const double b_mag = b_vec_norm / trans_weight;
 
       /// compute d(b_mag)/dJ
-      double db_magdJ_buffer[9];
+      double db_magdJ_buffer[9] = {};
       DenseMatrix db_magdJ(db_magdJ_buffer, space_dim, space_dim);
       db_magdJ = 0.0;
       if (dim == 3)
       {
-         double b_hat_buffer[3];
+         double b_hat_buffer[3] = {};
          Vector b_hat(b_hat_buffer, curl_dim);
          b_hat = 0.0;
 
          curlshape.AddMultTranspose(elfun, b_hat);
-         double BB_hatT_buffer[9];
+         double BB_hatT_buffer[9] = {};
          DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
          MultVWt(b_vec, b_hat, BB_hatT);
 
@@ -3714,7 +3714,7 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
       }
       else
       {
-         double b_adjJT_buffer[3];
+         double b_adjJT_buffer[3] = {};
          Vector b_adjJT(b_adjJT_buffer, curl_dim);
          trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
 
@@ -3739,9 +3739,9 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
       // auto force = dBds * energy_dot;
 
       v_el.CalcDShape(ip, dshape);
-      double JinvdJds_buffer[9];
+      double JinvdJds_buffer[9] = {};
       DenseMatrix JinvdJds(JinvdJds_buffer, space_dim, space_dim);
-      double dJds_buffer[9];
+      double dJds_buffer[9] = {};
       DenseMatrix dJds(dJds_buffer, space_dim, space_dim);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
@@ -3789,7 +3789,7 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
 
       /// isotrans.JacobianRevDiff(db_magdJ, dBdX);
       /// aka AddMultABt(db_magdJ, dshape, dBdX);
-      double db_magdJ_bar_buffer[9];
+      double db_magdJ_bar_buffer[9] = {};
       DenseMatrix db_magdJ_bar(db_magdJ_bar_buffer, space_dim, space_dim);
       Mult(dBdX_bar, dshape, db_magdJ_bar);
       // db_magdJ_bar = 0.0;
@@ -3800,15 +3800,15 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
       // double trans_weight_bar = 0.0;
       if (dim == 3)
       {
-         double b_hat_buffer[3];
+         double b_hat_buffer[3] = {};
          Vector b_hat(b_hat_buffer, curl_dim);
          curlshape.MultTranspose(elfun, b_hat);
 
-         double BB_hatT_buffer[9];
+         double BB_hatT_buffer[9] = {};
          DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
          MultVWt(b_vec, b_hat, BB_hatT);
 
-         double BB_hatT_bar_buffer[9];
+         double BB_hatT_bar_buffer[9] = {};
          DenseMatrix BB_hatT_bar(BB_hatT_bar_buffer, curl_dim, curl_dim);
          BB_hatT_bar = 0.0;
 
@@ -3844,7 +3844,7 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
             }
          }
 
-         double b_hat_bar_buffer[3];
+         double b_hat_bar_buffer[3] = {};
          Vector b_hat_bar(b_hat_bar_buffer, curl_dim);
 
          /// MultVWt(b_vec, b_hat, BB_hatT);
@@ -3856,14 +3856,14 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
       }
       else
       {
-         double b_adjJT_buffer[3];
+         double b_adjJT_buffer[3] = {};
          Vector b_adjJT(b_adjJT_buffer, curl_dim);
          trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
 
          double a = -1 / (b_vec_norm * pow(trans_weight, 2));
 
          /// AddMult_a_VWt(a, b_vec, b_adjJT, db_magdJ);
-         double b_adjJT_var_buffer[3];
+         double b_adjJT_var_buffer[3] = {};
          Vector b_adjJT_bar(b_adjJT_var_buffer, curl_dim);
 
          b_vec_bar = 0.0;
@@ -3971,10 +3971,10 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
 
    DenseMatrix curlshape_dFt_bar;
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   double b_vec_bar_buffer[3];
+   double b_vec_bar_buffer[3] = {};
    Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
@@ -4028,17 +4028,17 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       const double b_mag = b_vec_norm / trans_weight;
 
       /// compute d(b_mag)/dJ
-      double db_magdJ_buffer[9];
+      double db_magdJ_buffer[9] = {};
       DenseMatrix db_magdJ(db_magdJ_buffer, space_dim, space_dim);
       db_magdJ = 0.0;
       if (dim == 3)
       {
-         double b_hat_buffer[3];
+         double b_hat_buffer[3] = {};
          Vector b_hat(b_hat_buffer, curl_dim);
          b_hat = 0.0;
 
          curlshape.AddMultTranspose(elfun, b_hat);
-         double BB_hatT_buffer[9];
+         double BB_hatT_buffer[9] = {};
          DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
          MultVWt(b_vec, b_hat, BB_hatT);
 
@@ -4050,7 +4050,7 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       }
       else
       {
-         double b_adjJT_buffer[3];
+         double b_adjJT_buffer[3] = {};
          Vector b_adjJT(b_adjJT_buffer, curl_dim);
          trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
 
@@ -4075,9 +4075,9 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       auto force = dBds * energy_dot;
 
       v_el.CalcDShape(ip, dshape);
-      double JinvdJds_buffer[9];
+      double JinvdJds_buffer[9] = {};
       DenseMatrix JinvdJds(JinvdJds_buffer, space_dim, space_dim);
-      double dJds_buffer[9];
+      double dJds_buffer[9] = {};
       DenseMatrix dJds(dJds_buffer, space_dim, space_dim);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
@@ -4107,14 +4107,14 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       b_mag_bar += energy_bar * energy_dot;
 
       /// double JinvdJdsTrace = JinvdJds.Trace();
-      double JinvdJds_bar_buffer[9];
+      double JinvdJds_bar_buffer[9] = {};
       DenseMatrix JinvdJds_bar(JinvdJds_bar_buffer, space_dim, space_dim);
       JinvdJds_bar.Diag(JinvdJdsTrace_bar, space_dim);
 
       /// Mult(trans.InverseJacobian(), dJds, JinvdJds);
-      double dJds_bar_buffer[9];
+      double dJds_bar_buffer[9] = {};
       DenseMatrix dJds_bar(dJds_bar_buffer, space_dim, space_dim);
-      double inv_jac_bar_buffer[9];
+      double inv_jac_bar_buffer[9] = {};
       DenseMatrix inv_jac_bar(inv_jac_bar_buffer, space_dim, space_dim);
       MultABt(JinvdJds_bar, dJds, inv_jac_bar);
       MultAtB(trans.InverseJacobian(), JinvdJds_bar, dJds_bar);
@@ -4122,9 +4122,9 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       /// Matrix inverse reverse mode rule:
       /// C = A^-1,
       /// A_bar = -C^T * C_bar * C^T
-      double scratch_buffer[9] = {0};
+      double scratch_buffer[9] = {};
       DenseMatrix scratch(scratch_buffer, space_dim, space_dim);
-      double jac_bar_buffer[9] = {0};
+      double jac_bar_buffer[9] = {};
       DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
       jac_bar = 0.0;
       MultAtB(trans.InverseJacobian(), inv_jac_bar, scratch);
@@ -4156,7 +4156,7 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
 
       /// isotrans.JacobianRevDiff(db_magdJ, dBdX);
       /// aka AddMultABt(db_magdJ, dshape, dBdX);
-      double db_magdJ_bar_buffer[9] = {0};
+      double db_magdJ_bar_buffer[9] = {};
       DenseMatrix db_magdJ_bar(db_magdJ_bar_buffer, space_dim, space_dim);
       Mult(dBdX_bar, dshape, db_magdJ_bar);
 
@@ -4169,19 +4169,19 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
 
       double b_vec_norm_bar = 0.0;
       double trans_weight_bar = 0.0;
-      double adj_jac_bar_buffer[9] = {0};
+      double adj_jac_bar_buffer[9] = {};
       DenseMatrix adj_jac_bar(adj_jac_bar_buffer, space_dim, space_dim);
       if (dim == 3)
       {
-         double b_hat_buffer[3];
+         double b_hat_buffer[3] = {};
          Vector b_hat(b_hat_buffer, curl_dim);
          curlshape.MultTranspose(elfun, b_hat);
 
-         double BB_hatT_buffer[9];
+         double BB_hatT_buffer[9] = {};
          DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
          MultVWt(b_vec, b_hat, BB_hatT);
 
-         double BB_hatT_bar_buffer[9];
+         double BB_hatT_bar_buffer[9] = {};
          DenseMatrix BB_hatT_bar(BB_hatT_bar_buffer, curl_dim, curl_dim);
          BB_hatT_bar = 0.0;
 
@@ -4218,7 +4218,7 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
             }
          }
 
-         // double b_hat_bar_buffer[3];
+         // double b_hat_bar_buffer[3] = {};
          // Vector b_hat_bar(b_hat_bar_buffer, curl_dim);
 
          /// MultVWt(b_vec, b_hat, BB_hatT);
@@ -4231,14 +4231,14 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       }
       else
       {
-         double b_adjJT_buffer[3];
+         double b_adjJT_buffer[3] = {};
          Vector b_adjJT(b_adjJT_buffer, curl_dim);
          trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
 
          double a = -1 / (b_vec_norm * pow(trans_weight, 2));
 
          /// AddMult_a_VWt(a, b_vec, b_adjJT, db_magdJ);
-         double b_adjJT_var_buffer[3];
+         double b_adjJT_var_buffer[3] = {};
          Vector b_adjJT_bar(b_adjJT_var_buffer, curl_dim);
 
          b_vec_bar = 0.0;
@@ -4352,10 +4352,10 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
    curlshape_dFt.SetSize(ndof, curl_dim);
    PointMat_bar.SetSize(space_dim, v_el.GetDof());
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   double b_vec_bar_buffer[3];
+   double b_vec_bar_buffer[3] = {};
    Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
@@ -4440,7 +4440,7 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
          /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-         double jac_bar_buffer[9];
+         double jac_bar_buffer[9] = {};
          DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
          jac_bar = 0.0;
          AddMult(curlshape_dFt_bar, curlshape, jac_bar);
@@ -4453,7 +4453,7 @@ double ForceIntegrator2::GetElementEnergy(const FiniteElement &el,
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
          /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
-         double adj_bar_buffer[9];
+         double adj_bar_buffer[9] = {};
          DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
          adj_bar = 0.0;
          MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
@@ -4522,10 +4522,10 @@ void ForceIntegrator2::AssembleElementVector(const FiniteElement &el,
    curlshape_dFt.SetSize(ndof, curl_dim);
    PointMat_bar.SetSize(space_dim, v_el.GetDof());
 
-   double b_vec_buffer[3];
+   double b_vec_buffer[3] = {};
    Vector b_vec(b_vec_buffer, curl_dim);
 
-   double b_vec_bar_buffer[3];
+   double b_vec_bar_buffer[3] = {};
    Vector b_vec_bar(b_vec_bar_buffer, curl_dim);
 
    // cast the ElementTransformation
@@ -4610,7 +4610,7 @@ void ForceIntegrator2::AssembleElementVector(const FiniteElement &el,
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
          /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-         double jac_bar_buffer[9];
+         double jac_bar_buffer[9] = {};
          DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
          jac_bar = 0.0;
          AddMult(curlshape_dFt_bar, curlshape, jac_bar);
@@ -4623,7 +4623,7 @@ void ForceIntegrator2::AssembleElementVector(const FiniteElement &el,
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
          /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
-         double adj_bar_buffer[9];
+         double adj_bar_buffer[9] = {};
          DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
          adj_bar = 0.0;
          MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
@@ -4759,14 +4759,14 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
       const double b_mag = b_vec_norm / trans_weight;
 
       /// the following computes `\partial (||B||/|J|) / \partial J`
-      double dBmdJ_buffer[9];
+      double dBmdJ_buffer[9] = {};
       DenseMatrix dBmdJ(dBmdJ_buffer, curl_dim, curl_dim);
       dBmdJ = 0.0;
       if (dim == 3)
       {
          b_hat = 0.0;
          curlshape.AddMultTranspose(elfun, b_hat);
-         double BB_hatT_buffer[9];
+         double BB_hatT_buffer[9] = {};
          DenseMatrix BB_hatT(BB_hatT_buffer, curl_dim, curl_dim);
          MultVWt(b_vec, b_hat, BB_hatT);
 
@@ -4802,9 +4802,9 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
       auto force = dBds * energy_dot;
 
       v_el.CalcDShape(ip, dshape);
-      double JinvdJds_buffer[9];
+      double JinvdJds_buffer[9] = {};
       DenseMatrix JinvdJds(JinvdJds_buffer, space_dim, space_dim);
-      double dJds_buffer[9];
+      double dJds_buffer[9] = {};
       DenseMatrix dJds(dJds_buffer, space_dim, space_dim);
       MultAtB(dXds, dshape, dJds);
       Mult(trans.InverseJacobian(), dJds, JinvdJds);
