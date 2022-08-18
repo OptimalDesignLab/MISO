@@ -13,13 +13,27 @@ namespace mach
     {
     public:
     /// Construct an integrator for simple integration sources
+    /// \note default constructor sets num_state to 1, x_chk vals to 0
+    /// alpha to 1. and el_count to 0
+    SimpleIntegrator()
+    {   
+        num_states = 1;
+        x_chk = 0.;
+        alpha = 1.;
+        el_count = 0; 
+    }
+
+    /// Construct an integrator for simple integration sources
+    /// \param[in] x - Vector that contains the physical node location to check orientation    
     /// \param[in] num_state_vars - the number of state variables
-    /// \param[in] a - factor, usually used to move terms to rhs
-    /// \note setting number of states to how many states needs to be set 
-    /// specific values to check the element orientation aspect of things
-    SimpleIntegrator(int num_state_vars = 1, double a = 1.0)
+    /// \note sets num_state to default 1 if not provided and assigns x_chk to x 
+    /// and el_count to 0
+    SimpleIntegrator(mfem::Vector x, int num_state_vars = 1, double a = 1.)
         : num_states(num_state_vars), alpha(a)
-    { el_count = 0; }
+    {   
+        x_chk = x;
+        el_count = 0; 
+    }
 
     /// Get the contribution of this element to a functional
     /// \param[in] el - the finite element whose contribution we want
@@ -61,6 +75,8 @@ namespace mach
     protected:
     /// number of states
     int num_states;
+    /// the physical node location to check orientation
+    mfem::Vector x_chk;
     /// scales the terms; can be used to move to rhs/lhs
     double alpha;
     /// counting number of elements to assign respective source terms
@@ -80,7 +96,7 @@ namespace mach
     {   
         // mfem::Vector x_chk({0.3333333333333333,0.3333333333333333,0.3333333333333333});
         // mfem::Vector x_chk({0., 0., 0.});
-        std::cout << "element id computed is: " << el_id << "\n";
+        //std::cout << "element id computed is: " << el_id << "\n";
         if (el_id%2)
         {
             for(int i = 0; i < src.Size(); ++i)
@@ -104,6 +120,17 @@ namespace mach
         // else
         // {
         //     src = 0.0;
+        // }
+        // if (el_id == 6)
+        // {
+        //     if ( dx.Norml2() < 1e-10)
+        //     {
+        //         src = 1.0;
+        //     }
+        //     else
+        //     {
+        //         src = 0.0;
+        //     }            
         // }
     }
 
