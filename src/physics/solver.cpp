@@ -100,10 +100,11 @@ void AbstractSolver::initDerived(Vector &center)
    int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();
    int extra = options["space-dis"]["extra-basis"].get<int>();
    double cond = options["space-dis"]["condv"].get<double>();
+   int pl = options["space-dis"]["print-level"].get<int>();
    
    // set the finite element space
    fes.reset(new DGDSpace(mesh.get(),fec.get(),center,dgd_degree,extra,
-                          num_state, Ordering::byVDIM,cond));
+                          num_state, Ordering::byVDIM,cond,pl));
    fes_normal.reset(new SpaceType(mesh.get(),fec.get(),num_state,
                                   Ordering::byVDIM));
 
