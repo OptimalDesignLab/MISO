@@ -359,7 +359,7 @@ PDESolver::PDESolver(MPI_Comm incomm,
          else
          {
             const auto &material_name = material["name"].get<std::string>();
-            materials[material_name] = material;
+            materials[material_name].merge_patch(material);
          }
       }
    }

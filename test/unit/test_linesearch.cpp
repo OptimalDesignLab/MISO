@@ -155,7 +155,7 @@ TEST_CASE("RelaxedNewton with BacktrackingLineSearch")
 
    mach::RelaxedNewton newton(MPI_COMM_SELF, newton_opts);
    // mfem::NewtonSolver newton(MPI_COMM_SELF);
-   // newton.SetPrintLevel(mfem::IterativeSolver::PrintLevel().All());
+   newton.SetPrintLevel(mfem::IterativeSolver::PrintLevel().All());
    newton.SetMaxIter(500);
    newton.SetAbsTol(1e-6);
    newton.SetRelTol(1e-6);

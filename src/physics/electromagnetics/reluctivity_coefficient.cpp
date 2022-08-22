@@ -140,8 +140,6 @@ std::unique_ptr<mfem::Coefficient> constructLinearReluctivityCoeff(
     const std::string &material_name,
     const nlohmann::json &materials)
 {
-   std::cout << "materials:\n";
-   std::cout << materials << "\n";
    auto mu_r = materials[material_name].value("mu_r", 1.0);
    return std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r * mu_0));
 }
@@ -190,8 +188,6 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
 {
    std::unique_ptr<mfem::Coefficient> temp_coeff;
    const auto &material = component["material"];
-
-   std::cout << "material: " << material << "\n";
 
    /// If "material" is a string, it is interpreted to be the name of a
    /// material. We default to a linear reluctivity with mu_r = 1.0 unless
