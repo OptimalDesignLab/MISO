@@ -49,15 +49,19 @@ auto options = R"(
       "abstol": 1e-9
    },
    "components": {
-      "attr1": {
-         "material": "box1",
-         "attr": 1,
-         "linear": true
+      "box1": {
+         "attrs": [1],
+         "material": {
+            "name": "box1",
+            "mu_r": 795774.7154594767
+         }
       },
-      "attr2": {
-         "material": "box2",
-         "attr": 2,
-         "linear": true
+      "box2": {
+         "attrs": [2],
+         "material": {
+            "name": "box2",
+            "mu_r": 795774.7154594767
+         }
       }
    },
    "current": {
