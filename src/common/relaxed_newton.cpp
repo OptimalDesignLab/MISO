@@ -24,8 +24,9 @@ void calcResidual(const mfem::Operator &oper,
    }
 }
 
-std::unique_ptr<mach::LineSearch> createLineSearch(const std::string &type,
-                                             const nlohmann::json &options)
+std::unique_ptr<mach::LineSearch> createLineSearch(
+    const std::string &type,
+    const nlohmann::json &options)
 {
    if (type == "backtracking")
    {
