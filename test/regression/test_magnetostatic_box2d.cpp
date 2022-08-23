@@ -49,15 +49,19 @@ auto options = R"(
       "abstol": 1e-9
    },
    "components": {
-      "attr1": {
-         "material": "box1",
-         "attr": 1,
-         "linear": true
+      "box1": {
+         "attrs": [1],
+         "material": {
+            "name": "box1",
+            "mu_r": 795774.7154594767
+         }
       },
-      "attr2": {
-         "material": "box2",
-         "attr": 2,
-         "linear": true
+      "box2": {
+         "attrs": [2],
+         "material": {
+            "name": "box2",
+            "mu_r": 795774.7154594767
+         }
       }
    },
    "current": {
@@ -111,6 +115,7 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
          {
             // construct the solver, set the initial condition, and solve
             unique_ptr<Mesh> smesh = buildMesh(nxy);
+
             MagnetostaticSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
             mfem::Vector state_tv(solver.getStateSize());
 
@@ -183,14 +188,15 @@ unique_ptr<Mesh> buildMesh(int nxy)
       bool below = true;
       for (int i = 0; i < verts.Size(); ++i)
       {
-         auto vtx = mesh->GetVertex(verts[i]);
+         auto *vtx = mesh->GetVertex(verts[i]);
+         // std::cout << "mesh vtx: " << vtx[0] << ", " << vtx[1] << "\n";
          if (vtx[1] <= 0.5)
          {
-            below = below & true;
+            below = below;
          }
          else
          {
-            below = below & false;
+            below = false;
          }
       }
       if (below)
@@ -202,5 +208,7 @@ unique_ptr<Mesh> buildMesh(int nxy)
          elem->SetAttribute(2);
       }
    }
+   mesh->SetAttributes();
+
    return mesh;
 }

@@ -7,6 +7,7 @@ set(MACH_COMMON_HEADERS
    evolver.hpp
    functional_output.hpp
    inexact_newton.hpp
+   linesearch.hpp
    mach_linearform.hpp
    mach_output.hpp
    mach_residual.hpp
@@ -15,6 +16,7 @@ set(MACH_COMMON_HEADERS
    mfem_extensions.hpp
    ode.hpp
    orthopoly.hpp
+   relaxed_newton.hpp
    sbp_fe.hpp
    surface.hpp
    surface_def.hpp
@@ -28,12 +30,14 @@ target_sources(mach
       evolver.cpp
       functional_output.cpp
       inexact_newton.cpp
+      linesearch.cpp
       mach_linearform.cpp
       material_library.cpp
       matrix_operators.cpp
       mfem_extensions.cpp
       ode.cpp
       orthopoly.cpp
+      relaxed_newton.cpp
       sbp_fe.cpp
       ${MACH_COMMON_HEADERS}
 )

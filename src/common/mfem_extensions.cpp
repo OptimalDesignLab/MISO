@@ -1,10 +1,13 @@
 #include <iostream>
+#include <memory>
 
 #include "mfem.hpp"
 
 #include "evolver.hpp"
-#include "utils.hpp"
 #include "matrix_operators.hpp"
+#include "relaxed_newton.hpp"
+#include "utils.hpp"
+
 #include "mfem_extensions.hpp"
 
 using namespace mfem;
@@ -544,6 +547,10 @@ std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
           nonlin_options.value("alpha", (0.5) * ((1.0) + sqrt((5.0))));
       double gamma = nonlin_options.value("gamma", 1.0);
       nonlin_solver->SetAdaptiveLinRtol(type, rtol0, rtol_max, alpha, gamma);
+   }
+   else if (solver_type == "relaxednewton")
+   {
+      nonlin_solver = std::make_unique<RelaxedNewton>(comm, nonlin_options);
    }
    else
    {

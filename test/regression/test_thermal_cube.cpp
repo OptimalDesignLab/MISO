@@ -36,8 +36,11 @@ TEST_CASE("ThermalSolver Box Regression Test")
       },
       "components": {
          "box": {
-            "material": "box1",
-            "attr": 1
+            "attrs": [1],
+            "material": {
+               "name": "box1",
+               "kappa": 1
+            }
          }
       },
       "bcs": {
@@ -132,8 +135,11 @@ TEST_CASE("ThermalSolver Box Regression Test with load")
       },
       "components": {
          "box": {
-            "material": "box1",
-            "attr": 1
+            "attrs": [1],
+            "material": {
+               "name": "box1",
+               "kappa": 1
+            }
          }
       },
       "bcs": {

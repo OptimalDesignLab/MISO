@@ -63,7 +63,14 @@ TEST_CASE("MagneticLoad Value Test")
    })"_json;
    mfem::ConstantCoefficient nu(1.0); ///(M_PI*4e-7));
 
-   MagneticLoad load_0(diff_stack, fes, fields, options, material_library, nu);
+   auto test_mat = R"(
+   {
+      "testmat": {
+         "mu_r": 1.0,
+         "B_r": 1.0
+      }
+   })"_json;
+   MagneticLoad load_0(diff_stack, fes, fields, options, test_mat, nu);
 
    MagneticLoad load(std::move(load_0));
 
@@ -126,7 +133,14 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    })"_json;
    mfem::ConstantCoefficient nu(1.0); ///(M_PI*4e-7));
 
-   MagneticLoad load(diff_stack, fes, fields, options, material_library, nu);
+   auto test_mat = R"(
+   {
+      "testmat": {
+         "mu_r": 1.0,
+         "B_r": 1.0
+      }
+   })"_json;
+   MagneticLoad load(diff_stack, fes, fields, options, test_mat, nu);
 
    mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
    mesh_coords.setTrueVec(mesh_coords_tv);

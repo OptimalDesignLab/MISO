@@ -1040,6 +1040,107 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
    REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
 }
 
+TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state - 2D")
+{
+   std::default_random_engine gen;
+   std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+   int nxy = 4;
+   int nz = 1;
+   int num_edge = 2;
+   auto smesh = mfem::Mesh::MakeCartesian2D(num_edge, num_edge,
+                                      mfem::Element::TRIANGLE);
+   auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   const auto dim = mesh.Dimension();
+
+   const auto p = 2;
+
+   mach::FiniteElementState state(mesh, nlohmann::json{
+      {"degree", p},
+      {"basis-type", "H1"}});
+
+   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+      {"degree", p},
+      {"basis-type", "DG"}});
+
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
+
+   mfem::Vector state_tv(state.space().GetTrueVSize());
+   mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
+
+   mfem::FunctionCoefficient state_coeff([&](const mfem::Vector &x)
+   {
+      return uniform_rand(gen);
+   });
+   state.project(state_coeff, state_tv);
+   mfem::Vector state_tv_copy(state_tv);
+
+   mfem::Vector out_bar(dg_state.space().GetTrueVSize());
+   for (int i = 0; i < out_bar.Size(); ++i)
+   {
+      out_bar(i) = uniform_rand(gen);
+   }
+   mfem::Vector state_pert(state.space().GetTrueVSize());
+   for (int i = 0; i < state_pert.Size(); ++i)
+   {
+      state_pert(i) = uniform_rand(gen);
+   }
+
+   mfem::Vector state_bar(state.space().GetTrueVSize());
+   state_bar = 0.0;
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "state", state_bar);
+
+   auto dout_dstate_v_local = state_pert * state_bar;
+   double dout_dstate_v;
+   MPI_Allreduce(&dout_dstate_v_local,
+                 &dout_dstate_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
+
+   // now compute the finite-difference approximation...
+   auto delta = 1e-5;
+   double dout_dstate_v_fd_local = 0.0;
+
+   add(state_tv, delta, state_pert, state_tv);
+   op.apply(state_tv, dg_state_tv);
+   dout_dstate_v_fd_local += out_bar * dg_state_tv;
+
+   add(state_tv, -2*delta, state_pert, state_tv);
+   op.apply(state_tv, dg_state_tv);
+   dout_dstate_v_fd_local -= out_bar * dg_state_tv;
+
+   dout_dstate_v_fd_local /= 2*delta;
+   double dout_dstate_v_fd;
+   MPI_Allreduce(&dout_dstate_v_fd_local,
+                 &dout_dstate_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
+
+   auto rank = state.space().GetMyRank();
+   if (rank == 0)
+   {
+      std::cout << "dout_dstate_v: " << dout_dstate_v << "\n";
+      std::cout << "dout_dstate_v_fd: " << dout_dstate_v_fd << "\n";
+   }
+
+   REQUIRE(dout_dstate_v == Approx(dout_dstate_v_fd).margin(1e-8));
+}
+
 TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords")
 {
    std::default_random_engine gen;
@@ -1090,6 +1191,112 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords")
       A(0) = x(1);
       A(1) = -x(0);
       A(2) = 0.0;
+   });
+   state.project(state_coeff, state_tv);
+   mfem::Vector state_tv_copy(state_tv);
+
+   mfem::Vector out_bar(dg_state.space().GetTrueVSize());
+   for (int i = 0; i < out_bar.Size(); ++i)
+   {
+      out_bar(i) = uniform_rand(gen);
+   }
+   mfem::Vector mesh_pert(mesh_coords.space().GetTrueVSize());
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = uniform_rand(gen);
+   }
+
+   mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
+   mesh_coords_bar = 0.0;
+   setInputs(op, {{"state", state_tv}});
+   op.vectorJacobianProduct(out_bar, "mesh_coords", mesh_coords_bar);
+
+   auto dout_dmesh_v_local = mesh_pert * mesh_coords_bar;
+   double dout_dmesh_v;
+   MPI_Allreduce(&dout_dmesh_v_local,
+                 &dout_dmesh_v,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
+
+   // now compute the finite-difference approximation...
+   auto delta = 1e-5;
+   double dout_dmesh_v_fd_local = 0.0;
+
+   add(mesh_coords_tv, delta, mesh_pert, mesh_coords_tv);
+   mesh_coords.distributeSharedDofs(mesh_coords_tv); // update mesh nodes
+   op.apply(state_tv, dg_state_tv);
+   dout_dmesh_v_fd_local += out_bar * dg_state_tv;
+
+   add(mesh_coords_tv, -2*delta, mesh_pert, mesh_coords_tv);
+   mesh_coords.distributeSharedDofs(mesh_coords_tv); // update mesh nodes
+   op.apply(state_tv, dg_state_tv);
+   dout_dmesh_v_fd_local -= out_bar * dg_state_tv;
+
+   dout_dmesh_v_fd_local /= 2*delta;
+   double dout_dmesh_v_fd;
+   MPI_Allreduce(&dout_dmesh_v_fd_local,
+                 &dout_dmesh_v_fd,
+                 1,
+                 MPI_DOUBLE,
+                 MPI_SUM,
+                 state.space().GetComm());
+
+   auto rank = state.space().GetMyRank();
+   if (rank == 0)
+   {
+      std::cout << "dout_dmesh_v: " << dout_dmesh_v << "\n";
+      std::cout << "dout_dmesh_v_fd: " << dout_dmesh_v_fd << "\n";
+   }
+
+   REQUIRE(dout_dmesh_v == Approx(dout_dmesh_v_fd).margin(1e-8));
+}
+
+TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords - 2D")
+{
+   std::default_random_engine gen;
+   std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto smesh = mfem::Mesh::MakeCartesian2D(num_edge, num_edge,
+                                      mfem::Element::TRIANGLE);
+   auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   const auto p = 4;
+
+   /// create new state vector copying the mesh's fe space
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto &mesh_fespace = *mesh_gf.ParFESpace();
+   mach::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
+   /// set the values of the new GF to those of the mesh's old nodes
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+   mesh_coords.setTrueVec(mesh_coords_tv);
+
+   mach::FiniteElementState state(mesh, nlohmann::json{
+      {"degree", p},
+      {"basis-type", "H1"}});
+
+   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+      {"degree", p},
+      {"basis-type", "DG"}});
+
+   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
+
+   mfem::Vector state_tv(state.space().GetTrueVSize());
+   mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
+
+   mfem::FunctionCoefficient state_coeff([&](const mfem::Vector &x)
+   {
+      return uniform_rand(gen);
    });
    state.project(state_coeff, state_tv);
    mfem::Vector state_tv_copy(state_tv);

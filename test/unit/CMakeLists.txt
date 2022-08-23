@@ -71,6 +71,7 @@ set(EM_MPI_TEST_SRCS
    test_pde_solver
    test_data_logging
    test_l2_transfer_operator
+   test_linesearch
    test_mesh_warper
    test_mach_nonlinearform
 )

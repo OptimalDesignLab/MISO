@@ -572,12 +572,12 @@ public:
       int state_dof = state_fe.GetDof();
 
       int space_dim = trans.GetSpaceDim();
-      int curl_dim = space_dim == 3 ? 3 : 1;
+      int curl_dim = space_dim;
 
       mfem::DenseMatrix curlshape(state_dof, curl_dim);
       mfem::DenseMatrix curlshape_dFt(state_dof, curl_dim);
 
-      double curl_vec_buffer[3];
+      double curl_vec_buffer[3] = {};
       mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
 
       const auto &ir = output_fe.GetNodes();
@@ -586,8 +586,16 @@ public:
          const auto &ip = ir.IntPoint(i);
          trans.SetIntPoint(&ip);
 
-         state_fe.CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         if (space_dim == 3)
+         {
+            state_fe.CalcCurlShape(ip, curlshape);
+            MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         }
+         else
+         {
+            state_fe.CalcDShape(ip, curlshape);
+            Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
 
          const double curl_vec_norm = curl_vec.Norml2();
@@ -608,13 +616,13 @@ public:
       int output_dof = output_fe.GetDof();
 
       int space_dim = trans.GetSpaceDim();
-      int curl_dim = space_dim == 3 ? 3 : 1;
+      int curl_dim = space_dim;
 
       mfem::DenseMatrix curlshape(state_dof, curl_dim);
       mfem::DenseMatrix curlshape_dFt(state_dof, curl_dim);
-      mfem::Vector shape(output_dof);
+      mfem::Vector adj_shape(output_dof);
 
-      double curl_vec_buffer[3];
+      double curl_vec_buffer[3] = {};
       mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
 
       const auto &ir = output_fe.GetNodes();
@@ -624,16 +632,24 @@ public:
          const auto &ip = ir.IntPoint(i);
          trans.SetIntPoint(&ip);
 
-         state_fe.CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         if (space_dim == 3)
+         {
+            state_fe.CalcCurlShape(ip, curlshape);
+            MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         }
+         else
+         {
+            state_fe.CalcDShape(ip, curlshape);
+            Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
 
          const double curl_vec_norm = curl_vec.Norml2();
          // const double curl_mag = curl_vec_norm / trans.Weight();
 
-         output_fe.CalcPhysShape(trans, shape);
+         output_fe.CalcPhysShape(trans, adj_shape);
 
-         double output_adj = el_output_adj * shape;
+         double output_adj = el_output_adj * adj_shape;
 
          /// dummy functional for adjoint-weighted residual
          // double fun = output_adj * curl_mag;
@@ -650,19 +666,18 @@ public:
          double curl_vec_norm_bar = curl_mag_bar / trans.Weight();
 
          /// const double curl_vec_norm = curl_vec.Norml2();
-         double curl_vec_bar_buffer[3];
+         double curl_vec_bar_buffer[3] = {};
          mfem::Vector curl_vec_bar(curl_vec_bar_buffer, space_dim);
-         curl_vec_bar = 0.0;
          add(curl_vec_bar,
              curl_vec_norm_bar / curl_vec_norm,
              curl_vec,
              curl_vec_bar);
 
          /// only need state derivative
-         // double output_adj_vec_bar_buffer[3];
+         // double output_adj_vec_bar_buffer[3] = {};
          // mfem::Vector output_adj_vec_bar(output_adj_vec_bar_buffer,
-         // space_dim); output_adj_vec_bar = 0.0; add(output_adj_vec_bar,
-         // fun_bar, curl_vec, output_adj_vec_bar);
+         //                                 space_dim);
+         // add(output_adj_vec_bar, fun_bar, curl_vec, output_adj_vec_bar);
 
          /// only need state derivative
          /// output_adj.MultTranspose(shape, output_adj_vec);
@@ -672,10 +687,16 @@ public:
          curlshape_dFt.AddMult(curl_vec_bar, el_state_bar);
 
          /// only need state derivative
-         /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-
-         /// only need state derivative
-         /// state_fe.CalcVShape(trans, vshape);
+         /// if (space_dim == 3)
+         /// {
+         ///    MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         ///    state_fe.CalcCurlShape(ip, curlshape);
+         /// }
+         /// else
+         /// {
+         ///    Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         ///    state_fe.CalcDShape(ip, curlshape);
+         /// }
       }
    }
    void apply_mesh_coords_bar(const mfem::FiniteElement &state_fe,
@@ -687,18 +708,19 @@ public:
    {
       auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
       auto &mesh_fe = *isotrans.GetFE();
-      int space_dim = isotrans.GetSpaceDim();
-      int curl_dim = space_dim == 3 ? 3 : 1;
 
-      int mesh_dof = mesh_fe.GetDof();
       int state_dof = state_fe.GetDof();
       int output_dof = output_fe.GetDof();
+      int mesh_dof = mesh_fe.GetDof();
+
+      int space_dim = isotrans.GetSpaceDim();
+      int curl_dim = space_dim;
 
       mfem::DenseMatrix curlshape(state_dof, curl_dim);
       mfem::DenseMatrix curlshape_dFt(state_dof, curl_dim);
       mfem::Vector adj_shape(output_dof);
 
-      double curl_vec_buffer[3];
+      double curl_vec_buffer[3] = {};
       mfem::Vector curl_vec(curl_vec_buffer, curl_dim);
 
       mfem::Vector adj_shape_bar(output_dof);
@@ -713,8 +735,16 @@ public:
          const auto &ip = ir.IntPoint(i);
          trans.SetIntPoint(&ip);
 
-         state_fe.CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         if (space_dim == 3)
+         {
+            state_fe.CalcCurlShape(ip, curlshape);
+            MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         }
+         else
+         {
+            state_fe.CalcDShape(ip, curlshape);
+            Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
 
          const double curl_vec_norm = curl_vec.Norml2();
@@ -751,26 +781,43 @@ public:
          isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
 
          /// const double curl_vec_norm = curl_vec.Norml2();
-         double curl_vec_bar_buffer[3];
+         double curl_vec_bar_buffer[3] = {};
          mfem::Vector curl_vec_bar(curl_vec_bar_buffer, space_dim);
-         curl_vec_bar = 0.0;
          add(curl_vec_bar,
              curl_vec_norm_bar / curl_vec_norm,
              curl_vec,
              curl_vec_bar);
 
-         /// curlshape_dFt.MultTranspose(el_state, curl_vec);
-         curlshape_dFt_bar = 0.0;
-         AddMultVWt(curl_vec_bar, el_state, curlshape_dFt_bar);
+         if (space_dim == 3)
+         {
+            /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+            // transposed dimensions of curlshape_dFt
+            // so I don't have to transpose jac_bar later
+            curlshape_dFt_bar.SetSize(curl_dim, state_dof);
+            MultVWt(curl_vec_bar, el_state, curlshape_dFt_bar);
 
-         /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-         double jac_bar_buffer[9];
-         mfem::DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
-         jac_bar = 0.0;
-         AddMult(curlshape_dFt_bar, curlshape, jac_bar);
-         isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+            /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+            double jac_bar_buffer[9] = {};
+            mfem::DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
+            AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+            isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
 
-         /// state_fe.CalcCurlShape(ip, curlshape);
+            /// state_fe.CalcCurlShape(ip, curlshape);
+         }
+         else
+         {
+            /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+            curlshape_dFt_bar.SetSize(state_dof, curl_dim);
+            MultVWt(el_state, curl_vec_bar, curlshape_dFt_bar);
+
+            /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+            double adj_bar_buffer[9] = {};
+            mfem::DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
+            MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
+            isotrans.AdjugateJacobianRevDiff(adj_bar, PointMat_bar);
+
+            /// state_fe.CalcDShape(ip, curlshape);
+         }
 
          /// insert PointMat_bar into mesh_coords_bar
          for (int j = 0; j < mesh_dof; ++j)
@@ -882,17 +929,7 @@ L2CurlMagnitudeProjection::L2CurlMagnitudeProjection(
  : L2TransferOperator(state,
                       mesh_coords,
                       output,
-                      [&state]() -> std::unique_ptr<L2TransferOperation>
-                      {
-                         if (state.mesh().SpaceDimension() == 3)
-                         {
-                            return std::make_unique<CurlMagnitudeOperator>();
-                         }
-                         else
-                         {
-                            return std::make_unique<CurlMagnitudeOperator2D>();
-                         }
-                      }())
+                      std::make_unique<CurlMagnitudeOperator>())
 { }
 
 void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)

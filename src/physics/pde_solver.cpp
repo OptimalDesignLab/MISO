@@ -150,7 +150,7 @@ MachMesh::~MachMesh()
    /// If we started PCU and we're the last one using it, close it
    if (!PCU_previously_initialized && pumi_mesh_count == 0)
    {
-#ifdef HAVE_EGADS
+#ifdef MFEM_USE_EGADS
       gmi_egads_stop();
 #endif
 #ifdef HAVE_SIMMETRIX
@@ -345,6 +345,25 @@ PDESolver::PDESolver(MPI_Comm incomm,
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)
 {
+   /// loop over all components specified in options and add their specified
+   /// materials to the solver's known material library
+   if (solver_options.contains("components"))
+   {
+      for (auto &component : solver_options["components"])
+      {
+         const auto &material = component["material"];
+         if (material.is_string())
+         {
+            continue;
+         }
+         else
+         {
+            const auto &material_name = material["name"].get<std::string>();
+            materials[material_name].merge_patch(material);
+         }
+      }
+   }
+
    fields.emplace(
        "state",
        FiniteElementState(mesh(), options["space-dis"], num_states, "state"));

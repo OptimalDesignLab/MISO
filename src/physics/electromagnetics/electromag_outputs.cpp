@@ -1,5 +1,6 @@
 #include <string>
 
+#include "data_logging.hpp"
 #include "electromag_integ.hpp"
 #include "mach_integrator.hpp"
 #include "mfem.hpp"
