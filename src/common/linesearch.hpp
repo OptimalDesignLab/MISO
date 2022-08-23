@@ -38,8 +38,7 @@ public:
 class Phi
 {
 public:
-   Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)>
-           &calcRes,
+   Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)> &calcRes,
        const mfem::Vector &state,
        const mfem::Vector &descent_dir,
        mfem::Vector &residual,
@@ -47,15 +46,16 @@ public:
 
    double operator()(double alpha);
 
-   double phi0;
-   double dphi0;
-
 private:
    const std::function<void(const mfem::Vector &x, mfem::Vector &res)> &calcRes;
    const mfem::Vector &state;
    const mfem::Vector &descent_dir;
    mfem::Vector scratch;
    mfem::Vector &residual;
+
+public:
+   const double phi0;
+   const double dphi0;
 };
 
 }  // namespace mach

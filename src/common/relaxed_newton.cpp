@@ -11,18 +11,6 @@
 
 namespace
 {
-void calcResidual(const mfem::Operator &oper,
-                  const mfem::Vector &x,
-                  const mfem::Vector &b,
-                  mfem::Vector &res)
-{
-   const bool have_b = (b.Size() == oper.Height());
-   oper.Mult(x, res);
-   if (have_b)
-   {
-      res -= b;
-   }
-}
 
 std::unique_ptr<mach::LineSearch> createLineSearch(
     const std::string &type,
@@ -80,9 +68,16 @@ double RelaxedNewton::ComputeScalingFactor(const mfem::Vector &x,
                                            const mfem::Vector &b) const
 {
    auto calcRes = [&](const mfem::Vector &x, mfem::Vector &res)
-   { calcResidual(*oper, x, b, res); };
+   {
+      oper->Mult(x, res);
+      const bool have_b = (b.Size() == Height());
+      if (have_b)
+      {
+         res -= b;
+      }
+   };
 
-   auto phi = Phi(calcRes, x, c, r, *grad);
+   Phi phi(calcRes, x, c, r, *grad);
 
    return ls->search(phi, phi.phi0, phi.dphi0, 1.0);
 }

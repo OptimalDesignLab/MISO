@@ -103,22 +103,25 @@ double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
    return alpha2;
 }
 
-Phi::Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)>
-             &calcRes,
+Phi::Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)> &calcRes,
          const mfem::Vector &state,
          const mfem::Vector &descent_dir,
          mfem::Vector &residual,
          mfem::Operator &jac)
- : phi0(residual.Norml2()),
-   calcRes(calcRes),
+ : calcRes(calcRes),
    state(state),
    descent_dir(descent_dir),
    scratch(state.Size()),
-   residual(residual)
-{
-   jac.Mult(descent_dir, scratch);
-   dphi0 = -(scratch * residual) / phi0;
-}
+   residual(residual),
+   phi0(residual.Norml2()),
+   dphi0(
+       [&]()
+       {
+          jac.Mult(descent_dir, scratch);
+          return -(scratch * residual) / phi0;
+          //  return -phi0;
+       }())
+{ }
 
 double Phi::operator()(double alpha)
 {

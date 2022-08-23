@@ -161,9 +161,9 @@ TEST_CASE("RelaxedNewton with BacktrackingLineSearch")
    newton.SetRelTol(1e-6);
    newton.SetOperator(oper);
 
-   mfem::GMRESSolver gmres(MPI_COMM_SELF);
-   // gmres.SetPrintLevel(mfem::IterativeSolver::PrintLevel().All());
-   newton.SetSolver(gmres);
+   mfem::CGSolver cg(MPI_COMM_SELF);
+   // cg.SetPrintLevel(mfem::IterativeSolver::PrintLevel().All());
+   newton.SetSolver(cg);
 
    mfem::Vector zero;
    mfem::Vector state(2);
