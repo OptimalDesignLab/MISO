@@ -103,7 +103,8 @@ double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
    return alpha2;
 }
 
-Phi::Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)> &calcRes,
+Phi::Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)>
+             &calcRes,
          const mfem::Vector &state,
          const mfem::Vector &descent_dir,
          mfem::Vector &residual,
