@@ -288,7 +288,8 @@ if (BUILD_PYTHON_WRAPPER)
    endif (POLICY CMP0127)
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
-      GIT_TAG v2.7.1
+      #GIT_TAG v2.7.1
+      GIT_TAG v2.10.0
    )
 
    FetchContent_MakeAvailable(pybind11)
