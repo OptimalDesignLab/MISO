@@ -46,7 +46,7 @@ void initSolver(py::module &m)
        .def(
            "setState",
            [](AbstractSolver2 &self,
-              std::function<void(mfem::Vector &)> fun,
+              const std::function<void(mfem::Vector &)> &fun,
               const py::array_t<double> &state,
               const std::string &name)
            {
@@ -59,7 +59,7 @@ void initSolver(py::module &m)
        .def(
            "setState",
            [](AbstractSolver2 &self,
-              std::function<double(const mfem::Vector &)> fun,
+              const std::function<double(const mfem::Vector &)> &fun,
               const py::array_t<double> &state,
               const std::string &name)
            {
@@ -90,7 +90,7 @@ void initSolver(py::module &m)
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<void(mfem::Vector &)> ex_sol,
+              const std::function<void(mfem::Vector &)> &ex_sol,
               const py::array_t<double> &state,
               const std::string &name) {
               return self.calcStateError(
@@ -102,7 +102,7 @@ void initSolver(py::module &m)
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<double(const mfem::Vector &)> ex_sol,
+              const std::function<double(const mfem::Vector &)> &ex_sol,
               const py::array_t<double> &state,
               const std::string &name)
            { self.calcStateError(ex_sol, npBufferToMFEMVector(state), name); },
@@ -112,8 +112,8 @@ void initSolver(py::module &m)
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<void(const mfem::Vector &, mfem::Vector *const)>
-                  ex_sol,
+              const std::function<void(const mfem::Vector &,
+                                       mfem::Vector *const)> &ex_sol,
               const py::array_t<double> &state,
               const std::string &name)
            {
@@ -243,7 +243,7 @@ void initSolver(py::module &m)
               const std::string &output,
               const py::dict &py_inputs)
            { return self.calcOutput(output, pyDictToMachInputs(py_inputs)); },
-           "Calculate the output specified by \"output\" using \"inputs\"",
+           R"(Calculate the output specified by "output" using "inputs")",
            py::arg("output"),
            py::arg("inputs"))
        .def(

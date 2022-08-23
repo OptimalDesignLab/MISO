@@ -415,8 +415,7 @@ template <int dim, bool entvar>
 void FlowControlSolver<dim, entvar>::addOutput(const std::string &fun,
                                                const nlohmann::json &options)
 {
-   FlowControlResidual<dim, entvar> &flow_control_res =
-       getConcrete<ResType>(*spatial_res);
+   auto &flow_control_res = getConcrete<ResType>(*spatial_res);
    outputs.emplace(fun, flow_control_res.constructOutput(fun, options));
 }
 

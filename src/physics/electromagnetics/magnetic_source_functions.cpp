@@ -441,7 +441,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
       {
          if (source == "north")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,
@@ -462,7 +462,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
          }
          else if (source == "south")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,
@@ -483,7 +483,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
          }
          else if (source == "cw")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,
@@ -504,7 +504,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
          }
          else if (source == "ccw")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,
@@ -525,7 +525,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
          }
          else if (source == "x")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,
@@ -546,7 +546,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
          }
          else if (source == "y")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,
@@ -567,7 +567,7 @@ MagnetizationCoefficient::MagnetizationCoefficient(
          }
          else if (source == "z")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                mag_coeff.addCoefficient(
                    attr,

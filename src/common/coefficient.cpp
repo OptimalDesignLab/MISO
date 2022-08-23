@@ -202,7 +202,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
 {
    auto material_coeff = std::make_unique<mach::MeshDependentCoefficient>();
    /// loop over all components, construct coeff for each
-   for (auto &component : components)
+   for (const auto &component : components)
    {
       int attr = component.value("attr", -1);
 
@@ -226,7 +226,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
       }
       else
       {
-         for (auto &attribute : component["attrs"])
+         for (const auto &attribute : component["attrs"])
          {
             auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
             material_coeff->addCoefficient(attribute, move(coeff));

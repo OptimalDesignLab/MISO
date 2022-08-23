@@ -93,7 +93,7 @@ private:
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
 
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
+   static std::unique_ptr<mfem::Solver> constructPreconditioner(
        mfem::ParFiniteElementSpace &fes,
        const nlohmann::json &prec_options)
    {
@@ -131,7 +131,7 @@ void evaluate(MeshWarperResidual &residual,
       mfem::Vector state;
       setVectorFromInputs(inputs, "state", state);
 
-      auto &surface_indices = residual.surface_indices;
+      const auto &surface_indices = residual.surface_indices;
       for (int i = 0; i < surface_indices.Size(); ++i)
       {
          res_vec(surface_indices[i]) =
@@ -182,7 +182,7 @@ void jacobianVectorProduct(MeshWarperResidual &residual,
 {
    if (wrt == "surf_mesh_coords")
    {
-      auto &surface_indices = residual.surface_indices;
+      const auto &surface_indices = residual.surface_indices;
       for (int i = 0; i < surface_indices.Size(); ++i)
       {
          res_dot(surface_indices[i]) -= wrt_dot(i);
@@ -205,7 +205,7 @@ void vectorJacobianProduct(MeshWarperResidual &residual,
 {
    if (wrt == "surf_mesh_coords")
    {
-      auto &surface_indices = residual.surface_indices;
+      const auto &surface_indices = residual.surface_indices;
       for (int i = 0; i < surface_indices.Size(); ++i)
       {
          wrt_bar(i) -= res_bar(surface_indices[i]);

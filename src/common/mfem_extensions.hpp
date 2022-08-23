@@ -61,20 +61,22 @@ public:
                      const double *a_,
                      const double *b_,
                      const double *c_,
-                     std::ostream *out_stream = nullptr);
+                     std::ostream *out_stream = nullptr)
+    : s(s_), a(a_), b(b_), c(c_), k(s), out(out_stream)
+   { }
 
    void Init(mfem::TimeDependentOperator &f_) override;
 
    void Step(mfem::Vector &x, double &t, double &dt) override;
 
-   virtual ~ExplicitRRKSolver();
+   // virtual ~ExplicitRRKSolver();
 
 protected:
    int s;
    const double *a, *b, *c;
    mfem::Vector y;
    mfem::Vector x_new;
-   mfem::Vector *k;
+   std::vector<mfem::Vector> k;
    std::ostream *out;
 };
 
@@ -157,9 +159,9 @@ public:
    ~BlockJacobiPreconditioner();
 
    /// Controls the ownership of the blocks
-   /// \note if nonzero, BlockJacobiPreconditioner will delete all blocks that
-   /// are set (non-NULL); the default value is zero.
-   int owns_blocks;
+   /// \note if true, BlockJacobiPreconditioner will delete all blocks that
+   /// are set (non-NULL); the default value is false.
+   bool owns_blocks;
 
 private:
    /// Number of Blocks

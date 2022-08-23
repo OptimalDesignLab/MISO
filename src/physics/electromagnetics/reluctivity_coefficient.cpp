@@ -334,7 +334,7 @@ ReluctivityCoefficient::ReluctivityCoefficient(const nlohmann::json &nu_options,
  : nu(std::make_unique<mfem::ConstantCoefficient>(1.0 / mu_0))
 {
    /// loop over all components, construct a reluctivity coefficient for each
-   for (auto &component : nu_options["components"])
+   for (const auto &component : nu_options["components"])
    {
       int attr = component.value("attr", -1);
       if (-1 != attr)
@@ -344,7 +344,7 @@ ReluctivityCoefficient::ReluctivityCoefficient(const nlohmann::json &nu_options,
       }
       else
       {
-         for (auto &attribute : component["attrs"])
+         for (const auto &attribute : component["attrs"])
          {
             nu.addCoefficient(attribute,
                               constructReluctivityCoeff(component, materials));

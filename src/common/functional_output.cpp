@@ -16,7 +16,7 @@ void setInputs(FunctionalOutput &output, const MachInputs &inputs)
    {
       if (std::holds_alternative<InputVector>(input))
       {
-         if (output.func_fields)
+         if (output.func_fields != nullptr)
          {
             auto it = output.func_fields->find(name);
             if (it != output.func_fields->end())

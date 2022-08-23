@@ -132,7 +132,7 @@ void setUpAdjointSystem(MachNonlinearForm &form,
    auto &jac_trans = getJacobianTranspose(form, inputs, "state");
    adj_solver.SetOperator(jac_trans);
 
-   auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+   const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
    if (ess_tdof_list.Size() == 0)
    {
       return;

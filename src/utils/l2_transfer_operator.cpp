@@ -72,7 +72,7 @@ public:
                               mfem::Vector &mesh_coords_bar) const override
    {
       auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
-      auto &mesh_fe = *isotrans.GetFE();
+      const auto &mesh_fe = *isotrans.GetFE();
       int space_dim = isotrans.GetSpaceDim();
 
       int mesh_dof = mesh_fe.GetDof();
@@ -247,7 +247,7 @@ public:
                               mfem::Vector &mesh_coords_bar) const override
    {
       auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
-      auto &mesh_fe = *isotrans.GetFE();
+      const auto &mesh_fe = *isotrans.GetFE();
       int space_dim = isotrans.GetSpaceDim();
 
       int mesh_dof = mesh_fe.GetDof();
@@ -455,7 +455,7 @@ public:
                               mfem::Vector &mesh_coords_bar) const override
    {
       auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
-      auto &mesh_fe = *isotrans.GetFE();
+      const auto &mesh_fe = *isotrans.GetFE();
       int space_dim = isotrans.GetSpaceDim();
       int curl_dim = space_dim == 3 ? 3 : 1;
 
@@ -707,7 +707,7 @@ public:
                               mfem::Vector &mesh_coords_bar) const override
    {
       auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
-      auto &mesh_fe = *isotrans.GetFE();
+      const auto &mesh_fe = *isotrans.GetFE();
 
       int state_dof = state_fe.GetDof();
       int output_dof = output_fe.GetDof();
@@ -958,7 +958,7 @@ void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
       el_output.SetSize(output_vdofs.Size());
 
       state.gridFunc().GetSubVector(state_vdofs, el_state);
-      if (state_dof_trans)
+      if (state_dof_trans != nullptr)
       {
          state_dof_trans->InvTransformPrimal(el_state);
       }
@@ -966,7 +966,7 @@ void L2TransferOperator::apply(const MachInputs &inputs, mfem::Vector &out_vec)
       /// apply the operation
       operation->apply(state_fe, output_fe, trans, el_state, el_output);
 
-      if (output_dof_trans)
+      if (output_dof_trans != nullptr)
       {
          output_dof_trans->TransformPrimal(el_output);
       }
@@ -1011,13 +1011,13 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
          el_state_bar.SetSize(state_vdofs.Size());
 
          state.gridFunc().GetSubVector(state_vdofs, el_state);
-         if (state_dof_trans)
+         if (state_dof_trans != nullptr)
          {
             state_dof_trans->InvTransformPrimal(el_state);
          }
          output_adjoint.gridFunc().GetSubVector(output_adj_vdofs,
                                                 el_output_adj);
-         if (output_adj_dof_trans)
+         if (output_adj_dof_trans != nullptr)
          {
             output_adj_dof_trans->InvTransformPrimal(el_output_adj);
          }
@@ -1026,7 +1026,7 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
          operation->apply_state_bar(
              state_fe, output_fe, trans, el_output_adj, el_state, el_state_bar);
 
-         if (state_dof_trans)
+         if (state_dof_trans != nullptr)
          {
             state_dof_trans->TransformDual(el_state_bar);
          }
@@ -1070,13 +1070,13 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
          el_mesh_coords_bar.SetSize(mesh_coords_vdofs.Size());
 
          state.gridFunc().GetSubVector(state_vdofs, el_state);
-         if (state_dof_trans)
+         if (state_dof_trans != nullptr)
          {
             state_dof_trans->InvTransformPrimal(el_state);
          }
          output_adjoint.gridFunc().GetSubVector(output_adj_vdofs,
                                                 el_output_adj);
-         if (output_adj_dof_trans)
+         if (output_adj_dof_trans != nullptr)
          {
             output_adj_dof_trans->InvTransformPrimal(el_output_adj);
          }
@@ -1089,7 +1089,7 @@ void L2TransferOperator::vectorJacobianProduct(const mfem::Vector &out_bar,
                                           el_state,
                                           el_mesh_coords_bar);
 
-         if (mesh_coords_dof_trans)
+         if (mesh_coords_dof_trans != nullptr)
          {
             mesh_coords_dof_trans->TransformDual(el_mesh_coords_bar);
          }

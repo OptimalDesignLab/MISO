@@ -192,7 +192,7 @@ public:
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
-                               mfem::Vector &state_bar) override;
+                               mfem::Vector &res_dot) override;
 
 private:
    /// the state to use when evaluating (dR/du) * state_dot
@@ -593,7 +593,7 @@ public:
    void AssembleElementVector(const mfem::FiniteElement &el,
                               mfem::ElementTransformation &trans,
                               const mfem::Vector &elfun,
-                              mfem::Vector &elvect) override;
+                              mfem::Vector &elfun_bar) override;
 
 private:
    /// material (thus mesh) dependent model describing reluctivity

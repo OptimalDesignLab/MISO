@@ -349,7 +349,7 @@ PDESolver::PDESolver(MPI_Comm incomm,
    /// materials to the solver's known material library
    if (solver_options.contains("components"))
    {
-      for (auto &component : solver_options["components"])
+      for (const auto &component : solver_options["components"])
       {
          const auto &material = component["material"];
          if (material.is_string())
@@ -377,10 +377,11 @@ PDESolver::PDESolver(MPI_Comm incomm,
    setUpExternalFields();
 }
 
-PDESolver::PDESolver(MPI_Comm incomm,
-                     const nlohmann::json &solver_options,
-                     std::function<int(const nlohmann::json &, int)> num_states,
-                     std::unique_ptr<mfem::Mesh> smesh)
+PDESolver::PDESolver(
+    MPI_Comm incomm,
+    const nlohmann::json &solver_options,
+    const std::function<int(const nlohmann::json &, int)> &num_states,
+    std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)

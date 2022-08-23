@@ -95,7 +95,7 @@ public:
    /// available to determine the number of states.
    PDESolver(MPI_Comm incomm,
              const nlohmann::json &solver_options,
-             std::function<int(const nlohmann::json &, int)> num_states,
+             const std::function<int(const nlohmann::json &, int)> &num_states,
              std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
 protected:

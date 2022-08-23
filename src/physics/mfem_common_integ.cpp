@@ -21,7 +21,7 @@ double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
       trans.SetIntPoint(&ip);
 
       double val = ip.weight * trans.Weight();
-      if (rho)
+      if (rho != nullptr)
       {
          val *= rho->Eval(trans, ip);
       }

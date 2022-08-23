@@ -727,7 +727,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
             auto n_slots = cached_inputs.at("n_slots");
             cached_inputs.emplace("stack_length", 0.345);
             auto stack_length = cached_inputs.at("stack_length");
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -762,7 +762,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
             auto n_slots = cached_inputs.at("n_slots");
             cached_inputs.emplace("stack_length", 0.345);
             auto stack_length = cached_inputs.at("stack_length");
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -793,7 +793,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "x")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -816,7 +816,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "y")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -839,7 +839,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "z")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -862,7 +862,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "-z")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -885,7 +885,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "ring")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -907,7 +907,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "box1")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -929,7 +929,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "box2")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -951,7 +951,7 @@ CurrentDensityCoefficient::CurrentDensityCoefficient(
          }
          else if (source == "team13")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -1057,7 +1057,7 @@ CurrentDensityCoefficient2D::CurrentDensityCoefficient2D(
       {
          if (source == "z")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(
                    attr,
@@ -1076,7 +1076,7 @@ CurrentDensityCoefficient2D::CurrentDensityCoefficient2D(
          }
          else if (source == "-z")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                // source_coeffs.emplace(attr, mfem::FunctionCoefficient(-1.0));
                source_coeffs.emplace(
@@ -1096,7 +1096,7 @@ CurrentDensityCoefficient2D::CurrentDensityCoefficient2D(
          }
          else if (source == "box1")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(attr,
                                      mfem::FunctionCoefficient(
@@ -1117,7 +1117,7 @@ CurrentDensityCoefficient2D::CurrentDensityCoefficient2D(
          }
          else if (source == "box2")
          {
-            for (auto &attr : attrs)
+            for (const auto &attr : attrs)
             {
                source_coeffs.emplace(attr,
                                      mfem::FunctionCoefficient(

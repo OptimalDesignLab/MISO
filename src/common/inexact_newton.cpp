@@ -130,14 +130,14 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
 
       if (norm <= norm_goal)
       {
-         converged = 1;
+         converged = true;
          final_iter = it;
          break;
       }
 
       if (it >= max_iter)
       {
-         converged = 0;
+         converged = false;
          final_iter = it;
          break;
       }
@@ -152,7 +152,7 @@ void InexactNewton::Mult(const Vector &b, Vector &x) const
 
       if (c_scale == 0.0)
       {
-         converged = 0;
+         converged = true;
          final_iter = it;
          break;
       }

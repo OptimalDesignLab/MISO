@@ -69,7 +69,7 @@ public:
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
-                               mfem::Vector &state_bar) override;
+                               mfem::Vector &res_dot) override;
 
 private:
    /// the state_dot to use when evaluating (dR/du) * state_dot

@@ -210,8 +210,7 @@ template <int dim, bool entvar>
 void FlowSolver<dim, entvar>::addOutput(const std::string &fun,
                                         const nlohmann::json &options)
 {
-   FlowResidual<dim, entvar> &flow_res =
-       getConcrete<FlowResidual<dim, entvar>>(*spatial_res);
+   auto &flow_res = getConcrete<FlowResidual<dim, entvar>>(*spatial_res);
    outputs.emplace(fun, flow_res.constructOutput(fun, options));
 }
 

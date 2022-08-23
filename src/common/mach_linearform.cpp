@@ -36,7 +36,7 @@ void setInputs(MachLinearForm &load, const MachInputs &inputs)
    {
       if (std::holds_alternative<InputVector>(input))
       {
-         if (load.lf_fields)
+         if (load.lf_fields != nullptr)
          {
             auto it = load.lf_fields->find(name);
             if (it != load.lf_fields->end())

@@ -243,7 +243,7 @@ public:
 
    /// Write a file with the explicit matrix entries
    /// \param[in] file_name - file name to open and write to
-   void print(std::string file_name) const;
+   void print(const std::string &file_name) const;
 
 private:
    static constexpr double zero = 1e-16;

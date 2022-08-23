@@ -4982,7 +4982,7 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
 void setInputs(SteinmetzLossIntegrator &integ, const MachInputs &inputs)
 {
    setValueFromInputs(inputs, "frequency", integ.freq);
-   if (integ.name != "")
+   if (!integ.name.empty())
    {
       setValueFromInputs(
           inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
@@ -5040,7 +5040,7 @@ void setInputs(SteinmetzLossDistributionIntegrator &integ,
 {
    setValueFromInputs(inputs, "frequency", integ.freq);
 
-   if (integ.name != "")
+   if (!integ.name.empty())
    {
       setValueFromInputs(
           inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
