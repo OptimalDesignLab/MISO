@@ -94,44 +94,7 @@ namespace mach
     /// \note This uses the CRTP, so it wraps a call to `calcSource` in Derived.
     void source(const mfem::Vector &x, mfem::Vector &src, int el_id)
     {   
-        // mfem::Vector x_chk({0.3333333333333333,0.3333333333333333,0.3333333333333333});
-        // mfem::Vector x_chk({0., 0., 0.});
-        //std::cout << "element id computed is: " << el_id << "\n";
-        if (el_id%2)
-        {
-            for(int i = 0; i < src.Size(); ++i)
-            {
-                src[i] = 1.0;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < src.Size(); ++i)
-            {
-                src[i] = -1.0;
-            }
-        }
-        // mfem::Vector dx = x;
-        // dx -= x_chk;
-        // if ( dx.Norml2() < 1e-10)
-        // {
-        //     src = 1.0;
-        // }
-        // else
-        // {
-        //     src = 0.0;
-        // }
-        // if (el_id == 6)
-        // {
-        //     if ( dx.Norml2() < 1e-10)
-        //     {
-        //         src = 1.0;
-        //     }
-        //     else
-        //     {
-        //         src = 0.0;
-        //     }            
-        // }
+        src = 1.0;
     }
 
     };  
