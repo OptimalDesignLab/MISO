@@ -2,6 +2,7 @@
 #define MACH_ELECTROMAG_INTEG
 
 #include <unordered_set>
+#include <utility>
 
 #include "mfem.hpp"
 
@@ -1010,7 +1011,7 @@ public:
 
    DCLossFunctionalDistributionIntegrator(mfem::Coefficient &sigma,
                                           std::string name = "")
-    : sigma(sigma), name(name)
+    : sigma(sigma), name(std::move(name))
    { }
 
 private:
@@ -1078,7 +1079,7 @@ public:
    ACLossFunctionalDistributionIntegrator(mfem::GridFunction &peak_flux,
                                           mfem::Coefficient &sigma,
                                           std::string name = "")
-    : peak_flux(peak_flux), sigma(sigma), name(name)
+    : peak_flux(peak_flux), sigma(sigma), name(std::move(name))
    { }
 
 private:
@@ -1380,7 +1381,11 @@ public:
                            mfem::Coefficient &alpha,
                            mfem::Coefficient &beta,
                            std::string name = "")
-    : rho(rho), k_s(k_s), alpha(alpha), beta(beta), name(name)
+    : rho(rho),
+      k_s(k_s),
+      alpha(alpha),
+      beta(beta),
+      name(std::move(name))
    { }
 
 private:
@@ -1424,7 +1429,11 @@ public:
                                        mfem::Coefficient &alpha,
                                        mfem::Coefficient &beta,
                                        std::string name = "")
-    : rho(rho), k_s(k_s), alpha(alpha), beta(beta), name(name)
+    : rho(rho),
+      k_s(k_s),
+      alpha(alpha),
+      beta(beta),
+      name(std::move(name))
    { }
 
 private:

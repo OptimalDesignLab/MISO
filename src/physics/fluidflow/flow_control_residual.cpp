@@ -14,16 +14,16 @@ namespace mach
 {
 ControlResidual::ControlResidual(MPI_Comm incomm,
                                  const nlohmann::json &control_options)
+ : Kp(0.0),
+   Td(0.0),
+   Ti(0.0),
+   beta(0.0),
+   eta(0.0),
+   target_entropy(0.0),
+   closed_loop(true),
+   time(0.0),
+   boundary_entropy(0.0)
 {
-   Kp = 0.0;
-   Td = 0.0;
-   Ti = 0.0;
-   eta = 0.0;
-   beta = 0.0;
-   time = 0.0;
-   target_entropy = 0.0;
-   closed_loop = true;
-   boundary_entropy = 0.0;
    MPI_Comm_dup(incomm, &comm);
    MPI_Comm_rank(comm, &rank);
    rank == 0 ? num_var = 2 : num_var = 0;
@@ -40,14 +40,7 @@ ControlResidual::ControlResidual(MPI_Comm incomm,
       (*mass_mat)(0, 0) = 1.0;
       (*mass_mat)(1, 1) = 1.0;
    }
-   if (control_options["test-ode"])
-   {
-      test_ode = true;
-   }
-   else
-   {
-      test_ode = false;
-   }
+   test_ode = control_options["test-ode"];
 }
 
 void setInputs(ControlResidual &residual, const MachInputs &inputs)
@@ -65,14 +58,8 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
    setValueFromInputs(inputs, "target-entropy", residual.target_entropy);
    double closed_double = 1.0;
    setValueFromInputs(inputs, "closed-loop", closed_double);
-   if (fabs(closed_double) < numeric_limits<double>::epsilon())
-   {
-      residual.closed_loop = false;
-   }
-   else
-   {
-      residual.closed_loop = true;
-   }
+   residual.closed_loop =
+       fabs(closed_double) >= numeric_limits<double>::epsilon();
 
    // if (residual.rank == 0)
    // {
@@ -160,7 +147,7 @@ void evaluate(ControlResidual &residual,
 
 Operator &getJacobian(ControlResidual &residual,
                       const MachInputs &inputs,
-                      std::string wrt)
+                      const std::string &wrt)
 {
    setInputs(residual, inputs);
    if (residual.rank == 0)
@@ -283,7 +270,7 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
    (*offsets)[2] = (*offsets)[1] + num_flow();
    // create the mass operator
    mass_mat = make_unique<BlockOperator>(*offsets);
-   auto control_mass = getMassMatrix(control_res, options);
+   auto *control_mass = getMassMatrix(control_res, options);
    auto flow_mass = getMassMatrix(flow_res, options);
    mass_mat->SetDiagonalBlock(0, control_mass);
    mass_mat->SetDiagonalBlock(1, flow_mass);
@@ -392,7 +379,9 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
 {
    // extract flow and control states to compute entropy
    extractStates(inputs, control_ref, flow_ref);
-   Vector dxdt, control_dxdt, flow_dxdt;
+   Vector dxdt;
+   Vector control_dxdt;
+   Vector flow_dxdt;
    setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
    extractStates(dxdt, control_dxdt, flow_dxdt);
 

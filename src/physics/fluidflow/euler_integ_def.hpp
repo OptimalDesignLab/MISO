@@ -970,7 +970,7 @@ double BoundaryEntropy<dim, entvar>::calcBndryFun(const mfem::Vector &x,
                                                   const mfem::Vector &q)
 {
    // evaluate the entropy, then return the scaled value
-   double S = entropy<double, dim, entvar>(q.GetData());
+   auto S = entropy<double, dim, entvar>(q.GetData());
    double scale = control_scale(len_scale, x_actuator, x);
    double dA = sqrt(dot<double, dim>(dir.GetData(), dir.GetData()));
    return scale * S * dA;

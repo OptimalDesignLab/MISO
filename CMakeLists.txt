@@ -171,8 +171,8 @@ option(MACH_USE_CLANG_TIDY
 if (MACH_USE_CLANG_TIDY)
    set_target_properties(mach
       PROPERTIES
-         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
-         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+         CXX_CLANG_TIDY "clang-tidy;--fix;--format-style=file;--extra-arg=--std=c++17;--extra-arg=-I/Users/tuckerbabcock/Developer/spack/opt/spack/darwin-monterey-m1/clang-14.0.5/openmpi-4.1.4-d4tmz3vj5doddhkjsuwy4zeansaxk7n7/include"
+         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++17;--extra-arg=-I/Users/tuckerbabcock/Developer/spack/opt/spack/darwin-monterey-m1/clang-14.0.5/openmpi-4.1.4-d4tmz3vj5doddhkjsuwy4zeansaxk7n7/include"
    )
 endif (MACH_USE_CLANG_TIDY)
 
@@ -310,7 +310,7 @@ if (BUILD_PYTHON_WRAPPER)
    if (MACH_USE_CLANG_TIDY)
       set_target_properties(pyMach
          PROPERTIES
-            CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
+            CXX_CLANG_TIDY "clang-tidy;--fix;--format-style=file;--extra-arg=--std=c++17;--extra-arg=-I/Users/tuckerbabcock/Developer/spack/opt/spack/darwin-monterey-m1/clang-14.0.5/openmpi-4.1.4-d4tmz3vj5doddhkjsuwy4zeansaxk7n7/include"
             # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
       )
    endif (MACH_USE_CLANG_TIDY)

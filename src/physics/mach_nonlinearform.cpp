@@ -2,7 +2,6 @@
 
 #include "mfem.hpp"
 
-#include "utils.hpp"
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 #include "mach_nonlinearform.hpp"

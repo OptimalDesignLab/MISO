@@ -67,7 +67,7 @@ double vectorJacobianProduct(T & /*unused*/,
 }
 
 template <typename T>
-void vectorJacobianProduct(T &,
+void vectorJacobianProduct(T & /*unused*/,
                            const mfem::Vector & /*unused*/,
                            const std::string & /*unused*/,
                            mfem::Vector & /*unused*/)
@@ -104,7 +104,7 @@ mfem::Solver *getPreconditioner(T & /*unused*/)
 template <typename T>
 mfem::Operator &getJacobianBlock(T & /*unused*/,
                                  const MachInputs & /*unused*/,
-                                 int)
+                                 int /*unused*/)
 {
    throw MachException(
        "getJacobianBlock not specialized for concrete residual type!\n");

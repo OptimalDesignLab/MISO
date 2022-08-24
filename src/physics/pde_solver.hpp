@@ -47,8 +47,8 @@ struct MachMesh
    MachMesh(const MachMesh &) = delete;
    MachMesh &operator=(const MachMesh &) = delete;
 
-   MachMesh(MachMesh &&) noexcept;
-   MachMesh &operator=(MachMesh &&) noexcept;
+   MachMesh(MachMesh && /*other*/) noexcept;
+   MachMesh &operator=(MachMesh && /*other*/) noexcept;
 
    ~MachMesh();
 #endif
@@ -103,8 +103,8 @@ protected:
    MachMesh mesh_;
 
    /// Reference to solver state vector
-   mfem::ParMesh &mesh() { return *mesh_.mesh; }
-   const mfem::ParMesh &mesh() const { return *mesh_.mesh; }
+   mfem::ParMesh &mesh() const { return *mesh_.mesh; }
+   // const mfem::ParMesh &mesh() const { return *mesh_.mesh; }
 
    /// solver material properties
    nlohmann::json materials;
@@ -146,7 +146,7 @@ protected:
    /// client overwrites this definition; however, there is a call to the
    /// virtual function derivedPDEinitialHook(state) that the client can
    /// overwrite.
-   virtual void initialHook(const mfem::Vector &state) override final;
+   void initialHook(const mfem::Vector &state) final;
 
    /// Code in a derived class that should be executed before time-stepping
    /// \param[in] state - the current state
@@ -159,10 +159,10 @@ protected:
    /// \param[in] state - the current state
    /// \note This is `final` because we want to ensure that
    /// AbstractSolver2::iterationHook() is called.
-   virtual void iterationHook(int iter,
-                              double t,
-                              double dt,
-                              const mfem::Vector &state) override final;
+   void iterationHook(int iter,
+                      double t,
+                      double dt,
+                      const mfem::Vector &state) final;
 
    /// Code in a derived class that should be executed each time step
    /// \param[in] iter - the current iteration
@@ -179,9 +179,7 @@ protected:
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
    /// \param[in] state - the current state
-   virtual void terminalHook(int iter,
-                             double t_final,
-                             const mfem::Vector &state) override final;
+   void terminalHook(int iter, double t_final, const mfem::Vector &state) final;
 
    /// Code in a derived class that should be executed after time stepping ends
    /// \param[in] iter - the terminal iteration

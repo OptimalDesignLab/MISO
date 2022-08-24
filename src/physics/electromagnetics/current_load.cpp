@@ -218,7 +218,6 @@ CurrentLoad::CurrentLoad(adept::Stack &diff_stack,
 
    /// project current coeff as initial guess for iterative solve
    j.ProjectCoefficient(current);
-   div_free_current_vec = 0.0;
 
    /// Create a H(curl) mass matrix for integrating grid functions
    nd_mass.AddDomainIntegrator(new VectorFEMassIntegrator);

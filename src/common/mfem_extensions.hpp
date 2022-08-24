@@ -107,6 +107,12 @@ public:
    /// \param[in] offsets - mark the start of each row/column block
    BlockJacobiPreconditioner(const mfem::Array<int> &offsets);
 
+   BlockJacobiPreconditioner(const BlockJacobiPreconditioner &) = delete;
+   BlockJacobiPreconditioner &operator=(const BlockJacobiPreconditioner &) = delete;
+
+   BlockJacobiPreconditioner(BlockJacobiPreconditioner &&) noexcept = delete;
+   BlockJacobiPreconditioner &operator=(BlockJacobiPreconditioner &&) noexcept = delete;
+
    /// Add a square block op in the block-entry (iblock, iblock)
    /// \param[in] iblock - the index of row-column block entry being set
    /// \param[in] op - the solver used to define the (iblock, iblock) entry
@@ -114,7 +120,7 @@ public:
 
    /// Calls SetOperator on the diagonal block operators
    /// \param[in] op - a BlockOperator whose diagonal entries are used
-   virtual void SetOperator(const mfem::Operator &op) override;
+   void SetOperator(const mfem::Operator &op) override;
 
    /// Return the number of blocks
    /// \returns the number of row/column blocks in the preconditioner
@@ -147,16 +153,15 @@ public:
    /// Operator application
    /// \param[in] x - the vector being preconditioned
    /// \param[in] y - the preconditioned vector
-   virtual void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// Action of the transpose operator
    /// \param[in] x - the vector being preconditioned
    /// \param[in] y - the preconditioned vector
-   virtual void MultTranspose(const mfem::Vector &x,
-                              mfem::Vector &y) const override;
+   void MultTranspose(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// Preconditioner destructor
-   ~BlockJacobiPreconditioner();
+   ~BlockJacobiPreconditioner() override;
 
    /// Controls the ownership of the blocks
    /// \note if true, BlockJacobiPreconditioner will delete all blocks that

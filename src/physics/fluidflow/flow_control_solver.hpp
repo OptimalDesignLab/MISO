@@ -107,17 +107,17 @@ private:
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void initialHook(const mfem::Vector &state) override final;
+   void initialHook(const mfem::Vector &state) final;
 
    /// For code that should be executed before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
    /// \param[in] state - the current state
-   virtual void iterationHook(int iter,
-                              double t,
-                              double dt,
-                              const mfem::Vector &state) override final;
+   void iterationHook(int iter,
+                      double t,
+                      double dt,
+                      const mfem::Vector &state) final;
 
    /// Find the step size based on the options; e.g. for constant CFL or PTC
    /// \param[in] iter - the current iteration
@@ -131,11 +131,11 @@ private:
    /// between nodes for the length in the CFL number.
    /// \note If the "steady" option is true, the time step will increase based
    /// on the baseline value of "dt" and the residual norm.
-   virtual double calcStepSize(int iter,
-                               double t,
-                               double t_final,
-                               double dt_old,
-                               const mfem::Vector &state) const override final;
+   double calcStepSize(int iter,
+                       double t,
+                       double t_final,
+                       double dt_old,
+                       const mfem::Vector &state) const final;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
@@ -145,19 +145,17 @@ private:
    /// \param[in] state - the current state
    /// \note If a steady problem is being solved, the "steady-abstol" and
    /// "steady-reltol" options from "time-dis" to determine convergence.
-   virtual bool iterationExit(int iter,
-                              double t,
-                              double t_final,
-                              double dt,
-                              const mfem::Vector &state) const override final;
+   bool iterationExit(int iter,
+                      double t,
+                      double t_final,
+                      double dt,
+                      const mfem::Vector &state) const final;
 
    /// For code that should be executed after the time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
    /// \param[in] state - the current state
-   virtual void terminalHook(int iter,
-                             double t_final,
-                             const mfem::Vector &state) override final;
+   void terminalHook(int iter, double t_final, const mfem::Vector &state) final;
 };
 
 }  // namespace mach

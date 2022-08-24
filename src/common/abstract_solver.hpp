@@ -310,10 +310,9 @@ protected:
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
 
-   void addLogger(DataLogger logger, LoggingOptions &&options)
+   void addLogger(DataLogger logger, LoggingOptions options)
    {
-      loggers.emplace_back(std::make_pair<DataLogger, LoggingOptions>(
-          std::move(logger), std::move(options)));
+      loggers.emplace_back(std::move(logger), options);
    }
 
    /// For code that should be executed before the time stepping begins

@@ -68,7 +68,8 @@ public:
    /// should be used on
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addOutputDomainIntegrator(T *integrator, std::vector<int> attr_marker);
+   void addOutputDomainIntegrator(T *integrator,
+                                  const std::vector<int> &attr_marker);
 
    /// Adds interface integrator to the nonlinear form that backs this output,
    /// and adds a reference to it to in integs as a MachIntegrator
@@ -94,7 +95,7 @@ public:
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
    void addOutputBdrFaceIntegrator(T *integrator,
-                                   std::vector<int> bdr_attr_marker);
+                                   const std::vector<int> &bdr_attr_marker);
 
    FunctionalOutput(mfem::ParFiniteElementSpace &fes,
                     std::map<std::string, FiniteElementState> &fields)
@@ -146,8 +147,9 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 }
 
 template <typename T>
-void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
-                                                 std::vector<int> attr_marker)
+void FunctionalOutput::addOutputDomainIntegrator(
+    T *integrator,
+    const std::vector<int> &attr_marker)
 {
    integs.emplace_back(*integrator);
    // auto &marker = domain_markers.emplace_back(attr_marker.size());
@@ -181,7 +183,7 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 template <typename T>
 void FunctionalOutput::addOutputBdrFaceIntegrator(
     T *integrator,
-    std::vector<int> bdr_attr_marker)
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
 

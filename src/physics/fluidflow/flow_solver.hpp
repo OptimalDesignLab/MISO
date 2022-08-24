@@ -56,25 +56,25 @@ private:
 
    /// For code that should be executed before the time stepping begins
    /// \param[in] state - the current state
-   virtual void derivedPDEInitialHook(const mfem::Vector &state) override;
+   void derivedPDEInitialHook(const mfem::Vector &state) override;
 
    /// Code that should be executed each time step, before `ode_solver->Step`
    /// \param[in] iter - the current iteration
    /// \param[in] t - the current time (before the step)
    /// \param[in] dt - the step size that will be taken
    /// \param[in] state - the current state
-   virtual void derivedPDEIterationHook(int iter,
-                                        double t,
-                                        double dt,
-                                        const mfem::Vector &state) override;
+   void derivedPDEIterationHook(int iter,
+                                double t,
+                                double dt,
+                                const mfem::Vector &state) override;
 
    /// Code that should be executed after time stepping ends
    /// \param[in] iter - the terminal iteration
    /// \param[in] t_final - the final time
    /// \param[in] state - the current state
-   virtual void derivedPDETerminalHook(int iter,
-                                       double t_final,
-                                       const mfem::Vector &state) override;
+   void derivedPDETerminalHook(int iter,
+                               double t_final,
+                               const mfem::Vector &state) override;
 
    /// Find the step size based on the options; e.g. for constant CFL or PTC
    /// \param[in] iter - the current iteration
@@ -88,11 +88,11 @@ private:
    /// between nodes for the length in the CFL number.
    /// \note If the "steady" option is true, the time step will increase based
    /// on the baseline value of "dt" and the residual norm.
-   virtual double calcStepSize(int iter,
-                               double t,
-                               double t_final,
-                               double dt_old,
-                               const mfem::Vector &state) const override;
+   double calcStepSize(int iter,
+                       double t,
+                       double t_final,
+                       double dt_old,
+                       const mfem::Vector &state) const override;
 
    /// Determines when to exit the time stepping loop
    /// \param[in] iter - the current iteration
@@ -102,11 +102,11 @@ private:
    /// \param[in] state - the current state
    /// \note If a steady problem is being solved, the "steady-abstol" and
    /// "steady-reltol" options from "time-dis" to determine convergence.
-   virtual bool iterationExit(int iter,
-                              double t,
-                              double t_final,
-                              double dt,
-                              const mfem::Vector &state) const override;
+   bool iterationExit(int iter,
+                      double t,
+                      double t_final,
+                      double dt,
+                      const mfem::Vector &state) const override;
 
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,

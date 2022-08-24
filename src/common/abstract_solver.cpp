@@ -126,9 +126,8 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       nonlinear_solver->Mult(zero, state);
 
       /// log final state
-      for (auto &pair : loggers)
+      for (auto &[logger, options] : loggers)
       {
-         auto &logger = pair.first;
          logState(logger, state, "state", 1, 1.0, rank);
       }
    }
@@ -166,9 +165,8 @@ void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
       adj_solver->Mult(work, adjoint);
 
       /// log final state
-      for (auto &pair : loggers)
+      for (auto &[logger, options] : loggers)
       {
-         auto &logger = pair.first;
          logState(logger, adjoint, "adjoint", 0, 0.0, rank);
       }
    }
@@ -516,10 +514,8 @@ void AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
 
 void AbstractSolver2::initialHook(const mfem::Vector &state)
 {
-   for (auto &pair : loggers)
+   for (auto &[logger, options] : loggers)
    {
-      auto &logger = pair.first;
-      auto &options = pair.second;
       if (options.initial_state)
       {
          logState(logger, state, "state", 0, 0.0, rank);
@@ -532,10 +528,8 @@ void AbstractSolver2::iterationHook(int iter,
                                     double dt,
                                     const mfem::Vector &state)
 {
-   for (auto &pair : loggers)
+   for (auto &[logger, options] : loggers)
    {
-      auto &logger = pair.first;
-      auto &options = pair.second;
       if (options.each_timestep)
       {
          logState(logger, state, "state", iter, t, rank);
@@ -570,10 +564,8 @@ void AbstractSolver2::terminalHook(int iter,
                                    double t_final,
                                    const mfem::Vector &state)
 {
-   for (auto &pair : loggers)
+   for (auto &[logger, options] : loggers)
    {
-      auto &logger = pair.first;
-      auto &options = pair.second;
       if (options.final_state)
       {
          logState(logger, state, "state", iter, t_final, rank);

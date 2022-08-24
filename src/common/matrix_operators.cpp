@@ -59,12 +59,12 @@ void SumOfOperators::Mult(const Vector &x, Vector &y) const
    y += work_vec;
 }
 
-JacobianFree::JacobianFree(MachResidual &residual)
+JacobianFree::JacobianFree(MachResidual &residual, Operator *mat_explicit)
  : Operator(getSize(residual)),
    comm(getMPIComm(residual)),
    scale(1.0),
    res(residual),
-   explicit_part(nullptr),
+   explicit_part(mat_explicit),
    state(getSize(res)),
    res_at_state(getSize(res)),
    state_pert(getSize(res))

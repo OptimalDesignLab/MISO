@@ -206,16 +206,17 @@ class JacobianFree : public mfem::Operator
 public:
    /// Construct a Jacobian-free matrix-vector product operator
    /// \param[in] residual - the equation/residual that defines the Jacobian
-   JacobianFree(MachResidual &residual);
-
-   /// Construct a Jacobian-free matrix-vector product operator
-   /// \param[in] residual - the equation/residual that defines the Jacobian
    /// \param[in] mat_explicit - (optional) explicit part of the operator
-   JacobianFree(MachResidual &residual, mfem::Operator &mat_explicit)
-    : JacobianFree(residual)
-   {
-      explicit_part = &mat_explicit;
-   }
+   JacobianFree(MachResidual &residual, mfem::Operator *mat_explicit = nullptr);
+
+   // /// Construct a Jacobian-free matrix-vector product operator
+   // /// \param[in] residual - the equation/residual that defines the Jacobian
+   // /// \param[in] mat_explicit - (optional) explicit part of the operator
+   // JacobianFree(MachResidual &residual, mfem::Operator &mat_explicit)
+   //  : JacobianFree(residual)
+   // {
+   //    explicit_part = &mat_explicit;
+   // }
 
    /// Sets the scaling applied to the Jacobian-free part of the operator
    void setScaling(double scaling) { scale = scaling; }

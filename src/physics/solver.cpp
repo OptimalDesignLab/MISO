@@ -29,7 +29,6 @@
 #include "utils.hpp"
 #include "mfem_extensions.hpp"
 #include "default_options.hpp"
-#include "solver.hpp"
 #include "sbp_fe.hpp"
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
@@ -37,12 +36,6 @@
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 #include "mach_load.hpp"
-#include "solver.hpp"
-#include "utils.hpp"
-
-#ifdef MFEM_USE_EGADS
-#include "gmi_egads.h"
-#endif
 
 using namespace std;
 using namespace mfem;
@@ -406,7 +399,7 @@ void AbstractSolver::constructPumiMesh()
    }
    pumi_mesh->end(it);
 
-   mesh.reset(new ParPumiMesh(comm, pumi_mesh.get()));
+   mesh = std::make_unique<ParPumiMesh>(comm, pumi_mesh.get());
 
    // it = pumi_mesh->begin(pumi_mesh->getDimension());
    // count = 0;
@@ -1121,7 +1114,7 @@ std::unique_ptr<HypreParVector> AbstractSolver::getField(
    auto &field_gf = res_fields.at(name);
    auto *field_fes = field_gf.ParFESpace();
 
-   auto field = std::unique_ptr<HypreParVector>(new HypreParVector(field_fes));
+   auto field = std::make_unique<HypreParVector>(field_fes);
    field_gf.GetTrueDofs(*field);
    return field;
 }

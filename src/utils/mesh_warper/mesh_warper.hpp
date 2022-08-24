@@ -36,8 +36,8 @@ private:
    MachMesh mesh_;
 
    /// Reference to solver state vector
-   mfem::ParMesh &mesh() { return *mesh_.mesh; }
-   const mfem::ParMesh &mesh() const { return *mesh_.mesh; }
+   mfem::ParMesh &mesh() const { return *mesh_.mesh; }
+   // const mfem::ParMesh &mesh() const { return *mesh_.mesh; }
 
    /// Members associated with fields
    /// Map of all state vectors used by the solver

@@ -56,7 +56,7 @@ public:
    /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(ControlResidual &residual,
                                       const MachInputs &inputs,
-                                      std::string wrt);
+                                      const std::string &wrt);
 
    /// Evaluate the entropy/Lyapunov functional at the given state
    /// \param[inout] residual - passive-control residual whose entropy we want

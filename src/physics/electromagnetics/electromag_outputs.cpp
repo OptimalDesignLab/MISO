@@ -19,7 +19,7 @@ void setOptions(ForceFunctional &output, const nlohmann::json &options)
 
    auto space_dim = output.fields.at("vforce").mesh().SpaceDimension();
    mfem::VectorConstantCoefficient axis_vector(
-       mfem::Vector(&axis[0], space_dim));
+       mfem::Vector(axis.data(), space_dim));
 
    auto &v = output.fields.at("vforce").gridFunc();
    v = 0.0;
@@ -34,11 +34,11 @@ void setOptions(TorqueFunctional &output, const nlohmann::json &options)
    auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
    auto &&axis = options["axis"].get<std::vector<double>>();
    auto &&about = options["about"].get<std::vector<double>>();
-   mfem::Vector axis_vector(&axis[0], axis.size());
+   mfem::Vector axis_vector(axis.data(), axis.size());
    axis_vector /= axis_vector.Norml2();
 
    auto space_dim = output.fields.at("vtorque").mesh().SpaceDimension();
-   mfem::Vector about_vector(&about[0], space_dim);
+   mfem::Vector about_vector(about.data(), space_dim);
    double r_data[3];
    mfem::Vector r(r_data, space_dim);
 

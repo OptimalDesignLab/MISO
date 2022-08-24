@@ -80,7 +80,7 @@ public:
       }
       else if (block_mass != nullptr)
       {
-         jac_ = std::make_unique<JacobianFree>(spatial_res_, *mass_matrix_);
+         jac_ = std::make_unique<JacobianFree>(spatial_res_, mass_matrix_);
       }
    }
 
