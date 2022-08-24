@@ -1381,11 +1381,7 @@ public:
                            mfem::Coefficient &alpha,
                            mfem::Coefficient &beta,
                            std::string name = "")
-    : rho(rho),
-      k_s(k_s),
-      alpha(alpha),
-      beta(beta),
-      name(std::move(name))
+    : rho(rho), k_s(k_s), alpha(alpha), beta(beta), name(std::move(name))
    { }
 
 private:
@@ -1429,11 +1425,7 @@ public:
                                        mfem::Coefficient &alpha,
                                        mfem::Coefficient &beta,
                                        std::string name = "")
-    : rho(rho),
-      k_s(k_s),
-      alpha(alpha),
-      beta(beta),
-      name(std::move(name))
+    : rho(rho), k_s(k_s), alpha(alpha), beta(beta), name(std::move(name))
    { }
 
 private:

@@ -108,10 +108,12 @@ public:
    BlockJacobiPreconditioner(const mfem::Array<int> &offsets);
 
    BlockJacobiPreconditioner(const BlockJacobiPreconditioner &) = delete;
-   BlockJacobiPreconditioner &operator=(const BlockJacobiPreconditioner &) = delete;
+   BlockJacobiPreconditioner &operator=(const BlockJacobiPreconditioner &) =
+       delete;
 
    BlockJacobiPreconditioner(BlockJacobiPreconditioner &&) noexcept = delete;
-   BlockJacobiPreconditioner &operator=(BlockJacobiPreconditioner &&) noexcept = delete;
+   BlockJacobiPreconditioner &operator=(BlockJacobiPreconditioner &&) noexcept =
+       delete;
 
    /// Add a square block op in the block-entry (iblock, iblock)
    /// \param[in] iblock - the index of row-column block entry being set

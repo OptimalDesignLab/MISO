@@ -21,7 +21,7 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    div_x(&h1_fes),
    pcg(h1_fes.GetComm())
 {
-   psi = 0.0; // NOLINT
+   psi = 0.0;  // NOLINT
    amg.SetPrintLevel(0);
 
    pcg.SetRelTol(1e-14);
