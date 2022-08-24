@@ -38,8 +38,7 @@ public:
 class Phi
 {
 public:
-   Phi(const std::function<void(const mfem::Vector &x, mfem::Vector &res)>
-           &calcRes,
+   Phi(std::function<void(const mfem::Vector &x, mfem::Vector &res)> calcRes,
        const mfem::Vector &state,
        const mfem::Vector &descent_dir,
        mfem::Vector &residual,
@@ -48,7 +47,7 @@ public:
    double operator()(double alpha);
 
 private:
-   const std::function<void(const mfem::Vector &x, mfem::Vector &res)> &calcRes;
+   std::function<void(const mfem::Vector &x, mfem::Vector &res)> calcRes;
    const mfem::Vector &state;
    const mfem::Vector &descent_dir;
    mfem::Vector scratch;
