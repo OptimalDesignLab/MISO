@@ -6,7 +6,7 @@
 
 #include "inviscid_integ_dg_cut.hpp"
 #include "euler_fluxes.hpp"
-
+#include "mms_integ_dg_cut.hpp"
 namespace mach
 {
 /// Integrator for the Euler flux over an element
@@ -663,7 +663,7 @@ private:
 /// \note This derived class uses the CRTP
 template <int dim, bool entvar = false>
 class CutEulerMMSIntegrator
- : public MMSIntegrator<CutEulerMMSIntegrator<dim, entvar>>
+ : public CutMMSIntegrator<CutEulerMMSIntegrator<dim, entvar>>
 {
 public:
    /// Construct an integrator for a 2D Navier-Stokes MMS source
@@ -675,8 +675,7 @@ public:
                          std::map<int, IntegrationRule *> cutSquareIntRules,
                          std::vector<bool> embeddedElements,
                          double a = 1.0)
-    : CutMMSIntegrator<CutEulerMMSIntegrator<dim, entvar>>(diff_stack,
-                                                           cutSquareIntRules,
+    : CutMMSIntegrator<CutEulerMMSIntegrator<dim, entvar>>(cutSquareIntRules,
                                                            embeddedElements,
                                                            dim + 2,
                                                            a)
@@ -753,6 +752,17 @@ public:
                          const mfem::Vector &q,
                          mfem::DenseMatrix &flux_jac);
 
+   /// Compute jacobian of flux corresponding to an exact solution
+   /// w.r.t `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
+
 private:
    /// Function to evaluate the exact solution at a given x value
    void (*exactSolution)(const mfem::Vector &, mfem::Vector &);
@@ -773,8 +783,6 @@ public:
    /// Constructs an integrator for a viscous exact BCs
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
-   /// \param[in] Re_num - Reynolds number
-   /// \param[in] Pr_num - Prandtl number
    /// \param[in] q_far - state at the far-field
    /// \param[in] vis - viscosity (if negative use Sutherland's law)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
@@ -827,6 +835,16 @@ public:
                          const mfem::Vector &dir,
                          const mfem::Vector &q,
                          mfem::DenseMatrix &flux_jac);
+   /// Compute jacobian of flux corresponding to an exact solution
+   /// w.r.t `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
 
 private:
    /// Function to evaluate the exact solution at a given x value

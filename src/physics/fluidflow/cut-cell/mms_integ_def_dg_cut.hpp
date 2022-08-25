@@ -51,15 +51,14 @@ void CutMMSIntegrator<Derived>::AssembleElementVector(
     mfem::Vector &elvect)
 {
    using namespace mfem;
-   // const IntegrationRule &ir = sbp.GetNodes();
    int num_nodes = el.GetDof();
 #ifdef MFEM_THREAD_SAFE
    Vector x_i, src_i;
 #endif
-   src_i.SetSize(num_states);
    elvect.SetSize(num_states * num_nodes);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
    elvect = 0.0;
+   shape.SetSize(num_nodes);
    if (embeddedElements.at(trans.ElementNo) == true)
    {
       elvect = 0.0;
@@ -78,13 +77,15 @@ void CutMMSIntegrator<Derived>::AssembleElementVector(
          const IntegrationPoint &ip = ir->IntPoint(i);
          trans.SetIntPoint(&ip);
          trans.Transform(ip, x_i);
+         el.CalcShape(ip, shape);
          double weight = trans.Weight() * ip.weight;
+         src_i.SetSize(num_states);
          source(x_i, src_i);
          for (int n = 0; n < num_states; ++n)
          {
-            for (int s = 0; s < dof; ++s)
+            for (int s = 0; s < num_nodes; ++s)
             {
-               res(s, n) += weight * src_i(n);
+               res(s, n) += weight * src_i(n) * shape(s);
             }
          }
       }

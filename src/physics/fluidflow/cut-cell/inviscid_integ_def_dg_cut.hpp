@@ -28,10 +28,6 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
    {
       ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));  // <---
    }
-   // if (ir == NULL)
-   // {
-   //    return 0.0;
-   // }
    energy = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -528,6 +524,10 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
          }
       }
       res *= alpha;
+   }
+   else
+   {
+      elvect = 0.0;
    }
 }
 

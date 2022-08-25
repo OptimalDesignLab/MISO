@@ -679,13 +679,8 @@ void InviscidExactBC<dim, entvar>::calcFlux(const mfem::Vector &x,
                                             const mfem::Vector &q,
                                             mfem::Vector &flux_vec)
 {
-   // Part 1: apply the characteristic, invsicid BCs
-   exactSolution(x, qexact);
-   calcBoundaryFlux<double, dim>(dir.GetData(),
-                                 qexact.GetData(),
-                                 q.GetData(),
-                                 work_vec.GetData(),
-                                 flux_vec.GetData());
+   calcInviscidMMSFlux<double, entvar>(
+       x.GetData(), dir.GetData(), q.GetData(), flux_vec.GetData());
 }
 
 template <int dim, bool entvar>
@@ -695,8 +690,8 @@ double InviscidExactBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
 {
    mfem::Vector flux_vec(q.Size());
    calcFlux(x, dir, q, flux_vec);
-   exactSolution(x, qexact);
-   calcBoundaryFlux<xdouble, 2>(dir, qexact, q, work, flux);
+   // exactSolution(x, qexact);
+   // calcBoundaryFlux<double, 2>(dir, qexact, q, work_vec, flux_vec);
    mfem::Vector w(q.Size());
    if (entvar)
    {
@@ -715,13 +710,10 @@ void InviscidExactBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
                                                     const mfem::Vector &q,
                                                     mfem::DenseMatrix &flux_jac)
 {
-   exactSolution(x, qexact);
    // create containers for active double objects for each input
    std::vector<adouble> x_a(x.Size());
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> q_a(q.Size());
-   std::vector<adouble> qexact_a(qexact.Size());
-   std::vector<adouble> work_vec_a(work_vec.Size());
    // initialize active double containers with data from inputs
    adept::set_values(x_a.data(), x.Size(), x.GetData());
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
@@ -730,40 +722,55 @@ void InviscidExactBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   calcBoundaryFlux<adouble, entvar>(dir_a.data(),
-                                     qexact_a.data(),
-                                     q_a.data(),
-                                     work_vec_a.data(),
-                                     flux_a.data());
-
+   mach::calcInviscidMMSFlux<adouble, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
 template <int dim, bool entvar>
+void InviscidExactBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
+                                                  const mfem::Vector &dir,
+                                                  const mfem::Vector &q,
+                                                  mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recordings
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcInviscidMMSFlux<adouble, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
 void CutDGInviscidExactBC<dim, entvar>::calcFlux(const mfem::Vector &x,
-                                            const mfem::Vector &dir,
-                                            const mfem::Vector &q,
-                                            mfem::Vector &flux_vec)
+                                                 const mfem::Vector &dir,
+                                                 const mfem::Vector &q,
+                                                 mfem::Vector &flux_vec)
 {
    // Part 1: apply the characteristic, invsicid BCs
-   exactSolution(x, qexact);
-   calcBoundaryFlux<double, dim>(dir.GetData(),
-                                 qexact.GetData(),
-                                 q.GetData(),
-                                 work_vec.GetData(),
-                                 flux_vec.GetData());
+   calcInviscidMMSFlux<double, entvar>(
+       x.GetData(), dir.GetData(), q.GetData(), flux_vec.GetData());
 }
 
 template <int dim, bool entvar>
 double CutDGInviscidExactBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
-                                                  const mfem::Vector &dir,
-                                                  const mfem::Vector &q)
+                                                       const mfem::Vector &dir,
+                                                       const mfem::Vector &q)
 {
    mfem::Vector flux_vec(q.Size());
    calcFlux(x, dir, q, flux_vec);
-   exactSolution(x, qexact);
-   calcBoundaryFlux<xdouble, 2>(dir, qexact, q, work, flux);
    mfem::Vector w(q.Size());
    if (entvar)
    {
@@ -777,18 +784,16 @@ double CutDGInviscidExactBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
 }
 
 template <int dim, bool entvar>
-void CutDGInviscidExactBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
-                                                    const mfem::Vector &dir,
-                                                    const mfem::Vector &q,
-                                                    mfem::DenseMatrix &flux_jac)
+void CutDGInviscidExactBC<dim, entvar>::calcFluxJacState(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    const mfem::Vector &q,
+    mfem::DenseMatrix &flux_jac)
 {
-   exactSolution(x, qexact);
    // create containers for active double objects for each input
    std::vector<adouble> x_a(x.Size());
    std::vector<adouble> dir_a(dir.Size());
    std::vector<adouble> q_a(q.Size());
-   std::vector<adouble> qexact_a(qexact.Size());
-   std::vector<adouble> work_vec_a(work_vec.Size());
    // initialize active double containers with data from inputs
    adept::set_values(x_a.data(), x.Size(), x.GetData());
    adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
@@ -797,17 +802,37 @@ void CutDGInviscidExactBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   calcBoundaryFlux<adouble, entvar>(dir_a.data(),
-                                     qexact_a.data(),
-                                     q_a.data(),
-                                     work_vec_a.data(),
-                                     flux_a.data());
-
+   mach::calcInviscidMMSFlux<adouble, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
 }
-
+template <int dim, bool entvar>
+void CutDGInviscidExactBC<dim, entvar>::calcFluxJacDir(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    const mfem::Vector &q,
+    mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recordings
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcInviscidMMSFlux<adouble, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
 }  // namespace mach
 
 #endif

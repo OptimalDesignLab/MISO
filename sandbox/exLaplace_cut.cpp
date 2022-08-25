@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
    // b->AddDomainIntegrator(new CutDGDirichletLFIntegrator(u, one, sigma,
    // kappa,
    //                                                       cutSegmentIntRules));
-   b->AddDomainIntegrator(new CutDGNeumannLFIntegrator(uN, cutSegmentIntRules));
+   b->AddDomainIntegrator(new CutDGNeumannLFIntegrator(uN, phi, cutSegmentIntRules));
    b->AddBdrFaceIntegrator(new DGDirichletLFIntegrator(u, one, sigma, kappa));
    b->Assemble();
    // cout << "RHS: " << endl;

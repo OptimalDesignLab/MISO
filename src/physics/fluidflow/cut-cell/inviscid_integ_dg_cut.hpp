@@ -156,14 +156,19 @@ public:
    /// \param[in] _embeddedElements - elements completely inside geometry
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   CutDGEulerBoundaryIntegrator(adept::Stack &diff_stack,
-                              const mfem::FiniteElementCollection *fe_coll,
-                              std::map<int, IntegrationRule *> _cutBdrFaceIntRules,
-                              std::vector<bool> _embeddedElements,
-                              int num_state_vars = 1,
-                              double a = 1.0)
-    : num_states(num_state_vars), alpha(a), stack(diff_stack), fec(fe_coll), 
-    cutBdrFaceIntRules(_cutBdrFaceIntRules), embeddedElements(_embeddedElements)
+   CutDGEulerBoundaryIntegrator(
+       adept::Stack &diff_stack,
+       const mfem::FiniteElementCollection *fe_coll,
+       std::map<int, IntegrationRule *> _cutBdrFaceIntRules,
+       std::vector<bool> _embeddedElements,
+       int num_state_vars = 1,
+       double a = 1.0)
+    : num_states(num_state_vars),
+      alpha(a),
+      stack(diff_stack),
+      fec(fe_coll),
+      cutBdrFaceIntRules(_cutBdrFaceIntRules),
+      embeddedElements(_embeddedElements)
    { }
 
    /// Construct the contribution to a functional from the boundary element
@@ -302,17 +307,21 @@ public:
    /// \param[in] _phi - level-set function
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   CutDGInviscidBoundaryIntegrator(adept::Stack &diff_stack, 
-                              const mfem::FiniteElementCollection *fe_coll,
-                              std::map<int, IntegrationRule *> _cutSegmentIntRules, 
-                              /*Algoim::LevelSet<2>*/ circle<2>  _phi,
-                              int num_state_vars = 1,
-                              double a = 1.0)
-    : num_states(num_state_vars), alpha(a), 
-     stack(diff_stack), fec(fe_coll), cutSegmentIntRules(_cutSegmentIntRules), phi(_phi)
+   CutDGInviscidBoundaryIntegrator(
+       adept::Stack &diff_stack,
+       const mfem::FiniteElementCollection *fe_coll,
+       std::map<int, IntegrationRule *> _cutSegmentIntRules,
+       /*Algoim::LevelSet<2>*/ circle<2> _phi,
+       int num_state_vars = 1,
+       double a = 1.0)
+    : num_states(num_state_vars),
+      alpha(a),
+      stack(diff_stack),
+      fec(fe_coll),
+      cutSegmentIntRules(_cutSegmentIntRules),
+      phi(_phi)
    { }
 
-   
    /// Get the contribution of this element to a functional
    /// \param[in] el - the finite element whose contribution we want
    /// \param[in] trans - defines the reference to physical element mapping
@@ -340,6 +349,7 @@ public:
                             mfem::ElementTransformation &trans,
                             const mfem::Vector &elfun,
                             mfem::DenseMatrix &elmat) override;
+
 protected:
    /// number of states
    int num_states;
@@ -366,7 +376,7 @@ protected:
    std::map<int, IntegrationRule *> cutSegmentIntRules;
    /// levelset to calculate normal vectors
    circle<2> phi;
-   //Algoim::LevelSet<2> phi;
+   // Algoim::LevelSet<2> phi;
 #endif
 
    /// Compute a scalar boundary function
@@ -440,8 +450,8 @@ public:
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
    /// \param[in] _immersedFaces - interior faces completely inside the geometry
-   /// \param[in] _cutInteriorFaceIntRules - integration rule for cut interior faces
-   /// \param[in] num_state_vars - the number of state variables
+   /// \param[in] _cutInteriorFaceIntRules - integration rule for cut interior
+   /// faces \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    CutDGInviscidFaceIntegrator(
        adept::Stack &diff_stack,

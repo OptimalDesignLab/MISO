@@ -648,7 +648,7 @@ void CutDGDirichletLFIntegrator::AssembleRHSElementVect(
             xs(0) = v(0);
             xs(1) = v(1);
             beta = phi.grad(xs);
-            ds = mag(beta);
+            double ds = mag(beta);
             double nx = beta(0);
             double ny = beta(1);
             nor(0) = nx / ds;
@@ -745,7 +745,7 @@ void CutDGNeumannLFIntegrator::AssembleRHSElementVect(
             xs(0) = v(0);
             xs(1) = v(1);
             beta = phi.grad(xs);
-            ds = mag(beta);
+            double ds = mag(beta);
             double nx = beta(0);
             double ny = beta(1);
             nor(0) = nx / ds;

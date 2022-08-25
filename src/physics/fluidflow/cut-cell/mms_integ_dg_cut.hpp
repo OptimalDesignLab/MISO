@@ -73,6 +73,8 @@ protected:
    mfem::Vector x_i;
    /// the source for node i
    mfem::Vector src_i;
+   /// shape function
+   mfem::Vector shape;
 #endif
    /// cut-cell int rule
    std::map<int, IntegrationRule *> cutSquareIntRules;

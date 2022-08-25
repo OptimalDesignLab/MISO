@@ -21,8 +21,8 @@ public:
    /// For example, there may be 5 states for the 2D RANS equations, but
    /// `flux` may use only the first 4.
    DGInviscidIntegrator(adept::Stack &diff_stack,
-                      int num_state_vars = 1,
-                      double a = 1.0)
+                        int num_state_vars = 1,
+                        double a = 1.0)
     : num_states(num_state_vars), alpha(a), stack(diff_stack)
    { }
 
@@ -142,9 +142,9 @@ public:
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    DGInviscidBoundaryIntegrator(adept::Stack &diff_stack,
-                              const mfem::FiniteElementCollection *fe_coll,
-                              int num_state_vars = 1,
-                              double a = 1.0)
+                                const mfem::FiniteElementCollection *fe_coll,
+                                int num_state_vars = 1,
+                                double a = 1.0)
     : num_states(num_state_vars), alpha(a), stack(diff_stack), fec(fe_coll)
    { }
 
@@ -280,9 +280,9 @@ public:
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    DGInviscidFaceIntegrator(adept::Stack &diff_stack,
-                          const mfem::FiniteElementCollection *fe_coll,
-                          int num_state_vars = 1,
-                          double a = 1.0)
+                            const mfem::FiniteElementCollection *fe_coll,
+                            int num_state_vars = 1,
+                            double a = 1.0)
     : num_states(num_state_vars), alpha(a), stack(diff_stack), fec(fe_coll)
    { }
 

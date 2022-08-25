@@ -58,7 +58,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    int order = options["space-dis"]["degree"].template get<int>();
    int deg_vol = min((order + 2) * (order + 2), 10);
    int deg_surf = min(((order + 2) * (order + 2)), 10);
-   // deg_vol = 2*order + 7;
+   // deg_vol = 2*order;
    // deg_surf = 2*order;
    CutCell<2, 1> cutcell(mesh.get());
    phi = cutcell.constructLevelSet();
@@ -239,9 +239,8 @@ void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 template <int dim, bool entvar>
 void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
-   GridFunction x(fes.get());
-   // ParCentGridFunction x(fes_gd.get());
-#if 1
+   // GridFunction x(fes.get());
+   ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
@@ -263,30 +262,35 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
       res->AddDomainIntegrator(new CutDGIsentropicVortexBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
+
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
       cout << "slip-wall bc are present " << endl;
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
-   double perimeter = res->GetEnergy(x);
-   cout << "calculated perimeter: " << perimeter - area << endl;
+
    if (options["flow-param"]["inviscid-mms"].template get<bool>())
    {
       if (dim != 2)
       {
          throw MachException("Inviscid MMS problem only available for 2D!");
       }
-      res->AddDomainIntegrator(new CutEulerMMSIntegrator<dim>(
-          diff_stack, cutSquareIntRules, embeddedElements, alpha));
-      res->AddDomainIntegrator(new CutDGInviscidExactBC<dim, entvar>(
-          diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+      res->AddDomainIntegrator(new CutEulerMMSIntegrator<dim, entvar>(
+          diff_stack, cutSquareIntRules, embeddedElements, -alpha));
+      res->AddDomainIntegrator(
+          new CutDGInviscidExactBC<dim, entvar>(diff_stack,
+                                                fec.get(),
+                                                cutSegmentIntRules,
+                                                phi,
+                                                inviscidMMSExact,
+                                                alpha));
    }
+   double perimeter = res->GetEnergy(x);
+   cout << "calculated perimeter: " << perimeter - area << endl;
 
-#endif
 /// use this for testing purposes
 #if 0
-
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
@@ -299,9 +303,9 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    auto &bcs = options["bcs"];
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
-      // cout << "slip-wall bc are present " << endl;
-      // res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-      //     diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+      cout << "slip-wall bc are present " << endl;
+      res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
    if (bcs.find("far-field") != bcs.end())
    {
@@ -332,7 +336,7 @@ void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    auto &bcs = options["bcs"];
    int idx = 0;
    // ParCentGridFunction x(fes_gd.get());
-   //  GridFunction x(fes.get());
+   // GridFunction x(fes.get());
    if (bcs.find("vortex") != bcs.end())
    {
       if (dim != 2)
@@ -374,8 +378,8 @@ void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       bndry_marker[idx].SetSize(tmp.size(), 0);
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
-          new InviscidExactBC<dim>(
-              this->diff_stack, this->fec.get(), inviscidMMSExact, alpha),
+          new InviscidExactBC<dim, entvar>(
+              diff_stack, fec.get(), inviscidMMSExact, alpha),
           this->bndry_marker[idx]);
       idx++;
    }
@@ -909,13 +913,18 @@ void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
+   const double scale = 20.0;
    /// define the exact solution
-   double rho = rho0 + rhop * pow(sin(M_PI * x(0)), 2) * sin(M_PI * x(1));
-   double ux = 4.0 * u0 * x(1) * (1.0 - x(1)) +
-               (up * sin(2.0 * M_PI * x(1)) * pow(sin(M_PI * x(0)), 2));
-   double uy = -up * pow(sin(2.0 * M_PI * x(0)), 2) * sin(M_PI * x(1));
-   double T = T0 + Tp * (pow(x(0), 4) - (2.0 * pow(x(0), 3)) + pow(x(0), 2) +
-                         pow(x(1), 4) - (2.0 * pow(x(1), 3)) + pow(x(1), 2));
+   double rho = rho0 + rhop * pow(sin(M_PI * x(0) / scale), 2) *
+                           sin(M_PI * x(1) / scale);
+   double ux =
+       4.0 * u0 * (x(1) / scale) * (1.0 - x(1) / scale) +
+       (up * sin(2.0 * M_PI * x(1) / scale) * pow(sin(M_PI * x(0) / scale), 2));
+   double uy =
+       -up * pow(sin(2.0 * M_PI * x(0) / scale), 2) * sin(M_PI * x(1) / scale);
+   double T = T0 + Tp * (pow(x(0) / scale, 4) - (2.0 * pow(x(0) / scale, 3)) +
+                         pow(x(0) / scale, 2) + pow(x(1) / scale, 4) -
+                         (2.0 * pow(x(1) / scale, 3)) + pow(x(1) / scale, 2));
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;

@@ -1075,7 +1075,6 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir,
       flux[i] = flux[i] + lambda * dqdw_vec[i];
    }
 }
-
 /// Ismail-Roe flux function in direction `dir` with Lax-Friedichs dissipation
 /// \param[in] dir - vector direction in which flux is wanted
 /// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
@@ -1156,6 +1155,315 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    }
 }
 
+/// Isentropic vortex exact state as a function of position
+/// \param[in] x - location at which the exact state is desired
+/// \param[out] qbnd - vortex conservative variable at `x`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \note  I reversed the flow direction to be clockwise, so the problem and
+/// mesh are consistent with the LPS paper (that is, because the triangles are
+/// subdivided from the quads using the opposite diagonal)
+template <typename xdouble>
+void calcInviscidMMSState(const xdouble *x, xdouble *qbnd)
+{
+   double rho0 = 1.0;
+   double rhop = 0.05;
+   double u0 = 0.5;
+   double up = 0.05;
+   double T0 = 1.0;
+   double Tp = 0.05;
+   double scale = 20.0;
+   /// define the exact solution
+   xdouble rho = rho0 + rhop * pow(sin(M_PI * x[0]/scale), 2) * sin(M_PI * x[1]/scale);
+   xdouble ux = 4.0 * u0 * (x[1]/scale) * (1.0 - x[1]/scale) +
+               (up * sin(2.0 * M_PI * x[1]/scale) * pow(sin(M_PI * x[0]/scale), 2));
+   xdouble uy = -up * pow(sin(2.0 * M_PI * x[0]/scale), 2) * sin(M_PI * x[1]/scale);
+   xdouble T = T0 + Tp * (pow(x[0]/scale, 4) - (2.0 * pow(x[0]/scale, 3)) + pow(x[0]/scale, 2) +
+                         pow(x[1]/scale, 4) - (2.0 * pow(x[1]/scale, 3)) + pow(x[1]/scale, 2));
+   xdouble p = rho * T;
+   xdouble e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
+   qbnd[0] = rho;
+   qbnd[1] = ux;  // multiply by rho ?
+   qbnd[2] = uy;
+   qbnd[3] = e;
+}
+
+/// A wrapper for `calcBoundaryFlux` in the case of the inviscid MMS euler
+/// \param[in] x - location at which the boundary flux is desired
+/// \param[in] dir - desired (scaled) direction of the flux
+/// \param[in] q - state variable on the interior of the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam entvar - if true, `q` is entropy var; otherwise, `q` is conservative
+template <typename xdouble, bool entvar = false>
+void calcInviscidMMSFlux(const xdouble *x,
+                              const xdouble *dir,
+                              const xdouble *q,
+                              xdouble *flux)
+{
+   xdouble qbnd[4];
+   xdouble work[4];
+   calcInviscidMMSState<xdouble>(x, qbnd);
+   if (entvar)
+   {
+      xdouble qcons[4];
+      calcConservativeVars<xdouble, 2>(q, qcons);
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
+   }
+   else
+   {
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
+   }
+}
+
+/// MMS source term for a particular Euler solution verification
+/// \param[in] x - location at which to evaluate the source
+/// \param[out] src - the source value
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcInviscidMMS(const xdouble *x, xdouble *src)
+{
+   using euler::gamma;
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double u0 = 0.5;
+   const double up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   const double scale = 20.0;
+   src[0] =
+       2 * M_PI *
+       (2 * up * pow(scale, 2) *
+            (rho0 * pow(sin(M_PI * x[0] / scale), 3) -
+             rho0 * sin(M_PI * x[0] / scale) +
+             rho0 * sin(M_PI * x[1] / scale) * cos(M_PI * x[0] / scale) +
+             2 * rhop * pow(sin(M_PI * x[0] / scale), 5) *
+                 sin(M_PI * x[1] / scale) -
+             2 * rhop * pow(sin(M_PI * x[0] / scale), 3) *
+                 sin(M_PI * x[1] / scale) +
+             rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                 pow(sin(M_PI * x[1] / scale), 2) * cos(M_PI * x[0] / scale)) *
+            cos(M_PI * x[1] / scale) +
+        rhop *
+            (4 * u0 * x[1] * (scale - x[1]) +
+             up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                 sin(2 * M_PI * x[1] / scale)) *
+            sin(M_PI * x[1] / scale) * cos(M_PI * x[0] / scale)) *
+       sin(M_PI * x[0] / scale) / pow(scale, 3);
+
+   src[1] = (2 * Tp * scale * x[0] *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (pow(scale, 2) - 3 * scale * x[0] + 2 * pow(x[0], 2)) +
+             up * pow(scale, 2) *
+                 (-M_PI * rhop *
+                      (4 * u0 * x[1] * (scale - x[1]) +
+                       up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                           sin(2 * M_PI * x[1] / scale)) *
+                      pow(sin(M_PI * x[0] / scale), 2) *
+                      pow(sin(2 * M_PI * x[0] / scale), 2) *
+                      sin(M_PI * x[1] / scale) * cos(M_PI * x[1] / scale) -
+                  2 * scale *
+                      (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                                  sin(M_PI * x[1] / scale)) *
+                      (2 * u0 * (scale - 2 * x[1]) +
+                       M_PI * up * scale * pow(sin(M_PI * x[0] / scale), 2) *
+                           cos(2 * M_PI * x[1] / scale)) *
+                      pow(sin(2 * M_PI * x[0] / scale), 2) *
+                      sin(M_PI * x[1] / scale) +
+                  4 * M_PI *
+                      (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                                  sin(M_PI * x[1] / scale)) *
+                      (4 * u0 * x[1] * (scale - x[1]) +
+                       up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                           sin(2 * M_PI * x[1] / scale)) *
+                      sin(M_PI * x[0] / scale) * sin(2 * M_PI * x[1] / scale) *
+                      cos(M_PI * x[0] / scale) -
+                  M_PI *
+                      (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                                  sin(M_PI * x[1] / scale)) *
+                      (4 * u0 * x[1] * (scale - x[1]) +
+                       up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                           sin(2 * M_PI * x[1] / scale)) *
+                      pow(sin(2 * M_PI * x[0] / scale), 2) *
+                      cos(M_PI * x[1] / scale)) +
+             (1.0 / 2.0) * M_PI * rhop *
+                 (T0 * pow(scale, 4) +
+                  Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                        2 * scale * (pow(x[0], 3) + pow(x[1], 3)) +
+                        pow(x[0], 4) + pow(x[1], 4))) *
+                 (cos(M_PI * (2 * x[0] - x[1]) / scale) -
+                  cos(M_PI * (2 * x[0] + x[1]) / scale)) +
+             2 * M_PI * rhop *
+                 pow(4 * u0 * x[1] * (scale - x[1]) +
+                         up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(2 * M_PI * x[1] / scale),
+                     2) *
+                 sin(M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) *
+                 cos(M_PI * x[0] / scale)) /
+            pow(scale, 5);
+
+   src[2] =
+       (2 * Tp * scale * x[1] *
+            (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                        sin(M_PI * x[1] / scale)) *
+            (pow(scale, 2) - 3 * scale * x[1] + 2 * pow(x[1], 2)) +
+        M_PI * pow(up, 2) * pow(scale, 4) *
+            (rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                 pow(sin(2 * M_PI * x[0] / scale), 2) *
+                 sin(M_PI * x[1] / scale) * cos(M_PI * x[1] / scale) -
+             2 *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 sin(M_PI * x[0] / scale) * sin(2 * M_PI * x[1] / scale) *
+                 cos(M_PI * x[0] / scale) +
+             2 *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 pow(sin(2 * M_PI * x[0] / scale), 2) *
+                 cos(M_PI * x[1] / scale)) *
+            pow(sin(2 * M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale) -
+        1.0 / 2.0 * M_PI * up * pow(scale, 2) *
+            (4 * u0 * x[1] * (scale - x[1]) +
+             up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                 sin(2 * M_PI * x[1] / scale)) *
+            (rhop * (1 - cos(4 * M_PI * x[0] / scale)) *
+                 sin(M_PI * x[1] / scale) +
+             8 *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 cos(2 * M_PI * x[0] / scale)) *
+            sin(2 * M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) +
+        M_PI * rhop *
+            (T0 * pow(scale, 4) +
+             Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                   2 * scale * (pow(x[0], 3) + pow(x[1], 3)) + pow(x[0], 4) +
+                   pow(x[1], 4))) *
+            pow(sin(M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale)) /
+       pow(scale, 5);
+
+   src[3] =
+       (1.0 / 2.0) *
+       ((1.0 / 2.0) * M_PI * up * pow(scale, 2) *
+            (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                        sin(M_PI * x[1] / scale)) *
+            (-2 * pow(sin(2 * M_PI * x[0] / scale), 2) *
+                 cos(M_PI * x[1] / scale) +
+             cos(2 * M_PI * (x[0] - x[1]) / scale) -
+             cos(2 * M_PI * (x[0] + x[1]) / scale)) *
+            (2 * T0 * pow(scale, 4) +
+             2 * Tp *
+                 (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                  2 * scale * (pow(x[0], 3) + pow(x[1], 3)) + pow(x[0], 4) +
+                  pow(x[1], 4)) +
+             2 * (gamma - 1) *
+                 (T0 * pow(scale, 4) +
+                  Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                        2 * scale * (pow(x[0], 3) + pow(x[1], 3)) +
+                        pow(x[0], 4) + pow(x[1], 4))) +
+             (gamma - 1) * (pow(up, 2) * pow(scale, 4) *
+                                pow(sin(2 * M_PI * x[0] / scale), 4) *
+                                pow(sin(M_PI * x[1] / scale), 2) +
+                            pow(4 * u0 * x[1] * (scale - x[1]) +
+                                    up * pow(scale, 2) *
+                                        pow(sin(M_PI * x[0] / scale), 2) *
+                                        sin(2 * M_PI * x[1] / scale),
+                                2))) -
+        up * pow(scale, 2) *
+            (4 * Tp * scale * x[1] * (gamma - 1) *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (pow(scale, 2) - 3 * scale * x[1] + 2 * pow(x[1], 2)) +
+             4 * Tp * scale * x[1] *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (pow(scale, 2) - 3 * scale * x[1] + 2 * pow(x[1], 2)) +
+             2 * M_PI * rhop * (gamma - 1) *
+                 (T0 * pow(scale, 4) +
+                  Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                        2 * scale * (pow(x[0], 3) + pow(x[1], 3)) +
+                        pow(x[0], 4) + pow(x[1], 4))) *
+                 pow(sin(M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) +
+             M_PI * rhop * (gamma - 1) *
+                 (pow(up, 2) * pow(scale, 4) *
+                      pow(sin(2 * M_PI * x[0] / scale), 4) *
+                      pow(sin(M_PI * x[1] / scale), 2) +
+                  pow(4 * u0 * x[1] * (scale - x[1]) +
+                          up * pow(scale, 2) *
+                              pow(sin(M_PI * x[0] / scale), 2) *
+                              sin(2 * M_PI * x[1] / scale),
+                      2)) *
+                 pow(sin(M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) +
+             2 * M_PI * rhop *
+                 (T0 * pow(scale, 4) +
+                  Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                        2 * scale * (pow(x[0], 3) + pow(x[1], 3)) +
+                        pow(x[0], 4) + pow(x[1], 4))) *
+                 pow(sin(M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) +
+             2 * scale * (gamma - 1) *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (M_PI * pow(up, 2) * pow(scale, 3) *
+                      pow(sin(2 * M_PI * x[0] / scale), 4) *
+                      sin(M_PI * x[1] / scale) * cos(M_PI * x[1] / scale) +
+                  2 *
+                      (2 * u0 * (scale - 2 * x[1]) +
+                       M_PI * up * scale * pow(sin(M_PI * x[0] / scale), 2) *
+                           cos(2 * M_PI * x[1] / scale)) *
+                      (4 * u0 * x[1] * (scale - x[1]) +
+                       up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                           sin(2 * M_PI * x[1] / scale)))) *
+            pow(sin(2 * M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale) +
+        (4 * u0 * x[1] * (scale - x[1]) + up * pow(scale, 2) *
+                                              pow(sin(M_PI * x[0] / scale), 2) *
+                                              sin(2 * M_PI * x[1] / scale)) *
+            (4 * Tp * scale * x[0] * (gamma - 1) *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (pow(scale, 2) - 3 * scale * x[0] + 2 * pow(x[0], 2)) +
+             4 * Tp * scale * x[0] *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (pow(scale, 2) - 3 * scale * x[0] + 2 * pow(x[0], 2)) +
+             4 * M_PI * up * pow(scale, 2) * (gamma - 1) *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
+                 (2 * up * pow(scale, 2) *
+                      pow(sin(2 * M_PI * x[0] / scale), 3) *
+                      pow(sin(M_PI * x[1] / scale), 2) *
+                      cos(2 * M_PI * x[0] / scale) +
+                  (4 * u0 * x[1] * (scale - x[1]) +
+                   up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(2 * M_PI * x[1] / scale)) *
+                      sin(M_PI * x[0] / scale) * sin(2 * M_PI * x[1] / scale) *
+                      cos(M_PI * x[0] / scale)) +
+             M_PI * rhop * (gamma - 1) *
+                 (T0 * pow(scale, 4) +
+                  Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                        2 * scale * (pow(x[0], 3) + pow(x[1], 3)) +
+                        pow(x[0], 4) + pow(x[1], 4))) *
+                 (cos(M_PI * (2 * x[0] - x[1]) / scale) -
+                  cos(M_PI * (2 * x[0] + x[1]) / scale)) +
+             2 * M_PI * rhop * (gamma - 1) *
+                 (pow(up, 2) * pow(scale, 4) *
+                      pow(sin(2 * M_PI * x[0] / scale), 4) *
+                      pow(sin(M_PI * x[1] / scale), 2) +
+                  pow(4 * u0 * x[1] * (scale - x[1]) +
+                          up * pow(scale, 2) *
+                              pow(sin(M_PI * x[0] / scale), 2) *
+                              sin(2 * M_PI * x[1] / scale),
+                      2)) *
+                 sin(M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) *
+                 cos(M_PI * x[0] / scale) +
+             M_PI * rhop *
+                 (T0 * pow(scale, 4) +
+                  Tp * (pow(scale, 2) * (pow(x[0], 2) + pow(x[1], 2)) -
+                        2 * scale * (pow(x[0], 3) + pow(x[1], 3)) +
+                        pow(x[0], 4) + pow(x[1], 4))) *
+                 (cos(M_PI * (2 * x[0] - x[1]) / scale) -
+                  cos(M_PI * (2 * x[0] + x[1]) / scale)))) /
+       (pow(scale, 7) * (gamma - 1));
+}
+#if 0
 /// MMS source term for a particular Euler solution verification
 /// \param[in] x - location at which to evaluate the source
 /// \param[out] src - the source value
@@ -1170,80 +1478,108 @@ void calcInviscidMMS(const xdouble *x, xdouble *src)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
+   const double scale = 20.0;
    src[0] =
-       M_PI *
-       (-up * rhop * pow(sin(M_PI * x[0]), 2) * pow(sin(2 * M_PI * x[0]), 2) *
-            sin(M_PI * x[1]) * cos(M_PI * x[1]) +
-        2 * up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-            sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) * cos(M_PI * x[0]) -
-        up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-            pow(sin(2 * M_PI * x[0]), 2) * cos(M_PI * x[1]) -
+       (M_PI / scale) *
+       (-up * rhop * pow(sin(M_PI * x[0] / scale), 2) *
+            pow(sin(2 * M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale) *
+            cos(M_PI * x[1] / scale) +
+        2 * up *
+            (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                        sin(M_PI * x[1] / scale)) *
+            sin(M_PI * x[0] / scale) * sin(2 * M_PI * x[1] / scale) *
+            cos(M_PI * x[0] / scale) -
+        up *
+            (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                        sin(M_PI * x[1] / scale)) *
+            pow(sin(2 * M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) -
         2 * rhop *
-            (4 * u0 * x[1] * (x[1] - 1) -
-             up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-            sin(M_PI * x[0]) * sin(M_PI * x[1]) * cos(M_PI * x[0]));
+            (4 * u0 * x[1] * (x[1] - 1) - up *
+                                              pow(sin(M_PI * x[0] / scale), 2) *
+                                              sin(2 * M_PI * x[1] / scale)) *
+            sin(M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) *
+            cos(M_PI * x[0] / scale));
    src[1] =
        2 * Tp * x[0] *
-           (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
            (2 * pow(x[0], 2) - 3 * x[0] + 1) +
-       M_PI * up * rhop *
-           (4 * u0 * x[1] * (x[1] - 1) -
-            up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-           pow(sin(M_PI * x[0]), 2) * pow(sin(2 * M_PI * x[0]), 2) *
-           sin(M_PI * x[1]) * cos(M_PI * x[1]) -
-       4 * M_PI * up *
-           (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-           (4 * u0 * x[1] * (x[1] - 1) -
-            up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-           sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) * cos(M_PI * x[0]) +
-       M_PI * up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-           (4 * u0 * x[1] * (x[1] - 1) -
-            up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-           pow(sin(2 * M_PI * x[0]), 2) * cos(M_PI * x[1]) +
-       2 * up * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+       (M_PI / scale) * up * rhop *
+           (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0] / scale), 2) *
+                                             sin(2 * M_PI * x[1] / scale)) *
+           pow(sin(M_PI * x[0] / scale), 2) *
+           pow(sin(2 * M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale) *
+           cos(M_PI * x[1] / scale) -
+       4 * (M_PI / scale) * up *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
+           (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0] / scale), 2) *
+                                             sin(2 * M_PI * x[1] / scale)) *
+           sin(M_PI * x[0] / scale) * sin(2 * M_PI * x[1] / scale) *
+           cos(M_PI * x[0] / scale) +
+       (M_PI / scale) * up *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
+           (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0] / scale), 2) *
+                                             sin(2 * M_PI * x[1] / scale)) *
+           pow(sin(2 * M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) +
+       2 * up *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
            (2 * u0 * x[1] + 2 * u0 * (x[1] - 1) -
-            M_PI * up * pow(sin(M_PI * x[0]), 2) * cos(2 * M_PI * x[1])) *
-           pow(sin(2 * M_PI * x[0]), 2) * sin(M_PI * x[1]) +
-       (1.0 / 2.0) * M_PI * rhop *
+            (M_PI / scale) * up * pow(sin(M_PI * x[0] / scale), 2) *
+                cos(2 * M_PI * x[1] / scale)) *
+           pow(sin(2 * M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale) +
+       (1.0 / 2.0) * (M_PI / scale) * rhop *
            (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                        pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
-           (cos(M_PI * (2 * x[0] - x[1])) - cos(M_PI * (2 * x[0] + x[1]))) +
-       2 * M_PI * rhop *
+           (cos(M_PI * (2 * x[0] - x[1]) / scale) -
+            cos(M_PI * (2 * x[0] + x[1]) / scale)) +
+       2 * (M_PI / scale) * rhop *
            pow(4 * u0 * x[1] * (x[1] - 1) -
-                   up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1]),
+                   up * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(2 * M_PI * x[1] / scale),
                2) *
-           sin(M_PI * x[0]) * sin(M_PI * x[1]) * cos(M_PI * x[0]);
-   src[2] = 2 * Tp * x[1] *
-                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-                (2 * pow(x[1], 2) - 3 * x[1] + 1) +
-            M_PI * pow(up, 2) * rhop * pow(sin(M_PI * x[0]), 2) *
-                pow(sin(2 * M_PI * x[0]), 4) * pow(sin(M_PI * x[1]), 2) *
-                cos(M_PI * x[1]) -
-            16 * M_PI * pow(up, 2) *
-                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-                pow(sin(M_PI * x[0]), 3) * pow(sin(M_PI * x[1]), 2) *
-                pow(cos(M_PI * x[0]), 3) * cos(M_PI * x[1]) +
-            2 * M_PI * pow(up, 2) *
-                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-                pow(sin(2 * M_PI * x[0]), 4) * sin(M_PI * x[1]) *
-                cos(M_PI * x[1]) +
-            2 * M_PI * up * rhop *
-                (4 * u0 * x[1] * (x[1] - 1) -
-                 up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-                sin(M_PI * x[0]) * pow(sin(2 * M_PI * x[0]), 2) *
-                pow(sin(M_PI * x[1]), 2) * cos(M_PI * x[0]) +
-            4 * M_PI * up *
-                (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-                (4 * u0 * x[1] * (x[1] - 1) -
-                 up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-                sin(2 * M_PI * x[0]) * sin(M_PI * x[1]) * cos(2 * M_PI * x[0]) +
-            M_PI * rhop *
-                (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
-                            pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
-                pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]);
-   src[4] =
-       (M_PI * up *
-            (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+           sin(M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) *
+           cos(M_PI * x[0] / scale);
+   src[2] =
+       2 * Tp * x[1] *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
+           (2 * pow(x[1], 2) - 3 * x[1] + 1) +
+       (M_PI / scale) * pow(up, 2) * rhop * pow(sin(M_PI * x[0] / scale), 2) *
+           pow(sin(2 * M_PI * x[0] / scale), 4) *
+           pow(sin(M_PI * x[1] / scale), 2) * cos(M_PI * x[1] / scale) -
+       16 * (M_PI / scale) * pow(up, 2) *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
+           pow(sin(M_PI * x[0] / scale), 3) * pow(sin(M_PI * x[1] / scale), 2) *
+           pow(cos(M_PI * x[0] / scale), 3) * cos(M_PI * x[1] / scale) +
+       2 * (M_PI / scale) * pow(up, 2) *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
+           pow(sin(2 * M_PI * x[0] / scale), 4) * sin(M_PI * x[1] / scale) *
+           cos(M_PI * x[1] / scale) +
+       2 * (M_PI / scale) * up * rhop *
+           (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0] / scale), 2) *
+                                             sin(2 * M_PI * x[1] / scale)) *
+           sin(M_PI * x[0] / scale) * pow(sin(2 * M_PI * x[0] / scale), 2) *
+           pow(sin(M_PI * x[1] / scale), 2) * cos(M_PI * x[0] / scale) +
+       4 * (M_PI / scale) * up *
+           (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                       sin(M_PI * x[1] / scale)) *
+           (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0] / scale), 2) *
+                                             sin(2 * M_PI * x[1] / scale)) *
+           sin(2 * M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) *
+           cos(2 * M_PI * x[0] / scale) +
+       (M_PI / scale) * rhop *
+           (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
+                       pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
+           pow(sin(M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale);
+   src[3] =
+       ((M_PI / scale) * up *
+            (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                        sin(M_PI * x[1] / scale)) *
             (2 * T0 +
              2 * Tp *
                  (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
@@ -1253,14 +1589,17 @@ void calcInviscidMMS(const xdouble *x, xdouble *src)
                   2 * Tp *
                       (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                        pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2)) +
-                  pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
-                      pow(sin(M_PI * x[1]), 2) +
+                  pow(up, 2) * pow(sin(2 * M_PI * x[0] / scale), 4) *
+                      pow(sin(M_PI * x[1] / scale), 2) +
                   pow(4 * u0 * x[1] * (x[1] - 1) -
-                          up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1]),
+                          up * pow(sin(M_PI * x[0] / scale), 2) *
+                              sin(2 * M_PI * x[1] / scale),
                       2))) *
-            sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) * cos(M_PI * x[0]) -
+            sin(M_PI * x[0] / scale) * sin(2 * M_PI * x[1] / scale) *
+            cos(M_PI * x[0] / scale) -
         1.0 / 2.0 * M_PI * up *
-            (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+            (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                        sin(M_PI * x[1] / scale)) *
             (2 * T0 +
              2 * Tp *
                  (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
@@ -1270,87 +1609,98 @@ void calcInviscidMMS(const xdouble *x, xdouble *src)
                   2 * Tp *
                       (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                        pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2)) +
-                  pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
-                      pow(sin(M_PI * x[1]), 2) +
+                  pow(up, 2) * pow(sin(2 * M_PI * x[0] / scale), 4) *
+                      pow(sin(M_PI * x[1] / scale), 2) +
                   pow(4 * u0 * x[1] * (x[1] - 1) -
-                          up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1]),
+                          up * pow(sin(M_PI * x[0] / scale), 2) *
+                              sin(2 * M_PI * x[1] / scale),
                       2))) *
-            pow(sin(2 * M_PI * x[0]), 2) * cos(M_PI * x[1]) -
+            pow(sin(2 * M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) -
         1.0 / 2.0 * up *
             (4 * Tp * x[1] *
-                 (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
                  (2 * pow(x[1], 2) - 3 * x[1] + 1) +
-             2 * M_PI * rhop *
+             2 * (M_PI / scale) * rhop *
                  (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                              pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
-                 pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]) +
+                 pow(sin(M_PI * x[0] / scale), 2) * cos(M_PI * x[1] / scale) +
              (gamma - 1) *
                  (4 * Tp * x[1] *
-                      (rho0 +
-                       rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                      (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                                  sin(M_PI * x[1] / scale)) *
                       (2 * pow(x[1], 2) - 3 * x[1] + 1) +
-                  2 * M_PI * rhop *
+                  2 * (M_PI / scale) * rhop *
                       (T0 +
                        Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                              pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
-                      pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]) +
-                  M_PI * rhop *
-                      (pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
-                           pow(sin(M_PI * x[1]), 2) +
+                      pow(sin(M_PI * x[0] / scale), 2) *
+                      cos(M_PI * x[1] / scale) +
+                  (M_PI / scale) * rhop *
+                      (pow(up, 2) * pow(sin(2 * M_PI * x[0] / scale), 4) *
+                           pow(sin(M_PI * x[1] / scale), 2) +
                        pow(4 * u0 * x[1] * (x[1] - 1) -
-                               up * pow(sin(M_PI * x[0]), 2) *
-                                   sin(2 * M_PI * x[1]),
+                               up * pow(sin(M_PI * x[0] / scale), 2) *
+                                   sin(2 * M_PI * x[1] / scale),
                            2)) *
-                      pow(sin(M_PI * x[0]), 2) * cos(M_PI * x[1]) +
-                  2 * (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-                      (M_PI * pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
-                           sin(M_PI * x[1]) * cos(M_PI * x[1]) +
-                       2 * (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+                      pow(sin(M_PI * x[0] / scale), 2) *
+                      cos(M_PI * x[1] / scale) +
+                  2 * (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale)) *
+                      ((M_PI / scale) * pow(up, 2) *
+                           pow(sin(2 * M_PI * x[0] / scale), 4) *
+                           sin(M_PI * x[1] / scale) * cos(M_PI * x[1] / scale) +
+                       2 * (4 * u0 * x[1] * (x[1] - 1) - up * pow(sin(M_PI * x[0] / scale), 2) * sin(2 * M_PI * x[1] / scale)) *
                            (2 * u0 * x[1] + 2 * u0 * (x[1] - 1) -
-                            M_PI * up * pow(sin(M_PI * x[0]), 2) *
-                                cos(2 * M_PI * x[1]))))) *
-            pow(sin(2 * M_PI * x[0]), 2) * sin(M_PI * x[1]) -
+                            (M_PI / scale) * up *
+                                pow(sin(M_PI * x[0] / scale), 2) *
+                                cos(2 * M_PI * x[1] / scale))))) *
+            pow(sin(2 * M_PI * x[0] / scale), 2) * sin(M_PI * x[1] / scale) -
         (4 * u0 * x[1] * (x[1] - 1) -
-         up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
+         up * pow(sin(M_PI * x[0] / scale), 2) * sin(2 * M_PI * x[1] / scale)) *
             (2 * Tp * x[0] *
-                 (rho0 + rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                 (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                             sin(M_PI * x[1] / scale)) *
                  (2 * pow(x[0], 2) - 3 * x[0] + 1) +
-             (1.0 / 2.0) * M_PI * rhop *
+             (1.0 / 2.0) * (M_PI / scale) * rhop *
                  (T0 + Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                              pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
-                 (cos(M_PI * (2 * x[0] - x[1])) -
-                  cos(M_PI * (2 * x[0] + x[1]))) +
+                 (cos(M_PI * (2 * x[0] - x[1]) / scale) -
+                  cos(M_PI * (2 * x[0] + x[1]) / scale)) +
              (gamma - 1) *
                  (2 * Tp * x[0] *
-                      (rho0 +
-                       rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
+                      (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                                  sin(M_PI * x[1] / scale)) *
                       (2 * pow(x[0], 2) - 3 * x[0] + 1) +
-                  2 * M_PI * up *
-                      (rho0 +
-                       rhop * pow(sin(M_PI * x[0]), 2) * sin(M_PI * x[1])) *
-                      (2 * up * pow(sin(2 * M_PI * x[0]), 3) *
-                           pow(sin(M_PI * x[1]), 2) * cos(2 * M_PI * x[0]) -
+                  2 * (M_PI / scale) * up *
+                      (rho0 + rhop * pow(sin(M_PI * x[0] / scale), 2) *
+                                  sin(M_PI * x[1] / scale)) *
+                      (2 * up * pow(sin(2 * M_PI * x[0] / scale), 3) *
+                           pow(sin(M_PI * x[1] / scale), 2) *
+                           cos(2 * M_PI * x[0] / scale) -
                        (4 * u0 * x[1] * (x[1] - 1) -
-                        up * pow(sin(M_PI * x[0]), 2) * sin(2 * M_PI * x[1])) *
-                           sin(M_PI * x[0]) * sin(2 * M_PI * x[1]) *
-                           cos(M_PI * x[0])) +
-                  (1.0 / 2.0) * M_PI * rhop *
+                        up * pow(sin(M_PI * x[0] / scale), 2) *
+                            sin(2 * M_PI * x[1] / scale)) *
+                           sin(M_PI * x[0] / scale) *
+                           sin(2 * M_PI * x[1] / scale) *
+                           cos(M_PI * x[0] / scale)) +
+                  (1.0 / 2.0) * (M_PI / scale) * rhop *
                       (T0 +
                        Tp * (pow(x[0], 4) - 2 * pow(x[0], 3) + pow(x[0], 2) +
                              pow(x[1], 4) - 2 * pow(x[1], 3) + pow(x[1], 2))) *
-                      (cos(M_PI * (2 * x[0] - x[1])) -
-                       cos(M_PI * (2 * x[0] + x[1]))) +
-                  M_PI * rhop *
-                      (pow(up, 2) * pow(sin(2 * M_PI * x[0]), 4) *
-                           pow(sin(M_PI * x[1]), 2) +
+                      (cos(M_PI * (2 * x[0] - x[1]) / scale) -
+                       cos(M_PI * (2 * x[0] + x[1]) / scale)) +
+                  (M_PI / scale) * rhop *
+                      (pow(up, 2) * pow(sin(2 * M_PI * x[0] / scale), 4) *
+                           pow(sin(M_PI * x[1] / scale), 2) +
                        pow(4 * u0 * x[1] * (x[1] - 1) -
-                               up * pow(sin(M_PI * x[0]), 2) *
-                                   sin(2 * M_PI * x[1]),
+                               up * pow(sin(M_PI * x[0] / scale), 2) *
+                                   sin(2 * M_PI * x[1] / scale),
                            2)) *
-                      sin(M_PI * x[0]) * sin(M_PI * x[1]) *
-                      cos(M_PI * x[0])))) /
+                      sin(M_PI * x[0] / scale) * sin(M_PI * x[1] / scale) *
+                      cos(M_PI * x[0] / scale)))) /
        (gamma - 1);
 }
+#endif
 }  // namespace mach
 
 #endif

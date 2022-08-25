@@ -380,7 +380,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          mfem::Array<int> marked_elements1;
          for (int i = 0; i < smesh->GetNE(); ++i)
          {
-            if (cut_init.cutByGeom(i) == true && cut_init.insideBoundary(i) == 0)
+            if (cut_init.cutByGeom(i) == true &&
+                cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
@@ -496,8 +497,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
- #endif
- #if 0
+#endif
+#if 0
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -540,7 +541,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-   #endif
+#endif
 #if 0
       for (int k = 0; k < ncr; ++k)
       {
@@ -1138,14 +1139,9 @@ double AbstractSolver::calcResidualNorm() const
       r_true->Print(res_vec_gd);
       return std::sqrt(InnerProduct(comm, *r_true, *r_true));
    }
-   GridFunType r(fes.get());
-
    HypreParVector u_true(fes.get());
    u->GetTrueVector().SetDataAndSize(u_true.GetData(), u_true.Size());
    u->SetTrueVector();
-   HypreParVector *r_true = r.GetTrueDofs();
-   res->Mult(u_true, *r_true);
-   //mfem::out << "residual sum = " << r_true->Sum() << endl;
    return calcResidualNorm(*u);
 }
 
@@ -1209,7 +1205,6 @@ std::unique_ptr<HypreParVector> AbstractSolver::getNewField(double *data)
 void AbstractSolver::calcResidual(const ParGridFunction &state,
                                   ParGridFunction &residual) const
 {
-   cout << "inside calcResidual " << endl;
    auto *u_true = state.GetTrueDofs();
    auto *r_true = residual.GetTrueDofs();
    cout << "state size " << u_true->Size() << endl;
@@ -1298,7 +1293,6 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
    if (!gd)
    {
       auto state = bufferToHypreParVector(inputs.at("state").getField(), *fes);
-
       res->Mult(state, residual);
    }
    else
