@@ -74,9 +74,10 @@ double shockEquation(double Re, double Ma, double v);
 void shockExact(const mfem::Vector &x, mfem::Vector &u);
 
 /// Defines the exact solution for the viscous MMS verification
+/// \param[in] dim - dimension of the problem
 /// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-void viscousMMSExact(const mfem::Vector &x, mfem::Vector &u);
+/// \param[out] u - conservative variables stored as a (dim+2)-vector
+void viscousMMSExact(int dim, const mfem::Vector &x, mfem::Vector &u);
 
 }  // namespace mach
 

@@ -168,11 +168,11 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
           new ESViscousIntegrator<dim>(stack, re_fs, pr_fs, mu));
       if (flow["viscous-mms"])
       {
-         if (dim != 2)
-         {
-            throw MachException("Viscous MMS problem only available for 2D!");
-         }
-         res.addDomainIntegrator(new NavierStokesMMSIntegrator(re_fs, pr_fs));
+         // if (dim != 2)
+         // {
+         //    throw MachException("Viscous MMS problem only available for 2D!");
+         // }
+         res.addDomainIntegrator(new NavierStokesMMSIntegrator(re_fs, pr_fs, dim));
       }
    }
 }
@@ -324,7 +324,7 @@ void FlowResidual<dim, entvar>::addViscousBoundaryIntegrators(
    {
       // viscous MMS boundary conditions
       auto exactbc = [](const Vector &x, Vector &u)
-      { viscousMMSExact<double>(x.GetData(), u.GetData()); };
+      { viscousMMSExact<double>(dim, x.GetData(), u.GetData()); };
       vector<int> bdr_attr_marker = bcs["viscous-mms"].get<vector<int>>();
       res.addBdrFaceIntegrator(
           new ViscousExactBC<dim>(

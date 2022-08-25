@@ -76,13 +76,6 @@ auto options = R"(
 /// \param[in] num_y - number of nodes in the y direction
 unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y);
 
-/// Generate smoothly perturbed mesh 
-/// \param[in] degree - polynomial degree of the mapping
-/// \param[in] num_x - number of nodes in the x direction
-/// \param[in] num_y - number of nodes in the y direction
-/// \param[in] num_z - number of nodes in the z direction
-unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y, int num_z);
-
 /// \brief Defines the exact solution for the manufactured solution
 /// \param[in] x - coordinate of the point at which the state is needed
 /// \param[out] u - state variables stored as a 4-vector
@@ -171,31 +164,6 @@ unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y)
       x(1) = xi(1) + (1.0/40.0)*sin(2.0*M_PI*xi(1))*sin(2.0*M_PI*xi(0));
    };
    VectorFunctionCoefficient xy_coeff(2, xy_fun);
-   GridFunction *xy = new GridFunction(fes);
-   xy->MakeOwner(fec);
-   xy->ProjectCoefficient(xy_coeff);
-   mesh.NewNodes(*xy, true);
-   return make_unique<Mesh>(mesh);
-}
-
-unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y, int num_z)
-{
-   Mesh mesh = Mesh::MakeCartesian3D(num_x, num_y, num_z, 
-                                     Element::TETRAHEDRON, 1.0, 1.0, 1.0, Ordering::byVDIM);
-   // strategy:
-   // 1) generate a fes for Lagrange elements of desired degree
-   // 2) create a Grid Function using a VectorFunctionCoefficient
-   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
-   H1_FECollection *fec = new H1_FECollection(degree, 3 /* = dim */);
-   FiniteElementSpace *fes = new FiniteElementSpace(&mesh, fec, 3,
-                                                    Ordering::byVDIM);
-
-   auto xy_fun = [](const Vector& xi, Vector &x)
-   {
-      x(0) = xi(0) + (1.0/40.0)*sin(2.0*M_PI*xi(0))*sin(2.0*M_PI*xi(1));
-      x(1) = xi(1) + (1.0/40.0)*sin(2.0*M_PI*xi(1))*sin(2.0*M_PI*xi(0));
-   };
-   VectorFunctionCoefficient xy_coeff(3, xy_fun);
    GridFunction *xy = new GridFunction(fes);
    xy->MakeOwner(fec);
    xy->ProjectCoefficient(xy_coeff);
