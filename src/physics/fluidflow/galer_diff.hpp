@@ -91,6 +91,7 @@ protected:
    double cond;
    bool adjustCondition;
    int print_level;
+   int numbadcond;
 
    /// indicator of whether using extra basis
    std::vector<std::vector<int>> selectedBasis;

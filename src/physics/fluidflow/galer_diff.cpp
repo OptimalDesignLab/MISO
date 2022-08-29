@@ -33,6 +33,10 @@ DGDSpace::DGDSpace(Mesh *m, const FiniteElementCollection *f,
    sortedEBDistRank.resize(nel);
    selectedElement.resize(numBasis);
    coef.SetSize(nel);
+   for (int i = 0; i < nel; i++)
+   {
+      coef[i] = new DenseMatrix;
+   }
    
    // initialize the stencil/patch based on the given interpolatory order
    InitializeStencil(center);
@@ -132,6 +136,7 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
 {
    DenseMatrix V, Vn;
    DenseMatrix localMat;
+   numbadcond = 0;
    for (int i = 0; i < GetMesh()->GetNE(); i++)
    {
       // 1. build basis matrix
@@ -143,11 +148,12 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
       // 3. Assemble prolongation matrix
       AssembleProlongationMatrix(i,localMat);
    }
+   cout << "Number of modified basis = " << numbadcond << '\n';
    cP->Finalize(0);
    adjustCondition = false;
-   ofstream cp_save("prolong.txt");
-	cP->PrintMatlab(cp_save);
-	cp_save.close();
+   // ofstream cp_save("prolong.txt");
+	// cP->PrintMatlab(cp_save);
+	// cp_save.close();
 }
 
 void DGDSpace::buildDataMat(int el_id, const Vector &x,
@@ -166,7 +172,8 @@ void DGDSpace::buildDataMat(int el_id, const Vector &x,
       V.SingularValues(sv);
       if (sv(0) > cond * sv(numReqBasis-1))
       {
-         if (print_level)
+         numbadcond++;
+         if (print_level) 
             cout << el_id <<  " cond = " << sv(0)/sv(numReqBasis-1) << " (> " << cond << ") ";
       }
       while (sv(0) > cond * sv(numReqBasis-1))
@@ -354,9 +361,7 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
       b(i,i) = 1.0;
    }
 
-
-   coef[el_id] = new DenseMatrix(numReqBasis,numCenter);
-
+   coef[el_id]->SetSize(numReqBasis,numCenter);
    if (numCenter == numReqBasis)
    {
       DenseMatrixInverse Vinv(V);

@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
    {
       // generate the mesh
       unique_ptr<Mesh> smesh = buildQuarterAnnulusMesh(degree + 1, nx, ny);
-      ofstream savevtk("optimizationtest.vtk");
+      ofstream savevtk("optimizationtest.vtp");
       smesh->PrintVTK(savevtk, 0);
       savevtk.close();
       std::cout << "Number of elements " << smesh->GetNE() << '\n';
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
       Vector center = buildBasisCenter2(numRad,numTheta);
       int numBasis = center.Size()/dim;
 
-      ofstream centerwrite("center_initial.vtp");
+      ofstream centerwrite("center_initial.vtk");
       writeBasisCentervtp(center, centerwrite);
       centerwrite.close();
 

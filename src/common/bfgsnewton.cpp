@@ -143,7 +143,6 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
          // 2. recompute the objective function
          norm = dynamic_cast<const DGDOptimizer*>(oper)->computeObj();
 
-
          // 3. update the jacobian
          oper->Mult(x,jac_new);
          //dynamic_cast<const DGDOptimizer*>(oper)->checkJacobian(x);
