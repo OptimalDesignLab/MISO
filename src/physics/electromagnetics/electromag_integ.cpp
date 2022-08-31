@@ -256,6 +256,175 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
    }
 }
 
+void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
+    const FiniteElement &mesh_el,
+    ElementTransformation &mesh_trans,
+    Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+   const int curl_dim = space_dim;
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::Vector psi;
+#endif
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   DenseMatrix dshapedxt_bar;
+   DenseMatrix PointMat_bar;
+#else
+   auto &dshape = integ.dshape;
+   auto &dshapedxt = integ.dshapedxt;
+#endif
+
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, space_dim);
+   dshapedxt_bar.SetSize(ndof, space_dim);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   double pointflux_buffer[3] = {};
+   Vector pointflux(pointflux_buffer, space_dim);
+   double pointflux_bar_buffer[3] = {};
+   Vector pointflux_bar(pointflux_bar_buffer, space_dim);
+
+   double curl_psi_buffer[3] = {};
+   Vector curl_psi(curl_psi_buffer, dim);
+   double curl_psi_bar_buffer[3] = {};
+   Vector curl_psi_bar(curl_psi_bar_buffer, dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   auto &model = integ.model;
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+
+      /// holds quadrature weight
+      double w = alpha * ip.weight / trans_weight;
+
+      el.CalcDShape(ip, dshape);
+      Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+
+      dshapedxt.MultTranspose(elfun, pointflux);
+      dshapedxt.MultTranspose(psi, curl_psi);
+      const double curl_psi_dot_pointflux = curl_psi * pointflux;
+
+      const double pointflux_norm = pointflux.Norml2();
+      const double pointflux_mag = pointflux_norm / trans_weight;
+
+      double model_val = model.Eval(trans, ip, pointflux_mag);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += model_val * curl_psi_dot_pointflux * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += model_val * curl_psi_dot_pointflux * w;
+      double model_val_bar = fun_bar * curl_psi_dot_pointflux * w;
+      double curl_psi_dot_pointflux_bar = fun_bar * model_val * w;
+      double w_bar = fun_bar * model_val * curl_psi_dot_pointflux;
+
+      /// double model_val = model.Eval(trans, ip, pointflux_mag);
+      double pointflux_mag_bar = 0.0;
+      const double dmodeldpointflux_mag = model.EvalStateDeriv(trans, ip, pointflux_mag);
+      pointflux_mag_bar += model_val_bar * dmodeldpointflux_mag;
+
+      /// const double pointflux_mag = pointflux_norm / trans_weight;
+      double pointflux_norm_bar = 0.0;
+      double trans_weight_bar = 0.0;
+      pointflux_norm_bar += pointflux_mag_bar / trans_weight;
+      trans_weight_bar -= pointflux_mag_bar * pointflux_norm / pow(trans_weight, 2);
+
+      /// const double pointflux_norm = pointflux.Norml2();
+      pointflux_bar = 0.0;
+      add(pointflux_bar, pointflux_norm_bar / pointflux_norm, pointflux, pointflux_bar);
+
+      /// const double curl_psi_dot_pointflux = curl_psi * pointflux;
+      curl_psi_bar = 0.0;
+      add(curl_psi_bar, curl_psi_dot_pointflux_bar, pointflux, curl_psi_bar);
+      add(pointflux_bar, curl_psi_dot_pointflux_bar, curl_psi, pointflux_bar);
+
+      dshapedxt_bar = 0.0;
+      /// dshapedxt.MultTranspose(psi, curl_psi);
+      AddMultVWt(psi, curl_psi_bar, dshapedxt_bar);
+      /// dshapedxt.MultTranspose(elfun, pointflux);
+      AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
+
+      /// Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+      double adj_jac_bar_buffer[9] = {};
+      DenseMatrix adj_jac_bar(adj_jac_bar_buffer, space_dim, space_dim);
+      MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
+
+      PointMat_bar = 0.0;
+      isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
+
+      /// double w = alpha * ip.weight / trans_weight;
+      trans_weight_bar -= w_bar * alpha * ip.weight / pow(trans_weight, 2);
+
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int k = 0; k < curl_dim; ++k)
+         {
+            mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+         }
+      }
+   }
+}
+
 void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -3929,9 +4098,10 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
    Array<int> vdofs;
    Vector vfun;
    Vector elfun;
-#endif
+#else
    auto &vdofs = force_integ.vdofs;
    auto &vfun = force_integ.vfun;
+#endif
 
    /// get the proper element, transformation, and v vector
    const auto &v_el = *v.FESpace()->GetFE(element);

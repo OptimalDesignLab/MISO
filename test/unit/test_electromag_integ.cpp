@@ -11,7 +11,6 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
    using namespace mfem;
    using namespace electromag_data;
 
-   const int dim = 2;  // templating is hard here because mesh constructors
    double delta = 1e-5;
 
    // generate a 6 element mesh
@@ -20,7 +19,10 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
                                      num_edge,
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
 
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -29,11 +31,10 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
          FiniteElementSpace fes(&mesh, &fec);
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction a(&fes);
+         GridFunction state(&fes);
          FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         state.ProjectCoefficient(pert);
 
-         NonLinearCoefficient nu;
          NonlinearForm res(&fes);
          res.AddDomainIntegrator(new mach::NonlinearDiffusionIntegrator(nu));
 
@@ -42,16 +43,16 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
          v.ProjectCoefficient(pert);
 
          // evaluate the Jacobian and compute its product with v
-         Operator& jac = res.GetGradient(a);
+         Operator& jac = res.GetGradient(state);
          GridFunction jac_v(&fes);
          jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
          GridFunction r(&fes), jac_v_fd(&fes);
-         a.Add(-delta, v);
-         res.Mult(a, r);
-         a.Add(2*delta, v);
-         res.Mult(a, jac_v_fd);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
          jac_v_fd -= r;
          jac_v_fd /= (2*delta);
 
@@ -62,6 +63,80 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
       }
    }
 }
+
+TEST_CASE("NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::NonlinearDiffusionIntegrator(nu);
+         res.AddDomainIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::NonlinearDiffusionIntegratorMeshRevSens(state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
 
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
           "[CurlCurlNLFIntegrator]")
