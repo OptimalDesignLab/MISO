@@ -90,15 +90,16 @@ private:
 };
 
 /// Integrator to assemble d(psi^T R)/dX for the NonlinearDiffusionIntegrator
-class NonlinearDiffusionIntegratorMeshRevSens : public mfem::LinearFormIntegrator
+class NonlinearDiffusionIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
 {
 public:
    /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
    NonlinearDiffusionIntegratorMeshRevSens(mfem::GridFunction &state,
-                                    mfem::GridFunction &adjoint,
-                                    NonlinearDiffusionIntegrator &integ)
+                                           mfem::GridFunction &adjoint,
+                                           NonlinearDiffusionIntegrator &integ)
     : state(state), adjoint(adjoint), integ(integ)
    { }
 

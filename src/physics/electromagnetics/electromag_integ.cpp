@@ -377,18 +377,23 @@ void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// double model_val = model.Eval(trans, ip, pointflux_mag);
       double pointflux_mag_bar = 0.0;
-      const double dmodeldpointflux_mag = model.EvalStateDeriv(trans, ip, pointflux_mag);
+      const double dmodeldpointflux_mag =
+          model.EvalStateDeriv(trans, ip, pointflux_mag);
       pointflux_mag_bar += model_val_bar * dmodeldpointflux_mag;
 
       /// const double pointflux_mag = pointflux_norm / trans_weight;
       double pointflux_norm_bar = 0.0;
       double trans_weight_bar = 0.0;
       pointflux_norm_bar += pointflux_mag_bar / trans_weight;
-      trans_weight_bar -= pointflux_mag_bar * pointflux_norm / pow(trans_weight, 2);
+      trans_weight_bar -=
+          pointflux_mag_bar * pointflux_norm / pow(trans_weight, 2);
 
       /// const double pointflux_norm = pointflux.Norml2();
       pointflux_bar = 0.0;
-      add(pointflux_bar, pointflux_norm_bar / pointflux_norm, pointflux, pointflux_bar);
+      add(pointflux_bar,
+          pointflux_norm_bar / pointflux_norm,
+          pointflux,
+          pointflux_bar);
 
       /// const double curl_psi_dot_pointflux = curl_psi * pointflux;
       curl_psi_bar = 0.0;
