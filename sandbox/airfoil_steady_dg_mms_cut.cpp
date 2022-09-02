@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
       //       solver->setInitialCondition(qfar);
       solver->setInitialCondition(uexact);
       solver->printSolution("airfoil-steady-dg-cut-mms-init", 0);
-      // solver->checkJacobian(pert);
+      //solver->checkJacobian(pert);
       // solver->printResidual("residual-init", 0);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
                 << endl;
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
       auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
       double drag = abs(solver->calcOutput("drag"));
@@ -144,8 +145,8 @@ void uexact(const Vector &x, Vector &q)
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
-   u(1) = ux;  // multiply by rho ?
-   u(2) = uy;
+   u(1) = rho*ux;  // multiply by rho ?
+   u(2) = rho*uy;
    u(3) = e;
    if (entvar == false)
    {

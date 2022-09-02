@@ -100,7 +100,8 @@ template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
-   GridFunction x(fes.get());
+   //GridFunction x(fes.get());
+   ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(
        new EulerDGIntegrator<dim>(diff_stack, alpha));
    double area;
@@ -113,6 +114,15 @@ void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    // auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    // res->AddDomainIntegrator(
    //     new EntStableLPSIntegrator<dim, entvar>(diff_stack, alpha, lps_coeff));
+   if (options["flow-param"]["inviscid-mms"].template get<bool>())
+   {
+      if (dim != 2)
+      {
+         throw MachException("Inviscid MMS problem only available for 2D!");
+      }
+      res->AddDomainIntegrator(new EulerMMSIntegrator<dim, entvar>(
+          diff_stack, -alpha));
+   }
 }
 
 template <int dim, bool entvar>
@@ -172,6 +182,19 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    // cout << "error: " << endl;
    // cout << abs(2 * M_PI * 30 - peri_far) << endl;
    }
+   if (bcs.find("inviscid-mms") != bcs.end())
+   {
+      // viscous MMS boundary conditions
+      vector<int> tmp = bcs["inviscid-mms"].template get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new InviscidDGExactBC<dim, entvar>(
+              diff_stack, fec.get(), inviscidDGMMSExact, alpha),
+          this->bndry_marker[idx]);
+      idx++;
+   }
+
 }
 
 template <int dim, bool entvar>
@@ -630,7 +653,7 @@ void EulerDGSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
    }
    else
    {
-      Array<int> vdofs(num_state);
+      mfem::Array<int> vdofs(num_state);
       Vector el_con;
       Vector el_ent;
       for (int i = 0; i < fes->GetNE(); i++)
@@ -666,6 +689,38 @@ void EulerDGSolver<dim, entvar>::setSolutionError(
    u->SetFromTrueDofs(*u_true);
 }
 
+/// MMS for checking euler solver
+void inviscidDGMMSExact(const mfem::Vector &x, mfem::Vector &q)
+{
+   q.SetSize(4);
+   Vector u(4);
+   const double rho0 = 1.0;
+   const double rhop = 0.05;
+   const double u0 = 0.5;
+   const double up = 0.05;
+   const double T0 = 1.0;
+   const double Tp = 0.05;
+   const double scale = 60.0;
+   const double trans = 30.0;
+   /// define the exact solution
+   double rho = rho0 + rhop * pow(sin(M_PI * (x(0) + trans) / scale), 2) *
+                           sin(M_PI * (x(1) + trans) / scale);
+   double ux =
+       4.0 * u0 * ((x(1) + trans) / scale) * (1.0 - (x(1) + trans)/ scale) +
+       (up * sin(2.0 * M_PI * (x(1) + trans) / scale) * pow(sin(M_PI * (x(0)+ trans) / scale), 2));
+   double uy =
+       -up * pow(sin(2.0 * M_PI * (x(0) + trans) / scale), 2) * sin(M_PI * (x(1) + trans) / scale);
+   double T = T0 + Tp * (pow((x(0) + trans) / scale, 4) - (2.0 * pow((x(0) + trans) / scale, 3)) +
+                         pow((x(0) + trans) / scale, 2) + pow((x(1) + trans) / scale, 4) -
+                         (2.0 * pow((x(1) + trans) / scale, 3)) + pow((x(1) + trans) / scale, 2));
+   double p = rho * T;
+   double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
+   u(0) = rho;
+   u(1) = ux;  // multiply by rho ?
+   u(2) = uy;
+   u(3) = e;
+   q = u;
+}
 // explicit instantiation
 template class EulerDGSolver<1, true>;
 template class EulerDGSolver<1, false>;

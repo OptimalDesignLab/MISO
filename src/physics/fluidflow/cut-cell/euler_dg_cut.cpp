@@ -239,12 +239,14 @@ void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 template <int dim, bool entvar>
 void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
-   // GridFunction x(fes.get());
+   //GridFunction x(fes.get());
    ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
-   area = res->GetEnergy(x);
+   cout << "before GetEnergy() " << endl;
+   // area = res->GetEnergy(x);
+   cout << "after GetEnergy() " << endl;
    // double exact_area = 1600 - 0.0817073;  // airfoil
    double exact_area = 400.0 - M_PI * 4.0;
    cout << "correct area: " << (exact_area) << endl;
@@ -286,8 +288,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
                                                 inviscidMMSExact,
                                                 alpha));
    }
-   double perimeter = res->GetEnergy(x);
-   cout << "calculated perimeter: " << perimeter - area << endl;
+   // double perimeter = res->GetEnergy(x);
+   // cout << "calculated perimeter: " << perimeter - area << endl;
 
 /// use this for testing purposes
 #if 0

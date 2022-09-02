@@ -6,6 +6,7 @@
 
 #include "inviscid_integ_dg.hpp"
 #include "euler_fluxes.hpp"
+#include "mms_integ_dg.hpp"
 
 namespace mach
 {
@@ -439,6 +440,116 @@ private:
    /// `dim` entry unit normal vector specifying the direction of the force
    mfem::Vector force_nrm;
    /// work vector used to stored the flux
+   mfem::Vector work_vec;
+};
+
+/// Source-term integrator for a 2D Euler MMS problem
+/// \note For details on the MMS problem, see the file viscous_mms.py
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class EulerMMSIntegrator
+ : public InviscidMMSIntegrator<EulerMMSIntegrator<dim, entvar>>
+{
+public:
+   /// Construct an integrator for a 2D Navier-Stokes MMS source
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   EulerMMSIntegrator(adept::Stack &diff_stack,
+                         double a = 1.0)
+    : InviscidMMSIntegrator<EulerMMSIntegrator<dim, entvar>>(dim + 2,
+                                                           a)
+   { }
+
+   /// Computes the MMS source term at a give point
+   /// \param[in] x - spatial location at which to evaluate the source
+   /// \param[out] src - source term evaluated at `x`
+   void calcSource(const mfem::Vector &x, mfem::Vector &src) const
+   {
+      calcInviscidMMS<double>(x.GetData(), src.GetData());
+   }
+
+private:
+};
+/// Integrator for exact, prescribed BCs (with zero normal derivative)
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar>
+class InviscidDGExactBC
+ : public DGInviscidBoundaryIntegrator<InviscidDGExactBC<dim, entvar>>
+{
+public:
+   /// Constructs an integrator for a viscous exact BCs
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] q_far - state at the far-field
+   /// \param[in] vis - viscosity (if negative use Sutherland's law)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   InviscidDGExactBC(adept::Stack &diff_stack,
+                   const mfem::FiniteElementCollection *fe_coll,
+                   void (*fun)(const mfem::Vector &, mfem::Vector &),
+                   double a = 1.0)
+    : DGInviscidBoundaryIntegrator<InviscidDGExactBC<dim, entvar>>(diff_stack,
+                                                                 fe_coll,
+                                                                 dim + 2,
+                                                                 a),
+      qexact(dim + 2),
+      work_vec(dim + 2)
+   {
+      exactSolution = fun;
+   }
+
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - w^T*flux
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Compute flux corresponding to an exact solution
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec);
+
+   /// Compute jacobian of flux corresponding to an exact solution
+   /// w.r.t `states`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute jacobian of flux corresponding to an exact solution
+   /// w.r.t `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - jacobian of the flux
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
+
+private:
+   /// Function to evaluate the exact solution at a given x value
+   void (*exactSolution)(const mfem::Vector &, mfem::Vector &);
+   /// far-field boundary state
+   mfem::Vector qexact;
+   /// work space for flux computations
    mfem::Vector work_vec;
 };
 

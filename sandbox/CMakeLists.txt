@@ -23,6 +23,7 @@ set(SANDBOX_SRCS
    viscous_shock
    airfoil_steady
    airfoil_steady_dg
+   airfoil_steady_dg_mms
    airfoil_steady_dg_cut
    airfoil_steady_dg_mms_cut
    airfoil_chaotic

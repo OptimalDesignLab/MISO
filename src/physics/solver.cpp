@@ -2696,47 +2696,95 @@ void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
 {
    if (gd)
    {
-      fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
+      // fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
+      // initialize some variables
+      const double delta = 1e-5;
+      GDGridFunType u_plus(*u_gd);
+      GDGridFunType u_minus(*u_gd);
+      GDGridFunType pert_vec(fes_gd.get());
+      VectorFunctionCoefficient up(num_state, pert_fun);
+      pert_vec.ProjectCoefficient(up);
+
+      // perturb in the positive and negative pert_vec directions
+      u_plus.Add(delta, pert_vec);
+      u_minus.Add(-delta, pert_vec);
+      cout << "line 2711 " << endl;
+      // Get the product using a 2nd-order finite-difference approximation
+      GDGridFunType res_plus(fes_gd.get());
+      GDGridFunType res_minus(fes_gd.get());
+      HypreParVector *u_p = u_plus.GetTrueDofs();
+      HypreParVector *u_m = u_minus.GetTrueDofs();
+      cout << "line 2717 " << endl;
+      HypreParVector *res_p = res_plus.GetTrueDofs();
+      cout << "line 2719 " << endl;
+      HypreParVector *res_m = res_minus.GetTrueDofs();
+      res->Mult(*u_p, *res_p);
+      res->Mult(*u_m, *res_m);
+      cout << "line 2723 " << endl;
+      res_plus.SetFromTrueDofs(*res_p);
+      cout << "line 2725 " << endl;
+      res_minus.SetFromTrueDofs(*res_m);
+
+      // res_plus = 1/(2*delta)*(res_plus - res_minus)
+      subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
+
+      // Get the product directly using Jacobian from GetGradient
+      GDGridFunType jac_v(fes_gd.get());
+      HypreParVector *u_true = u_gd->GetTrueDofs();
+      HypreParVector *pert = pert_vec.GetTrueDofs();
+      HypreParVector *prod = jac_v.GetTrueDofs();
+      mfem::Operator &jac = res->GetGradient(*u_true);
+      jac.Mult(*pert, *prod);
+      jac_v.SetFromTrueDofs(*prod);
+      // check the difference norm
+      jac_v -= res_plus;
+      double error = calcInnerProduct(jac_v, jac_v);
+      cout << "after calcInnerProduct() " << endl;
+      *out << "The Jacobian product error norm is " << sqrt(error) << endl;
    }
-   // initialize some variables
-   const double delta = 1e-5;
-   GridFunType u_plus(*u);
-   GridFunType u_minus(*u);
-   GridFunType pert_vec(fes.get());
-   VectorFunctionCoefficient up(num_state, pert_fun);
-   pert_vec.ProjectCoefficient(up);
+   else
+   {
+      // initialize some variables
+      const double delta = 1e-5;
+      GridFunType u_plus(*u);
+      GridFunType u_minus(*u);
+      GridFunType pert_vec(fes.get());
+      VectorFunctionCoefficient up(num_state, pert_fun);
+      pert_vec.ProjectCoefficient(up);
 
-   // perturb in the positive and negative pert_vec directions
-   u_plus.Add(delta, pert_vec);
-   u_minus.Add(-delta, pert_vec);
+      // perturb in the positive and negative pert_vec directions
+      u_plus.Add(delta, pert_vec);
+      u_minus.Add(-delta, pert_vec);
 
-   // Get the product using a 2nd-order finite-difference approximation
-   GridFunType res_plus(fes.get());
-   GridFunType res_minus(fes.get());
-   HypreParVector *u_p = u_plus.GetTrueDofs();
-   HypreParVector *u_m = u_minus.GetTrueDofs();
-   HypreParVector *res_p = res_plus.GetTrueDofs();
-   HypreParVector *res_m = res_minus.GetTrueDofs();
-   res->Mult(*u_p, *res_p);
-   res->Mult(*u_m, *res_m);
-   res_plus.SetFromTrueDofs(*res_p);
-   res_minus.SetFromTrueDofs(*res_m);
-   // res_plus = 1/(2*delta)*(res_plus - res_minus)
-   subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
+      // Get the product using a 2nd-order finite-difference approximation
+      GridFunType res_plus(fes.get());
+      GridFunType res_minus(fes.get());
+      HypreParVector *u_p = u_plus.GetTrueDofs();
+      HypreParVector *u_m = u_minus.GetTrueDofs();
+      HypreParVector *res_p = res_plus.GetTrueDofs();
+      HypreParVector *res_m = res_minus.GetTrueDofs();
+      res->Mult(*u_p, *res_p);
+      res->Mult(*u_m, *res_m);
+      res_plus.SetFromTrueDofs(*res_p);
+      res_minus.SetFromTrueDofs(*res_m);
+      // res_plus = 1/(2*delta)*(res_plus - res_minus)
+      subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
 
-   // Get the product directly using Jacobian from GetGradient
-   GridFunType jac_v(fes.get());
-   HypreParVector *u_true = u->GetTrueDofs();
-   HypreParVector *pert = pert_vec.GetTrueDofs();
-   HypreParVector *prod = jac_v.GetTrueDofs();
-   mfem::Operator &jac = res->GetGradient(*u_true);
-   jac.Mult(*pert, *prod);
-   jac_v.SetFromTrueDofs(*prod);
+      // Get the product directly using Jacobian from GetGradient
+      GridFunType jac_v(fes.get());
+      HypreParVector *u_true = u->GetTrueDofs();
+      HypreParVector *pert = pert_vec.GetTrueDofs();
+      HypreParVector *prod = jac_v.GetTrueDofs();
+      mfem::Operator &jac = res->GetGradient(*u_true);
+      jac.Mult(*pert, *prod);
+      jac_v.SetFromTrueDofs(*prod);
 
-   // check the difference norm
-   jac_v -= res_plus;
-   double error = calcInnerProduct(jac_v, jac_v);
-   *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+      // check the difference norm
+      jac_v -= res_plus;
+      double error = calcInnerProduct(jac_v, jac_v);
+      cout << "after calcInnerProduct() " << endl;
+      *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+   }
 }
 
 }  // namespace mach

@@ -17,7 +17,6 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
 {
    if (embeddedElements.at(trans.ElementNo) == true)
    {
-      // cout << "embedded element " << trans.ElementNo << endl;
       return 0.0;
    }
    // int dof = el.GetDof();
@@ -407,7 +406,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
    ir = cutSegmentIntRules[trans.ElementNo];
    if (!(ir))
    {
-      return 0;
+      return fun;
    }
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    // IntegrationPoint el_ip;
@@ -447,9 +446,9 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       u.MultTranspose(shape, u_face);
       /// this is used for area test
       double area = sqrt(trans.Weight());
-      // fun += face_ip.weight * alpha * area;
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
-             alpha;
+      fun += face_ip.weight * alpha * area;
+      // fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
+      //        alpha;
    }
    return fun;
 }
