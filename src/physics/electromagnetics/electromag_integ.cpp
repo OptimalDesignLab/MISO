@@ -633,7 +633,6 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
       scratch_bar = 0.0;
       scratch_bar.Add(psi_dot_scratch_bar, psi);
 
-
       /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
       /// Vector grad_column_1;
       /// dshapedxt.GetColumnReference(1, grad_column_1);

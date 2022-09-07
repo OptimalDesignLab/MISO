@@ -162,8 +162,8 @@ public:
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
    MagnetizationSource2DIntegratorMeshRevSens(
-                                           mfem::GridFunction &adjoint,
-                                           MagnetizationSource2DIntegrator &integ)
+       mfem::GridFunction &adjoint,
+       MagnetizationSource2DIntegrator &integ)
     : adjoint(adjoint), integ(integ)
    { }
 
