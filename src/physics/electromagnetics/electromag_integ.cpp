@@ -511,6 +511,168 @@ void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
    }
 }
 
+void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
+    const FiniteElement &mesh_el,
+    ElementTransformation &mesh_trans,
+    Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *adjoint.FESpace()->GetFE(element);
+   auto &trans = *adjoint.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+   const int curl_dim = space_dim;
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   DenseMatrix dshapedxt_bar;
+   DenseMatrix PointMat_bar;
+   Vector scratch_bar;
+#else
+   auto &dshape = integ.dshape;
+   auto &dshapedxt = integ.dshapedxt;
+#endif
+
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, space_dim);
+
+   dshapedxt_bar.SetSize(ndof, space_dim);
+   scratch_bar.SetSize(ndof);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   double mag_flux_buffer[3] = {};
+   Vector mag_flux(mag_flux_buffer, space_dim);
+   double mag_flux_bar_buffer[3] = {};
+   Vector mag_flux_bar(mag_flux_bar_buffer, space_dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
+
+      if (el.Space() == FunctionSpace::rQk)
+      {
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      }
+      else
+      {
+         ir = &IntRules.Get(el.GetGeomType(), order);
+      }
+   }
+
+   auto &alpha = integ.alpha;
+   auto &M = integ.M;
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double w = alpha * ip.weight;
+
+      el.CalcDShape(ip, dshape);
+      Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+
+      M.Eval(mag_flux, trans, ip);
+      // mag_flux *= w;
+
+      Vector grad_column_0;
+      dshapedxt.GetColumnReference(0, grad_column_0);
+
+      Vector grad_column_1;
+      dshapedxt.GetColumnReference(1, grad_column_1);
+
+      // scratch = 0.0;
+      // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
+
+      // const double psi_dot_scratch = psi * scratch;
+
+      // elvect += scratch;
+      /// dummy functional for adjoint-weighted residual
+      // fun += psi_dot_scratch * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += psi_dot_scratch * w;
+      double psi_dot_scratch_bar = fun_bar * w;
+      // double w_bar = fun_bar * psi_dot_scratch;
+
+      /// const double psi_dot_scratch = psi * scratch;
+      scratch_bar = 0.0;
+      scratch_bar.Add(psi_dot_scratch_bar, psi);
+
+
+      /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
+      /// Vector grad_column_1;
+      /// dshapedxt.GetColumnReference(1, grad_column_1);
+      /// Vector grad_column_0;
+      /// dshapedxt.GetColumnReference(0, grad_column_0);
+      dshapedxt_bar = 0.0;
+      Vector grad_bar_column_1;
+      dshapedxt_bar.GetColumnReference(1, grad_bar_column_1);
+      Vector grad_bar_column_0;
+      dshapedxt_bar.GetColumnReference(0, grad_bar_column_0);
+
+      mag_flux_bar(1) = grad_column_0 * scratch_bar;
+      mag_flux_bar(0) = -(grad_column_1 * scratch_bar);
+
+      grad_bar_column_0.Add(mag_flux(1), scratch_bar);
+      grad_bar_column_1.Add(-mag_flux(0), scratch_bar);
+
+      /// M.Eval(mag_flux, trans, ip);
+      PointMat_bar = 0.0;
+      M.EvalRevDiff(mag_flux_bar, trans, ip, PointMat_bar);
+
+      /// Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+      double adj_jac_bar_buffer[9] = {};
+      DenseMatrix adj_jac_bar(adj_jac_bar_buffer, space_dim, space_dim);
+      MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
+
+      isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
+
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int k = 0; k < curl_dim; ++k)
+         {
+            mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+         }
+      }
+   }
+}
+
 void CurlCurlNLFIntegrator::AssembleElementVector(const FiniteElement &el,
                                                   ElementTransformation &trans,
                                                   const Vector &elfun,

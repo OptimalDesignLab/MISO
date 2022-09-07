@@ -150,6 +150,45 @@ private:
    mfem::DenseMatrix dshape, dshapedxt;
    mfem::Vector scratch;
 #endif
+   friend class MagnetizationSource2DIntegratorMeshRevSens;
+};
+
+/// Integrator to assemble d(psi^T R)/dX for the MagnetizationSource2DIntegrator
+class MagnetizationSource2DIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   MagnetizationSource2DIntegratorMeshRevSens(
+                                           mfem::GridFunction &adjoint,
+                                           MagnetizationSource2DIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   MagnetizationSource2DIntegrator &integ;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
+   mfem::Vector scratch_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
 };
 
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements

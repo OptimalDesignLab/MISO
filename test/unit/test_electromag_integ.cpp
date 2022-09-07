@@ -137,6 +137,92 @@ TEST_CASE("NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   mfem::VectorFunctionCoefficient model(dim,
+   [](const Vector &x, Vector &m)
+   {
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         m(i) = pow(x(i), 2);
+      }
+   },
+   [](const Vector &m_bar, const Vector &x, Vector &x_bar)
+   {
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         x_bar(i) = 2 * x(i) * m_bar(i);
+      }
+   });
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize adjoint; here we randomly perturb a constant state
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         adjoint.ProjectCoefficient(pert);
+
+         LinearForm res(&fes);
+         auto *integ = new mach::MagnetizationSource2DIntegrator(model);
+         res.AddDomainIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::MagnetizationSource2DIntegratorMeshRevSens(adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Update();
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Update();
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
 
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
           "[CurlCurlNLFIntegrator]")
