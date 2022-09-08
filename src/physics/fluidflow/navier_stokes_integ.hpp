@@ -12,13 +12,13 @@
 
 namespace mach
 {
-/// Source-term integrator for a 2D Navier-Stokes MMS problem
+/// Source-term integrator for a 2D/3D Navier-Stokes MMS problem
 /// \note For details on the MMS problem, see the file viscous_mms.py
 class NavierStokesMMSIntegrator
  : public MMSIntegrator<NavierStokesMMSIntegrator>
 {
 public:
-   /// Construct an integrator for a 2D Navier-Stokes MMS source
+   /// Construct an integrator for a 2D/3D Navier-Stokes MMS source
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] Re_num - Reynolds number
    /// \param[in] Pr_num - Prandtl number

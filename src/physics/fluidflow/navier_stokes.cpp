@@ -39,12 +39,18 @@ void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
        new ESViscousIntegrator<dim>(this->diff_stack, re_fs, pr_fs, mu, alpha));
    if (this->options["flow-param"]["viscous-mms"].template get<bool>())
    {
-      // if (dim != 2)
-      // {
-      //    throw MachException("Viscous MMS problem only available for 2D!");
-      // }
-      this->res->AddDomainIntegrator(
-          new NavierStokesMMSIntegrator(re_fs, pr_fs, dim));
+      if (dim != 2)
+      {  
+         this->res->AddDomainIntegrator(
+            new NavierStokesMMSIntegrator(re_fs, pr_fs, -1., 3));   
+         // throw MachException("Viscous MMS problem only available for 2D!");
+      }
+      else
+      {
+         this->res->AddDomainIntegrator(
+          new NavierStokesMMSIntegrator(re_fs, pr_fs));
+      }
+      
    }
 }
 
@@ -68,6 +74,7 @@ void NavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    if (bcs.find("no-slip-adiabatic") != bcs.end())
    {
       vector<int> tmp = bcs["no-slip-adiabatic"].template get<vector<int>>();
+      std::cout << "here broo temp size is : " << tmp.size() << "\n";
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
       // reference state needed by penalty flux
@@ -346,7 +353,7 @@ void shockExact(const mfem::Vector &x, mfem::Vector &u)
 
 // MMS Exact solution
 void viscousMMSExact(int dim, const mfem::Vector &x, mfem::Vector &u)
-{  
+{  std::cout << "we are here \n";
    u.SetSize(dim+2);
    switch(dim)
    {
@@ -354,10 +361,10 @@ void viscousMMSExact(int dim, const mfem::Vector &x, mfem::Vector &u)
          {  
             const double r_0 = 1.0;
             const double r_xyz = 1.0;
-            const double u_0 = 10.0;
-            const double v_0 = 5.0;
-            const double w_0 = 2.0;
-            const double T_0 = 5.0;
+            const double u_0 = 0.0;
+            const double v_0 = 0.0;
+            const double w_0 = 0.0;
+            const double T_0 = 1.0;
             
             u(0) = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x(0))*sin(2*r_xyz*M_PI*x(1))*sin(2*r_xyz*M_PI*x(2));
             u(1) = u_0*((pow(x(0),3)/3. - pow(x(0),2)/2.) + (pow(x(1),3)/3. - pow(x(1),2)/2.) + (pow(x(2),3)/3. - pow(x(2),2)/2.)); 

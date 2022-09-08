@@ -12,19 +12,18 @@ namespace mach
 /// entvar - if true, the entropy variables are used in the integrators
 template <int dim, bool entvar = false>
 class NavierStokesSolver : public EulerSolver<dim, entvar>
-{
+{  public:
+    /// Class constructor.
+    /// \param[in] json_options - json object containing the options
+    /// \param[in] smesh - if provided, defines the mesh for the problem
+    NavierStokesSolver(const nlohmann::json &json_options,
+                       std::unique_ptr<mfem::Mesh> smesh,
+                       MPI_Comm comm);
 protected:
    /// free-stream Reynolds number
    double re_fs;
    /// Prandtl number
    double pr_fs;
-
-   /// Class constructor.
-   /// \param[in] json_options - json object containing the options
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   NavierStokesSolver(const nlohmann::json &json_options,
-                      std::unique_ptr<mfem::Mesh> smesh,
-                      MPI_Comm comm);
 
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs

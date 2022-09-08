@@ -367,10 +367,10 @@ void viscousMMSExact(int dim, const xdouble *x, xdouble *u)
         {
             const double r_0 = 1.0;
             const double r_xyz = 1.0;
-            const double u_0 = 10.0;
-            const double v_0 = 5.0;
-            const double w_0 = 2.0;
-            const double T_0 = 5.0;
+            const double u_0 = 0.0;
+            const double v_0 = 0.0;
+            const double w_0 = 0.0;
+            const double T_0 = 1.0;
 
             u[0] = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x[0])*sin(2*r_xyz*M_PI*x[1])*sin(2*r_xyz*M_PI*x[3]);
             u[1] = u_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
@@ -418,17 +418,17 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
    switch (dim)
    {
    case 3:
-    {
+    {   
         double gamma = euler::gamma;
-        double kappa = mu * gamma / (Pr * euler::gami);
+        // double kappa = mu * gamma / (Pr * euler::gami);
         const double r_0 = 1.0;
         const double r_xyz = 1.0; 
-        const double u_0 = 10.0;
-        const double v_0 = 5.0;
-        const double w_0 = 2.0;
-        const double T_0 = 5.0;
+        const double u_0 = 1.0;
+        const double v_0 = .5;
+        const double w_0 = .2;
+        const double T_0 = 1.0;
 
-        src[0] = r_0*(0.033333333333333333*M_PI*r_xyz*u_0*(2*pow(x[0], 3) 
+        src[0] = (double)(r_0*(0.033333333333333333*M_PI*r_xyz*u_0*(2*pow(x[0], 3) 
                      - 3*pow(x[0], 2) + 2*pow(x[1], 3)
                      - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[1])*
                      sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
@@ -445,8 +445,8 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
                      + v_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
                      sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
                      + w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                     sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1));
-        src[1] = 0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*
+                     sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1))); 
+        src[1] = (double)(0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*
                  sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) -
                  1.3333333333333333*mu*u_0*(2*x[0] - 1) - mu*u_0*(2*x[2] - 1) 
                  - mu*(u_0 + v_0)*(2*x[1] - 1) + 
@@ -473,8 +473,8 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
                  + (1.0/3.0)*r_0*u_0*w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
                  sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
                  + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2));
-        src[2] = 0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
+                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))); 
+        src[2] = (double)(0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
                  sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
                  - 1.3333333333333333*mu*v_0*(2*x[1] - 1) - mu*v_0*(2*x[2] - 1) 
                  + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*v_0*pow(2*pow(x[0], 3) 
@@ -498,8 +498,8 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
                  - 3*pow(x[2], 2)) + (1.0/3.0)*r_0*v_0*w_0*x[2]*(x[2] 
                  - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
                  sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2));
-        src[3] = 0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
+                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)));
+        src[3] = (double)(0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
                  sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
                  - mu*w_0*(2*x[0] - 1) - mu*w_0*(2*x[1] - 1) - 1.3333333333333333*mu*w_0*(2*x[2] - 1) 
                  + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*w_0*
@@ -525,8 +525,8 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
                  + (1.0/3.0)*r_0*pow(w_0, 2)*x[2]*(x[2] - 1)*(0.10000000000000001*
                  sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
                  + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2));
-        src[4] = (1.0/72.0)*(12*mu*(gamma - 1)*(-1.3333333333333333*pow(u_0, 2)*
+                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))); 
+        src[4] = (double)((1.0/72.0)*(12*mu*(gamma - 1)*(-1.3333333333333333*pow(u_0, 2)*
                  (2*x[0] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
                  + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
                  - 3*pow(x[2], 2)) - pow(u_0, 2)*(2*x[2] - 1)*(2*pow(x[0], 3) 
@@ -625,7 +625,8 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
                  - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + pow(v_0, 2)*(x[2] 
                  - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
                  - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 6)))*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)))/(gamma - 1);
+                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)))/(gamma - 1));
+        // std::cout << src[0] << " " << src[1] << " " << src[2] << " " << src[3] << " " << src[4] << "\n";
         break;   
     }
    default:

@@ -90,7 +90,6 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    if (ode)
    {
       auto ode_opts = options["time-dis"];
-
       double t = ode_opts["t-initial"].get<double>();
       auto t_final = ode_opts["t-final"].get<double>();
       *out << "t_final is " << t_final << '\n';
@@ -98,7 +97,7 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       double dt = 0.0;
       initialHook(state);
       for (ti = 0; ti < ode_opts["max-iter"].get<int>(); ++ti)
-      {
+      {  
          dt = calcStepSize(ti, t, t_final, dt, state);
          *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
          if (!ode_opts["steady"].get<bool>())
