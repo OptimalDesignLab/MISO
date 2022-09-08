@@ -100,16 +100,16 @@ template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
-   //GridFunction x(fes.get());
-   ParCentGridFunction x(fes_gd.get());
+   GridFunction x(fes.get());
+   //ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(
        new EulerDGIntegrator<dim>(diff_stack, alpha));
    double area;
-   area = res->GetEnergy(x);
-   cout << "circle area: " << M_PI * 900 << endl;
-   cout << "calculated area: " << area << endl;
-   cout << "airfoil area " << endl;
-   cout << abs(M_PI * 900 - area) << endl;
+   // area = res->GetEnergy(x);
+   // cout << "domain area: " << 1.0 << endl;
+   // cout << "calculated area: " << area << endl;
+   // cout << "airfoil area " << endl;
+   // cout << abs(M_PI * 900 - area) << endl;
    // add the LPS stabilization
    // auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    // res->AddDomainIntegrator(
@@ -700,8 +700,8 @@ void inviscidDGMMSExact(const mfem::Vector &x, mfem::Vector &q)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
-   const double scale = 60.0;
-   const double trans = 30.0;
+   const double scale = 1.0;
+   const double trans = 0.0;
    /// define the exact solution
    double rho = rho0 + rhop * pow(sin(M_PI * (x(0) + trans) / scale), 2) *
                            sin(M_PI * (x(1) + trans) / scale);
@@ -716,8 +716,8 @@ void inviscidDGMMSExact(const mfem::Vector &x, mfem::Vector &q)
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
-   u(1) = ux;  // multiply by rho ?
-   u(2) = uy;
+   u(1) = rho*ux;  // multiply by rho ?
+   u(2) = rho*uy;
    u(3) = e;
    q = u;
 }

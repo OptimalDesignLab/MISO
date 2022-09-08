@@ -31,12 +31,15 @@ double calcEntropyTotalExact();
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector &u);
 
-/// Generate quarter annulus mesh
+/// Generate smoothly perturbed mesh 
 /// \param[in] degree - polynomial degree of the mapping
-/// \param[in] num_rad - number of nodes in the radial direction
-/// \param[in] num_ang - number of nodes in the angular direction
-Mesh buildQuarterAnnulusMesh(int degree, int num_rad, int num_ang);
+/// \param[in] num_x - number of nodes in the x direction
+/// \param[in] num_y - number of nodes in the y direction
+Mesh buildCurvilinearMesh(int degree, int num_x, int num_y);
 
+/// Generate square mesh
+/// \param[in] N- number of elements in one direction
+Mesh buildMesh(int N);
 int main(int argc, char *argv[])
 {
    const char *options_file = "airfoil_steady_dg_mms_options.json";
@@ -46,10 +49,17 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    ostream *out = getOutStream(rank);
-
+   int degree = 2.0;
+   int nx = 20;
+   int ny = 2;
+   int N = 4;
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options", "Options file to use.");
+   args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
+   args.AddOption(&nx, "-nx", "--num-x", "number of x-direction segments");
+   args.AddOption(&ny, "-ny", "--num-y", "number of y-direction segments");
+   args.AddOption(&N, "-n", "--#elements", "number of elements");
    args.Parse();
    if (!args.Good())
    {
@@ -59,10 +69,13 @@ int main(int argc, char *argv[])
 
    try
    {
-      // construct the mesh
+
       string opt_file_name(options_file);
+      // construct the mesh
+      unique_ptr<Mesh> smesh(new Mesh(buildMesh(N)));
+      //unique_ptr<Mesh> smesh(new Mesh(buildCurvilinearMesh(degree, nx, ny)));
       // construct the solver and set initial conditions
-      auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name);
+      auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
       solver->printSolution("airfoil_dg_mms_init", 0);
 
@@ -80,7 +93,7 @@ int main(int argc, char *argv[])
       l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
-      auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+      auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
       double drag = abs(solver->calcOutput("drag"));
       // double entropy = solver->calcOutput("entropy");
@@ -141,8 +154,8 @@ void uexact(const Vector &x, Vector &q)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
-   const double scale = 60.0;
-   const double trans = 30.0;
+   const double scale = 1.0;
+   const double trans = 0.0;
    /// define the exact solution
    double rho = rho0 + rhop * pow(sin(M_PI * (x(0) + trans) / scale), 2) *
                            sin(M_PI * (x(1) + trans) / scale);
@@ -157,8 +170,8 @@ void uexact(const Vector &x, Vector &q)
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
-   u(1) = ux;  // multiply by rho ?
-   u(2) = uy;
+   u(1) = rho*ux;  // multiply by rho ?
+   u(2) = rho*uy;
    u(3) = e;
    if (entvar == false)
    {
@@ -168,4 +181,40 @@ void uexact(const Vector &x, Vector &q)
    {
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
    }
+}
+
+Mesh buildMesh(int N)
+{
+   Mesh mesh = Mesh::MakeCartesian2D(N, N, Element::QUADRILATERAL,
+                                     true /* gen. edges */, 1.0, 1.0,
+                                     true);
+   return mesh;
+}
+
+Mesh buildCurvilinearMesh(int degree, int num_x, int num_y)
+{
+   Mesh mesh = Mesh::MakeCartesian2D(num_x, num_y, Element::QUADRILATERAL,
+                                     true /* gen. edges */, 1.0, 1.0, true);
+   // strategy:
+   // 1) generate a fes for Lagrange elements of desired degree
+   // 2) create a Grid Function using a VectorFunctionCoefficient
+   // 4) use mesh_ptr->NewNodes(nodes, true) to set the mesh nodes
+   
+   // Problem: fes does not own fec, which is generated in this function's scope
+   // Solution: the grid function can own both the fec and fes
+   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
+   FiniteElementSpace *fes = new FiniteElementSpace(&mesh, fec, 2,
+                                                    Ordering::byVDIM);
+
+   auto xy_fun = [](const Vector& xi, Vector &x)
+   {
+      x(0) = xi(0) + (1.0/40.0)*sin(2.0*M_PI*xi(0))*sin(2.0*M_PI*xi(1));
+      x(1) = xi(1) + (1.0/40.0)*sin(2.0*M_PI*xi(1))*sin(2.0*M_PI*xi(0));
+   };
+   VectorFunctionCoefficient xy_coeff(2, xy_fun);
+   GridFunction *xy = new GridFunction(fes);
+   xy->MakeOwner(fec);
+   xy->ProjectCoefficient(xy_coeff);
+   mesh.NewNodes(*xy, true);
+   return mesh;
 }

@@ -1235,8 +1235,8 @@ void calcInviscidMMS(const xdouble *x, xdouble *src)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
-   const double scale = 60.0;
-   const double trans = 30.0;
+   const double scale = 20.0;
+   const double trans = 0.0;
    src[0] =
        M_PI *
        (2 * rhop *

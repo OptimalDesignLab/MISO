@@ -239,7 +239,7 @@ void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 template <int dim, bool entvar>
 void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
-   //GridFunction x(fes.get());
+   // GridFunction x(fes.get());
    ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
@@ -930,8 +930,8 @@ void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q)
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
-   u(1) = ux;  // multiply by rho ?
-   u(2) = uy;
+   u(1) = rho * ux;  // multiply by rho ?
+   u(2) = rho * uy;
    u(3) = e;
    q = u;
 }

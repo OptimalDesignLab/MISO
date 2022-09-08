@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
+      auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
       double drag = abs(solver->calcOutput("drag"));
       mfem::out << "\nDrag error = " << drag << endl;

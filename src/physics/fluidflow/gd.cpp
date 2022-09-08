@@ -490,7 +490,7 @@ void mfem::buildLSInterpolation(int dim,
 // -------------------------------------------------------------------------------
 
    /// use this for quad elements
-
+   #if 1
    // Set the RHS for the LS problem (it's the identity matrix)
    // This will store the solution, that is, the basis coefficients, hence
    // the name `coeff`
@@ -528,7 +528,7 @@ void mfem::buildLSInterpolation(int dim,
            &info);
 
    MFEM_ASSERT(info == 0, "Fail to solve the underdetermined system.\n");
-
+   #endif
    // Perform matrix-matrix multiplication between basis functions evalauted at
    // quadrature nodes and basis function coefficients.
    interp.SetSize(num_quad, num_elem);
@@ -590,14 +590,14 @@ void mfem::buildLSInterpolation(int dim,
                // ","
                //           << q << ") = " << fabs(exact - poly_at_quad) <<
                //           endl;
-               if ((p == 0) && (q == 0))
-               {
+               // if ((p == 0) && (q == 0))
+               // {
                   MFEM_ASSERT(fabs(exact - poly_at_quad) <= 1e-12,
                               " p = " << p << " , q = " << q << ", "
                                       << fabs(exact - poly_at_quad) << " : "
                                       << "Interpolation operator does not "
                                          "interpolate exactly!\n");
-               }
+              // }
             }
          }
       }
