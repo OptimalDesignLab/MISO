@@ -54,18 +54,18 @@ double MagnitudeCurlStateIntegrator::GetElementEnergy(
 {
    /// number of degrees of freedom
    int ndof = el.GetDof();
-   int dim = el.GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
 
 #ifdef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape;
    mfem::DenseMatrix curlshape_dFt;
 #endif
-   curlshape.SetSize(ndof, dimc);
-   curlshape_dFt.SetSize(ndof, dimc);
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
 
    double b_vec_buffer[3];
-   Vector b_vec(b_vec_buffer, dimc);
+   Vector b_vec(b_vec_buffer, curl_dim);
 
    const auto *ir = IntRule;
    if (ir == nullptr)
@@ -95,14 +95,15 @@ double MagnitudeCurlStateIntegrator::GetElementEnergy(
 
       double w = ip.weight * trans.Weight();
 
-      if (dim == 3)
+      if (space_dim == 3)
       {
          el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
       }
       else
       {
-         el.CalcCurlShape(ip, curlshape_dFt);
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_vec_norm = b_vec.Norml2();
@@ -194,21 +195,36 @@ double IECurlMagnitudeAggregateIntegratorNumerator::GetElementEnergy(
     const mfem::Vector &elfun)
 {
    int ndof = el.GetDof();
-   int dim = el.GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
 
 #ifdef MFEM_THREAD_SAFE
-   mfem::DenseMatrix curlshape(ndof, dimc);
-   mfem::DenseMatrix curlshape_dFt(ndof, dimc);
-#else
-   curlshape.SetSize(ndof, dimc);
-   curlshape_dFt.SetSize(ndof, dimc);
+   mfem::DenseMatrix curlshape(ndof, curl_dim);
+   mfem::DenseMatrix curlshape_dFt(ndof, curl_dim);
 #endif
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
 
    double curl_vec_buffer[3];
-   Vector curl_vec(curl_vec_buffer, dimc);
+   Vector curl_vec(curl_vec_buffer, curl_dim);
 
-   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); ++i)
@@ -218,22 +234,291 @@ double IECurlMagnitudeAggregateIntegratorNumerator::GetElementEnergy(
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
-      if (dim == 3)
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      if (space_dim == 3)
       {
          el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
       }
       else
       {
-         el.CalcCurlShape(ip, curlshape_dFt);
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
       curlshape_dFt.AddMultTranspose(elfun, curl_vec);
       const double curl_vec_norm = curl_vec.Norml2();
-      const double curl_mag = curl_vec_norm / trans.Weight();
+      const double curl_mag = curl_vec_norm / trans_weight;
 
-      fun += ip.weight * trans.Weight() * curl_mag * exp(rho * curl_mag);
+      const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      fun += curl_mag * exp_rho_curl_mag * w;
    }
    return fun;
+}
+
+void IECurlMagnitudeAggregateIntegratorNumerator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+   int ndof = el.GetDof();
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape(ndof, curl_dim);
+   mfem::DenseMatrix curlshape_dFt(ndof, curl_dim);
+#endif
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
+
+   double curl_vec_buffer[3] = {};
+   Vector curl_vec(curl_vec_buffer, curl_dim);
+
+   double curl_vec_bar_buffer[3] = {};
+   Vector curl_vec_bar(curl_vec_bar_buffer, curl_dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      curl_vec = 0.0;
+
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      if (space_dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+      }
+      curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans_weight;
+
+      const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      // fun += curl_mag * exp_rho_curl_mag * w;
+
+      /// Start reverse pass...
+      /// fun += curl_mag * exp_rho_curl_mag * w;
+      double fun_bar = 1.0;
+
+      double curl_mag_bar = 0.0;
+      double exp_rho_curl_mag_bar = 0.0;
+      // double w_bar = 0.0;
+      curl_mag_bar += fun_bar * exp_rho_curl_mag * w;
+      exp_rho_curl_mag_bar += fun_bar * curl_mag * w;
+      // w_bar += fun_bar * curl_mag * exp_rho_curl_mag;
+
+      /// const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      curl_mag_bar +=
+          exp_rho_curl_mag_bar * rho / actual_max * exp_rho_curl_mag;
+
+      /// const double curl_mag = curl_vec_norm / trans_weight;
+      double curl_vec_norm_bar = curl_mag_bar / trans_weight;
+      // double trans_weight_bar = -curl_mag_bar * curl_vec_norm /
+      // pow(trans_weight, 2);
+
+      /// const double curl_vec_norm = curl_vec.Norml2();
+      curl_vec_bar = 0.0;
+      curl_vec_bar.Add(curl_vec_norm_bar / curl_vec_norm, curl_vec);
+
+      /// curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+      curlshape_dFt.AddMult(curl_vec_bar, elfun_bar);
+   }
+}
+
+void IECurlMagnitudeAggregateIntegratorNumeratorMeshSens::
+    AssembleRHSElementVect(const FiniteElement &mesh_el,
+                           ElementTransformation &mesh_trans,
+                           Vector &mesh_coords_bar)
+{
+const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+   const int curl_dim = space_dim;
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape;
+   DenseMatrix curlshape_dFt;
+   DenseMatrix curlshape_dFt_bar;
+   DenseMatrix PointMat_bar;
+#else
+   auto &curlshape = integ.curlshape;
+   auto &curlshape_dFt = integ.curlshape_dFt;
+#endif
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
+   // curlshape_dFt_bar.SetSize(curl_dim, ndof);
+   PointMat_bar.SetSize(curl_dim, mesh_ndof);
+
+   double curl_vec_buffer[3] = {};
+   Vector curl_vec(curl_vec_buffer, curl_dim);
+
+   double curl_vec_bar_buffer[3] = {};
+   Vector curl_vec_bar(curl_vec_bar_buffer, curl_dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto rho = integ.rho;
+   auto actual_max = integ.actual_max;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      if (space_dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+      }
+
+      curlshape_dFt.MultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans_weight;
+
+      const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+
+      // fun += curl_mag * exp_rho_curl_mag * w;
+
+      /// Start reverse pass...
+      /// fun += exp_rho_curl_mag * w;
+      double fun_bar = 1.0;
+
+      double curl_mag_bar = 0.0;
+      double exp_rho_curl_mag_bar = 0.0;
+      double w_bar = 0.0;
+      curl_mag_bar += fun_bar * exp_rho_curl_mag * w;
+      exp_rho_curl_mag_bar += fun_bar * curl_mag * w;
+      w_bar += fun_bar * curl_mag * exp_rho_curl_mag;
+
+      /// const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      curl_mag_bar +=
+          exp_rho_curl_mag_bar * rho / actual_max * exp_rho_curl_mag;
+
+      /// const double curl_mag = curl_vec_norm / trans_weight;
+      double curl_vec_norm_bar = curl_mag_bar / trans_weight;
+      double trans_weight_bar =
+          -curl_mag_bar * curl_vec_norm / pow(trans_weight, 2);
+
+      /// const double curl_vec_norm = curl_vec.Norml2();
+      curl_vec_bar = 0.0;
+      curl_vec_bar.Add(curl_vec_norm_bar / curl_vec_norm, curl_vec);
+
+      PointMat_bar = 0.0;
+      if (dim == 3)
+      {
+         /// curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+         // transposed dimensions of curlshape_dFt
+         // so I don't have to transpose jac_bar later
+         curlshape_dFt_bar.SetSize(curl_dim, ndof);
+         MultVWt(curl_vec_bar, elfun, curlshape_dFt_bar);
+
+         /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         double jac_bar_buffer[9] = {};
+         DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
+         jac_bar = 0.0;
+         AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+         isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+      }
+      else  // Dealing with scalar H1 field representing Az
+      {
+         /// curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+         curlshape_dFt_bar.SetSize(ndof, curl_dim);
+         MultVWt(elfun, curl_vec_bar, curlshape_dFt_bar);
+
+         /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         double adj_bar_buffer[9] = {};
+         DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
+         MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
+         isotrans.AdjugateJacobianRevDiff(adj_bar, PointMat_bar);
+      }
+
+      /// const double w = ip.weight * trans_weight;
+      trans_weight_bar += w_bar * ip.weight;
+
+      // double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setOptions(IECurlMagnitudeAggregateIntegratorDenominator &integ,
@@ -251,46 +536,326 @@ double IECurlMagnitudeAggregateIntegratorDenominator::GetElementEnergy(
     const mfem::Vector &elfun)
 {
    int ndof = el.GetDof();
-   int dim = el.GetDim();
-   int dimc = (dim == 3) ? 3 : 1;
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
 
 #ifdef MFEM_THREAD_SAFE
-   mfem::DenseMatrix curlshape(ndof, dimc);
-   mfem::DenseMatrix curlshape_dFt(ndof, dimc);
-#else
-   curlshape.SetSize(ndof, dimc);
-   curlshape_dFt.SetSize(ndof, dimc);
+   mfem::DenseMatrix curlshape(ndof, curl_dim);
+   mfem::DenseMatrix curlshape_dFt(ndof, curl_dim);
 #endif
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
 
-   double curl_vec_buffer[3];
-   Vector curl_vec(curl_vec_buffer, dimc);
+   double curl_vec_buffer[3] = {};
+   Vector curl_vec(curl_vec_buffer, curl_dim);
 
-   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); ++i)
    {
-      curl_vec = 0.0;
-
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
-      if (dim == 3)
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      if (space_dim == 3)
       {
          el.CalcCurlShape(ip, curlshape);
          MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
       }
       else
       {
-         el.CalcCurlShape(ip, curlshape_dFt);
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
-      curlshape_dFt.AddMultTranspose(elfun, curl_vec);
-      const double curl_vec_norm = curl_vec.Norml2();
-      const double curl_mag = curl_vec_norm / trans.Weight();
 
-      fun += ip.weight * trans.Weight() * exp(rho * curl_mag);
+      curlshape_dFt.MultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans_weight;
+
+      const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+
+      fun += exp_rho_curl_mag * w;
    }
    return fun;
+}
+
+void IECurlMagnitudeAggregateIntegratorDenominator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+   int ndof = el.GetDof();
+   int space_dim = trans.GetSpaceDim();
+   int curl_dim = space_dim;
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape(ndof, curl_dim);
+   mfem::DenseMatrix curlshape_dFt(ndof, curl_dim);
+#endif
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
+
+   double curl_vec_buffer[3] = {};
+   Vector curl_vec(curl_vec_buffer, curl_dim);
+
+   double curl_vec_bar_buffer[3] = {};
+   Vector curl_vec_bar(curl_vec_bar_buffer, curl_dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      if (space_dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+      }
+      curlshape_dFt.MultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans_weight;
+
+      const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      // fun += exp_rho_curl_mag * w;
+
+      /// Start reverse pass...
+      /// fun += exp_rho_curl_mag * w;
+      double fun_bar = 1.0;
+
+      double exp_rho_curl_mag_bar = 0.0;
+      // double w_bar = 0.0;
+      exp_rho_curl_mag_bar += fun_bar * w;
+      // w_bar += fun_bar * exp_rho_curl_mag;
+
+      /// const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      double curl_mag_bar = 0.0;
+      curl_mag_bar +=
+          exp_rho_curl_mag_bar * rho / actual_max * exp_rho_curl_mag;
+
+      /// const double curl_mag = curl_vec_norm / trans_weight;
+      double curl_vec_norm_bar = curl_mag_bar / trans_weight;
+      // double trans_weight_bar = -curl_mag_bar * curl_vec_norm /
+      // pow(trans_weight, 2);
+
+      /// const double curl_vec_norm = curl_vec.Norml2();
+      curl_vec_bar = 0.0;
+      curl_vec_bar.Add(curl_vec_norm_bar / curl_vec_norm, curl_vec);
+
+      /// curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+      curlshape_dFt.AddMult(curl_vec_bar, elfun_bar);
+   }
+}
+
+void IECurlMagnitudeAggregateIntegratorDenominatorMeshSens::
+    AssembleRHSElementVect(const FiniteElement &mesh_el,
+                           ElementTransformation &mesh_trans,
+                           Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+   const int curl_dim = space_dim;
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix curlshape;
+   DenseMatrix curlshape_dFt;
+   DenseMatrix curlshape_dFt_bar;
+   DenseMatrix PointMat_bar;
+#else
+   auto &curlshape = integ.curlshape;
+   auto &curlshape_dFt = integ.curlshape_dFt;
+#endif
+   curlshape.SetSize(ndof, curl_dim);
+   curlshape_dFt.SetSize(ndof, curl_dim);
+   // curlshape_dFt_bar.SetSize(curl_dim, ndof);
+   PointMat_bar.SetSize(curl_dim, mesh_ndof);
+
+   double curl_vec_buffer[3] = {};
+   Vector curl_vec(curl_vec_buffer, curl_dim);
+
+   double curl_vec_bar_buffer[3] = {};
+   Vector curl_vec_bar(curl_vec_bar_buffer, curl_dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto rho = integ.rho;
+   auto actual_max = integ.actual_max;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      if (space_dim == 3)
+      {
+         el.CalcCurlShape(ip, curlshape);
+         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+      }
+      else
+      {
+         el.CalcDShape(ip, curlshape);
+         Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+      }
+
+      curlshape_dFt.MultTranspose(elfun, curl_vec);
+      const double curl_vec_norm = curl_vec.Norml2();
+      const double curl_mag = curl_vec_norm / trans_weight;
+
+      const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+
+      // fun += exp_rho_curl_mag * w;
+
+      /// Start reverse pass...
+      /// fun += exp_rho_curl_mag * w;
+      double fun_bar = 1.0;
+
+      double exp_rho_curl_mag_bar = 0.0;
+      double w_bar = 0.0;
+      exp_rho_curl_mag_bar += fun_bar * w;
+      w_bar += fun_bar * exp_rho_curl_mag;
+
+      /// const double exp_rho_curl_mag = exp(rho * (curl_mag / actual_max));
+      double curl_mag_bar = 0.0;
+      curl_mag_bar +=
+          exp_rho_curl_mag_bar * rho / actual_max * exp_rho_curl_mag;
+
+      /// const double curl_mag = curl_vec_norm / trans_weight;
+      double curl_vec_norm_bar = curl_mag_bar / trans_weight;
+      double trans_weight_bar =
+          -curl_mag_bar * curl_vec_norm / pow(trans_weight, 2);
+
+      /// const double curl_vec_norm = curl_vec.Norml2();
+      curl_vec_bar = 0.0;
+      curl_vec_bar.Add(curl_vec_norm_bar / curl_vec_norm, curl_vec);
+
+      PointMat_bar = 0.0;
+      if (dim == 3)
+      {
+         /// curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+         // transposed dimensions of curlshape_dFt
+         // so I don't have to transpose jac_bar later
+         curlshape_dFt_bar.SetSize(curl_dim, ndof);
+         MultVWt(curl_vec_bar, elfun, curlshape_dFt_bar);
+
+         /// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+         double jac_bar_buffer[9] = {};
+         DenseMatrix jac_bar(jac_bar_buffer, space_dim, space_dim);
+         jac_bar = 0.0;
+         AddMult(curlshape_dFt_bar, curlshape, jac_bar);
+         isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+      }
+      else  // Dealing with scalar H1 field representing Az
+      {
+         /// curlshape_dFt.AddMultTranspose(elfun, curl_vec);
+         curlshape_dFt_bar.SetSize(ndof, curl_dim);
+         MultVWt(elfun, curl_vec_bar, curlshape_dFt_bar);
+
+         /// Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
+         double adj_bar_buffer[9] = {};
+         DenseMatrix adj_bar(adj_bar_buffer, space_dim, space_dim);
+         MultAtB(curlshape, curlshape_dFt_bar, adj_bar);
+         isotrans.AdjugateJacobianRevDiff(adj_bar, PointMat_bar);
+      }
+
+      /// const double w = ip.weight * trans_weight;
+      trans_weight_bar += w_bar * ip.weight;
+
+      // double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void DiffusionIntegratorMeshSens::AssembleRHSElementVect(

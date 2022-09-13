@@ -1,6 +1,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "mach_load.hpp"
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
@@ -86,12 +87,6 @@ StateAverageFunctional::StateAverageFunctional(
 
 AverageMagnitudeCurlState::AverageMagnitudeCurlState(
     mfem::ParFiniteElementSpace &fes,
-    std::map<std::string, FiniteElementState> &fields)
- : AverageMagnitudeCurlState(fes, fields, {})
-{ }
-
-AverageMagnitudeCurlState::AverageMagnitudeCurlState(
-    mfem::ParFiniteElementSpace &fes,
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
  : state_integ(fes, fields), volume(fes, fields)
@@ -133,6 +128,40 @@ IEAggregateFunctional::IEAggregateFunctional(
       denominator.addOutputDomainIntegrator(
           new IEAggregateIntegratorDenominator(rho));
    }
+}
+
+double jacobianVectorProduct(IECurlMagnitudeAggregateFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   auto out_dot = denom * jacobianVectorProduct(output.numerator, wrt_dot, wrt);
+   out_dot -= num * jacobianVectorProduct(output.denominator, wrt_dot, wrt);
+   out_dot /= pow(denom, 2);
+   return out_dot;
+}
+
+void vectorJacobianProduct(IECurlMagnitudeAggregateFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   output.scratch.SetSize(wrt_bar.Size());
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.numerator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(1 / denom, output.scratch);
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.denominator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(-num / pow(denom, 2), output.scratch);
 }
 
 IECurlMagnitudeAggregateFunctional::IECurlMagnitudeAggregateFunctional(

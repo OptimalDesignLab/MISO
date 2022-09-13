@@ -146,7 +146,9 @@ public:
    }
 
    AverageMagnitudeCurlState(mfem::ParFiniteElementSpace &fes,
-                             std::map<std::string, FiniteElementState> &fields);
+                             std::map<std::string, FiniteElementState> &fields)
+    : AverageMagnitudeCurlState(fes, fields, {})
+   { }
 
    AverageMagnitudeCurlState(mfem::ParFiniteElementSpace &fes,
                              std::map<std::string, FiniteElementState> &fields,
@@ -214,6 +216,7 @@ public:
    friend void setInputs(IECurlMagnitudeAggregateFunctional &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.numerator, inputs);
       setInputs(output.denominator, inputs);
    }
@@ -226,6 +229,16 @@ public:
       return num / denom;
    }
 
+   friend double jacobianVectorProduct(
+       IECurlMagnitudeAggregateFunctional &output,
+       const mfem::Vector &wrt_dot,
+       const std::string &wrt);
+
+   friend void vectorJacobianProduct(IECurlMagnitudeAggregateFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
    IECurlMagnitudeAggregateFunctional(
        mfem::ParFiniteElementSpace &fes,
        std::map<std::string, FiniteElementState> &fields,
@@ -234,6 +247,8 @@ public:
 private:
    FunctionalOutput numerator;
    FunctionalOutput denominator;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 }  // namespace mach

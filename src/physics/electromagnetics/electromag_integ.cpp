@@ -14,7 +14,7 @@ double calcMagneticEnergy(ElementTransformation &trans,
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 20);
 
    /// compute int_0^{B} \nuB dB
    double en = 0.0;
@@ -35,7 +35,7 @@ double calcMagneticEnergyDot(ElementTransformation &trans,
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 20);
 
    /// compute int_0^{B} \nuB dB
    double en = 0.0;
@@ -64,7 +64,7 @@ double calcMagneticEnergyDoubleDot(ElementTransformation &trans,
 {
    /// TODO: use a composite rule instead or find a way to just directly
    /// integrate B-H curve
-   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 10);
+   const IntegrationRule *ir = &IntRules.Get(Geometry::Type::SEGMENT, 20);
 
    /// compute int_0^{B} \nuB dB
    double d2endB2 = 0.0;
@@ -1961,7 +1961,7 @@ void MagneticEnergyIntegrator::AssembleElementVector(
       /// const double b_vec_norm = b_vec.Norml2();
       add(b_vec_bar, b_vec_norm_bar / b_vec_norm, b_vec, b_vec_bar);
 
-      // curlshape_dFt.AddMultTranspose(elfun, b_vec);
+      /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
       curlshape_dFt.AddMult(b_vec_bar, elfun_bar);
    }
 }

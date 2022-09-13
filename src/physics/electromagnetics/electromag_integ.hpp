@@ -1322,6 +1322,19 @@ private:
 #endif
 };
 
+inline void addSensitivityIntegrator(
+    ForceIntegrator3 &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+   output_sens.at("mesh_coords")
+       .AddDomainIntegrator(new ForceIntegratorMeshSens3(
+           fields.at("state").gridFunc(), primal_integ));
+}
+
 /// Functional integrator to compute forces/torques based on the virtual work
 /// method
 class ForceIntegrator : public mfem::NonlinearFormIntegrator
