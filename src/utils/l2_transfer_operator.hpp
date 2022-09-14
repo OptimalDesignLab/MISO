@@ -196,10 +196,12 @@ public:
    {
       return output.output.space().GetTrueVSize();
    }
-   friend void setInputs(L2CurlMagnitudeProjection &output, const MachInputs &inputs);
+   friend void setInputs(L2CurlMagnitudeProjection &output,
+                         const MachInputs &inputs);
 };
 
-inline void setInputs(L2CurlMagnitudeProjection &output, const MachInputs &inputs)
+inline void setInputs(L2CurlMagnitudeProjection &output,
+                      const MachInputs &inputs)
 {
    mfem::Vector state_tv;
    setVectorFromInputs(inputs, "state", state_tv);

@@ -1,5 +1,7 @@
 #include <map>
 #include <string>
+#include <tuple>
+#include <utility>
 
 #include "catch.hpp"
 #include "mfem.hpp"
@@ -27,6 +29,14 @@ TEST_CASE("StateAverageFunctional::calcOutput (3D)")
       std::piecewise_construct,
       std::forward_as_tuple("state"),
       std::forward_as_tuple(mesh, fes, "state"));
+
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+   /// create new state vector copying the mesh's fe space
+   fields.emplace(
+         std::piecewise_construct,
+         std::forward_as_tuple("mesh_coords"),
+         std::forward_as_tuple(mesh, *mesh_fespace, "mesh_coords"));
 
    mach::StateAverageFunctional out(fes, fields);
 
@@ -62,6 +72,14 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
       std::piecewise_construct,
       std::forward_as_tuple("state"),
       std::forward_as_tuple(mesh, fes, "state"));
+
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+   /// create new state vector copying the mesh's fe space
+   fields.emplace(
+         std::piecewise_construct,
+         std::forward_as_tuple("mesh_coords"),
+         std::forward_as_tuple(mesh, *mesh_fespace, "mesh_coords"));
 
    auto &state = fields.at("state");
    mfem::Vector state_tv(state.space().GetTrueVSize());
@@ -110,6 +128,14 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
       std::forward_as_tuple("state"),
       std::forward_as_tuple(mesh, fes, "state"));
 
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+   /// create new state vector copying the mesh's fe space
+   fields.emplace(
+         std::piecewise_construct,
+         std::forward_as_tuple("mesh_coords"),
+         std::forward_as_tuple(mesh, *mesh_fespace, "mesh_coords"));
+
    auto &state = fields.at("state");
    mfem::Vector state_tv(state.space().GetTrueVSize());
 
@@ -130,7 +156,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    double max_state = calcOutput(out, inputs);
 
    /// Should be sqrt(sin(1.0)^2 + 1.0)
-   REQUIRE(max_state == Approx(1.3026749725));
+   REQUIRE(max_state == Approx(1.2908573815));
 
    output_opts["rho"] = 1.0;
    setOptions(out, output_opts);

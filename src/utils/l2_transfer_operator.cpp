@@ -369,7 +369,8 @@ public:
 
             state_fe.CalcDShape(ip, curlshape);
             Mult(curlshape, trans.AdjugateJacobian(), scratch);
-            mfem::DenseMatrix tmp(curlshape_dFt.GetData(), space_dim * state_dof, 1);
+            mfem::DenseMatrix tmp(
+                curlshape_dFt.GetData(), space_dim * state_dof, 1);
             scratch.GradToCurl(tmp);
          }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
@@ -425,10 +426,11 @@ public:
          else
          {
             mfem::DenseMatrix scratch(state_dof, curl_dim);
-            
+
             state_fe.CalcDShape(ip, curlshape);
             Mult(curlshape, trans.AdjugateJacobian(), scratch);
-            mfem::DenseMatrix tmp(curlshape_dFt.GetData(), space_dim * state_dof, 1);
+            mfem::DenseMatrix tmp(
+                curlshape_dFt.GetData(), space_dim * state_dof, 1);
             scratch.GradToCurl(tmp);
          }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
@@ -528,10 +530,11 @@ public:
             MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
          }
          else
-         {            
+         {
             state_fe.CalcDShape(ip, curlshape);
             Mult(curlshape, trans.AdjugateJacobian(), scratch);
-            mfem::DenseMatrix tmp(curlshape_dFt.GetData(), space_dim * state_dof, 1);
+            mfem::DenseMatrix tmp(
+                curlshape_dFt.GetData(), space_dim * state_dof, 1);
             scratch.GradToCurl(tmp);
          }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
@@ -607,9 +610,10 @@ public:
             curlshape_dFt_bar.SetSize(state_dof, curl_dim);
             MultVWt(el_state, curl_vec_bar, curlshape_dFt_bar);
 
-            /// mfem::DenseMatrix tmp(curlshape_dFt.GetData(), space_dim * state_dof, 1);
-            /// scratch.GradToCurl(tmp);
-            mfem::DenseMatrix tmp(scratch_bar.GetData(), space_dim * state_dof, 1);
+            /// mfem::DenseMatrix tmp(curlshape_dFt.GetData(), space_dim *
+            /// state_dof, 1); scratch.GradToCurl(tmp);
+            mfem::DenseMatrix tmp(
+                scratch_bar.GetData(), space_dim * state_dof, 1);
             curlshape_dFt_bar.GradToCurl(tmp);
             scratch_bar *= -1.0;
 
