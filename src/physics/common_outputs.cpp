@@ -85,6 +85,41 @@ StateAverageFunctional::StateAverageFunctional(
    }
 }
 
+double jacobianVectorProduct(AverageMagnitudeCurlState &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   double state = calcOutput(output.state_integ, inputs);
+   double volume = calcOutput(output.volume, inputs);
+
+   auto out_dot =
+       volume * jacobianVectorProduct(output.state_integ, wrt_dot, wrt);
+   out_dot -= state * jacobianVectorProduct(output.volume, wrt_dot, wrt);
+   out_dot /= pow(volume, 2);
+   return out_dot;
+}
+
+void vectorJacobianProduct(AverageMagnitudeCurlState &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   double state = calcOutput(output.state_integ, inputs);
+   double volume = calcOutput(output.volume, inputs);
+
+   output.scratch.SetSize(wrt_bar.Size());
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.state_integ, out_bar, wrt, output.scratch);
+   wrt_bar.Add(1 / volume, output.scratch);
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.volume, out_bar, wrt, output.scratch);
+   wrt_bar.Add(-state / pow(volume, 2), output.scratch);
+}
+
 AverageMagnitudeCurlState::AverageMagnitudeCurlState(
     mfem::ParFiniteElementSpace &fes,
     std::map<std::string, FiniteElementState> &fields,

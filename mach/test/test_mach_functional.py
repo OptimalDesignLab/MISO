@@ -321,14 +321,14 @@ class TestEMFunctionals(unittest.TestCase):
                                  MachMesh(solver=emSolver),
                                  promotes_outputs=["*"])
 
-        # flux = prob.model.add_subsystem("flux_density",
-        #                                 MachFunctional(solver=emSolver,
-        #                                                func="flux_density",
-        #                                                check_partials=True,
-        #                                                depends=["state", "mesh_coords"]),
-        #                                 promotes_inputs=[("mesh_coords", "x_em0"), "state"],
-        #                                 promotes_outputs=["flux_density"])
-        # flux.set_check_partial_options(wrt="*", directional=True)
+        flux = prob.model.add_subsystem("flux_density",
+                                        MachFunctional(solver=emSolver,
+                                                       func="flux_density",
+                                                       check_partials=True,
+                                                       depends=["state", "mesh_coords"]),
+                                        promotes_inputs=[("mesh_coords", "x_em0"), "state"],
+                                        promotes_outputs=["flux_density"])
+        flux.set_check_partial_options(wrt="*", directional=True)
 
         flux_mag = prob.model.add_subsystem("flux_magnitude",
                                             MachFunctional(solver=emSolver,
@@ -339,14 +339,14 @@ class TestEMFunctionals(unittest.TestCase):
                                             promotes_outputs=["flux_magnitude"])
         flux_mag.set_check_partial_options(wrt="*", directional=True)
 
-        # avg_flux = prob.model.add_subsystem("average_flux_magnitude",
-        #                                     MachFunctional(solver=emSolver,
-        #                                                    func="average_flux_magnitude",
-        #                                                    check_partials=True,
-        #                                                    depends=["state", "mesh_coords"]),
-        #                                     promotes_inputs=[("mesh_coords", "x_em0"), "state"],
-        #                                     promotes_outputs=["average_flux_magnitude"])
-        # avg_flux.set_check_partial_options(wrt="*", directional=True)
+        avg_flux = prob.model.add_subsystem("average_flux_magnitude",
+                                            MachFunctional(solver=emSolver,
+                                                           func="average_flux_magnitude",
+                                                           check_partials=True,
+                                                           depends=["state", "mesh_coords"]),
+                                            promotes_inputs=[("mesh_coords", "x_em0"), "state"],
+                                            promotes_outputs=["average_flux_magnitude"])
+        avg_flux.set_check_partial_options(wrt="*", directional=True)
 
         max_flux = prob.model.add_subsystem("max_flux_magnitude",
                                             MachFunctional(solver=emSolver,
@@ -363,6 +363,15 @@ class TestEMFunctionals(unittest.TestCase):
 
         data = prob.check_partials(form="central")
         assert_check_partials(data)
+        # print(data)
+
+        # flux_mag_data = data.pop("flux_magnitude")
+        # assert_check_partials({"flux_magnitude": flux_mag_data})
+        # avg_flux_data = data.pop("average_flux_magnitude")
+        # assert_check_partials({"average_flux_magnitude": avg_flux_data})
+        # max_flux_data = data.pop("max_flux_magnitude")
+        # assert_check_partials({"max_flux_magnitude": max_flux_data})
+
 
 if __name__ == "__main__":
     unittest.main()

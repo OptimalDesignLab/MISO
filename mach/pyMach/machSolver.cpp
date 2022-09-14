@@ -43,36 +43,37 @@ void initSolver(py::module &m)
        //       py::arg("json_options"),
        //       py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
        .def("getOptions", &AbstractSolver2::getOptions)
-      //  .def(
-      //      "setState",
-      //      [](AbstractSolver2 &self,
-      //         const std::function<void(mfem::Vector &)> &fun,
-      //         const py::array_t<double> &state,
-      //         const std::string &name)
-      //      {
-      //         auto state_vec = npBufferToMFEMVector(state);
-      //         self.setState(fun, state_vec, name);
-      //      },
-      //      py::arg("fun"),
-      //      py::arg("state"),
-      //      py::arg("name") = "state")
+       //  .def(
+       //      "setState",
+       //      [](AbstractSolver2 &self,
+       //         const std::function<void(mfem::Vector &)> &fun,
+       //         const py::array_t<double> &state,
+       //         const std::string &name)
+       //      {
+       //         auto state_vec = npBufferToMFEMVector(state);
+       //         self.setState(fun, state_vec, name);
+       //      },
+       //      py::arg("fun"),
+       //      py::arg("state"),
+       //      py::arg("name") = "state")
        .def(
            "setState",
            [](AbstractSolver2 &self,
-            //   const std::function<double(const mfem::Vector &)> &fun,
+              //   const std::function<double(const mfem::Vector &)> &fun,
               const std::function<double(const py::array_t<double> &)> &fun,
               const py::array_t<double> &state,
               const std::string &name)
            {
-              auto cpp_fun = [&fun](const mfem::Vector &x){
-                  py::array_t<double> py_x{
-                     x.Size(), /* Buffer dimensions */
+              auto cpp_fun = [&fun](const mfem::Vector &x)
+              {
+                 py::array_t<double> py_x{
+                     x.Size(),   /* Buffer dimensions */
                      x.GetData() /* Pointer to buffer */
-                  };
-                  return fun(py_x);
+                 };
+                 return fun(py_x);
               };
               auto state_vec = npBufferToMFEMVector(state);
-            //   self.setState(fun, state_vec, name);
+              //   self.setState(fun, state_vec, name);
               self.setState(cpp_fun, state_vec, name);
            },
            py::arg("fun"),

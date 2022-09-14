@@ -1,7 +1,6 @@
 #ifndef MACH_MFEM_COMMON_INTEG
 #define MACH_MFEM_COMMON_INTEG
 
-#include <linalg/densemat.hpp>
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -17,12 +16,60 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override
+   {
+      elfun_bar.SetSize(elfun.Size());
+      elfun_bar = 0.0;
+   }
+
    VolumeIntegrator(mfem::Coefficient *rho = nullptr) : rho(rho) { }
 
 private:
    /// Optional density coefficient to get mass
    mfem::Coefficient *rho;
+
+   friend class VolumeIntegratorMeshSens;
 };
+
+class VolumeIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrator
+   VolumeIntegratorMeshSens(VolumeIntegrator &integ) : integ(integ) { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// reference to primal integrator
+   VolumeIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+inline void addSensitivityIntegrator(
+    VolumeIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+   output_sens.at("mesh_coords")
+       .AddDomainIntegrator(new VolumeIntegratorMeshSens(primal_integ));
+}
 
 class StateIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -44,12 +91,65 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override;
+
 private:
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix curlshape;
    mfem::DenseMatrix curlshape_dFt;
 #endif
+
+   friend class MagnitudeCurlStateIntegratorMeshSens;
 };
+
+class MagnitudeCurlStateIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrator
+   MagnitudeCurlStateIntegratorMeshSens(mfem::GridFunction &state,
+                                        MagnitudeCurlStateIntegrator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating integrator
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   MagnitudeCurlStateIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix curlshape_dFt_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+};
+
+inline void addSensitivityIntegrator(
+    MagnitudeCurlStateIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+   output_sens.at("mesh_coords")
+       .AddDomainIntegrator(new MagnitudeCurlStateIntegratorMeshSens(
+           fields.at("state").gridFunc(), primal_integ));
+}
 
 class IEAggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
 {
@@ -147,7 +247,7 @@ public:
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
-   /// state vector for evaluating force
+   /// state vector for evaluating integrator
    mfem::GridFunction &state;
    /// reference to primal integrator
    IECurlMagnitudeAggregateIntegratorNumerator &integ;

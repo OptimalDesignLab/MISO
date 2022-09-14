@@ -133,6 +133,7 @@ public:
    friend void setInputs(AverageMagnitudeCurlState &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.state_integ, inputs);
       setInputs(output.volume, inputs);
    }
@@ -144,6 +145,15 @@ public:
       double volume = calcOutput(output.volume, inputs);
       return state / volume;
    }
+
+   friend double jacobianVectorProduct(AverageMagnitudeCurlState &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(AverageMagnitudeCurlState &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    AverageMagnitudeCurlState(mfem::ParFiniteElementSpace &fes,
                              std::map<std::string, FiniteElementState> &fields)
@@ -157,6 +167,8 @@ public:
 private:
    FunctionalOutput state_integ;
    FunctionalOutput volume;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 class IEAggregateFunctional
