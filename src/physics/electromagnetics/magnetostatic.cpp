@@ -89,6 +89,7 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 
    mach::ParaViewLogger paraview("magnetostatic", &mesh());
    paraview.registerField("state", fields.at("state").gridFunc());
+   paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
    addLogger(std::move(paraview), {});
 }
 

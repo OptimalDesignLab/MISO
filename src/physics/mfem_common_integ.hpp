@@ -677,6 +677,84 @@ inline void addSensitivityIntegrator(
    rev_sens.at("mesh_coords").AddDomainIntegrator(sens_integ);
 }
 
+class DomainLFIntegrator final : public mfem::DomainLFIntegrator
+{
+public:
+   DomainLFIntegrator(mfem::Coefficient &Q, double alpha = 1.0)
+    : mfem::DomainLFIntegrator(Q, 2, -2), F(Q), alpha(alpha)
+   { }
+
+   inline void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                                      mfem::ElementTransformation &trans,
+                                      mfem::Vector &elvect) override
+   {
+      mfem::DomainLFIntegrator::AssembleRHSElementVect(el, trans, elvect);
+      if (alpha != 1.0)
+      {
+         elvect *= alpha;
+      }
+   }
+
+private:
+   /// coefficient for linear form
+   mfem::Coefficient &F;
+   /// scaling term if the linear form has a negative sign in the residual
+   const double alpha;
+   /// class that implements mesh sensitivities for
+   /// DomainLFIntegrator
+   friend class DomainLFIntegratorMeshRevSens;
+};
+
+class DomainLFIntegratorMeshRevSens final : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   DomainLFIntegratorMeshRevSens(mfem::GridFunction &adjoint,
+                                 mach::DomainLFIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T f)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T f)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   mach::DomainLFIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape, shape_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+inline void addSensitivityIntegrator(
+    mach::DomainLFIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+   rev_sens.at("mesh_coords")
+       .AddDomainIntegrator(new DomainLFIntegratorMeshRevSens(
+           fields.at("adjoint").gridFunc(), primal_integ));
+}
+
 /** Not yet differentiated, class only needed if magnets are on the boundary
     and not normal to boundary
 class VectorFEBoundaryTangentLFIntegrator final

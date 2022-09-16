@@ -128,6 +128,23 @@ private:
 #endif
 };
 
+inline void addSensitivityIntegrator(
+    NonlinearDiffusionIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+   rev_sens.at("mesh_coords")
+       .AddDomainIntegrator(new NonlinearDiffusionIntegratorMeshRevSens(
+           fields.at("state").gridFunc(),
+           fields.at("adjoint").gridFunc(),
+           primal_integ));
+}
+
 class MagnetizationSource2DIntegrator : public mfem::LinearFormIntegrator
 {
 public:
@@ -158,7 +175,6 @@ class MagnetizationSource2DIntegratorMeshRevSens
  : public mfem::LinearFormIntegrator
 {
 public:
-   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
    MagnetizationSource2DIntegratorMeshRevSens(
@@ -190,6 +206,21 @@ private:
    mfem::Vector psi;
 #endif
 };
+
+inline void addSensitivityIntegrator(
+    MagnetizationSource2DIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+   rev_sens.at("mesh_coords")
+       .AddDomainIntegrator(new MagnetizationSource2DIntegratorMeshRevSens(
+           fields.at("adjoint").gridFunc(), primal_integ));
+}
 
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
 class CurlCurlNLFIntegrator : public mfem::NonlinearFormIntegrator

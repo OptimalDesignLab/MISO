@@ -90,8 +90,8 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    // define the target state solution error
    std::vector<std::vector<double>> target_error = {
       //     nxy = 2, nxy = 4, nyx = 8, nyx = 16, nxy = 32
-      {0.03446617612,     0.0,     0.0,      0.0,      0.0}, // p = 1
-      {0.004470003778,    0.0,     0.0,      0.0,      0.0}, // p = 2
+      {0.0306325207,     0.0,     0.0,      0.0,      0.0}, // p = 1
+      {0.004603664996,    0.0,     0.0,      0.0,      0.0}, // p = 2
       {0.0,               0.0,     0.0,      0.0,      0.0}, // p = 3
       {0.0,               0.0,     0.0,      0.0,      0.0}  // p = 4
    };

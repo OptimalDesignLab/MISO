@@ -499,6 +499,7 @@ void PDESolver::initialHook(const mfem::Vector &state)
    int inverted_elems = mesh().CheckElementOrientation(false);
    if (inverted_elems > 0)
    {
+      mesh().PrintVTU("inverted_mesh", mfem::VTKFormat::BINARY, true);
       throw MachException("Mesh contains inverted elements!\n");
    }
    else

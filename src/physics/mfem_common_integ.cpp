@@ -2107,6 +2107,136 @@ void VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
+void DomainLFIntegratorMeshRevSens::AssembleRHSElementVect(
+    const FiniteElement &mesh_el,
+    ElementTransformation &mesh_trans,
+    Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *adjoint.FESpace()->GetFE(element);
+   auto &trans = *adjoint.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   // const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+   const int curl_dim = space_dim;
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape;
+   Vector shape_bar;
+   DenseMatrix PointMat_bar;
+   Vector scratch_bar;
+#endif
+
+   shape.SetSize(ndof);
+   shape_bar.SetSize(ndof);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // double mag_flux_buffer[3] = {};
+   // Vector mag_flux(mag_flux_buffer, space_dim);
+   // double mag_flux_bar_buffer[3] = {};
+   // Vector mag_flux_bar(mag_flux_bar_buffer, space_dim);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
+
+      if (el.Space() == FunctionSpace::rQk)
+      {
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      }
+      else
+      {
+         ir = &IntRules.Get(el.GetGeomType(), order);
+      }
+   }
+
+   auto &alpha = integ.alpha;
+   auto &F = integ.F;
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      double w = alpha * ip.weight * trans_weight;
+
+      double val = F.Eval(trans, ip);
+
+      el.CalcPhysShape(trans, shape);
+      const double psi_dot_shape = psi * shape;
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += val * psi_dot_shape * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += val * psi_dot_shape * w;
+      double val_bar = fun_bar * psi_dot_shape * w;
+      double psi_dot_shape_bar = fun_bar * val * w;
+      double w_bar = fun_bar * val * psi_dot_shape;
+
+      /// const double psi_dot_shape = psi * shape;
+      shape_bar = 0.0;
+      shape_bar.Add(psi_dot_shape_bar, psi);
+
+      /// el.CalcPhysShape(trans, shape);
+      PointMat_bar = 0.0;
+      el.CalcPhysShapeRevDiff(trans, shape_bar, PointMat_bar);
+
+      /// double val = F.Eval(trans, ip);
+      F.EvalRevDiff(val_bar, trans, ip, PointMat_bar);
+
+      /// double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * alpha * ip.weight;
+
+      /// double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int k = 0; k < curl_dim; ++k)
+         {
+            mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+         }
+      }
+   }
+}
+
+/** OLD UNUSED STUFF BELOW THIS LINE - SHOULD BE REMOVED */
+
 double TestLFIntegrator::GetElementEnergy(const FiniteElement &el,
                                           ElementTransformation &trans,
                                           const Vector &elfun)

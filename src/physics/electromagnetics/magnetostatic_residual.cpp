@@ -10,9 +10,10 @@
 
 #include "mach_input.hpp"
 #include "magnetostatic_load.hpp"
+#include "mfem_common_integ.hpp"
+#include "utils.hpp"
 
 #include "magnetostatic_residual.hpp"
-#include "utils.hpp"
 
 namespace
 {
@@ -135,6 +136,24 @@ void jacobianVectorProduct(MagnetostaticResidual &residual,
                            const std::string &wrt,
                            mfem::Vector &res_dot)
 {
+   // if wrt starts with prefix "current_density:"
+   if (wrt.rfind("current_density:", 0) == 0)
+   {
+      residual.current_coeff->cacheCurrentDensity();
+      residual.current_coeff->zeroCurrentDensity();
+
+      MachInputs inputs{{wrt, 1.0}};
+      setInputs(*residual.current_coeff, inputs);
+
+      mfem::Vector scratch(res_dot.Size());
+      scratch = 0.0;
+      addLoad(*residual.load, scratch);
+      residual.current_coeff->resetCurrentDensityFromCache();
+
+      scratch.SetSubVector(residual.res.getEssentialDofs(), 0.0);
+      res_dot.Add(wrt_dot(0), scratch);
+      return;
+   }
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
    jacobianVectorProduct(*residual.load, wrt_dot, wrt, res_dot);
 }
@@ -143,6 +162,23 @@ double vectorJacobianProduct(MagnetostaticResidual &residual,
                              const mfem::Vector &res_bar,
                              const std::string &wrt)
 {
+   // if wrt starts with prefix "current_density:"
+   if (wrt.rfind("current_density:", 0) == 0)
+   {
+      residual.current_coeff->cacheCurrentDensity();
+      residual.current_coeff->zeroCurrentDensity();
+
+      MachInputs inputs{{wrt, 1.0}};
+      setInputs(*residual.current_coeff, inputs);
+
+      mfem::Vector scratch(res_bar.Size());
+      scratch = 0.0;
+      addLoad(*residual.load, scratch);
+      residual.current_coeff->resetCurrentDensityFromCache();
+
+      scratch.SetSubVector(residual.res.getEssentialDofs(), 0.0);
+      return scratch * res_bar;
+   }
    auto wrt_bar = vectorJacobianProduct(residual.res, res_bar, wrt);
    wrt_bar += vectorJacobianProduct(*residual.load, res_bar, wrt);
    return wrt_bar;
@@ -192,9 +228,24 @@ MagnetostaticResidual::MagnetostaticResidual(
          current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
              diff_stack, options["current"]);
 
+         // MachInputs current_inputs = {{"current_density:phaseA", 0.0},
+         //                              {"current_density:phaseB", 1.0},
+         //                              {"current_density:phaseC", -1.0}};
+         // setInputs(*current_coeff, current_inputs);
+
+         // mfem::ParGridFunction j(&fes);
+         // j.ProjectCoefficient(*current_coeff);
+         // mfem::ParaViewDataCollection pv("CurrentDensity", fes.GetParMesh());
+         // pv.SetPrefixPath("ParaView");
+         // pv.SetLevelsOfDetail(3);
+         // pv.SetDataFormat(mfem::VTKFormat::BINARY);
+         // pv.SetHighOrderOutput(true);
+         // pv.RegisterField("CurrentDensity", &j);
+         // pv.Save();
+
          auto current_attrs = getCurrentAttributes(options);
          linear_form.addDomainIntegrator(
-             new mfem::DomainLFIntegrator(*current_coeff), current_attrs);
+             new mach::DomainLFIntegrator(*current_coeff), current_attrs);
       }
       if (options.contains("magnets"))
       {

@@ -117,7 +117,7 @@ class MachState(om.ImplicitComponent):
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
-        input_dict.update(self.vectors)   
+        input_dict.update(self.vectors)
 
         residual = self.vectors["state_res"]     
         solver.calcResidual(input_dict, residual)

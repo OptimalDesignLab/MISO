@@ -1141,6 +1141,102 @@ TEST_CASE("VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("DomainLFIntegratorMeshSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   mfem::FunctionCoefficient model(
+      [](const mfem::Vector &x)
+      {
+         double q = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            q += pow(x(i), 2);
+            // q += x(i);
+         }
+         return q;
+
+         // return 1.0;
+      },
+      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+      {
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            x_bar(i) += q_bar * 2 * x(i);
+            // x_bar(i) += q_bar;
+         }
+
+         // x_bar = 0.0;
+      });
+
+   // mfem::ConstantCoefficient model(2.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize adjoint; here we randomly perturb a constant state
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         adjoint.ProjectCoefficient(pert);
+
+         LinearForm res(&fes);
+         auto *integ = new mach::DomainLFIntegrator(model, -1.0);
+         res.AddDomainIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::DomainLFIntegratorMeshRevSens(adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Update();
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Update();
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
 /** Not yet differentiated, class only needed if magnets are on the boundary
     and not normal to boundary
 TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")

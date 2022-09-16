@@ -95,6 +95,8 @@ public:
    template <typename T>
    void addBdrFaceIntegrator(T *integrator, mfem::Array<int> &bdr_attr_marker);
 
+   const mfem::Array<int> &getEssentialDofs() const { return ess_tdof_list; }
+
    MachLinearForm(mfem::ParFiniteElementSpace &pfes,
                   std::map<std::string, FiniteElementState> &fields)
     : lf(&pfes), scratch(0), lf_fields(&fields)
