@@ -3461,14 +3461,89 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
-
       trans.SetIntPoint(&ip);
 
-      double w = ip.weight * trans.Weight();
+      double trans_weight = trans.Weight();
+
+      double w = ip.weight * trans_weight;
       const double sigma_v = sigma.Eval(trans, ip);
       fun += w / sigma_v;
    }
    return fun;
+}
+
+void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = mesh_trans.GetSpaceDim();
+
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (mesh_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * mesh_el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * mesh_el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(mesh_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      mesh_trans.SetIntPoint(&ip);
+
+      double trans_weight = mesh_trans.Weight();
+      double w = ip.weight * trans_weight;
+
+      const double sigma_v = sigma.Eval(mesh_trans, ip);
+      // fun += w / sigma_v;
+
+      /// Start reverse pass...
+      double fun_bar = 1.0;
+
+      /// fun += w / sigma_v;
+      double w_bar = fun_bar / sigma_v;
+      double sigma_v_bar = -fun_bar * w / pow(sigma_v, 2);
+
+      /// const double sigma_v = sigma.Eval(mesh_trans, ip);
+      PointMat_bar = 0.0;
+      sigma.EvalRevDiff(sigma_v_bar, mesh_trans, ip, PointMat_bar);
+
+      /// double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+
+      /// double trans_weight = mesh_trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setInputs(DCLossFunctionalDistributionIntegrator &integ,

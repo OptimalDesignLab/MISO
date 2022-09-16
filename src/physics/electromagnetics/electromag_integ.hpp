@@ -1104,7 +1104,48 @@ private:
    // double strand_radius;
    // double num_strands_in_hand;
    // double num_turns;
+   friend class DCLossFunctionalIntegratorMeshSens;
 };
+
+class DCLossFunctionalIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrator
+   DCLossFunctionalIntegratorMeshSens(DCLossFunctionalIntegrator &integ)
+    : integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// reference to primal integrator
+   DCLossFunctionalIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+inline void addSensitivityIntegrator(
+    DCLossFunctionalIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+   output_sens.at("mesh_coords")
+       .AddDomainIntegrator(
+           new DCLossFunctionalIntegratorMeshSens(primal_integ));
+}
 
 class DCLossFunctionalDistributionIntegrator : public mfem::LinearFormIntegrator
 {

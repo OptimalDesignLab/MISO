@@ -1215,7 +1215,6 @@ TEST_CASE("DomainLFIntegratorMeshSens::AssembleRHSElementVect")
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(x_nodes);
-         GridFunction r(&fes);
          x_pert.Add(delta, v);
          mesh.SetNodes(x_pert);
          fes.Update();

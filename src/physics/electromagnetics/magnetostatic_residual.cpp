@@ -145,13 +145,13 @@ void jacobianVectorProduct(MagnetostaticResidual &residual,
       MachInputs inputs{{wrt, 1.0}};
       setInputs(*residual.current_coeff, inputs);
 
-      mfem::Vector scratch(res_dot.Size());
-      scratch = 0.0;
-      addLoad(*residual.load, scratch);
+      residual.scratch.SetSize(res_dot.Size());
+      residual.scratch = 0.0;
+      addLoad(*residual.load, residual.scratch);
       residual.current_coeff->resetCurrentDensityFromCache();
 
-      scratch.SetSubVector(residual.res.getEssentialDofs(), 0.0);
-      res_dot.Add(wrt_dot(0), scratch);
+      residual.scratch.SetSubVector(residual.res.getEssentialDofs(), 0.0);
+      res_dot.Add(wrt_dot(0), residual.scratch);
       return;
    }
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
@@ -171,13 +171,13 @@ double vectorJacobianProduct(MagnetostaticResidual &residual,
       MachInputs inputs{{wrt, 1.0}};
       setInputs(*residual.current_coeff, inputs);
 
-      mfem::Vector scratch(res_bar.Size());
-      scratch = 0.0;
-      addLoad(*residual.load, scratch);
+      residual.scratch.SetSize(res_bar.Size());
+      residual.scratch = 0.0;
+      addLoad(*residual.load, residual.scratch);
       residual.current_coeff->resetCurrentDensityFromCache();
 
-      scratch.SetSubVector(residual.res.getEssentialDofs(), 0.0);
-      return scratch * res_bar;
+      residual.scratch.SetSubVector(residual.res.getEssentialDofs(), 0.0);
+      return residual.scratch * res_bar;
    }
    auto wrt_bar = vectorJacobianProduct(residual.res, res_bar, wrt);
    wrt_bar += vectorJacobianProduct(*residual.load, res_bar, wrt);

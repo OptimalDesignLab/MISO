@@ -1,3 +1,4 @@
+#include <cmath>
 #include <string>
 
 #include "data_logging.hpp"
@@ -6,6 +7,7 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
+#include "common_outputs.hpp"
 #include "mach_input.hpp"
 #include "electromag_outputs.hpp"
 #include "nlohmann/json.hpp"
@@ -78,34 +80,412 @@ double calcOutput(DCLossFunctional &output, const MachInputs &inputs)
 
    /// rho = electrical resistivity, doesn't depend on any state
    /// so we just integrate with a dummy state vector
-   output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-   double rho = output.output.GetEnergy(output.scratch);
+   // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+   // double rho = output.output.GetEnergy(output.scratch);
+   double rho = calcOutput(output.resistivity, inputs);
 
    double strand_area = M_PI * pow(output.strand_radius, 2);
    double R = output.wire_length * rho / (strand_area * output.strands_in_hand);
 
-   double loss = pow(output.rms_current, 2) * R;
-   loss *= sqrt(2);
+   double loss = pow(output.rms_current, 2) * R * sqrt(2);
 
    double volume = calcOutput(output.volume, inputs);
    return loss / volume;
+}
+
+double jacobianVectorProduct(DCLossFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   if (wrt.rfind("wire_length", 0) == 0)
+   {
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot = rho / (strand_area * output.strands_in_hand) * wrt_dot(0);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot = 1 / volume * loss_dot;
+      return dc_loss_dot;
+   }
+   else if (wrt.rfind("rms_current", 0) == 0)
+   {
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      double R =
+          output.wire_length * rho / (strand_area * output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = 2 * output.rms_current * R * sqrt(2) * wrt_dot(0);
+
+      double volume = calcOutput(output.volume, inputs);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot = 1 / volume * loss_dot;
+      return dc_loss_dot;
+   }
+   else if (wrt.rfind("strand_radius", 0) == 0)
+   {
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      double strand_area_dot = M_PI * 2 * output.strand_radius * wrt_dot(0);
+
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot = -output.wire_length * rho /
+                     (pow(strand_area, 2) * output.strands_in_hand) *
+                     strand_area_dot;
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot = 1 / volume * loss_dot;
+      return dc_loss_dot;
+   }
+   else if (wrt.rfind("strands_in_hand", 0) == 0)
+   {
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot = -output.wire_length * rho /
+                     (strand_area * pow(output.strands_in_hand, 2)) *
+                     wrt_dot(0);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot = 1 / volume * loss_dot;
+      return dc_loss_dot;
+   }
+   else
+   {
+      return 0.0;
+   }
+}
+
+void jacobianVectorProduct(DCLossFunctional &output,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &out_dot)
+{ }
+
+double vectorJacobianProduct(DCLossFunctional &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   if (wrt.rfind("wire_length", 0) == 0)
+   {
+      /// rho = electrical resistivity, doesn't depend on any state
+      /// so we just integrate with a dummy state vector
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R = output.wire_length * rho / (strand_area *
+      // output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar = loss_bar * 2 * output.rms_current * R *
+      // sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R = output.wire_length * rho / (strand_area *
+      /// output.strands_in_hand);
+      double wire_length_bar =
+          R_bar * rho / (strand_area * output.strands_in_hand);
+      // double rho_bar = R_bar * output.wire_length / (strand_area *
+      // output.strands_in_hand); double strand_area_bar = -R_bar *
+      // output.wire_length * rho / (pow(strand_area,2) *
+      // output.strands_in_hand); double strands_in_hand_bar = -R_bar *
+      // output.wire_length * rho / (strand_area * pow(output.strands_in_hand,
+      // 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double strand_radius_bar = strand_area_bar * M_PI * 2 *
+      // output.strand_radius;
+
+      /// double rho = output.output.GetEnergy(output.scratch);
+      // rho does not depend on any of the inputs except mesh coords
+
+      return wire_length_bar;
+   }
+   else if (wrt.rfind("rms_current", 0) == 0)
+   {
+      /// rho = electrical resistivity, doesn't depend on any state
+      /// so we just integrate with a dummy state vector
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      double R =
+          output.wire_length * rho / (strand_area * output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double rms_current_bar = loss_bar * 2 * output.rms_current * R * sqrt(2);
+      // double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R = output.wire_length * rho / (strand_area *
+      /// output.strands_in_hand);
+      // double wire_length_bar = R_bar * rho / (strand_area *
+      // output.strands_in_hand); double rho_bar = R_bar * output.wire_length /
+      // (strand_area * output.strands_in_hand); double strand_area_bar = -R_bar
+      // * output.wire_length * rho / (pow(strand_area,2) *
+      // output.strands_in_hand); double strands_in_hand_bar = -R_bar *
+      // output.wire_length * rho / (strand_area * pow(output.strands_in_hand,
+      // 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double strand_radius_bar = strand_area_bar * M_PI * 2 *
+      // output.strand_radius;
+
+      /// double rho = output.output.GetEnergy(output.scratch);
+      // rho does not depend on any of the inputs except mesh coords
+
+      return rms_current_bar;
+   }
+   else if (wrt.rfind("strand_radius", 0) == 0)
+   {
+      /// rho = electrical resistivity, doesn't depend on any state
+      /// so we just integrate with a dummy state vector
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R = output.wire_length * rho / (strand_area *
+      // output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar = loss_bar * 2 * output.rms_current * R *
+      // sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R = output.wire_length * rho / (strand_area *
+      /// output.strands_in_hand);
+      // double wire_length_bar = R_bar * rho / (strand_area *
+      // output.strands_in_hand); double rho_bar = R_bar * output.wire_length /
+      // (strand_area * output.strands_in_hand);
+      double strand_area_bar = -R_bar * output.wire_length * rho /
+                               (pow(strand_area, 2) * output.strands_in_hand);
+      // double strands_in_hand_bar = -R_bar * output.wire_length * rho /
+      // (strand_area * pow(output.strands_in_hand, 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      double strand_radius_bar =
+          strand_area_bar * M_PI * 2 * output.strand_radius;
+
+      /// double rho = output.output.GetEnergy(output.scratch);
+      // rho does not depend on any of the inputs except mesh coords
+
+      return strand_radius_bar;
+   }
+   else if (wrt.rfind("strands_in_hand", 0) == 0)
+   {
+      /// rho = electrical resistivity, doesn't depend on any state
+      /// so we just integrate with a dummy state vector
+      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
+      // double rho = output.output.GetEnergy(output.scratch);
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R = output.wire_length * rho / (strand_area *
+      // output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar = loss_bar * 2 * output.rms_current * R *
+      // sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R = output.wire_length * rho / (strand_area *
+      /// output.strands_in_hand);
+      // double wire_length_bar = R_bar * rho / (strand_area *
+      // output.strands_in_hand); double rho_bar = R_bar * output.wire_length /
+      // (strand_area * output.strands_in_hand); double strand_area_bar = -R_bar
+      // * output.wire_length * rho / (pow(strand_area,2) *
+      // output.strands_in_hand);
+      double strands_in_hand_bar =
+          -R_bar * output.wire_length * rho /
+          (strand_area * pow(output.strands_in_hand, 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double strand_radius_bar = strand_area_bar * M_PI * 2 *
+      // output.strand_radius;
+
+      /// double rho = output.output.GetEnergy(output.scratch);
+      // rho does not depend on any of the inputs except mesh coords
+
+      return strands_in_hand_bar;
+   }
+   else
+   {
+      return 0.0;
+   }
+}
+
+void vectorJacobianProduct(DCLossFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      double R =
+          output.wire_length * rho / (strand_area * output.strands_in_hand);
+
+      double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      mfem::Vector vol_bar_vec(&volume_bar, 1);
+      vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar =
+      //     loss_bar * 2 * output.rms_current * R * sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R =
+      ///     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      // double wire_length_bar =
+      //     R_bar * rho / (strand_area * output.strands_in_hand);
+      double rho_bar =
+          R_bar * output.wire_length / (strand_area * output.strands_in_hand);
+      // double strand_area_bar = -R_bar * output.wire_length * rho /
+      //                          (pow(strand_area, 2) *
+      //                          output.strands_in_hand);
+      // double strands_in_hand_bar =
+      //     -R_bar * output.wire_length * rho /
+      //     (strand_area * pow(output.strands_in_hand, 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double strand_radius_bar =
+      //     strand_area_bar * M_PI * 2 * output.strand_radius;
+
+      /// double rho = calcOutput(output.resistivity, inputs);
+      mfem::Vector rho_bar_vec(&rho_bar, 1);
+      vectorJacobianProduct(output.resistivity, rho_bar_vec, wrt, wrt_bar);
+   }
 }
 
 DCLossFunctional::DCLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &sigma,
     const nlohmann::json &options)
- : FunctionalOutput(fields.at("state").space(), fields), volume(fields, options)
+ : resistivity(fields.at("state").space(), fields), volume(fields, options)
 {
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new DCLossFunctionalIntegrator(sigma),
-                                attributes);
+      resistivity.addOutputDomainIntegrator(
+          new DCLossFunctionalIntegrator(sigma), attributes);
    }
    else
    {
-      addOutputDomainIntegrator(new DCLossFunctionalIntegrator(sigma));
+      resistivity.addOutputDomainIntegrator(
+          new DCLossFunctionalIntegrator(sigma));
    }
 }
 

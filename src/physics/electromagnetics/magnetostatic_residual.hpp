@@ -90,6 +90,9 @@ private:
 
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
+
+   /// Work vector
+   mfem::Vector scratch;
 };
 
 }  // namespace mach

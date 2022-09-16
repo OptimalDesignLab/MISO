@@ -11,34 +11,20 @@
 
 namespace mach
 {
-double calcOutput(VolumeFunctional &output, const MachInputs &inputs)
-{
-   setInputs(output, inputs);
-   output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-   return output.output.GetEnergy(output.scratch);
-}
-
 VolumeFunctional::VolumeFunctional(
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
- : FunctionalOutput(fields.at("state").space(), fields)
+ : output(fields.at("state").space(), fields)
 {
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new VolumeIntegrator, attributes);
+      output.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
    }
    else
    {
-      addOutputDomainIntegrator(new VolumeIntegrator);
+      output.addOutputDomainIntegrator(new VolumeIntegrator);
    }
-}
-
-double calcOutput(MassFunctional &output, const MachInputs &inputs)
-{
-   setInputs(output, inputs);
-   output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-   return output.output.GetEnergy(output.scratch);
 }
 
 MassFunctional::MassFunctional(
@@ -46,17 +32,18 @@ MassFunctional::MassFunctional(
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
- : FunctionalOutput(fields.at("state").space(), fields),
+ : output(fields.at("state").space(), fields),
    rho(constructMaterialCoefficient("rho", components, materials))
 {
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new VolumeIntegrator(rho.get()), attributes);
+      output.addOutputDomainIntegrator(new VolumeIntegrator(rho.get()),
+                                       attributes);
    }
    else
    {
-      addOutputDomainIntegrator(new VolumeIntegrator(rho.get()));
+      output.addOutputDomainIntegrator(new VolumeIntegrator(rho.get()));
    }
 }
 

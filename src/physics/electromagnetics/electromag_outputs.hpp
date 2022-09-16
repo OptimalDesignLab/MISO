@@ -172,46 +172,111 @@ private:
    std::map<std::string, FiniteElementState> &fields;
 };
 
-class DCLossFunctional final : private FunctionalOutput
+// class ResistivityFunctional final
+// {
+// public:
+//    friend inline int getSize(const ResistivityFunctional &output)
+//    {
+//       return getSize(output.output);
+//    }
+
+//    friend void setOptions(ResistivityFunctional &output,
+//                           const nlohmann::json &options)
+//    {
+//       setOptions(output.output, options);
+//    }
+
+//    friend void setInputs(ResistivityFunctional &output, const MachInputs
+//    &inputs)
+//    {
+//       setInputs(output.output, inputs);
+//    }
+//    friend double calcOutput(ResistivityFunctional &output, const MachInputs
+//    &inputs);
+
+//    friend double jacobianVectorProduct(ResistivityFunctional &output,
+//                                        const mfem::Vector &wrt_dot,
+//                                        const std::string &wrt);
+
+//    friend void jacobianVectorProduct(ResistivityFunctional &output,
+//                                      const mfem::Vector &wrt_dot,
+//                                      const std::string &wrt,
+//                                      mfem::Vector &out_dot);
+
+//    friend double vectorJacobianProduct(ResistivityFunctional &output,
+//                                        const mfem::Vector &out_bar,
+//                                        const std::string &wrt);
+
+//    friend void vectorJacobianProduct(ResistivityFunctional &output,
+//                                      const mfem::Vector &out_bar,
+//                                      const std::string &wrt,
+//                                      mfem::Vector &wrt_bar);
+
+//    ResistivityFunctional();
+
+// private:
+//    FunctionalOutput output;
+
+// };
+
+class DCLossFunctional final
 {
 public:
-   friend inline int getSize(const DCLossFunctional &output)
-   {
-      const auto &fun_output = dynamic_cast<const FunctionalOutput &>(output);
-      return getSize(fun_output);
-   }
+   friend inline int getSize(const DCLossFunctional &output) { return 1; }
 
    friend void setOptions(DCLossFunctional &output,
                           const nlohmann::json &options)
    {
-      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
-      setOptions(fun_output, options);
+      setOptions(output.resistivity, options);
+      setOptions(output.volume, options);
    }
 
    friend void setInputs(DCLossFunctional &output, const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setValueFromInputs(inputs, "wire_length", output.wire_length);
       setValueFromInputs(inputs, "rms_current", output.rms_current);
       setValueFromInputs(inputs, "strand_radius", output.strand_radius);
       setValueFromInputs(inputs, "strands_in_hand", output.strands_in_hand);
 
-      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
-      setInputs(fun_output, inputs);
+      setInputs(output.resistivity, inputs);
+      setInputs(output.volume, inputs);
    }
 
    friend double calcOutput(DCLossFunctional &output, const MachInputs &inputs);
+
+   friend double jacobianVectorProduct(DCLossFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void jacobianVectorProduct(DCLossFunctional &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
+
+   friend double vectorJacobianProduct(DCLossFunctional &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(DCLossFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    DCLossFunctional(std::map<std::string, FiniteElementState> &fields,
                     mfem::Coefficient &sigma,
                     const nlohmann::json &options);
 
 private:
+   FunctionalOutput resistivity;
    VolumeFunctional volume;
 
    double wire_length = 1.0;
    double rms_current = 1.0;
    double strand_radius = 1.0;
    double strands_in_hand = 1.0;
+
+   MachInputs const *inputs = nullptr;
 };
 
 class ACLossFunctional final
