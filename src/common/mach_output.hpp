@@ -83,7 +83,7 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   /// Compute the output's sensitivity to a scalar and contract it with
+   /// Compute a scalar output's sensitivity to @a wrt and contract it with
    /// wrt_dot
    /// \param[inout] output - the output whose sensitivity we want
    /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the
@@ -95,7 +95,7 @@ public:
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
 
-   /// Compute the output's sensitivity to a vector and contract it with
+   /// Compute a vector output's sensitivity to @a wrt and contract it with
    /// wrt_dot
    /// \param[inout] output - the output whose sensitivity we want
    /// \param[in] wrt_dot - the "wrt"-sized vector to contract with the

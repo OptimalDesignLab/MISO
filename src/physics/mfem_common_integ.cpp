@@ -51,30 +51,34 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
     ElementTransformation &mesh_trans,
     Vector &mesh_coords_bar)
 {
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
    const int mesh_ndof = mesh_el.GetDof();
    const int space_dim = mesh_trans.GetSpaceDim();
 
    PointMat_bar.SetSize(space_dim, mesh_ndof);
 
    // cast the ElementTransformation
-   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
       int order = [&]()
       {
-         if (mesh_el.Space() == FunctionSpace::Pk)
+         if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * mesh_el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 2;
          }
          else
          {
-            return 2 * mesh_el.GetOrder();
+            return 2 * el.GetOrder();
          }
       }();
 
-      ir = &IntRules.Get(mesh_el.GetGeomType(), order);
+      ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
    auto *rho = integ.rho;
@@ -84,9 +88,9 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const auto &ip = ir->IntPoint(i);
-      mesh_trans.SetIntPoint(&ip);
+      trans.SetIntPoint(&ip);
 
-      double trans_weight = mesh_trans.Weight();
+      double trans_weight = trans.Weight();
 
       double w = ip.weight * trans_weight;
 
@@ -99,14 +103,14 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
       PointMat_bar = 0.0;
       if (rho != nullptr)
       {
-         double s = rho->Eval(mesh_trans, ip);
+         double s = rho->Eval(trans, ip);
 
          /// val = w * s;
          double s_bar = val_bar * w;
          w_bar += val_bar * s;
 
-         /// double s = rho->Eval(mesh_trans, ip);
-         rho->EvalRevDiff(s_bar, mesh_trans, ip, PointMat_bar);
+         /// double s = rho->Eval(trans, ip);
+         rho->EvalRevDiff(s_bar, trans, ip, PointMat_bar);
       }
       else
       {
@@ -117,7 +121,7 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
       /// double w = ip.weight * trans_weight;
       double trans_weight_bar = w_bar * ip.weight;
 
-      /// double trans_weight = mesh_trans.Weight();
+      /// double trans_weight = trans.Weight();
       isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
 
       /// code to insert PointMat_bar into mesh_coords_bar;

@@ -37,20 +37,25 @@ private:
 class VolumeIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
 public:
+   /// \param[in] state - the state grid function
    /// \param[in] integ - reference to primal integrator that holds inputs for
    /// integrator
-   VolumeIntegratorMeshSens(VolumeIntegrator &integ) : integ(integ) { }
+   VolumeIntegratorMeshSens(mfem::GridFunction &state, VolumeIntegrator &integ)
+    : state(state), integ(integ)
+   { }
 
    /// \brief - assemble an element's contribution to dJdX
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
    /// space
    /// \param[out] mesh_coords_bar - dJdX for the element
-   void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
+   /// State GridFunction, needed to get integration order for each element
+   mfem::GridFunction &state;
    /// reference to primal integrator
    VolumeIntegrator &integ;
 
@@ -59,16 +64,28 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     VolumeIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
+
+   if (attr_marker == nullptr)
+   {
    output_sens.at("mesh_coords")
-       .AddDomainIntegrator(new VolumeIntegratorMeshSens(primal_integ));
+       .AddDomainIntegrator(new VolumeIntegratorMeshSens(
+           fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+         .AddDomainIntegrator(new VolumeIntegratorMeshSens(
+            fields.at("state").gridFunc(), primal_integ), *attr_marker);
+   }
 }
 
 class StateIntegrator : public mfem::NonlinearFormIntegrator

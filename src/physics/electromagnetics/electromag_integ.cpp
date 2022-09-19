@@ -3477,30 +3477,34 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
     mfem::ElementTransformation &mesh_trans,
     mfem::Vector &mesh_coords_bar)
 {
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
    const int mesh_ndof = mesh_el.GetDof();
    const int space_dim = mesh_trans.GetSpaceDim();
 
    PointMat_bar.SetSize(space_dim, mesh_ndof);
 
    // cast the ElementTransformation
-   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
       int order = [&]()
       {
-         if (mesh_el.Space() == FunctionSpace::Pk)
+         if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * mesh_el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 2;
          }
          else
          {
-            return 2 * mesh_el.GetOrder();
+            return 2 * el.GetOrder();
          }
       }();
 
-      ir = &IntRules.Get(mesh_el.GetGeomType(), order);
+      ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
    auto &sigma = integ.sigma;
@@ -3510,12 +3514,12 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const auto &ip = ir->IntPoint(i);
-      mesh_trans.SetIntPoint(&ip);
+      trans.SetIntPoint(&ip);
 
-      double trans_weight = mesh_trans.Weight();
+      double trans_weight = trans.Weight();
       double w = ip.weight * trans_weight;
 
-      const double sigma_v = sigma.Eval(mesh_trans, ip);
+      const double sigma_v = sigma.Eval(trans, ip);
       // fun += w / sigma_v;
 
       /// Start reverse pass...
@@ -3525,14 +3529,17 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       double w_bar = fun_bar / sigma_v;
       double sigma_v_bar = -fun_bar * w / pow(sigma_v, 2);
 
-      /// const double sigma_v = sigma.Eval(mesh_trans, ip);
+      // std::cout << "sigma_v_bar: " << sigma_v_bar << "\n";
+      // std::cout << "fun_bar: " << fun_bar << " w: " << w << " sigma_v: " << sigma_v << "\n";
+
+      /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
-      sigma.EvalRevDiff(sigma_v_bar, mesh_trans, ip, PointMat_bar);
+      sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
 
       /// double w = ip.weight * trans_weight;
       double trans_weight_bar = w_bar * ip.weight;
 
-      /// double trans_weight = mesh_trans.Weight();
+      /// double trans_weight = trans.Weight();
       isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
 
       /// code to insert PointMat_bar into mesh_coords_bar;

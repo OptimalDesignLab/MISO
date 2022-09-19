@@ -142,8 +142,8 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addDomainSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, nullptr);
 }
 
 template <typename T>
@@ -158,8 +158,8 @@ void FunctionalOutput::addOutputDomainIntegrator(
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addDomainSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, &marker);
 }
 
 template <typename T>
@@ -167,7 +167,7 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddInteriorFaceIntegrator(integrator);
-   addSensitivityIntegrator(
+   addInteriorFaceSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
@@ -176,8 +176,8 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addBdrSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, nullptr);
 }
 
 template <typename T>
@@ -192,8 +192,8 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    attrVecToArray(bdr_attr_marker, marker);
 
    output.AddBdrFaceIntegrator(integrator, marker);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addBdrSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, &marker);
 }
 
 }  // namespace mach

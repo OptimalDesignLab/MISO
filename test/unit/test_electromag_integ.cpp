@@ -2121,7 +2121,7 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         mesh.SetCurvature(p);
+         // mesh.SetCurvature(p);
 
          H1_FECollection fec(p, dim);
          FiniteElementSpace fes(&mesh, &fec);
@@ -2151,7 +2151,7 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          // evaluate dJdx and compute its product with p
          LinearForm dJdx(&mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegratorMeshSens(*integ));
+            new mach::DCLossFunctionalIntegratorMeshSens(a, *integ));
          dJdx.Assemble();
          double dJdx_dot_p = dJdx * p;
 

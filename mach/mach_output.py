@@ -125,12 +125,17 @@ class MachFunctional(om.ExplicitComponent):
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(self.vectors)  
 
+        for input in inputs:
+            print(f"d_inputs[{input}]: {d_inputs[input]}")
+
         try:
             if mode == 'fwd':
                 if func in d_outputs:
                     for input in inputs:
                         if input in d_inputs:
                             func_dot = np.zeros_like(d_outputs[func])
+
+                            print(f"wrt_dot for input {input}: {d_inputs[input]}")
                             solver.outputJacobianVectorProduct(of=func,
                                                               inputs=input_dict,
                                                               wrt_dot=d_inputs[input],

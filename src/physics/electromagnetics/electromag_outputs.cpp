@@ -1,16 +1,18 @@
 #include <cmath>
 #include <string>
 
-#include "data_logging.hpp"
-#include "electromag_integ.hpp"
-#include "mach_integrator.hpp"
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 #include "common_outputs.hpp"
+#include "data_logging.hpp"
+#include "electromag_integ.hpp"
+#include "functional_output.hpp"
 #include "mach_input.hpp"
+// #include "mach_integrator.hpp"
+
 #include "electromag_outputs.hpp"
-#include "nlohmann/json.hpp"
 
 namespace mach
 {
@@ -78,10 +80,6 @@ double calcOutput(DCLossFunctional &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);
 
-   /// rho = electrical resistivity, doesn't depend on any state
-   /// so we just integrate with a dummy state vector
-   // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-   // double rho = output.output.GetEnergy(output.scratch);
    double rho = calcOutput(output.resistivity, inputs);
 
    double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -100,8 +98,8 @@ double jacobianVectorProduct(DCLossFunctional &output,
    const MachInputs &inputs = *output.inputs;
    if (wrt.rfind("wire_length", 0) == 0)
    {
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
+      std::cout << "wire_length_dot = " << wrt_dot(0) << "\n";
+
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -116,12 +114,11 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       // double dc_loss = loss / volume;
       double dc_loss_dot = 1 / volume * loss_dot;
+      std::cout << "dc_loss_dot = " << dc_loss_dot << "\n";
       return dc_loss_dot;
    }
    else if (wrt.rfind("rms_current", 0) == 0)
    {
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -139,8 +136,6 @@ double jacobianVectorProduct(DCLossFunctional &output,
    }
    else if (wrt.rfind("strand_radius", 0) == 0)
    {
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -163,8 +158,6 @@ double jacobianVectorProduct(DCLossFunctional &output,
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
    {
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -182,6 +175,30 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       // double dc_loss = loss / volume;
       double dc_loss_dot = 1 / volume * loss_dot;
+      return dc_loss_dot;
+   }
+   else if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      double rho = calcOutput(output.resistivity, inputs);
+      double rho_dot = jacobianVectorProduct(output.resistivity, wrt_dot, wrt);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+
+      double R =
+          output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot =
+          output.wire_length / (strand_area * output.strands_in_hand) * rho_dot;
+
+      double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+      double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot =
+          loss_dot / volume - loss / pow(volume, 2) * volume_dot;
+
       return dc_loss_dot;
    }
    else
@@ -203,10 +220,6 @@ double vectorJacobianProduct(DCLossFunctional &output,
    const MachInputs &inputs = *output.inputs;
    if (wrt.rfind("wire_length", 0) == 0)
    {
-      /// rho = electrical resistivity, doesn't depend on any state
-      /// so we just integrate with a dummy state vector
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -255,10 +268,6 @@ double vectorJacobianProduct(DCLossFunctional &output,
    }
    else if (wrt.rfind("rms_current", 0) == 0)
    {
-      /// rho = electrical resistivity, doesn't depend on any state
-      /// so we just integrate with a dummy state vector
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -305,10 +314,6 @@ double vectorJacobianProduct(DCLossFunctional &output,
    }
    else if (wrt.rfind("strand_radius", 0) == 0)
    {
-      /// rho = electrical resistivity, doesn't depend on any state
-      /// so we just integrate with a dummy state vector
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -356,10 +361,6 @@ double vectorJacobianProduct(DCLossFunctional &output,
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
    {
-      /// rho = electrical resistivity, doesn't depend on any state
-      /// so we just integrate with a dummy state vector
-      // output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-      // double rho = output.output.GetEnergy(output.scratch);
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
