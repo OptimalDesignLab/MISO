@@ -758,7 +758,8 @@ double vectorJacobianProduct(ACLossFunctional &output,
       double strand_radius_bar =
           strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
           pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
-      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
 
@@ -872,7 +873,8 @@ double vectorJacobianProduct(ACLossFunctional &output,
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
       //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
-      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
 
@@ -929,7 +931,8 @@ double vectorJacobianProduct(ACLossFunctional &output,
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
       //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
-      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
       return strands_in_hand_bar;
@@ -985,7 +988,8 @@ double vectorJacobianProduct(ACLossFunctional &output,
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
       //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
-      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
       return num_turns_bar;
@@ -1041,7 +1045,8 @@ double vectorJacobianProduct(ACLossFunctional &output,
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
       //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
-      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
       return num_slots_bar;
@@ -1109,7 +1114,8 @@ void vectorJacobianProduct(ACLossFunctional &output,
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
       //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
-      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
 
@@ -1123,8 +1129,7 @@ ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &sigma,
     const nlohmann::json &options)
- : output(fields.at("peak_flux").space(), fields),
-   volume(fields, options)
+ : output(fields.at("peak_flux").space(), fields), volume(fields, options)
 {
    if (options.contains("attributes"))
    {
