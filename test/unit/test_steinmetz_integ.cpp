@@ -1,6 +1,8 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 
+#include "electromag_test_data.hpp"
+
 #include "coefficient.hpp"
 #include "electromag_integ.hpp"
 #include "material_library.hpp"
@@ -40,6 +42,270 @@ TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
    /// Answer should be k_s * pow(freq, alpha) * pow(|B|)^beta 
    /// 0.01 * pow(151, 1.21) * pow(2.2, 1.62) -> 15.5341269187
    REQUIRE(core_loss == Approx(15.5341269187));
+}
+
+TEST_CASE("SteinmetzLossIntegratorFreqSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   auto f = [](const mfem::Vector &x)
+   {
+      double q = 0;
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         q += pow(x(i), 2);
+      }
+      return q;
+   };
+
+   auto f_rev_diff = [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+   {
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         x_bar(i) += q_bar * 2 * x(i);
+      }
+   };
+
+   mfem::FunctionCoefficient rho(f, f_rev_diff);
+   mfem::FunctionCoefficient k_s(f, f_rev_diff);
+   mfem::FunctionCoefficient alpha(f, f_rev_diff);
+   mfem::FunctionCoefficient beta(f, f_rev_diff);
+   // mfem::ConstantCoefficient rho(1.0);
+   // mfem::ConstantCoefficient k_s(0.01);
+   // mfem::ConstantCoefficient alpha(1.21);
+   // mfem::ConstantCoefficient beta(1.62);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(integ);
+
+         // evaluate dJdp and compute its product with pert
+         NonlinearForm dJdp(&fes);
+         dJdp.AddDomainIntegrator(
+            new mach::SteinmetzLossIntegratorFreqSens(*integ));
+
+         double frequency = 2.0 + randNumber();
+         mach::MachInputs inputs{
+            {"frequency", frequency},
+         };
+         setInputs(*integ, inputs);
+         double dfdp_fwd = dJdp.GetEnergy(a);
+
+         // now compute the finite-difference approximation...
+         inputs["frequency"] = frequency + delta;
+         setInputs(*integ, inputs);
+         double dfdp_fd_p = functional.GetEnergy(a);
+
+         inputs["frequency"] = frequency - delta;
+         setInputs(*integ, inputs);
+         double dfdp_fd_m = functional.GetEnergy(a);
+
+         double dfdp_fd = (dfdp_fd_p - dfdp_fd_m) / (2 * delta);
+
+         REQUIRE(dfdp_fwd == Approx(dfdp_fd).margin(1e-8));
+
+      }
+   }
+}
+
+TEST_CASE("SteinmetzLossIntegratorMaxFluxSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   auto f = [](const mfem::Vector &x)
+   {
+      double q = 0;
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         q += pow(x(i), 2);
+      }
+      return q;
+   };
+
+   auto f_rev_diff = [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+   {
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         x_bar(i) += q_bar * 2 * x(i);
+      }
+   };
+
+   mfem::FunctionCoefficient rho(f, f_rev_diff);
+   mfem::FunctionCoefficient k_s(f, f_rev_diff);
+   mfem::FunctionCoefficient alpha(f, f_rev_diff);
+   mfem::FunctionCoefficient beta(f, f_rev_diff);
+   // mfem::ConstantCoefficient rho(1.0);
+   // mfem::ConstantCoefficient k_s(0.01);
+   // mfem::ConstantCoefficient alpha(1.21);
+   // mfem::ConstantCoefficient beta(1.62);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(integ);
+
+         // evaluate dJdp and compute its product with pert
+         NonlinearForm dJdp(&fes);
+         dJdp.AddDomainIntegrator(
+            new mach::SteinmetzLossIntegratorMaxFluxSens(*integ));
+
+         double max_flux_magnitude = 2.0 + randNumber();
+         mach::MachInputs inputs{
+            {"max_flux_magnitude", max_flux_magnitude},
+         };
+         setInputs(*integ, inputs);
+         double dfdp_fwd = dJdp.GetEnergy(a);
+
+         // now compute the finite-difference approximation...
+         inputs["max_flux_magnitude"] = max_flux_magnitude + delta;
+         setInputs(*integ, inputs);
+         double dfdp_fd_p = functional.GetEnergy(a);
+
+         inputs["max_flux_magnitude"] = max_flux_magnitude - delta;
+         setInputs(*integ, inputs);
+         double dfdp_fd_m = functional.GetEnergy(a);
+
+         double dfdp_fd = (dfdp_fd_p - dfdp_fd_m) / (2 * delta);
+
+         REQUIRE(dfdp_fwd == Approx(dfdp_fd).margin(1e-8));
+
+      }
+   }
+}
+
+TEST_CASE("SteinmetzLossIntegratorMeshSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   auto f = [](const mfem::Vector &x)
+   {
+      double q = 0;
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         q += pow(x(i), 2);
+      }
+      return q;
+   };
+
+   auto f_rev_diff = [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+   {
+      for (int i = 0; i < x.Size(); ++i)
+      {
+         x_bar(i) += q_bar * 2 * x(i);
+      }
+   };
+
+   mfem::FunctionCoefficient rho(f, f_rev_diff);
+   mfem::FunctionCoefficient k_s(f, f_rev_diff);
+   mfem::FunctionCoefficient alpha(f, f_rev_diff);
+   mfem::FunctionCoefficient beta(f, f_rev_diff);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&mesh_fes);
+         p.ProjectCoefficient(v_pert);
+
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdx(&mesh_fes);
+         dJdx.AddDomainIntegrator(
+            new mach::SteinmetzLossIntegratorMeshSens(a, *integ));
+         dJdx.Assemble();
+         double dJdx_dot_p = dJdx * p;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         x_pert.Add(-delta, p);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         double dJdx_dot_p_fd = -functional.GetEnergy(a);
+         x_pert.Add(2 * delta, p);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         dJdx_dot_p_fd += functional.GetEnergy(a);
+         dJdx_dot_p_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+      }
+   }
 }
 
 

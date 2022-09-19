@@ -39,14 +39,9 @@ public:
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
 
-   // friend void jacobianVectorProduct(FunctionalOutput &output,
-   //                                   const mfem::Vector &wrt_dot,
-   //                                   const std::string &wrt,
-   //                                   mfem::Vector &out_dot);
-
-   // friend double vectorJacobianProduct(FunctionalOutput &output,
-   //                                     const mfem::Vector &out_bar,
-   //                                     const std::string &wrt);
+   friend double vectorJacobianProduct(FunctionalOutput &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(FunctionalOutput &output,
                                      const mfem::Vector &out_bar,

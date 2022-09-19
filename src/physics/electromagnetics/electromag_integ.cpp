@@ -5536,7 +5536,7 @@ double SteinmetzLossIntegrator::GetElementEnergy(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 1;
+            return 2 * el.GetOrder() - 2;
          }
          else
          {
@@ -5554,7 +5554,8 @@ double SteinmetzLossIntegrator::GetElementEnergy(
       trans.SetIntPoint(&ip);
 
       /// holds quadrature weight
-      const double w = ip.weight * trans.Weight();
+      double trans_weight = trans.Weight();
+      double w = ip.weight * trans_weight;
 
       auto rho_v = rho.Eval(trans, ip);
       auto k_s_v = k_s.Eval(trans, ip);
@@ -5564,6 +5565,223 @@ double SteinmetzLossIntegrator::GetElementEnergy(
       fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) * w;
    }
    return fun;
+}
+
+double SteinmetzLossIntegratorFreqSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &k_s = integ.k_s;
+   auto &alpha = integ.alpha;
+   auto &beta = integ.beta;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   double sens = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      double trans_weight = trans.Weight();
+      double w = ip.weight * trans_weight;
+
+      auto rho_v = rho.Eval(trans, ip);
+      auto k_s_v = k_s.Eval(trans, ip);
+      auto alpha_v = alpha.Eval(trans, ip);
+      auto beta_v = beta.Eval(trans, ip);
+
+      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) *
+      // w;
+      sens += rho_v * k_s_v * alpha_v * pow(freq, alpha_v - 1) *
+              pow(max_flux_mag, beta_v) * w;
+   }
+   return sens;
+}
+
+double SteinmetzLossIntegratorMaxFluxSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &k_s = integ.k_s;
+   auto &alpha = integ.alpha;
+   auto &beta = integ.beta;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   double sens = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      double trans_weight = trans.Weight();
+      double w = ip.weight * trans_weight;
+
+      auto rho_v = rho.Eval(trans, ip);
+      auto k_s_v = k_s.Eval(trans, ip);
+      auto alpha_v = alpha.Eval(trans, ip);
+      auto beta_v = beta.Eval(trans, ip);
+
+      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) *
+      // w;
+      sens += rho_v * k_s_v * pow(freq, alpha_v) * beta_v *
+              pow(max_flux_mag, beta_v - 1) * w;
+   }
+   return sens;
+}
+
+void SteinmetzLossIntegratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = mesh_trans.GetSpaceDim();
+
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &k_s = integ.k_s;
+   auto &alpha = integ.alpha;
+   auto &beta = integ.beta;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      double w = ip.weight * trans_weight;
+
+      auto rho_v = rho.Eval(trans, ip);
+      auto k_s_v = k_s.Eval(trans, ip);
+      auto alpha_v = alpha.Eval(trans, ip);
+      auto beta_v = beta.Eval(trans, ip);
+
+      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) *
+      // w;
+
+      /// Start reverse pass...
+      /// fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v)
+      /// * w;
+      double fun_bar = 1.0;
+      double rho_v_bar =
+          fun_bar * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) * w;
+      double k_s_v_bar =
+          fun_bar * rho_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) * w;
+      // double freq_bar = fun_bar * rho_v * k_s_v * alpha_v *
+      //                   pow(freq, alpha_v - 1) * pow(max_flux_mag, beta_v) *
+      //                   w;
+      double alpha_v_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v) *
+                           log(freq) * pow(max_flux_mag, beta_v) * w;
+      // double max_flux_mag_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v)
+      // *
+      //                           beta_v * pow(max_flux_mag, beta_v - 1) * w;
+      double beta_v_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v) *
+                          pow(max_flux_mag, beta_v) * log(max_flux_mag) * w;
+      double w_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v) *
+                     pow(max_flux_mag, beta_v);
+
+      /// auto beta_v = beta.Eval(trans, ip);
+      PointMat_bar = 0.0;
+      beta.EvalRevDiff(beta_v_bar, trans, ip, PointMat_bar);
+
+      /// auto alpha_v = alpha.Eval(trans, ip);
+      alpha.EvalRevDiff(alpha_v_bar, trans, ip, PointMat_bar);
+
+      /// auto k_s_v = k_s.Eval(trans, ip);
+      k_s.EvalRevDiff(k_s_v_bar, trans, ip, PointMat_bar);
+
+      /// auto rho_v = rho.Eval(trans, ip);
+      rho.EvalRevDiff(rho_v_bar, trans, ip, PointMat_bar);
+
+      /// double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+
+      /// double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setInputs(SteinmetzLossDistributionIntegrator &integ,

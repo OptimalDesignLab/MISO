@@ -1159,19 +1159,26 @@ double calcOutput(CoreLossFunctional &output, const MachInputs &inputs)
    return calcOutput(output.output, inputs);
 }
 
-double calcOutputPartial(CoreLossFunctional &output,
-                         const std::string &wrt,
-                         const MachInputs &inputs)
+double jacobianVectorProduct(CoreLossFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
 {
-   return calcOutputPartial(output.output, wrt, inputs);
+   return jacobianVectorProduct(output.output, wrt_dot, wrt);
 }
 
-void calcOutputPartial(CoreLossFunctional &output,
-                       const std::string &wrt,
-                       const MachInputs &inputs,
-                       mfem::Vector &partial)
+double vectorJacobianProduct(CoreLossFunctional &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
 {
-   calcOutputPartial(output.output, wrt, inputs, partial);
+   return vectorJacobianProduct(output.output, out_bar, wrt);
+}
+
+void vectorJacobianProduct(CoreLossFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
 }
 
 CoreLossFunctional::CoreLossFunctional(
@@ -1179,7 +1186,7 @@ CoreLossFunctional::CoreLossFunctional(
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
- : output(fields.at("peak_flux").space(), fields),
+ : output(fields.at("state").space(), fields),
    rho(constructMaterialCoefficient("rho", components, materials)),
    k_s(constructMaterialCoefficient("ks", components, materials)),
    alpha(constructMaterialCoefficient("alpha", components, materials)),

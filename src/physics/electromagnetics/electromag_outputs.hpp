@@ -341,14 +341,18 @@ public:
    friend double calcOutput(CoreLossFunctional &output,
                             const MachInputs &inputs);
 
-   friend double calcOutputPartial(CoreLossFunctional &output,
-                                   const std::string &wrt,
-                                   const MachInputs &inputs);
+   friend double jacobianVectorProduct(CoreLossFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
 
-   friend void calcOutputPartial(CoreLossFunctional &output,
-                                 const std::string &wrt,
-                                 const MachInputs &inputs,
-                                 mfem::Vector &partial);
+   friend double vectorJacobianProduct(CoreLossFunctional &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(CoreLossFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    CoreLossFunctional(std::map<std::string, FiniteElementState> &fields,
                       const nlohmann::json &components,
