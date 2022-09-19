@@ -3530,7 +3530,8 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       double sigma_v_bar = -fun_bar * w / pow(sigma_v, 2);
 
       // std::cout << "sigma_v_bar: " << sigma_v_bar << "\n";
-      // std::cout << "fun_bar: " << fun_bar << " w: " << w << " sigma_v: " << sigma_v << "\n";
+      // std::cout << "fun_bar: " << fun_bar << " w: " << w << " sigma_v: " <<
+      // sigma_v << "\n";
 
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;

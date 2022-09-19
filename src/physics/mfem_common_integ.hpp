@@ -76,15 +76,16 @@ inline void addDomainSensitivityIntegrator(
 
    if (attr_marker == nullptr)
    {
-   output_sens.at("mesh_coords")
-       .AddDomainIntegrator(new VolumeIntegratorMeshSens(
-           fields.at("state").gridFunc(), primal_integ));
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new VolumeIntegratorMeshSens(
+              fields.at("state").gridFunc(), primal_integ));
    }
    else
    {
       output_sens.at("mesh_coords")
-         .AddDomainIntegrator(new VolumeIntegratorMeshSens(
-            fields.at("state").gridFunc(), primal_integ), *attr_marker);
+          .AddDomainIntegrator(new VolumeIntegratorMeshSens(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
    }
 }
 

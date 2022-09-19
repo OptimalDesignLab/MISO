@@ -1151,14 +1151,15 @@ inline void addDomainSensitivityIntegrator(
    if (attr_marker == nullptr)
    {
       output_sens.at("mesh_coords")
-         .AddDomainIntegrator(new DCLossFunctionalIntegratorMeshSens(
-            fields.at("state").gridFunc(), primal_integ));
+          .AddDomainIntegrator(new DCLossFunctionalIntegratorMeshSens(
+              fields.at("state").gridFunc(), primal_integ));
    }
    else
    {
       output_sens.at("mesh_coords")
-         .AddDomainIntegrator(new DCLossFunctionalIntegratorMeshSens(
-            fields.at("state").gridFunc(), primal_integ), *attr_marker);
+          .AddDomainIntegrator(new DCLossFunctionalIntegratorMeshSens(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
    }
 }
 
