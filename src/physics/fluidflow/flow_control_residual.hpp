@@ -224,6 +224,8 @@ public:
    /// \note optional, but must be implemented for relaxation RK
    double calcEntropyChange_(const MachInputs &inputs);
 
+   double calcSupplyRate_(const MachInputs &inputs);
+
    /// Return mass matrix (operator) for the flow-control equations
    /// \param[inout] residual - residual whose mass matrix is desired
    /// \param[in] mass_options - options (not presently used)
@@ -312,6 +314,8 @@ private:
    std::unique_ptr<BlockJacobiPreconditioner> prec;
    /// Defines the flow output fed into the control
    mach::MachOutput boundary_entropy;
+   /// Defines the supply rate 
+   mach::MachOutput supply_rate;
    /// The Jacobian-free operator
    // JacobianFree jac;
    /// Reference to control state-sized array; memory not owned
@@ -406,6 +410,13 @@ double calcEntropyChange(FlowControlResidual<dim, entvar> &residual,
                          const MachInputs &inputs)
 {
    return residual.calcEntropyChange_(inputs);
+}
+
+template <int dim, bool entvar>
+double calcSupplyRate(FlowControlResidual<dim, entvar> &residual,
+                      const MachInputs &inputs)
+{
+   return residual.calcSupplyRate_(inputs);
 }
 
 /// Returns either the control (`i==0`) or flow Jacobian (`i==1`)

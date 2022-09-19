@@ -274,7 +274,10 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
    control_res(pfes.GetComm(), options),
    boundary_entropy(
        flow_res.constructOutput("boundary-entropy",
-                                options["outputs"]["boundary-entropy"]))
+                                options["outputs"]["boundary-entropy"])),
+   supply_rate(
+       flow_res.constructOutput("far-field-supply-rate",
+                                options["outputs"]["far-field-supply-rate"]))
 {
    setOptions(*this, options);
    // offsets mark the start of each row/column block; note that offsets must
@@ -425,6 +428,25 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
                                 {"dt", dt}});
    return calcEntropyChange(flow_res, flow_inputs) +
           calcEntropyChange(control_res, control_inputs);
+}
+
+template <int dim, bool entvar>
+double FlowControlResidual<dim, entvar>::calcSupplyRate_(
+    const MachInputs &inputs)
+{
+   // extract flow and control states to compute supply rate
+   extractStates(inputs, control_ref, flow_ref);
+   Vector dxdt, control_dxdt, flow_dxdt;
+   setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
+   extractStates(dxdt, control_dxdt, flow_dxdt);
+
+   // extract time and time-step size
+   double time = NAN;
+   double dt = NAN;
+   setValueFromInputs(inputs, "time", time, true);
+   setValueFromInputs(inputs, "dt", dt, true);
+   auto flow_inputs = MachInputs({{"state", flow_ref}});
+   return calcOutput(supply_rate, flow_inputs);
 }
 
 template <int dim, bool entvar>

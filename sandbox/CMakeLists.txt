@@ -22,6 +22,7 @@ set(SANDBOX_SRCS
    airfoil_chaotic
    airfoil_flow_control
    forced_box
+   freestream_box
    # magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire

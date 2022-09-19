@@ -56,7 +56,11 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    double delta_entropy = f_ode->EntropyChange(0.5*dt, x_new, k);
    if (out != nullptr)
    {
-      *out << "delta_entropy is " << delta_entropy << '\n';
+      //*out << "delta_entropy is " << delta_entropy << '\n';   
+      *out << std::setprecision(16);
+      double supply_rate = f_ode->SupplyRate(0.5*dt, x_new, k);
+      *out << ">>>>> supply rate at midpoint is listed below :" << '\n';
+      *out << t << ' ' << supply_rate << '\n';
    }
    double entropy_old = f_ode->Entropy(x);
    if (out != nullptr)

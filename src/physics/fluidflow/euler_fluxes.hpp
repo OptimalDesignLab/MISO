@@ -26,11 +26,11 @@ constexpr double gami = gamma - 1.0;
 
 /// reference density (TEMP: should be passed as option)
 //constexpr double rho_ref = 1.0;
-constexpr double rho_ref = pow(1 + 0.5*gami*0.2*0.2, gamma/gami);
+constexpr double rho_ref = pow(1 + 0.5*gami*0.2*0.2, 1.0/gami);
 
 /// reference pressure (TEMP: should be passed as option)
 //constexpr double press_ref = 1.0;
-constexpr double press_ref = rho_ref/gamma;
+constexpr double press_ref = pow(1 + 0.5*gami*0.2*0.2, gamma/gami)/gamma;
 
 /// reference energy (TEMP: should be passed as option)
 constexpr double e_ref = press_ref/gami;
@@ -807,6 +807,7 @@ void calcControlFlux(const xdouble *dir,
                      const xdouble vel_control,
                      xdouble *flux)
 {
+   #if 1
    xdouble U = -vel_control * sqrt(dot<xdouble, dim>(dir, dir));
    for (int i = 0; i < dim + 2; ++i)
    {
@@ -818,6 +819,19 @@ void calcControlFlux(const xdouble *dir,
       flux[i + 1] += dir[i] * press;
    }
    flux[dim + 1] += press * U;
+   #else
+   // This version is to demonstrate that passivity can be lost
+   xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+   xdouble qbnd[dim+2];
+   qbnd[0] = q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      qbnd[i+1] = -q[0]*vel_control*dir[i]/dA;
+   }
+   qbnd[dim+1] = q[dim+1];
+   xdouble work[dim + 2];
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
+   #endif 
 }
 
 /// Boundary flux that uses characteristics to determine which state to use

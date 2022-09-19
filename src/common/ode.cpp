@@ -161,6 +161,12 @@ double calcEntropyChange(TimeDependentResidual &residual,
    return calcEntropyChange(residual.spatial_res_, inputs);
 }
 
+double calcSupplyRate(TimeDependentResidual &residual,
+                      const MachInputs &inputs)
+{
+   return calcSupplyRate(residual.spatial_res_, inputs);
+}
+
 // template <typename T>
 // TimeDependentResidual::TimeDependentResidual(T spatial_res,
 //                                              mfem::Operator *mass_matrix)
