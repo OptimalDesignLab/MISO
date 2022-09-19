@@ -207,11 +207,11 @@ double jacobianVectorProduct(DCLossFunctional &output,
    }
 }
 
-void jacobianVectorProduct(DCLossFunctional &output,
-                           const mfem::Vector &wrt_dot,
-                           const std::string &wrt,
-                           mfem::Vector &out_dot)
-{ }
+// void jacobianVectorProduct(DCLossFunctional &output,
+//                            const mfem::Vector &wrt_dot,
+//                            const std::string &wrt,
+//                            mfem::Vector &out_dot)
+// { }
 
 double vectorJacobianProduct(DCLossFunctional &output,
                              const mfem::Vector &out_bar,
@@ -498,6 +498,9 @@ void setOptions(ACLossFunctional &output, const nlohmann::json &options)
 
 void setInputs(ACLossFunctional &output, const MachInputs &inputs)
 {
+   output.inputs = inputs;
+   output.inputs["state"] = inputs.at("peak_flux");
+
    setValueFromInputs(inputs, "strand_radius", output.radius);
    setValueFromInputs(inputs, "frequency", output.freq);
    setValueFromInputs(inputs, "stack_length", output.stack_length);
@@ -510,44 +513,610 @@ void setInputs(ACLossFunctional &output, const MachInputs &inputs)
 
 double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
 {
-   auto fun_inputs = inputs;
-   fun_inputs["state"] = inputs.at("peak_flux");
+   setInputs(output, inputs);
 
-   mfem::Vector flux_state;
-   setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
-   auto &flux_mag = output.fields.at("peak_flux");
-   flux_mag.distributeSharedDofs(flux_state);
-   mfem::ParaViewDataCollection pv("FluxMag", &flux_mag.mesh());
-   pv.SetPrefixPath("ParaView");
-   pv.SetLevelsOfDetail(3);
-   pv.SetDataFormat(mfem::VTKFormat::BINARY);
-   pv.SetHighOrderOutput(true);
-   pv.RegisterField("FluxMag", &flux_mag.gridFunc());
-   pv.Save();
+   // mfem::Vector flux_state;
+   // setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
+   // auto &flux_mag = output.fields.at("peak_flux");
+   // flux_mag.distributeSharedDofs(flux_state);
+   // mfem::ParaViewDataCollection pv("FluxMag", &flux_mag.mesh());
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(3);
+   // pv.SetDataFormat(mfem::VTKFormat::BINARY);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("FluxMag", &flux_mag.gridFunc());
+   // pv.Save();
 
-   double loss = calcOutput(output.output, fun_inputs);
+   double sigma_b2 = calcOutput(output.output, output.inputs);
 
-   loss *= output.stack_length * M_PI * pow(output.radius, 4) *
-           pow(2 * M_PI * output.freq, 2) / 32.0;
-   loss *= 2 * output.strands_in_hand * output.num_turns * output.num_slots;
+   double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                        pow(output.radius, 4) * pow(2 * M_PI * output.freq, 2) /
+                        32.0;
 
-   double volume = calcOutput(output.volume, fun_inputs);
+   double num_strands =
+       2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+   double loss = num_strands * strand_loss;
+
+   double volume = calcOutput(output.volume, output.inputs);
+
    return loss / volume;
 }
 
-double calcOutputPartial(ACLossFunctional &output,
-                         const std::string &wrt,
-                         const MachInputs &inputs)
+double jacobianVectorProduct(ACLossFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
 {
-   return calcOutputPartial(output.output, wrt, inputs);
+   if (wrt.rfind("strand_radius", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double strand_loss_dot =
+          4 * sigma_b2 * output.stack_length * M_PI * pow(output.radius, 3) *
+          pow(2 * M_PI * output.freq, 2) / 32.0 * wrt_dot(0);
+
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = num_strands * strand_loss_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      return loss_dot / volume;
+   }
+   else if (wrt.rfind("frequency", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double strand_loss_dot = 2 * sigma_b2 * output.stack_length * M_PI *
+                               pow(output.radius, 3) * output.freq *
+                               pow(2 * M_PI, 2) / 32.0 * wrt_dot(0);
+
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = num_strands * strand_loss_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      return loss_dot / volume;
+   }
+   else if (wrt.rfind("stack_length", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double strand_loss_dot = sigma_b2 * M_PI * pow(output.radius, 4) *
+                               pow(2 * M_PI * output.freq, 2) / 32.0 *
+                               wrt_dot(0);
+
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = num_strands * strand_loss_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      return loss_dot / volume;
+   }
+   else if (wrt.rfind("strands_in_hand", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+
+      // double num_strands =
+      //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double num_strands_dot =
+          2 * output.num_turns * output.num_slots * wrt_dot(0);
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = strand_loss * num_strands_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      return loss_dot / volume;
+   }
+   else if (wrt.rfind("num_turns", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+
+      // double num_strands =
+      //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double num_strands_dot =
+          2 * output.strands_in_hand * output.num_slots * wrt_dot(0);
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = strand_loss * num_strands_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      return loss_dot / volume;
+   }
+   else if (wrt.rfind("num_slots", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+
+      // double num_strands =
+      //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double num_strands_dot =
+          2 * output.strands_in_hand * output.num_turns * wrt_dot(0);
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = strand_loss * num_strands_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      return loss_dot / volume;
+   }
+   else if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+      double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+
+      double strand_loss_dot =
+          output.stack_length * M_PI * pow(output.radius, 4) *
+          pow(2 * M_PI * output.freq, 2) / 32.0 * sigma_b2_dot;
+
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double loss = num_strands * strand_loss;
+      double loss_dot = num_strands * strand_loss_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+      double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+
+      return loss_dot / volume - loss / pow(volume, 2) * volume_dot;
+   }
+   else
+   {
+      return 0.0;
+   }
 }
 
-void calcOutputPartial(ACLossFunctional &output,
-                       const std::string &wrt,
-                       const MachInputs &inputs,
-                       mfem::Vector &partial)
+double vectorJacobianProduct(ACLossFunctional &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
 {
-   calcOutputPartial(output.output, wrt, inputs, partial);
+   if (wrt.rfind("strand_radius", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = num_strands * strand_loss;
+      // double num_strands_bar = loss_bar * strand_loss;
+      double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+      //                       pow(output.radius, 4) *
+      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      double strand_radius_bar =
+          strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+          pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+
+      return strand_radius_bar;
+   }
+   else if (wrt.rfind("frequency", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = num_strands * strand_loss;
+      // double num_strands_bar = loss_bar * strand_loss;
+      double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+      //                       pow(output.radius, 4) *
+      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+                             M_PI * pow(output.radius, 4) * 2 * output.freq *
+                             pow(2 * M_PI, 2) / 32.0;
+
+      return frequency_bar;
+   }
+   else if (wrt.rfind("stack_length", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = num_strands * strand_loss;
+      // double num_strands_bar = loss_bar * strand_loss;
+      double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+      //                       pow(output.radius, 4) *
+      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+                                pow(output.radius, 4) *
+                                pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+
+      return stack_length_bar;
+   }
+   else if (wrt.rfind("strands_in_hand", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double num_strands =
+      //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = num_strands * strand_loss;
+      double num_strands_bar = loss_bar * strand_loss;
+      // double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      double strands_in_hand_bar =
+          num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+      //                       pow(output.radius, 4) *
+      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+      return strands_in_hand_bar;
+   }
+   else if (wrt.rfind("num_turns", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double num_strands =
+      //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = num_strands * strand_loss;
+      double num_strands_bar = loss_bar * strand_loss;
+      // double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      double num_turns_bar =
+          num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+      //                       pow(output.radius, 4) *
+      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+      return num_turns_bar;
+   }
+   else if (wrt.rfind("num_slots", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double num_strands =
+      //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = num_strands * strand_loss;
+      double num_strands_bar = loss_bar * strand_loss;
+      // double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      double num_slots_bar =
+          num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+      //                       pow(output.radius, 4) *
+      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+      return num_slots_bar;
+   }
+   else
+   {
+      return 0.0;
+   }
+}
+
+void vectorJacobianProduct(ACLossFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      mfem::Vector vol_bar_vec(&volume_bar, 1);
+      vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+
+      /// double loss = num_strands * strand_loss;
+      // double num_strands_bar = loss_bar * strand_loss;
+      double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+                            pow(output.radius, 4) *
+                            pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+
+      /// double sigma_b2 = calcOutput(output.output, output.inputs);
+      mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
+      vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
+   }
 }
 
 ACLossFunctional::ACLossFunctional(
@@ -555,8 +1124,7 @@ ACLossFunctional::ACLossFunctional(
     mfem::Coefficient &sigma,
     const nlohmann::json &options)
  : output(fields.at("peak_flux").space(), fields),
-   volume(fields, options),
-   fields(fields)
+   volume(fields, options)
 {
    if (options.contains("attributes"))
    {

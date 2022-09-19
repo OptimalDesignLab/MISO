@@ -3657,7 +3657,8 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       trans.SetIntPoint(&ip);
 
       /// holds quadrature weight
-      const double w = ip.weight * trans.Weight();
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
 
       el.CalcPhysShape(trans, shape);
       const auto b_mag = shape * elfun;
@@ -3668,6 +3669,117 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       fun += loss * w;
    }
    return fun;
+}
+
+void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int ndof = el.GetDof();
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = mesh_trans.GetSpaceDim();
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Vector shape_bar;
+#else
+   auto &shape = integ.shape;
+#endif
+
+   shape.SetSize(ndof);
+   shape_bar.SetSize(ndof);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+      double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape);
+      const double b_mag = shape * elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip);
+
+      const double loss = sigma_v * pow(b_mag, 2);
+      // fun += loss * w;
+
+      /// Start reverse pass...
+      double fun_bar = 1.0;
+
+      /// fun += loss * w;
+      double loss_bar = fun_bar * w;
+      double w_bar = fun_bar * loss;
+
+      /// const double loss = sigma_v * pow(b_mag, 2);
+      double sigma_v_bar = loss_bar * pow(b_mag, 2);
+      double b_mag_bar = loss_bar * sigma_v * 2 * b_mag;
+
+      /// const double sigma_v = sigma.Eval(trans, ip);
+      PointMat_bar = 0.0;
+      sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
+
+      /// const double b_mag = shape * elfun;
+      shape_bar = 0.0;
+      shape_bar.Add(b_mag_bar, elfun);
+
+      /// el.CalcPhysShape(trans, shape);
+      el.CalcPhysShapeRevDiff(trans, shape_bar, PointMat_bar);
+
+      /// double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+
+      /// double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setInputs(ACLossFunctionalDistributionIntegrator &integ,

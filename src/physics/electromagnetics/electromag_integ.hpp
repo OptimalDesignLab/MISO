@@ -1228,7 +1228,68 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
+   friend class ACLossFunctionalIntegratorMeshSens;
 };
+
+class ACLossFunctionalIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state grid function
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrator
+   ACLossFunctionalIntegratorMeshSens(mfem::GridFunction &state,
+                                      ACLossFunctionalIntegrator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// State GridFunction, needed to get integration order for each element
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   ACLossFunctionalIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::Vector shape_bar;
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+inline void addDomainSensitivityIntegrator(
+    ACLossFunctionalIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new ACLossFunctionalIntegratorMeshSens(
+              fields.at("peak_flux").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new ACLossFunctionalIntegratorMeshSens(
+                  fields.at("peak_flux").gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
 
 class ACLossFunctionalDistributionIntegrator : public mfem::LinearFormIntegrator
 {

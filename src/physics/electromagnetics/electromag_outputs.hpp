@@ -249,10 +249,10 @@ public:
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
 
-   friend void jacobianVectorProduct(DCLossFunctional &output,
-                                     const mfem::Vector &wrt_dot,
-                                     const std::string &wrt,
-                                     mfem::Vector &out_dot);
+   // friend void jacobianVectorProduct(DCLossFunctional &output,
+   //                                   const mfem::Vector &wrt_dot,
+   //                                   const std::string &wrt,
+   //                                   mfem::Vector &out_dot);
 
    friend double vectorJacobianProduct(DCLossFunctional &output,
                                        const mfem::Vector &out_bar,
@@ -294,14 +294,18 @@ public:
 
    friend double calcOutput(ACLossFunctional &output, const MachInputs &inputs);
 
-   friend double calcOutputPartial(ACLossFunctional &output,
-                                   const std::string &wrt,
-                                   const MachInputs &inputs);
+   friend double jacobianVectorProduct(ACLossFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
 
-   friend void calcOutputPartial(ACLossFunctional &output,
-                                 const std::string &wrt,
-                                 const MachInputs &inputs,
-                                 mfem::Vector &partial);
+   friend double vectorJacobianProduct(ACLossFunctional &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(ACLossFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    ACLossFunctional(std::map<std::string, FiniteElementState> &fields,
                     mfem::Coefficient &sigma,
@@ -311,14 +315,14 @@ private:
    FunctionalOutput output;
    VolumeFunctional volume;
 
-   std::map<std::string, FiniteElementState> &fields;
-
    double freq = 1.0;
    double radius = 1.0;
    double stack_length = 1.0;
    double strands_in_hand = 1.0;
    double num_turns = 1.0;
    double num_slots = 1.0;
+
+   MachInputs inputs;
 };
 
 class CoreLossFunctional final
