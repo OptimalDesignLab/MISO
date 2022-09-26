@@ -5,9 +5,68 @@
 #include <fstream>
 #include <iostream>
 
+#include "euler_fluxes.hpp"
+#include "euler_integ.hpp"
+#include "flow_solver.hpp"
+
 using namespace std;
 using namespace mfem;
 using namespace mach;
+
+// Provide the options explicitly for regression tests
+auto options = R"(
+{
+   "print-options": false,
+   "flow-param": {
+      "viscous": true,
+      "mu": 1.0,
+      "Re": 10.0,
+      "Pr": 0.75,
+      "viscous-mms": true
+   },
+   "space-dis": {
+      "degree": 0,
+      "lps-coeff": 1.0,
+      "basis-type": "csbp"
+   },
+   "time-dis": {
+      "steady": true,
+      "steady-abstol": 1e-12,
+      "steady-restol": 1e-10,
+      "type": "PTC",
+      "dt": 1,
+      "cfl": 1.0,
+      "res-exp": 2.5
+   },
+   "nonlin-solver": {
+      "printlevel": 1,
+      "maxiter": 50,
+      "reltol": 1e-1,
+      "abstol": 1e-12
+   },
+   "lin-solver": {
+      "type": "hyprefgmres",
+      "printlevel": 0,
+      "filllevel": 3,
+      "maxiter": 100,
+      "reltol": 1e-2,
+      "abstol": 1e-12
+   },
+   "lin-prec": {
+      "type": "hypreilu",
+      "lev-fill": 4
+   },
+   "bcs": {
+      "no-slip-adiabatic": [1, 2, 3, 4, 5, 6]
+   },
+   "outputs":
+   {
+      "drag": {
+         "boundaries": [2]
+      },
+      "entropy": {}
+   }
+})"_json;
 
 /// Generate smoothly perturbed mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -39,8 +98,8 @@ int main(int argc, char *argv[])
    int nx = 1;
    int ny = 1;
    int nz = 1;
-   args.AddOption(&options_file, "-o", "--options",
-                  "Options file to use.");
+   //args.AddOption(&options_file, "-o", "--options",
+   //               "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
    args.AddOption(&nx, "-nx", "--num-x", "number of x-direction segments");
    args.AddOption(&ny, "-ny", "--num-y", "number of y-direction segments");
@@ -55,7 +114,7 @@ int main(int argc, char *argv[])
    try
    {
       // construct the mesh
-      string opt_file_name(options_file);
+      //string opt_file_name(options_file);
       auto smesh = buildCurvilinearMesh(degree, nx, ny, nz);
       *out << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("navier_stokes_mms_mesh.vtk");
@@ -63,32 +122,46 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs, 3);
 
       // construct the solver and set the initial condition
-      auto solver = createSolver<NavierStokesSolver<3>>(opt_file_name,
-                                                        move(smesh));
-      solver->setInitialCondition(uexact);
-      solver->printSolution("init", degree+1);
-      solver->printResidual("init-res", degree+1);
+      // auto solver = createSolver<FlowSolver<3,false>>(MPI_COMM_WORLD, options,
+      //                                                   move(smesh));
+      FlowSolver<3,false> solver(MPI_COMM_WORLD, options, std::move(smesh));
+      mfem::Vector state_tv(solver.getStateSize());
+      solver.setState(uexact, state_tv);
+      // solver->setInitialCondition(uexact);
+      // solver->printSolution("init", degree+1);
+      // solver->printResidual("init-res", degree+1);
+      // get the initial entropy 
+      solver.createOutput("entropy", options["outputs"].at("entropy"));
+      MachInputs inputs({{"state", state_tv}});
+      double entropy0 = solver.calcOutput("entropy", inputs);
+      cout << "before time stepping, entropy is " << entropy0 << endl;
 
-      *out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << '\n' << endl;
-      *out << "\ninitial residual norm = " << solver->calcResidualNorm() << endl;
+      // *out << "\n|| rho_h - rho ||_{L^2} = " 
+      //           << solver->calcL2Error(uexact, 0) << '\n' << endl;
+      // *out << "\ninitial residual norm = " << solver->calcResidualNorm() << endl;
+      inputs = MachInputs({});
+      solver.solveForState(inputs, state_tv);
+      auto &state = solver.getState();
+      state.distributeSharedDofs(state_tv);
+      double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
+      std::cout << "l2 error = " << l2_error << std::endl;
 
-      solver->solveForState();
-      solver->printSolution("final", degree+1);
-      double drag = solver->calcOutput("drag");
+      // solver->solveForState();
+      // solver->printSolution("final", degree+1);
+      // double drag = solver->calcOutput("drag");
 
-      *out << "\n|| rho_h - rho ||_{L^2} = " 
-                << solver->calcL2Error(uexact, 0) << '\n' << endl;
-      *out << "\ndrag \"error\" = " << drag - 1.6 << endl;
-      *out << "\nfinal residual norm = " << solver->calcResidualNorm() << endl;
+      // *out << "\n|| rho_h - rho ||_{L^2} = " 
+      //           << solver->calcL2Error(uexact, 0) << '\n' << endl;
+      // *out << "\ndrag \"error\" = " << drag - 1.6 << endl;
+      // *out << "\nfinal residual norm = " << solver->calcResidualNorm() << endl;
 
-      // TEMP
-      //static_cast<NavierStokesSolver<2>*>(solver.get())->setSolutionError(uexact);
-      //solver->printSolution("error", degree+1);
+      // // TEMP
+      // //static_cast<NavierStokesSolver<2>*>(solver.get())->setSolutionError(uexact);
+      // //solver->printSolution("error", degree+1);
 
-      // Solve for and print out the adjoint
-      solver->solveForAdjoint("drag");
-      solver->printAdjoint("adjoint", degree+1);
+      // // Solve for and print out the adjoint
+      // solver->solveForAdjoint("drag");
+      // solver->printAdjoint("adjoint", degree+1);
 
    }
    catch (MachException &exception)
