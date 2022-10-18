@@ -81,6 +81,21 @@ public:
       return calcOutput(output.output, inputs);
    }
 
+   friend double jacobianVectorProduct(MassFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      return jacobianVectorProduct(output.output, wrt_dot, wrt);
+   }
+
+   friend void vectorJacobianProduct(MassFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
+
    MassFunctional(std::map<std::string, FiniteElementState> &fields,
                   const nlohmann::json &components,
                   const nlohmann::json &materials,
