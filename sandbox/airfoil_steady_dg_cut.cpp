@@ -23,6 +23,10 @@ std::uniform_real_distribution<double> normal_rand(-1.0, 1.0);
 /// \param[out] u - conservative variables stored as a 4-vector
 void pert(const Vector &x, Vector &p);
 
+/// \brief Defines the exact solution for the steady isentropic vortex
+/// \param[in] x - coordinate of the point at which the state is needed
+/// \param[out] u - state variables stored as a 4-vector
+void uexact(const Vector &x, Vector &u);
 /// Generate quarter annulus mesh
 /// \param[in] N - number of elements in x-y direction
 Mesh buildMesh(int N);
@@ -61,26 +65,34 @@ int main(int argc, char *argv[])
       Vector qfar(4);
       static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
           ->getFreeStreamState(qfar);
-      qfar.Print();
+      // qfar.Print();
+      out->precision(15);
       // Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the
       // solver...
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(qfar);
-      solver->printSolution("airfoil-steady-dg-cut-init", 0);
-      //solver->checkJacobian(pert);
-      //solver->printResidual("residual-init", 0);
-      //solver->calcResidualNorm();
-      mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
-                << endl;
+      // solver->setInitialCondition(qfar);
+      solver->setInitialCondition(uexact);
+      solver->printSolution("ellipse-steady-dg-cut-potential-init", 0);
+      auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
+      solver->createOutput("drag", drag_opts);
+      double drag;
+      *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
+           << endl;
+      // get the initial density error
+      double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                             .calcConservativeVarsL2Error(uexact, 0));
+      double res_error = solver->calcResidualNorm();
+      *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "\ninitial residual norm = " << res_error << endl;
       solver->solveForState();
-      solver->printSolution("airfoil-steady-dg-cut-final", 0);
+      solver->printSolution("ellipse-steady-dg-cut-potential-final", -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
-      auto drag_opts = R"({ "boundaries": [0, 0, 1, 1]})"_json;
-      solver->createOutput("drag", drag_opts);
-      double drag = abs(solver->calcOutput("drag"));
-      mfem::out << "\nDrag error = " << drag << endl;
+      l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                      .calcConservativeVarsL2Error(uexact, 0));
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
    }
 
    catch (MachException &exception)
@@ -104,7 +116,97 @@ void pert(const Vector &x, Vector &p)
       p(i) = normal_rand(gen);
    }
 }
-
+#if 1
+/// use this for flow over an ellipse
+void uexact(const Vector &x, Vector &q)
+{
+   q.SetSize(4);
+   Vector u(4);
+   double theta;
+   double Ma = 0.2;
+   double rho = 1.0;
+   double p = 1.0 / euler::gamma;
+   /// ellipse parameters
+   double xc = 10.0;
+   double yc = 10.0;
+   double a = 2.5;
+   double b = sqrt(a * (a - 1));
+   double s =
+       ((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)) - 4.0 * b * b;
+   double t = 2.0 * (x(0) - xc) * (x(1) - yc);
+   theta = atan2(t, s);
+   double signx = 1.0;
+   if (x(0) - xc < 0)
+   {
+      signx = -1.0;
+   }
+   double r = sqrt(t * t + s * s);
+   double xi = 0.5 * (x(0) - xc + (signx * sqrt(r) * cos(theta / 2.0)));
+   double eta = 0.5 * (x(1) - yc + (signx * sqrt(r) * sin(theta / 2.0)));
+   double term_a = xi * xi - eta * eta - a * a;
+   double term_b = xi * xi - eta * eta - b * b;
+   double term_c = 4.0 * xi * xi * eta * eta;
+   double term_d = (term_b * term_b) + term_c;
+   u(0) = rho;
+   u(1) = rho * Ma * ((term_a * term_b) + term_c) / term_d;
+   u(2) = -rho * Ma * 2.0 * xi * eta * (term_b - term_a) / term_d;
+   u(3) = p / euler::gami + 0.5 * Ma * Ma;
+   if (entvar == false)
+   {
+      q = u;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
+}
+#endif
+#if 0
+// Exact solution; note that I reversed the flow direction to be clockwise, so
+// the problem and mesh are consistent with the LPS paper (that is, because the
+// triangles are subdivided from the quads using the opposite diagonal)
+void uexact(const Vector &x, Vector &q)
+{
+   q.SetSize(4);
+   Vector u(4);
+   double theta;
+   double Ma = 0.2;
+   double rho = 1.0;
+   double p = 1.0 / euler::gamma;
+   /// circle parameters
+   double xc = 10.00;
+   double yc = 10.00;
+   double rad = 4.0;
+   if (x(0) > 1e-15)
+   {
+      theta = atan2(x(1) - yc, x(0) - xc);
+   }
+   else
+   {
+      theta = M_PI / 2.0;
+   }
+   double r = sqrt(((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)));
+   double rinv = rad / r;
+   // rinv = 1.0;
+   double Vr = rho * Ma * (1.0 - rinv * rinv) * cos(theta);
+   double Vth = -rho * Ma * (1.0 + rinv * rinv) * sin(theta);
+   u(0) = rho;
+   // u(1) = (Vr * cos(theta)) - (Vth * sin(theta));
+   // u(2) = (Vr * sin(theta)) + (Vth * cos(theta));
+   // directly derived u , v from complex potential, w
+   u(1) = rho*Ma*(1.0 - rinv * rinv*cos(2.0*theta));
+   u(2) = -rho * Ma*rinv * rinv * sin(2.0*theta);
+   u(3) = p / euler::gami + 0.5 * Ma * Ma;
+   if (entvar == false)
+   {
+      q = u;
+   }
+   else
+   {
+      calcEntropyVars<double, 2>(u.GetData(), q.GetData());
+   }
+}
+#endif
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(

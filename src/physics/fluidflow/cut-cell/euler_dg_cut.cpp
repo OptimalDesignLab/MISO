@@ -240,18 +240,18 @@ template <int dim, bool entvar>
 void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // GridFunction x(fes.get());
-   ParCentGridFunction x(fes_gd.get());
+   // ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-   double area;
-   cout << "before GetEnergy() " << endl;
+   // double area;
+   // cout << "before GetEnergy() " << endl;
    // area = res->GetEnergy(x);
-   cout << "after GetEnergy() " << endl;
-   // double exact_area = 1600 - 0.0817073;  // airfoil
-   double exact_area = 400.0 - M_PI * 4.0;
-   cout << "correct area: " << (exact_area) << endl;
-   cout << "calculated area: " << area << endl;
-   cout << "area err = " << abs(area - exact_area) << endl;
+   // cout << "after GetEnergy() " << endl;
+   // // double exact_area = 400 - 0.0817073;  // airfoil
+   // double exact_area = 400.0 - M_PI * 4.0;
+   // cout << "correct area: " << (exact_area) << endl;
+   // cout << "calculated area: " << area << endl;
+   // cout << "area err = " << abs(area - exact_area) << endl;
    auto &bcs = options["bcs"];
    if (bcs.find("vortex") != bcs.end())
    {  // isentropic vortex BC
@@ -370,6 +370,17 @@ void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       bndry_marker[idx].Assign(tmp.data());
       res->AddBdrFaceIntegrator(
           new DGFarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
+   if (bcs.find("potential-flow") != bcs.end())
+   {
+      // far-field boundary conditions
+      vector<int> tmp = bcs["potential-flow"].template get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
           bndry_marker[idx]);
       idx++;
    }
@@ -896,14 +907,6 @@ void CutEulerDGSolver<dim, entvar>::setSolutionError(
    u->SetFromTrueDofs(*u_true);
 }
 
-/// explicit instantiation
-template class CutEulerDGSolver<1, true>;
-template class CutEulerDGSolver<1, false>;
-template class CutEulerDGSolver<2, true>;
-template class CutEulerDGSolver<2, false>;
-template class CutEulerDGSolver<3, true>;
-template class CutEulerDGSolver<3, false>;
-
 /// MMS for checking euler solver
 void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q)
 {
@@ -935,4 +938,11 @@ void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q)
    u(3) = e;
    q = u;
 }
+/// explicit instantiation
+template class CutEulerDGSolver<1, true>;
+template class CutEulerDGSolver<1, false>;
+template class CutEulerDGSolver<2, true>;
+template class CutEulerDGSolver<2, false>;
+template class CutEulerDGSolver<3, true>;
+template class CutEulerDGSolver<3, false>;
 }  // namespace mach

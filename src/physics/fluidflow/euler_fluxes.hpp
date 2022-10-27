@@ -707,8 +707,8 @@ void calcBoundaryFlux(const xdouble *dir,
    using std::max;
 
    // Define some constants
-   const xdouble sat_Vn = 0.0;  // 0.025;
-   const xdouble sat_Vl = 0.0;  // 0.025;
+   const xdouble sat_Vn = 0.0;  // 0.025
+   const xdouble sat_Vl = 0.0;  // 0.025
 
    // Define some constants used to construct the "Jacobian"
    const xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
@@ -1154,7 +1154,109 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
       flux[i] = flux[i] + lambda * dqdw_vec[i];
    }
 }
-
+/// ------------------- Potential flow over a circle -------------------
+#if 0
+/// Potential solution exact state as a function of position
+/// \param[in] x - location at which the exact state is desired
+/// \param[out] qbnd - vortex conservative variable at `x`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
+{
+   xdouble Ma = 0.2;  // 0.95
+   xdouble rho = 1.0;
+   xdouble p = 1.0 / euler::gamma;
+   xdouble theta;
+   // ellipse parameters
+   xdouble a = 4.0;
+   xdouble b = 4.0;
+   xdouble xc = 10.0;
+   xdouble yc = 10.0;
+   if (x[0] > 1e-15)
+   {
+      theta = atan2(x[1]-yc, x[0]-xc);
+   }
+   else
+   {
+      theta = M_PI / 2.0;
+   }
+   xdouble r = sqrt(((x[0] - xc) * (x[0] - xc)) + ((x[1] - yc) * (x[1] - yc)));
+   xdouble rad = 4.0;
+   xdouble rinv = rad / r;
+   xdouble Vr = rho * Ma * (1.0 - rinv * rinv) * cos(theta);
+   xdouble Vth = -rho * Ma * (1.0 + rinv * rinv) * sin(theta);
+   qbnd[0] = rho;
+   qbnd[1] = Vr * cos(theta) - (Vth * sin(theta));
+   qbnd[2] = Vr * sin(theta) + (Vth * cos(theta));
+   qbnd[3] = p / euler::gami + 0.5 * Ma * Ma;
+}
+#endif
+/// ------------------- Potential flow over an ellipse -------------------
+/// Potential solution exact state as a function of position
+/// \param[in] x - location at which the exact state is desired
+/// \param[out] qbnd - vortex conservative variable at `x`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
+{
+   xdouble Ma = 0.2;  // 0.95
+   xdouble rho = 1.0;
+   xdouble p = 1.0 / euler::gamma;
+   xdouble theta;
+   // ellipse parameters
+   xdouble a = 2.5;
+   xdouble b = sqrt(a * (a - 1));
+   xdouble xc = 10.0;
+   xdouble yc = 10.0;
+    xdouble s =
+       ((x[0] - xc) * (x[0] - xc)) + ((x[1] - yc) * (x[1] - yc)) - 4.0 * b * b;
+   xdouble t = 2.0 * (x[0] - xc) * (x[1] - yc);
+   theta = atan2(t, s);
+   xdouble signx = 1.0;
+   if (x[0] - xc < 0)
+   {
+      signx = -1.0;
+   }
+   xdouble r = sqrt(t * t + s * s);
+   xdouble xi = 0.5 * (x[0] - xc + (signx * sqrt(r) * cos(theta / 2.0)));
+   xdouble eta = 0.5 * (x[1] - yc + (signx * sqrt(r) * sin(theta / 2.0)));
+   xdouble term_a = xi * xi - eta * eta - a * a;
+   xdouble term_b = xi * xi - eta * eta - b * b;
+   xdouble term_c = 4.0 * xi * xi * eta * eta;
+   xdouble term_d = (term_b * term_b) + term_c;
+   qbnd[0] = rho;
+   qbnd[1] = rho * Ma * ((term_a * term_b) + term_c) / term_d;
+   qbnd[2] = -rho * Ma * 2.0 * xi * eta * (term_b - term_a) / term_d;
+   qbnd[3] = p / euler::gami + 0.5 * Ma * Ma;
+}
+/// A wrapper for `calcBoundaryFlux` in the case of the isentropic vortex
+/// \param[in] x - location at which the boundary flux is desired
+/// \param[in] dir - desired (scaled) direction of the flux
+/// \param[in] q - state variable on the interior of the boundary
+/// \param[out] flux - the boundary flux in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam entvar - if true, `q` is entropy var; otherwise, `q` is conservative
+template <typename xdouble, bool entvar = false>
+void calcPotentialFlowFlux(const xdouble *x,
+                           const xdouble *dir,
+                           const xdouble *q,
+                           xdouble *flux)
+{
+   xdouble qbnd[4];
+   xdouble work[4];
+   using namespace std;
+   calcPotentialFlowState<xdouble>(x, qbnd);
+   if (entvar)
+   {
+      xdouble qcons[4];
+      calcConservativeVars<xdouble, 2>(q, qcons);
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
+   }
+   else
+   {
+      calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
+   }
+}
 /// Isentropic vortex exact state as a function of position
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`
@@ -1175,20 +1277,24 @@ void calcInviscidMMSState(const xdouble *x, xdouble *qbnd)
    double trans = 0.0;
    /// define the exact solution
    xdouble rho = rho0 + rhop * pow(sin(M_PI * (x[0] + trans) / scale), 2) *
-                           sin(M_PI * (x[1] + trans) / scale);
+                            sin(M_PI * (x[1] + trans) / scale);
    xdouble ux =
-       4.0 * u0 * ((x[1] + trans) / scale) * (1.0 - (x[1] + trans)/ scale) +
-       (up * sin(2.0 * M_PI * ((x[1] + trans)) / scale) * pow(sin(M_PI * (x[0]+ trans) / scale), 2));
-   xdouble uy =
-       -up * pow(sin(2.0 * M_PI * (x[0] + trans) / scale), 2) * sin(M_PI * (x[1] + trans) / scale);
-   xdouble T = T0 + Tp * (pow((x[0] + trans) / scale, 4) - (2.0 * pow((x[0] + trans) / scale, 3)) +
-                         pow((x[0] + trans) / scale, 2) + pow((x[1] + trans) / scale, 4) -
-                         (2.0 * pow((x[1] + trans) / scale, 3)) + pow((x[1] + trans) / scale, 2));
+       4.0 * u0 * ((x[1] + trans) / scale) * (1.0 - (x[1] + trans) / scale) +
+       (up * sin(2.0 * M_PI * ((x[1] + trans)) / scale) *
+        pow(sin(M_PI * (x[0] + trans) / scale), 2));
+   xdouble uy = -up * pow(sin(2.0 * M_PI * (x[0] + trans) / scale), 2) *
+                sin(M_PI * (x[1] + trans) / scale);
+   xdouble T = T0 + Tp * (pow((x[0] + trans) / scale, 4) -
+                          (2.0 * pow((x[0] + trans) / scale, 3)) +
+                          pow((x[0] + trans) / scale, 2) +
+                          pow((x[1] + trans) / scale, 4) -
+                          (2.0 * pow((x[1] + trans) / scale, 3)) +
+                          pow((x[1] + trans) / scale, 2));
    xdouble p = rho * T;
    xdouble e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    qbnd[0] = rho;
-   qbnd[1] = rho*ux;  // multiply by rho ?
-   qbnd[2] = rho*uy;
+   qbnd[1] = rho * ux;  // multiply by rho ?
+   qbnd[2] = rho * uy;
    qbnd[3] = e;
 }
 
@@ -1745,10 +1851,7 @@ void calcInviscidMMS(const xdouble *x, xdouble *src)
                  (M_PI * pow(up, 2) * pow(scale, 3) *
                       pow(sin(2 * M_PI * x[0] / scale), 4) *
                       sin(M_PI * x[1] / scale) * cos(M_PI * x[1] / scale) +
-                  2 *
-                      (2 * u0 * (scale - 2 * x[1]) +
-                       M_PI * up * scale * pow(sin(M_PI * x[0] / scale), 2) *
-                           cos(2 * M_PI * x[1] / scale)) *
+                  2 * (2 * u0 * (scale - 2 * x[1]) + M_PI * up * scale * pow(sin(M_PI * x[0] / scale), 2) * cos(2 * M_PI * x[1] / scale)) *
                       (4 * u0 * x[1] * (scale - x[1]) +
                        up * pow(scale, 2) * pow(sin(M_PI * x[0] / scale), 2) *
                            sin(2 * M_PI * x[1] / scale)))) *
@@ -1804,6 +1907,7 @@ void calcInviscidMMS(const xdouble *x, xdouble *src)
        (pow(scale, 7) * (gamma - 1));
 }
 #endif
+
 }  // namespace mach
 
 #endif

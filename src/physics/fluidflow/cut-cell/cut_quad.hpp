@@ -36,7 +36,7 @@ struct circle
                       ((((x[1] * yscale) + min_y - yc) *
                         ((x[1] * yscale) + min_y - yc)) /
                        (b * b)) -
-                      (1.0)) ;
+                      (1.0));
    }
    template <typename T>
    blitz::TinyVector<T, N> grad(const blitz::TinyVector<T, N> &x) const

@@ -196,6 +196,7 @@ void AbstractSolver::initDerived()
 
    // define the number of states, the fes, and the state grid function
    num_state = this->getNumState();  // <--- this is a virtual fun
+   // num_state = 1;  // <--- this is a virtual fun
    *out << "Num states = " << num_state << endl;
    fes.reset(new SpaceType(mesh.get(), fec.get(), num_state, Ordering::byVDIM));
    /// we'll stop using `u` eventually
@@ -365,8 +366,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    if (smesh != nullptr)
    {
       TinyVector<double, 2> airfoil_cent;
-      airfoil_cent(0) = 20.0;
-      airfoil_cent(1) = 20.0;
+      airfoil_cent(0) = 10.0;
+      airfoil_cent(1) = 10.0;
       /// let us see if this works
       /// find the elements to refine
       CutCell<2, 1> cut_init(smesh.get());
@@ -388,10 +389,11 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-#if 0
+      double rdist = 8.0;
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
+
          for (int i = 0; i < smesh->GetNE(); ++i)
          {
             Vector cent;
@@ -403,15 +405,17 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             TinyVector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
             double dist = sqrt(Algoim::magsqr(x_diff));
-            if (abs(dist) < 14.0 && cut_init.insideBoundary(i) == 0)
+            if ((dist < rdist || cut_init.cutByGeom(i) == true) &&
+                cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
+         rdist = 0.7 * rdist;
       }
 
-      for (int k = 0; k < ncr; ++k)
+      for (int k = 0; k < -1; ++k)
       {
          mfem::Array<int> marked_elements1;
          for (int i = 0; i < smesh->GetNE(); ++i)
@@ -425,13 +429,14 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             TinyVector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
             double dist = sqrt(Algoim::magsqr(x_diff));
-            if (abs(dist) < 7.0 && cut_init.insideBoundary(i) == 0)
+            if (lsv < 1.0 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
+#if 0
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;

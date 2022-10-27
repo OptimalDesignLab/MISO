@@ -61,10 +61,10 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs, 0);
       string opt_file_name(options_file);
       auto solver =
-      createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
+          createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
       solver->printSolution("vortex-steady-dg-cut-init");
-      //get the initial density error
+      // get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
@@ -111,14 +111,15 @@ void pert(const Vector &x, Vector &p)
 }
 
 // Returns the exact total entropy value over the quarter annulus
-// Note: the number 8.74655... that appears below is the integral of r*rho over the radii
-// from 1 to 3.  It was approixmated using a degree 51 Gaussian quadrature.
+// Note: the number 8.74655... that appears below is the integral of r*rho over
+// the radii from 1 to 3.  It was approixmated using a degree 51 Gaussian
+// quadrature.
 double calcEntropyTotalExact()
 {
    double rhoi = 2.0;
-   double prsi = 1.0/euler::gamma;
-   double si = log(prsi/pow(rhoi, euler::gamma));
-   return -si*8.746553803443305*M_PI*0.5/0.4;
+   double prsi = 1.0 / euler::gamma;
+   double si = log(prsi / pow(rhoi, euler::gamma));
+   return -si * 8.746553803443305 * M_PI * 0.5 / 0.4;
 }
 
 // Exact solution; note that I reversed the flow direction to be clockwise, so

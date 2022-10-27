@@ -24,7 +24,6 @@ public:
    /// constructs the neighbour matrices for all mesh elements.
    /// and second neighbours (shared vertices).
    void BuildNeighbourMat(const Array<int> &els_id,
-                          DenseMatrix &mat_cent,
                           DenseMatrix &mat_quad) const;
 
    /// constructs the neighbour set for given mesh element.
@@ -32,13 +31,42 @@ public:
    /// \param[in]  req_n - the required number of neighbours for patch
    /// \param[out] nels - the set of neighbours (may contain more element than
    /// required)
-   void GetNeighbourSet(int id, int req_n, Array<int> &nels) const;
+   void InitializeNeighbors(int id, int req_n, Array<int> &nels) const;
+
+   /// @brief  sorts the neighbors based on distance from the element
+   /// \param[in]  id - the id of the element for which we need stencil
+   /// @param[in]  els_id - the neighbor ids
+   /// @param[out] nels - the stencil elements sorted based on the distance
+   void SortNeighbors(int id,
+                      int req_n,
+                      const Array<int> &els_id,
+                      Array<int> &nels) const;
+
+   /// constructs the stencil for given mesh element.
+   /// \param[in]  id - the id of the element for which we need stencil
+   /// \param[in]  req_n - the required number of elements for stencil
+   /// \param[out] nels - the set of elements in the stencil
+   void ConstructStencil(int id, int req_n, Array<int> &nels) const;
 
    /// provides the center (barycenter) of an element
    /// \param[in]  id - the id of the element for which we need barycenter
    /// \param[out] cent - the vector of coordinates of center of an element
    void GetElementCenter(int id, mfem::Vector &cent) const;
 
+   double calcVandScale(int el_id, int dim, const DenseMatrix &x_center) const;
+   void buildVandermondeMat(int dim,
+                            int num_basis,
+                            const Array<int> &els_id,
+                            Array<int> &stencil_elid, 
+                            DenseMatrix &x_center,
+                            DenseMatrix &V) const;
+   void buildLSInterpolation(int elem_id,
+                             int dim,
+                             int degree,
+                             const DenseMatrix &V,
+                             const DenseMatrix &x_center,
+                             const DenseMatrix &x_quad,
+                             DenseMatrix &interp) const;
    SparseMatrix *GetCP() { return cP; }
    HypreParMatrix *GetP() { return P; }
 
@@ -114,11 +142,13 @@ public:
    //        bdr_attr_is_ess, ess_tdof_list, component);
    //    cout << "no " << endl;
    // }
+   /// function  that sort the element-basis distance
+   std::vector<std::size_t> sort_indexes(const std::vector<double> &v) const;
 
 private:
    /// Prolongation operator
-//    mutable HypreParMatrix *P;
-//    mutable SparseMatrix *R;
+   //    mutable HypreParMatrix *P;
+   //    mutable SparseMatrix *R;
 
 protected:
    /// mesh dimension
@@ -135,7 +165,7 @@ protected:
    /// finite element collection
    const mfem::FiniteElementCollection *fec;  // not owned
    ///\Note: cut-cell stuff
-   /// the vector of embedded elements 
+   /// the vector of embedded elements
    std::vector<bool> embeddedElements;
 };
 }  // end of namespace mfem

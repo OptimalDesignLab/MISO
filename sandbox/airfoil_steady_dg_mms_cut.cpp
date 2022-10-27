@@ -77,17 +77,17 @@ int main(int argc, char *argv[])
                              .calcConservativeVarsL2Error(uexact, 0));
 
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      solver->solveForState();
-      solver->printSolution("airfoil-steady-dg-cut-mms-final", 0);
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
-      l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                      .calcConservativeVarsL2Error(uexact, 0));
-      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
-      solver->createOutput("drag", drag_opts);
-      double drag = abs(solver->calcOutput("drag"));
-      mfem::out << "\nDrag error = " << drag << endl;
+      // solver->solveForState();
+      // solver->printSolution("airfoil-steady-dg-cut-mms-final", 0);
+      // mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+      //           << endl;
+      // l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+      //                 .calcConservativeVarsL2Error(uexact, 0));
+      // *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      // auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
+      // solver->createOutput("drag", drag_opts);
+      // double drag = abs(solver->calcOutput("drag"));
+      // mfem::out << "\nDrag error = " << drag << endl;
    }
 
    catch (MachException &exception)

@@ -52,7 +52,7 @@ void EulerSolver<dim, entvar>::constructForms()
 {
    if (gd)
    {
-      cout << "gd true in constructForms() " << endl; 
+      cout << "gd true in constructForms() " << endl;
       res.reset(new NonlinearFormType(fes_gd.get()));
       if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
       {
@@ -89,7 +89,7 @@ void EulerSolver<dim, entvar>::addMassIntegrators(double alpha)
    if (options["time-dis"]["steady"].template get<bool>())
    {
       mass->AddDomainIntegrator(new DiagMassIntegrator(num_state, true));
-      //AbstractSolver::addMassIntegrators(alpha);
+      // AbstractSolver::addMassIntegrators(alpha);
    }
    else
    {
@@ -209,7 +209,7 @@ void EulerSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
    }
    // TODO: this should only be output if necessary
    GridFunType u_state(fes.get());
-   fes_gd->GetProlongationMatrix()->Mult(state, u_state );
+   fes_gd->GetProlongationMatrix()->Mult(state, u_state);
    double entropy = ent->GetEnergy(u_state);
    *out << "before time stepping, entropy is " << entropy << endl;
    remove("entropylog.txt");
