@@ -219,17 +219,16 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
    shape.SetSize(num_nodes);
    double fun = 0.0;  // initialize the functional value
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
-   const IntegrationRule *ir;
+   const IntegrationRule *ir = NULL;
    if (embeddedElements.at(trans.Elem1No) == true)
    {
       return 0;
    }
-   // ir = cutBdrFaceIntRules[trans.Elem1No];
    ir = cutBdrFaceIntRules[trans.Elem1No];
    if (!ir)
    {
-      // cout << "int rule not available for face with el id: " << trans.Elem1No
-      // << endl;
+      cout << "int rule not available for face with el id: " << trans.Elem1No
+           << endl;
       int intorder;
       intorder = trans.Elem1->OrderW() + 2 * el_bnd.GetOrder();
       ir = &IntRules.Get(trans.FaceGeom, intorder);
@@ -245,7 +244,8 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
       // get the normal vector, and then add contribution to function
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      // fun += face_ip.weight * trans.Weight();
+      //fun += face_ip.weight * trans.Weight();
+      //  cout << "face_ip.weight " << face_ip.weight << endl;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;
@@ -447,8 +447,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       /// this is used for area test
       double area = sqrt(trans.Weight());
       //fun += face_ip.weight * alpha * area;
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
-             alpha;
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *alpha;
    }
    return fun;
 }

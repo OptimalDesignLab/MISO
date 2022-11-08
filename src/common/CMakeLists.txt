@@ -11,6 +11,7 @@ target_sources(mach
       functional_output.hpp
       inexact_newton.cpp
       inexact_newton.hpp
+      linesearch_newton.hpp
       mach_linearform.cpp
       mach_linearform.hpp
       mach_output.hpp

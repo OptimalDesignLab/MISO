@@ -106,6 +106,8 @@ protected:
    std::map<int, IntegrationRule *> cutSegmentIntRules_outer;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules;
+   // interior face int rule that is cut by the embedded geometry
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_outer;
    // boundary face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutBdrFaceIntRules;
    // boundary face int rule that is cut by the embedded geometry
@@ -114,18 +116,25 @@ protected:
    std::vector<bool> embeddedElements;
    // vector of cut interior faces
    std::vector<int> cutInteriorFaces;
+     // vector of cut interior faces by outer circle
+   std::vector<int> cutInteriorFaces_outer;
    // tells if face is immersed
    std::map<int, bool> immersedFaces;
    // find the elements cut by geometry
    std::vector<int> cutelems;
+    // find the elements cut by geometry
+   std::vector<int> cutelems_outer;
    /// domain boundary faces cut by geometry  
    vector<int> cutFaces;
    /// domain boundary faces cut by geometry  
    vector<int> cutBdrFaces;
+   /// domain boundary faces cut by geometry  
+   vector<int> cutBdrFaces_outer;
    /// levelset to calculate normal vectors
    // Algoim::LevelSet<2> phi_e;
    circle<2> phi;
    circle<2> phi_outer;
+   bool vortex = false;
    // Algoim::LevelSet<2> phi;
    // Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)

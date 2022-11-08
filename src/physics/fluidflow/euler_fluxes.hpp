@@ -1205,11 +1205,11 @@ void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
    xdouble theta;
    // ellipse parameters
    xdouble a = 2.5;
-   xdouble b = sqrt(a * (a - 1));
+   xdouble b = sqrt(a * (a - 1.0));
    xdouble xc = 10.0;
    xdouble yc = 10.0;
-    xdouble s =
-       ((x[0] - xc) * (x[0] - xc)) + ((x[1] - yc) * (x[1] - yc)) - 4.0 * b * b;
+   xdouble s =
+       ((x[0] - xc) * (x[0] - xc)) - ((x[1] - yc) * (x[1] - yc)) - 4.0 * b * b;
    xdouble t = 2.0 * (x[0] - xc) * (x[1] - yc);
    theta = atan2(t, s);
    xdouble signx = 1.0;

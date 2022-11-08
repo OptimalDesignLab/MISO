@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    ostream *out = getOutStream(rank);
-   int N = 5;
+   int N = 40;
    // Parse command-line options
    OptionsParser args(argc, argv);
    args.AddOption(&options_file, "-o", "--options", "Options file to use.");
@@ -80,12 +80,14 @@ int main(int argc, char *argv[])
       *out << "\nfinal residual norm = " << res_error << endl;
       auto drag_opts = R"({ "boundaries": [1, 0, 0, 1]})"_json;
       solver->createOutput("drag", drag_opts);
-      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
-      cout << "================================================================"
+      double drag = abs(solver->calcOutput("drag") - (-1 /
+      mach::euler::gamma)); cout <<
+      "================================================================"
            << endl;
       *out << "    || rho_h - rho ||_{L^2} = " << l2_error << endl;
       *out << "    Drag error = " << drag << endl;
-      cout << "================================================================"
+      cout <<
+      "================================================================"
            << endl;
    }
    catch (MachException &exception)
@@ -172,6 +174,6 @@ void uexact(const Vector &x, Vector &q)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 3.1, 3.1, true);
+       N, N, Element::QUADRILATERAL, true, 3.0, 3.0, true);
    return mesh;
 }

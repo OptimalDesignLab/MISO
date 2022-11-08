@@ -29,6 +29,7 @@ set(SANDBOX_SRCS
    airfoil_chaotic
    exLaplace_cut
    gd_interpolation
+   ellipse_potential_flow
    # magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire

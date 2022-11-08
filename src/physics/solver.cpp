@@ -36,6 +36,7 @@
 #include "mach_input.hpp"
 #include "mach_integrator.hpp"
 #include "mach_load.hpp"
+#include "linesearch_newton.hpp"
 #include "solver.hpp"
 
 #ifdef MFEM_USE_EGADS
@@ -254,6 +255,7 @@ void AbstractSolver::initDerived()
 
    if (res)
    {
+      cout << "inside if res" << endl;
       /// TODO: look at partial assembly
       addResVolumeIntegrators(alpha);
       addResBoundaryIntegrators(alpha);
@@ -389,7 +391,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-      double rdist = 8.0;
+      double rdist;
+      rdist = 7.0;
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -405,19 +408,19 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             TinyVector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
             double dist = sqrt(Algoim::magsqr(x_diff));
-            if ((dist < rdist || cut_init.cutByGeom(i) == true) &&
-                cut_init.insideBoundary(i) == 0)
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
-         rdist = 0.7 * rdist;
+         // rdist = 0.5 * rdist;
       }
-
-      for (int k = 0; k < -1; ++k)
+      rdist = 3.0;
+      for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
+
          for (int i = 0; i < smesh->GetNE(); ++i)
          {
             Vector cent;
@@ -429,13 +432,14 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             TinyVector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
             double dist = sqrt(Algoim::magsqr(x_diff));
-            if (lsv < 1.0 && cut_init.insideBoundary(i) == 0)
+            if (abs(lsv) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
+
 #if 0
       for (int k = 0; k < ncr; ++k)
       {
@@ -573,10 +577,11 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 #if 0
       for (int k = 0; k < ncr_bdr; ++k)
       {
+         double s = 1.1;
          TinyVector<double, 2> lec, tec;
-         lec(0) = airfoil_cent(0) - 0.4;
+         lec(0) = airfoil_cent(0) - 4;
          lec(1) = airfoil_cent(1);
-         tec(0) = airfoil_cent(0) + 0.4;
+         tec(0) = airfoil_cent(0) + 4;
          tec(1) = airfoil_cent(1);
          mfem::Array<int> marked_elements1;
          for (int i = 0; i < smesh->GetNE(); ++i)
@@ -586,13 +591,12 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             TinyVector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
-            double lsv = phi_init(x_c);
             TinyVector<double, 2> x_diff_le, x_diff_te;
             x_diff_le = x_c - lec;
             x_diff_te = x_c - tec;
             double dist_le = sqrt(Algoim::magsqr(x_diff_le));
             double dist_te = sqrt(Algoim::magsqr(x_diff_te));
-            if ((abs(dist_le) < 0.2 || abs(dist_te) < 0.2) &&
+            if ((abs(dist_le) < 1.1 || abs(dist_te) < 1.1) &&
                 cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -607,6 +611,11 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          list.SetSize(smesh->GetNE());
          for (int i = 0; i < smesh->GetNE(); i++)
          {
+            // if (cut_init.insideBoundary(i) == 0)
+            // {
+            // list.Append(i);
+            // }
+
             list[i] = i;
          }
          smesh->GeneralRefinement(list, 1);
@@ -1551,7 +1560,14 @@ void AbstractSolver::solveForState(ParGridFunction &state)
 }
 void AbstractSolver::solveForState(ParCentGridFunction &state)
 {
-   solveUnsteady(state);
+   if (options["steady"].get<bool>())
+   {
+      solveSteady(state);
+   }
+   else
+   {
+      solveUnsteady(state);
+   }
 }
 
 void AbstractSolver::solveForState(const MachInputs &inputs,
@@ -1815,7 +1831,7 @@ void AbstractSolver::setEssentialBoundaries()
       res->SetEssentialTrueDofs(ess_tdof_list);
    }
 }
-
+#if 0
 void AbstractSolver::solveSteady(ParGridFunction &state)
 {
    *out << "AbstractSolver::solveSteady() is deprecated!!!!!!!!!!!!!!" << endl;
@@ -1918,7 +1934,62 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    //    converge."); u->SetFromTrueDofs(u_true);
    // #endif // MFEM_USE_MPI
 }
-
+#endif
+void AbstractSolver::solveSteady(ParCentGridFunction &state)
+{
+   *out << "AbstractSolver::solveSteady() is not deprecated!!!!!!!!!!!!!!"
+        << endl;
+   double t1, t2;
+   if (0 == rank)
+   {
+      t1 = MPI_Wtime();
+   }
+   // Solve the nonlinear problem with r.h.s at 0
+   mfem::Vector b;
+   HypreParVector *u_true = state.GetTrueDofs();
+   newton_solver->SetOperator(*res);
+   newton_solver->Mult(b, *u_true);
+   MFEM_VERIFY(newton_solver->GetConverged(),
+               "Newton solver did not converge.");
+   state=*u_true;
+   if (0 == rank)
+   {
+      t2 = MPI_Wtime();
+      *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
+   fes_gd->GetProlongationMatrix()->Mult(state, *u);
+   //fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
+   //std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+}
+void AbstractSolver::solveSteady(ParGridFunction &state)
+{
+ 
+   *out << "AbstractSolver::solveSteady() is not deprecated!!!!!!!!!!!!!!"
+        << endl;
+   double t1, t2;
+   if (0 == rank)
+   {
+      t1 = MPI_Wtime();
+   }
+   // Solve the nonlinear problem with r.h.s at 0
+   HypreParVector *u_true = state.GetTrueDofs();
+   HypreParVector b;
+   HypreParVector r;
+   res->Mult(*u_true, r);
+   // u->GetTrueDofs(u_true);
+   cout << "b4 mult " << endl;
+   newton_solver->SetOperator(*res);
+   newton_solver->Mult(b, *u_true);
+    cout << "after mult " << endl;
+   MFEM_VERIFY(newton_solver->GetConverged(),
+               "Newton solver did not converge.");
+   u->SetFromTrueDofs(*u_true);
+   if (0 == rank)
+   {
+      t2 = MPI_Wtime();
+      *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+   }
+}
 void AbstractSolver::solveUnsteady(ParGridFunction &state)
 {
    double t = 0.0;
@@ -2380,17 +2451,22 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    auto abstol = _options["abstol"].get<double>();
    auto reltol = _options["reltol"].get<double>();
    int maxiter = _options["maxiter"].get<int>();
+   int maxlsiter = _options["maxlsiter"].get<int>();
    int ptl = _options["printlevel"].get<int>();
    unique_ptr<NewtonSolver> nonlin_solver;
    if (solver_type == "newton")
    {
       nonlin_solver.reset(new NewtonSolver(comm));
    }
+   else if (solver_type == "linesearchnewton")
+   {
+      nonlin_solver.reset(new LineSearchNewton(comm, maxlsiter));
+      // nonlin_solver->SetOperator(*res);
+   }
    else if (solver_type == "inexactnewton")
    {
       nonlin_solver.reset(new NewtonSolver(comm));
       auto *newton = dynamic_cast<NewtonSolver *>(nonlin_solver.get());
-
       /// use defaults from SetAdaptiveLinRtol unless specified
       int type = _options.value("inexacttype", 2);
       double rtol0 = _options.value("rtol0", 0.5);
@@ -2412,7 +2488,6 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    nonlin_solver->SetRelTol(reltol);
    nonlin_solver->SetAbsTol(abstol);
    nonlin_solver->SetMaxIter(maxiter);
-
    return nonlin_solver;
 }
 

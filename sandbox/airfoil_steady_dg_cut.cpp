@@ -130,9 +130,9 @@ void uexact(const Vector &x, Vector &q)
    double xc = 10.0;
    double yc = 10.0;
    double a = 2.5;
-   double b = sqrt(a * (a - 1));
+   double b = sqrt(a * (a - 1.0));
    double s =
-       ((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)) - 4.0 * b * b;
+       ((x(0) - xc) * (x(0) - xc)) - ((x(1) - yc) * (x(1) - yc)) - 4.0 * b * b;
    double t = 2.0 * (x(0) - xc) * (x(1) - yc);
    theta = atan2(t, s);
    double signx = 1.0;

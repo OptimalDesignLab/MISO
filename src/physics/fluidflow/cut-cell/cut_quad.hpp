@@ -151,17 +151,19 @@ public:
       phi_ls.yscale = 1.0;
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
-      phi_ls.a = 4.0;
-      phi_ls.b = 1.0;
       phi_ls.xc = 10.0;
       phi_ls.yc = 10.0;
       if (ls == 1)
       {
          phi_ls.lsign = -1.0;
+         phi_ls.a = 4.0;
+         phi_ls.b = 1.0;
       }
       else
       {
          phi_ls.lsign = 1.0;
+         phi_ls.a = 4.0;
+         phi_ls.b = 1.0;
       }
       return phi_ls;
    }
@@ -530,7 +532,7 @@ public:
       }
       std::ofstream f("element_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
-      std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
+      std::cout << "  scheme.vtp file written for cut cells, containing " << qp.nodes.size()
                 << " quadrature points\n";
    }
    /// get integration rule for cut segments
@@ -751,12 +753,12 @@ public:
       }  /// loop over cut elements
       std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
-      std::cout << "  scheme.vtp file written, containing " << qp.nodes.size()
+      std::cout << "  scheme.vtp file written for cut segments, containing " << qp.nodes.size()
                 << " quadrature points\n";
       /// quad rule for faces
       std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qface, face);
-      std::cout << "  scheme.vtp file written, containing "
+      std::cout << "  scheme.vtp file written for interior faces, containing "
                 << qface.nodes.size() << " quadrature points\n";
    }
    /// get integration rule for cut segments
@@ -783,14 +785,6 @@ public:
          // xupper = {1, 1};
          int elemid = cutelems.at(k);
          findBoundingBox(elemid, xmin, xmax);
-         // phi.xscale = 1.0;
-         // phi.yscale = 1.0;
-         // phi.min_x = 0.0;
-         // phi.min_y = 0.0;
-         // phi.xscale = xmax[0] - xmin[0];
-         // phi.yscale = xmax[1] - xmin[1];
-         // phi.min_x = xmin[0];
-         // phi.min_y = xmin[1];
          double xscale = xmax[0] - xmin[0];
          double yscale = xmax[1] - xmin[1];
          mfem::Array<int> orient;
@@ -809,18 +803,11 @@ public:
                {
                   FaceElementTransformations *trans;
                   trans = mesh->GetFaceElementTransformations(fid);
-                  // cout << "fid " << fid << endl;
-                  // cout << "trans  " << trans->Face->ElementNo << endl;
-                  // cout << "bdr face int rule for " << fid << endl;
                   mfem::Array<int> v;
                   mesh->GetEdgeVertices(fid, v);
                   double *v1coord, *v2coord;
                   v1coord = mesh->GetVertex(v[0]);
                   v2coord = mesh->GetVertex(v[1]);
-                  // cout << " x vert " << v1coord[0] << " , " << v2coord[0] <<
-                  // endl; cout << " y vert " << v1coord[1] << " , " <<
-                  // v2coord[1] << endl; cout << abs(v1coord[0] - v2coord[0]) <<
-                  // endl;
                   if (abs(v1coord[0] - v2coord[0]) < 1e-15)
                   {
                      dir = 0;
@@ -846,10 +833,6 @@ public:
                         side = 1;
                      }
                   }
-
-                  // cout << "dir " << dir << endl;
-                  // cout << "side " << side << endl;
-
                   auto q = Algoim::quadGen<N>(
                       phi,
                       Algoim::BoundingBox<double, N>(xlower, xupper),
@@ -893,18 +876,19 @@ public:
                         {
                            if (-1 == orient[c])
                            {
-                              ip.x = 1.0 - (pt.x[0] - xmin[0]) / xscale;
+                              ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
                               ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
+
                         else
                         {
                            if (1 == orient[c])
                            {
-                              ip.x = 1.0 - (pt.x[0] - xmin[0]) / xscale;
+                              ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
@@ -928,8 +912,6 @@ public:
                      //      pt.w << endl;
                      // cout << "ymax " << v2coord[1] << " , ymin " <<
                      // v1coord[1] << endl;
-                     cout << "phi scales " << phi.xscale << " , " << phi.yscale
-                          << endl;
                      // cout << "phi(pt.x) " << phi(pt.x) << endl;
 
                      MFEM_ASSERT(ip.weight > 0,
@@ -949,11 +931,8 @@ public:
                                  "integration point (ycoord) not on element "
                                  "face (Saye's rule)");
                   }
-                  if (ir->Size() > 0)
-                  {
-                     cutBdrFaceIntRules[elemid] = ir;
-                  }
-                  delete ir;
+                  cutBdrFaceIntRules[elemid] = ir;
+                  // delete ir; /// this is a problem
                }
             }
          }

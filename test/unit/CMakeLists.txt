@@ -30,6 +30,7 @@ set(FLUID_TEST_SRCS
    test_euler_sens_integ
    test_evolver
    test_inexact_newton
+   test_linesearch_newton
    test_navier_stokes_fluxes
    test_navier_stokes_integ
    test_navier_stokes_assemble

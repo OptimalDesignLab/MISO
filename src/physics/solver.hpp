@@ -937,6 +937,9 @@ protected:
 
    /// Solve for the steady state problem using newton method
    virtual void solveSteady(mfem::ParGridFunction &state);
+   
+   /// Solve for a transient state using a selected time-marching scheme
+   virtual void solveSteady(mfem::ParCentGridFunction &state);
 
    /// Solve for a transient state using a selected time-marching scheme
    virtual void solveUnsteady(mfem::ParGridFunction &state);

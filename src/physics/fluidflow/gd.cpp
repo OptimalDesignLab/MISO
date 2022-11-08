@@ -122,7 +122,7 @@ void ParGalerkinDifference::BuildNeighbourMat(const mfem::Array<int> &elmt_id,
 {
    // resize the DenseMatrices and clean the data
    int num_el = elmt_id.Size();
-   cout << "num_el " << num_el << endl;
+   // cout << "num_el " << num_el << endl;
    // mat_cent.Clear();
    // mat_cent.SetSize(dim, num_el);
 
@@ -401,7 +401,7 @@ void ParGalerkinDifference::BuildGDProlongation() const
    case 2:
       nreq = (degree + 1) * (degree + 2) / 2;
       nreq_init = (degree + 2) * (degree + 3) / 2;
-      // nreq_init = nreq;
+      //nreq_init = nreq;
       break;
    case 3:
       cout << "Not implemeneted yet.\n" << endl;
@@ -446,20 +446,20 @@ void ParGalerkinDifference::BuildGDProlongation() const
          // elmt_id.Print(cout, elmt_id.Size());
          // cout << " =================================================== "
          //      << endl;
-         cout << "building vandermonde for element: " << i << endl;
+         //cout << "building vandermonde for element: " << i << endl;
          buildVandermondeMat(dim, nreq, elmt_id, stencil_elid, cent_mat, V);
-         cout << " =================================================== "
-              << endl;
-         cout << "#elements in stencil afterwards " << stencil_elid.Size()
-              << endl;
-         cout << "Elements id(s) in patch " << i << ": " << endl;
-         stencil_elid.Print(cout, stencil_elid.Size());
-         cout << " =================================================== "
-              << endl;
+         // cout << " =================================================== "
+         //      << endl;
+         // cout << "#elements in stencil afterwards " << stencil_elid.Size()
+         //      << endl;
+         // cout << "Elements id(s) in patch " << i << ": " << endl;
+         // stencil_elid.Print(cout, stencil_elid.Size());
+         // cout << " =================================================== "
+         //      << endl;
 
          // 2. build the quadrature and barycenter coordinate matrices
          BuildNeighbourMat(stencil_elid, quad_mat);
-         cout << "neighbour mat is done " << endl;
+         //cout << "neighbour mat is done " << endl;
          // 3. buil the loacl reconstruction matrix
          buildLSInterpolation(i, dim, degree, V, cent_mat, quad_mat, local_mat);
          // cout << "build LS interpolation " << endl;
@@ -558,8 +558,8 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
                                                 DenseMatrix &x_center,
                                                 DenseMatrix &V) const
 {
-   cout << "#elements in initial stencil " << elmt_id.Size() << endl;
-   elmt_id.Print(cout, elmt_id.Size());
+   // cout << "#elements in initial stencil " << elmt_id.Size() << endl;
+   // elmt_id.Print(cout, elmt_id.Size());
    double cond = 1.0;
    cond = 1e+03;
    double vandCond = 1e+30;
@@ -653,8 +653,8 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
          // V.PrintMatlab();
          // cout << "matrix of element centers is: " << endl;
          // x_center.PrintMatlab();
-         cout << "vandermonde condition number: " << sv(0) / sv(sv.Size() - 1)
-              << endl;
+         // cout << "vandermonde condition number: " << sv(0) / sv(sv.Size() - 1)
+         //      << endl;
          vandCond = sv(0) / sv(sv.Size() - 1);
          ++num_el;
       }
@@ -663,7 +663,7 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
          break;
       }
    }
-   cout << "vand_scale final " << vand_scale << endl;
+   // cout << "vand_scale final " << vand_scale << endl;
 }
 
 void ParGalerkinDifference::buildLSInterpolation(int elem_id,
@@ -678,7 +678,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
    int num_quad = x_quad.Width();
    int num_elem = x_center.Width();
    double vand_scale = calcVandScale(elem_id, dim, x_center);
-   cout << "vand_scale for elem_id " << elem_id << " is " << vand_scale << endl;
+  // cout << "vand_scale for elem_id " << elem_id << " is " << vand_scale << endl;
    //double vand_scale = 1.0;
    // number of total polynomial basis functions
    int num_basis = -1;
@@ -737,7 +737,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
    // This will store the solution, that is, the basis coefficients, hence
    // the name `coeff`
    int LDB = max(num_elem, num_basis);
-   cout << "LDB: " << LDB << endl;
+   //cout << "LDB: " << LDB << endl;
    mfem::DenseMatrix coeff(LDB, LDB);
    coeff = 0.0;
    for (int i = 0; i < LDB; ++i)
