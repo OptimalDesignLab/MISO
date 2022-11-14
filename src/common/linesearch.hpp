@@ -13,8 +13,7 @@ public:
    virtual double search(const std::function<double(double)> &phi,
                          double phi0,
                          double dphi0,
-                         double alpha,
-                         int max_iter = 10) = 0;
+                         double alpha) = 0;
 
    virtual ~LineSearch() = default;
 };
@@ -25,13 +24,13 @@ public:
    double search(const std::function<double(double)> &phi,
                  double phi0,
                  double dphi0,
-                 double alpha,
-                 int max_iter) override;
+                 double alpha) override;
 
    double mu = 1e-4;
    double rho_hi = 0.9;
    double rho_lo = 0.1;
    int interp_order = 3;
+   int max_iter = 10;
 };
 
 /// Functor class for \phi, the 1D function linesearch methods try to minimize
