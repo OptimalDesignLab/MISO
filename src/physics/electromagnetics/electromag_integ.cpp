@@ -3671,21 +3671,87 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
    return fun;
 }
 
+// void ACLossFunctionalIntegrator::AssembleElementVector(const FiniteElement
+// &el,
+//                                              ElementTransformation &trans,
+//                                              const Vector &elfun,
+//                                              Vector &elfun_bar)
+// {
+//    /// number of degrees of freedom
+//    int ndof = el.GetDof();
+
+// #ifdef MFEM_THREAD_SAFE
+//    Vector shape(ndof);
+// #else
+//    shape.SetSize(ndof);
+// #endif
+
+//    const IntegrationRule *ir = IntRule;
+//    if (ir == nullptr)
+//    {
+//       int order = [&]()
+//       {
+//          if (el.Space() == FunctionSpace::Pk)
+//          {
+//             return 2 * el.GetOrder() - 2;
+//          }
+//          else
+//          {
+//             return 2 * el.GetOrder();
+//          }
+//       }();
+
+//       ir = &IntRules.Get(el.GetGeomType(), order);
+//    }
+
+//    elfun_bar.SetSize(ndof);
+//    elfun_bar = 0.0;
+//    for (int i = 0; i < ir->GetNPoints(); i++)
+//    {
+//       const IntegrationPoint &ip = ir->IntPoint(i);
+//       trans.SetIntPoint(&ip);
+
+//       /// holds quadrature weight
+//       double trans_weight = trans.Weight();
+//       const double w = ip.weight * trans_weight;
+
+//       el.CalcPhysShape(trans, shape);
+//       const auto b_mag = shape * elfun;
+
+//       const auto sigma_v = sigma.Eval(trans, ip);
+
+//       const auto loss = sigma_v * pow(b_mag, 2);
+//       // fun += loss * w;
+
+//       /// Start reverse pass...
+//       double fun_bar = 1.0;
+
+//       /// fun += loss * w;
+//       double loss_bar = fun_bar * w;
+
+//       /// const double loss = sigma_v * pow(b_mag, 2);
+//       double b_mag_bar = loss_bar * sigma_v * 2 * b_mag;
+
+//       /// const double b_mag = shape * elfun;
+//       elfun_bar.Add(b_mag_bar, shape);
+//    }
+// }
+
 void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
     const mfem::FiniteElement &mesh_el,
     mfem::ElementTransformation &mesh_trans,
     mfem::Vector &mesh_coords_bar)
 {
    const int element = mesh_trans.ElementNo;
-   const auto &el = *state.FESpace()->GetFE(element);
-   auto &trans = *state.FESpace()->GetElementTransformation(element);
+   const auto &el = *peak_flux.FESpace()->GetFE(element);
+   auto &trans = *peak_flux.FESpace()->GetElementTransformation(element);
 
    const int ndof = el.GetDof();
    const int mesh_ndof = mesh_el.GetDof();
    const int space_dim = mesh_trans.GetSpaceDim();
 
-   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
-   state.GetSubVector(vdofs, elfun);
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, elfun);
    if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
@@ -3779,6 +3845,85 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
             mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
          }
       }
+   }
+}
+
+void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &elfun_bar)
+{
+   const int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector elfun;
+#endif
+   const int element = trans.ElementNo;
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#else
+   auto &shape = integ.shape;
+#endif
+
+   shape.SetSize(ndof);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+
+   elfun_bar.SetSize(ndof);
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape);
+      const auto b_mag = shape * elfun;
+
+      const auto sigma_v = sigma.Eval(trans, ip);
+
+      // const auto loss = sigma_v * pow(b_mag, 2);
+      // fun += loss * w;
+
+      /// Start reverse pass...
+      double fun_bar = 1.0;
+
+      /// fun += loss * w;
+      double loss_bar = fun_bar * w;
+
+      /// const double loss = sigma_v * pow(b_mag, 2);
+      double b_mag_bar = loss_bar * sigma_v * 2 * b_mag;
+
+      /// const double b_mag = shape * elfun;
+      elfun_bar.Add(b_mag_bar, shape);
    }
 }
 

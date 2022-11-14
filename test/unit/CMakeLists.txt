@@ -75,6 +75,7 @@ set(EM_MPI_TEST_SRCS
    test_linesearch
    test_mesh_warper
    test_mach_nonlinearform
+   test_reluctivity_coeff
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)

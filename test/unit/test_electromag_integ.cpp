@@ -2267,6 +2267,72 @@ TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
    }
 }
 
+TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   // auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+   //                                   Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   mfem::ConstantCoefficient sigma(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         auto *integ = new mach::ACLossFunctionalIntegrator(sigma);
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdu(&fes);
+         dJdu.AddDomainIntegrator(
+            new mach::ACLossFunctionalIntegratorPeakFluxSens(a, *integ));
+         dJdu.Assemble();
+         double dJdu_dot_p = dJdu * p;
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(a);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
 TEST_CASE("ForceIntegrator3::GetElementEnergy")
 {
    using namespace mfem;

@@ -1241,17 +1241,18 @@ private:
    mfem::Vector shape;
 #endif
    friend class ACLossFunctionalIntegratorMeshSens;
+   friend class ACLossFunctionalIntegratorPeakFluxSens;
 };
 
 class ACLossFunctionalIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
 public:
-   /// \param[in] state - the state grid function
+   /// \param[in] peak_flux - the peak_flux grid function
    /// \param[in] integ - reference to primal integrator that holds inputs for
    /// integrator
-   ACLossFunctionalIntegratorMeshSens(mfem::GridFunction &state,
+   ACLossFunctionalIntegratorMeshSens(mfem::GridFunction &peak_flux,
                                       ACLossFunctionalIntegrator &integ)
-    : state(state), integ(integ)
+    : peak_flux(peak_flux), integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX
@@ -1264,8 +1265,8 @@ public:
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
-   /// State GridFunction, needed to get integration order for each element
-   mfem::GridFunction &state;
+   /// peak_flux GridFunction
+   mfem::GridFunction &peak_flux;
    /// reference to primal integrator
    ACLossFunctionalIntegrator &integ;
 
@@ -1274,6 +1275,38 @@ private:
    mfem::Vector elfun;
    mfem::Vector shape_bar;
    mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+class ACLossFunctionalIntegratorPeakFluxSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] peak_flux - the peak_flux grid function
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrator
+   ACLossFunctionalIntegratorPeakFluxSens(mfem::GridFunction &peak_flux,
+                                          ACLossFunctionalIntegrator &integ)
+    : peak_flux(peak_flux), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] pf_el - the finite element to integrate over
+   /// \param[in] pf_trans - the transformation between reference and physical
+   /// space
+   /// \param[out] peak_flux_bar - dJdB for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &pf_el,
+                               mfem::ElementTransformation &pf_trans,
+                               mfem::Vector &peak_flux_bar) override;
+
+private:
+   /// peak_flux GridFunction
+   mfem::GridFunction &peak_flux;
+   /// reference to primal integrator
+   ACLossFunctionalIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
 #endif
 };
 
@@ -1287,10 +1320,17 @@ inline void addDomainSensitivityIntegrator(
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
 
+   auto &peak_flux_fes = fields.at("peak_flux").space();
+   output_sens.emplace("peak_flux", &peak_flux_fes);
+
    if (attr_marker == nullptr)
    {
       output_sens.at("mesh_coords")
           .AddDomainIntegrator(new ACLossFunctionalIntegratorMeshSens(
+              fields.at("peak_flux").gridFunc(), primal_integ));
+
+      output_sens.at("peak_flux")
+          .AddDomainIntegrator(new ACLossFunctionalIntegratorPeakFluxSens(
               fields.at("peak_flux").gridFunc(), primal_integ));
    }
    else
@@ -1298,6 +1338,11 @@ inline void addDomainSensitivityIntegrator(
       output_sens.at("mesh_coords")
           .AddDomainIntegrator(
               new ACLossFunctionalIntegratorMeshSens(
+                  fields.at("peak_flux").gridFunc(), primal_integ),
+              *attr_marker);
+      output_sens.at("peak_flux")
+          .AddDomainIntegrator(
+              new ACLossFunctionalIntegratorPeakFluxSens(
                   fields.at("peak_flux").gridFunc(), primal_integ),
               *attr_marker);
    }
