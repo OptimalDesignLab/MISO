@@ -134,21 +134,22 @@ IEAggregateFunctional::IEAggregateFunctional(
  : numerator(fes, fields), denominator(fes, fields)
 {
    auto rho = options["rho"].get<double>();
+   auto state_name = options.value("state", "state");
 
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       numerator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorNumerator(rho), attributes);
+          new IEAggregateIntegratorNumerator(rho, state_name), attributes);
       denominator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorDenominator(rho), attributes);
+          new IEAggregateIntegratorDenominator(rho, state_name), attributes);
    }
    else
    {
       numerator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorNumerator(rho));
+          new IEAggregateIntegratorNumerator(rho, state_name));
       denominator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorDenominator(rho));
+          new IEAggregateIntegratorDenominator(rho, state_name));
    }
 }
 

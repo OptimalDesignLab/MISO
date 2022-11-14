@@ -230,6 +230,11 @@ public:
    friend double calcOutput(IEAggregateFunctional &output,
                             const MachInputs &inputs)
    {
+      mfem::Vector state;
+      setVectorFromInputs(inputs, "state", state);
+      double true_max = state.Max();
+      setInputs(output, {{"true_max", true_max}});
+
       double num = calcOutput(output.numerator, inputs);
       double denom = calcOutput(output.denominator, inputs);
       return num / denom;
