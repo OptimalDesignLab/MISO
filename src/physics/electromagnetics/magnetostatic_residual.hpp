@@ -51,6 +51,12 @@ public:
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
+   friend void finalizeAdjointSystem(MagnetostaticResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const mach::MachInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(MagnetostaticResidual &residual,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);

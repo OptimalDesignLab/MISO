@@ -65,7 +65,7 @@ void setInputs(MagnetostaticResidual &residual, const mach::MachInputs &inputs)
 {
    setInputs(residual.res, inputs);
    setInputs(*residual.load, inputs);
-   if (residual.current_coeff)
+   if (residual.current_coeff != nullptr)
    {
       setInputs(*residual.current_coeff, inputs);
    }
@@ -83,6 +83,10 @@ void evaluate(MagnetostaticResidual &residual,
 {
    evaluate(residual.res, inputs, res_vec);
    setInputs(*residual.load, inputs);
+   if (residual.current_coeff != nullptr)
+   {
+      setInputs(*residual.current_coeff, inputs);
+   }
    addLoad(*residual.load, res_vec);
 
    // mfem::Vector state;
@@ -120,6 +124,15 @@ void setUpAdjointSystem(MagnetostaticResidual &residual,
                         mfem::Vector &adjoint)
 {
    setUpAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
+}
+
+void finalizeAdjointSystem(MagnetostaticResidual &residual,
+                           mfem::Solver &adj_solver,
+                           const mach::MachInputs &inputs,
+                           mfem::Vector &state_bar,
+                           mfem::Vector &adjoint)
+{
+   finalizeAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
 }
 
 double jacobianVectorProduct(MagnetostaticResidual &residual,
@@ -265,6 +278,7 @@ MagnetostaticResidual::MagnetostaticResidual(
       throw MachException(
           "Invalid mesh dimension for Magnetostatic Residual!\n");
    }
+   setOptions(*this, options);
 }
 
 }  // namespace mach
