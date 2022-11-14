@@ -320,15 +320,17 @@ private:
    friend class IEAggregateIntegratorDenominatorMeshSens;
 };
 
-class IEAggregateIntegratorDenominatorMeshSens : public mfem::LinearFormIntegrator
+class IEAggregateIntegratorDenominatorMeshSens
+ : public mfem::LinearFormIntegrator
 {
 public:
    /// \brief - Compute forces/torques based on the virtual work method
    /// \param[in] state - the state vector to evaluate force at
    /// \param[in] integ - reference to primal integrator that holds inputs for
    /// integrators
-   IEAggregateIntegratorDenominatorMeshSens(mfem::GridFunction &state,
-                                          IEAggregateIntegratorDenominator &integ)
+   IEAggregateIntegratorDenominatorMeshSens(
+       mfem::GridFunction &state,
+       IEAggregateIntegratorDenominator &integ)
     : state(state), integ(integ)
    { }
 

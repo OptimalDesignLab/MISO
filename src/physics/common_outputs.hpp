@@ -241,10 +241,9 @@ public:
       return num / denom;
    }
 
-   friend double jacobianVectorProduct(
-       IEAggregateFunctional &output,
-       const mfem::Vector &wrt_dot,
-       const std::string &wrt);
+   friend double jacobianVectorProduct(IEAggregateFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(IEAggregateFunctional &output,
                                      const mfem::Vector &out_bar,
