@@ -1,3 +1,4 @@
+#include <adept/Active.h>
 #include <memory>
 #include <vector>
 
@@ -147,22 +148,39 @@ void northMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   mfem::DenseMatrix source_jac(3);
+   // mfem::DenseMatrix source_jac(3);
+   // // declare vectors of active input variables
+   // std::vector<adouble> x_a(x.Size());
+   // // copy data from mfem::Vector
+   // adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // // start recording
+   // diff_stack.new_recording();
+   // // the depedent variable must be declared after the recording
+   // std::vector<adouble> M_a(x.Size());
+   // north_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
+   // // set the independent and dependent variable
+   // diff_stack.independent(x_a.data(), x.Size());
+   // diff_stack.dependent(M_a.data(), x.Size());
+   // // calculate the jacobian w.r.t position
+   // diff_stack.jacobian(source_jac.GetData());
+   // source_jac.MultTranspose(V_bar, x_bar);
    // declare vectors of active input variables
-   std::vector<adouble> x_a(x.Size());
+
+   std::array<adouble, 3> x_a;
    // copy data from mfem::Vector
-   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(x_a.data(), vdim, x.GetData());
    // start recording
    diff_stack.new_recording();
+
    // the depedent variable must be declared after the recording
-   std::vector<adouble> M_a(x.Size());
+   std::array<adouble, 3> M_a;
    north_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
-   // set the independent and dependent variable
-   diff_stack.independent(x_a.data(), x.Size());
-   diff_stack.dependent(M_a.data(), x.Size());
-   // calculate the jacobian w.r.t position
-   diff_stack.jacobian(source_jac.GetData());
-   source_jac.MultTranspose(V_bar, x_bar);
+
+   adept::set_gradients(M_a.data(), vdim, V_bar.GetData());
+   diff_stack.compute_adjoint();
+
+   // calculate the vector jacobian product w.r.t position
+   adept::get_gradients(x_a.data(), vdim, x_bar.GetData());
 }
 
 /// function describing permanent magnet magnetization pointing inwards
@@ -187,22 +205,39 @@ void southMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
 {
-   mfem::DenseMatrix source_jac(3);
+   // mfem::DenseMatrix source_jac(3);
+   // // declare vectors of active input variables
+   // std::vector<adouble> x_a(x.Size());
+   // // copy data from mfem::Vector
+   // adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // // start recording
+   // diff_stack.new_recording();
+   // // the depedent variable must be declared after the recording
+   // std::vector<adouble> M_a(x.Size());
+   // south_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
+   // // set the independent and dependent variable
+   // diff_stack.independent(x_a.data(), x.Size());
+   // diff_stack.dependent(M_a.data(), x.Size());
+   // // calculate the jacobian w.r.t position
+   // diff_stack.jacobian(source_jac.GetData());
+   // source_jac.MultTranspose(V_bar, x_bar);
+
    // declare vectors of active input variables
-   std::vector<adouble> x_a(x.Size());
+   std::array<adouble, 3> x_a;
    // copy data from mfem::Vector
-   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(x_a.data(), vdim, x.GetData());
    // start recording
    diff_stack.new_recording();
+
    // the depedent variable must be declared after the recording
-   std::vector<adouble> M_a(x.Size());
+   std::array<adouble, 3> M_a;
    south_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
-   // set the independent and dependent variable
-   diff_stack.independent(x_a.data(), x.Size());
-   diff_stack.dependent(M_a.data(), x.Size());
-   // calculate the jacobian w.r.t position
-   diff_stack.jacobian(source_jac.GetData());
-   source_jac.MultTranspose(V_bar, x_bar);
+
+   adept::set_gradients(M_a.data(), vdim, V_bar.GetData());
+   diff_stack.compute_adjoint();
+
+   // calculate the vector jacobian product w.r.t position
+   adept::get_gradients(x_a.data(), vdim, x_bar.GetData());
 }
 
 /// function describing permanent magnet magnetization pointing inwards
@@ -227,22 +262,39 @@ void cwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                   const mfem::Vector &V_bar,
                                   mfem::Vector &x_bar)
 {
-   mfem::DenseMatrix source_jac(3);
+   // mfem::DenseMatrix source_jac(3);
+   // // declare vectors of active input variables
+   // std::vector<adouble> x_a(x.Size());
+   // // copy data from mfem::Vector
+   // adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // // start recording
+   // diff_stack.new_recording();
+   // // the depedent variable must be declared after the recording
+   // std::vector<adouble> M_a(x.Size());
+   // cw_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
+   // // set the independent and dependent variable
+   // diff_stack.independent(x_a.data(), x.Size());
+   // diff_stack.dependent(M_a.data(), x.Size());
+   // // calculate the jacobian w.r.t position
+   // diff_stack.jacobian(source_jac.GetData());
+   // source_jac.MultTranspose(V_bar, x_bar);
    // declare vectors of active input variables
-   std::vector<adouble> x_a(x.Size());
+
+   std::array<adouble, 3> x_a;
    // copy data from mfem::Vector
-   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(x_a.data(), vdim, x.GetData());
    // start recording
    diff_stack.new_recording();
+
    // the depedent variable must be declared after the recording
-   std::vector<adouble> M_a(x.Size());
+   std::array<adouble, 3> M_a;
    cw_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
-   // set the independent and dependent variable
-   diff_stack.independent(x_a.data(), x.Size());
-   diff_stack.dependent(M_a.data(), x.Size());
-   // calculate the jacobian w.r.t position
-   diff_stack.jacobian(source_jac.GetData());
-   source_jac.MultTranspose(V_bar, x_bar);
+
+   adept::set_gradients(M_a.data(), vdim, V_bar.GetData());
+   diff_stack.compute_adjoint();
+
+   // calculate the vector jacobian product w.r.t position
+   adept::get_gradients(x_a.data(), vdim, x_bar.GetData());
 }
 
 /// function describing permanent magnet magnetization pointing inwards
@@ -267,22 +319,32 @@ void ccwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                    const mfem::Vector &V_bar,
                                    mfem::Vector &x_bar)
 {
-   mfem::DenseMatrix source_jac(3);
+   // std::array<double, 9> source_jac_buffer;
+   // mfem::DenseMatrix source_jac(source_jac_buffer.data(), vdim, vdim);
+
    // declare vectors of active input variables
-   std::vector<adouble> x_a(x.Size());
+   std::array<adouble, 3> x_a;
    // copy data from mfem::Vector
-   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(x_a.data(), vdim, x.GetData());
    // start recording
    diff_stack.new_recording();
+
    // the depedent variable must be declared after the recording
-   std::vector<adouble> M_a(x.Size());
+   std::array<adouble, 3> M_a;
    ccw_magnetization<adouble>(vdim, remnant_flux, x_a.data(), M_a.data());
-   // set the independent and dependent variable
-   diff_stack.independent(x_a.data(), x.Size());
-   diff_stack.dependent(M_a.data(), x.Size());
-   // calculate the jacobian w.r.t position
-   diff_stack.jacobian(source_jac.GetData());
-   source_jac.MultTranspose(V_bar, x_bar);
+
+   adept::set_gradients(M_a.data(), vdim, V_bar.GetData());
+   diff_stack.compute_adjoint();
+
+   // calculate the vector jacobian product w.r.t position
+   adept::get_gradients(x_a.data(), vdim, x_bar.GetData());
+
+   // // set the independent and dependent variable
+   // diff_stack.independent(x_a.data(), x.Size());
+   // diff_stack.dependent(M_a.data(), x.Size());
+   // // calculate the jacobian w.r.t position
+   // diff_stack.jacobian(source_jac.GetData());
+   // source_jac.MultTranspose(V_bar, x_bar);
 }
 
 /// function defining magnetization aligned with the x axis
