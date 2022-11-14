@@ -223,6 +223,7 @@ public:
    friend void setInputs(IEAggregateFunctional &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.numerator, inputs);
       setInputs(output.denominator, inputs);
    }
@@ -240,6 +241,16 @@ public:
       return num / denom;
    }
 
+   friend double jacobianVectorProduct(
+       IEAggregateFunctional &output,
+       const mfem::Vector &wrt_dot,
+       const std::string &wrt);
+
+   friend void vectorJacobianProduct(IEAggregateFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
    IEAggregateFunctional(mfem::ParFiniteElementSpace &fes,
                          std::map<std::string, FiniteElementState> &fields,
                          const nlohmann::json &options);
@@ -247,6 +258,8 @@ public:
 private:
    FunctionalOutput numerator;
    FunctionalOutput denominator;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 class IECurlMagnitudeAggregateFunctional

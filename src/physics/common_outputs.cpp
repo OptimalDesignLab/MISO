@@ -127,13 +127,48 @@ AverageMagnitudeCurlState::AverageMagnitudeCurlState(
    }
 }
 
+double jacobianVectorProduct(IEAggregateFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   auto out_dot = denom * jacobianVectorProduct(output.numerator, wrt_dot, wrt);
+   out_dot -= num * jacobianVectorProduct(output.denominator, wrt_dot, wrt);
+   out_dot /= pow(denom, 2);
+   return out_dot;
+}
+
+void vectorJacobianProduct(IEAggregateFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   output.scratch.SetSize(wrt_bar.Size());
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.numerator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(1 / denom, output.scratch);
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.denominator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(-num / pow(denom, 2), output.scratch);
+}
+
 IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
  : numerator(fes, fields), denominator(fes, fields)
 {
-   auto rho = options["rho"].get<double>();
+   // auto rho = options["rho"].get<double>();
+   auto rho = options.value("rho", 1.0);
    auto state_name = options.value("state", "state");
 
    if (options.contains("attributes"))
