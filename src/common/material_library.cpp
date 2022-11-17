@@ -116,6 +116,8 @@ const auto hiperco50 = R"(
 }
 )"_json;
 
+///TODO: Replace "ks" above with "kh":[std::vector<double>] and "ke":[std::vector<double>]
+
 const auto team13 = R"(
 {
    "reluctivity": {
@@ -202,6 +204,25 @@ const auto Al2024_T3 = R"(
    "kappa": 120
 }
 )"_json;
+
+// Copper Wire that accounts for temperature dependent conductivity/resistivity
+// Current value is (=1 divided by resistivity value from https://www.britannica.com/science/resistivity)
+// Current alpha value for resistivity is from https://www.engineeringtoolbox.com/resistivity-conductivity-d_418.html
+// TODO: Replace copper_wire and/or add this to const nlohmann::json material_library
+// const auto temp_dep_copper_wire = R"(
+// {
+//    "rho": 8960,
+//    "cv": 376,
+//    "kappa": 2.49,
+//    "conductivity":{
+//       "linear":{
+//          "sigma_t_ref": 5.6497e7,
+//          "t_ref": 20,
+//          "alpha_resistivity": 3.8e-3
+//       }
+//    }
+// }
+// )"_json;
 
 const nlohmann::json material_library = {{"hiperco50", hiperco50},
                                          {"team13", team13},

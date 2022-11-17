@@ -47,6 +47,127 @@ public:
    }
 };
 
+/// Abstract class ThreeStateCoefficient
+/// Defines new signature for Eval() and new methods for State Derivatives that
+/// subclasses must implement.
+class ThreeStateCoefficient : public mfem::Coefficient
+{
+public:
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override
+   {
+      return Eval(trans, ip, 0);
+   }
+
+   virtual double Eval(mfem::ElementTransformation &trans,
+                       const mfem::IntegrationPoint &ip,
+                       double state1,
+                       double state2,
+                       double state3) = 0;
+
+   virtual double EvalDerivS1(mfem::ElementTransformation &trans,
+                                 const mfem::IntegrationPoint &ip,
+                                 double state1,
+                                 double state2,
+                                 double state3) = 0;
+
+   virtual double EvalDerivS2(mfem::ElementTransformation &trans,
+                                 const mfem::IntegrationPoint &ip,
+                                 double state1,
+                                 double state2,
+                                 double state3) = 0;
+
+   virtual double EvalDerivS3(mfem::ElementTransformation &trans,
+                                 const mfem::IntegrationPoint &ip,
+                                 double state1,
+                                 double state2,
+                                 double state3) = 0;                                 
+
+   virtual double Eval2ndDerivS1(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   virtual double Eval2ndDerivS2(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   virtual double Eval2ndDerivS3(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   virtual double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   virtual double Eval2ndDerivS1S3(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   virtual double Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   virtual double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS3S1
+   virtual double Eval2ndDerivS3S1(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS2S3
+   virtual double Eval2ndDerivS3S2(mfem::ElementTransformation &trans,
+                                    const mfem::IntegrationPoint &ip,
+                                    const double state1,
+                                    const double state2,
+                                    const double state3)
+   {
+      return 0.0;
+   }
+};
+
 class ParameterContinuationCoefficient : public StateCoefficient
 {
 public:
