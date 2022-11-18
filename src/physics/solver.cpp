@@ -368,12 +368,12 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    if (smesh != nullptr)
    {
       TinyVector<double, 2> airfoil_cent;
-      airfoil_cent(0) = 10.0;
-      airfoil_cent(1) = 10.0;
+      airfoil_cent(0) = 5.0;
+      airfoil_cent(1) = 5.0;
       /// let us see if this works
       /// find the elements to refine
       CutCell<2, 1> cut_init(smesh.get());
-      /*Algoim::LevelSet<2>*/ circle<2> phi_init = cut_init.constructLevelSet();
+     Algoim::LevelSet<2> /*circle<2>*/ phi_init = cut_init.constructLevelSet();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
       int ncr = options["mesh"]["ncr"].template get<int>();
@@ -392,7 +392,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
       double rdist;
-      rdist = 7.0;
+      rdist = 4.0;
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -416,7 +416,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
          // rdist = 0.5 * rdist;
       }
-      rdist = 3.0;
+      rdist = 2.0;
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -801,7 +801,6 @@ void AbstractSolver::setInitialCondition(
    VectorFunctionCoefficient u0(num_state, u_init);
    cout << "before ProjectCoefficient() " << endl;
    state.ProjectCoefficient(u0);
-   cout << "state projected " << endl;
    GridFunType u_test(fes.get());
    u_test.ProjectCoefficient(u0);
    // write the solution to vtk file
@@ -813,6 +812,9 @@ void AbstractSolver::setInitialCondition(
                   "Solution",
                   options["space-dis"]["degree"].template get<int>() + 1);
    sol_ofs.close();
+   // fes_gd->GetProlongationMatrix()->Mult(state, *u);
+   // cout << "dg state vector after gd prolongation: " << endl;
+   // u->Print();
    HypreParMatrix *Q;
    Q = fes_gd->Dof_TrueDof_Matrix();
    Q->Mult(state, *u);
@@ -841,11 +843,16 @@ void AbstractSolver::setInitialCondition(ParCentGridFunction &state,
 {
    VectorConstantCoefficient u0(u_init);
    state.ProjectCoefficient(u0);
+   cout << "gd state vector: " << endl;
+   state.Print();
    GridFunType u_test(fes.get());
    u_test.ProjectCoefficient(u0);
-   HypreParMatrix *Q;
-   Q = fes_gd->Dof_TrueDof_Matrix();
-   Q->Mult(state, *u);
+   // HypreParMatrix *Q;
+   // Q = fes_gd->Dof_TrueDof_Matrix();
+   // Q->Mult(state, *u);
+   fes_gd->GetProlongationMatrix()->Mult(state, *u);
+   cout << "dg state vector: " << endl;
+   u->Print();
    u_test -= *u;
 
    cout << "After projection, the difference norm is " << u_test.Norml2()
@@ -1146,8 +1153,12 @@ double AbstractSolver::calcResidualNorm() const
    {
       GDGridFunType r(fes_gd.get());
       HypreParVector *u_true = u_gd->GetTrueDofs();
+      cout << "writing u_true ... " << endl;
+      u_true->Print("u_gd.txt");
       HypreParVector *r_true = r.GetTrueDofs();
       res->Mult(*u_true, *r_true);
+      cout << "writing r_true ... " << endl;
+      r_true->Print("r_gd.txt");
       cout << "res sum " << r_true->Sum() << endl;
       const char *res_vec_gd = "res_gd.dat";
       r_true->Print(res_vec_gd);

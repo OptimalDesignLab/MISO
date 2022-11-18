@@ -29,7 +29,7 @@ public:
       prec->SetOperator(oper->GetGradient(x));
       prec->Mult(r, c);
       double norm0 = Norm(r);
-      cout << "||r_0|| " << norm0 << endl;
+      // cout << "||r_0|| " << norm0 << endl;
       double norm = norm0;
       double tol = 1e-13;
       for (int k = 0; k < maxlsitr; ++k)

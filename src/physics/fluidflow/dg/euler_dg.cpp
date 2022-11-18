@@ -100,13 +100,13 @@ template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
-   GridFunction x(fes.get());
-   //ParCentGridFunction x(fes_gd.get());
+   //GridFunction x(fes.get());
+   ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(
        new EulerDGIntegrator<dim>(diff_stack, alpha));
    double area;
    // area = res->GetEnergy(x);
-   // cout << "domain area: " << 1.0 << endl;
+   // // cout << "exact area: " << (5.45*5.45 - 0.25)*M_PI << endl;
    // cout << "calculated area: " << area << endl;
    // cout << "airfoil area " << endl;
    // cout << abs(M_PI * 900 - area) << endl;
@@ -157,9 +157,10 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           bndry_marker[idx]);
       idx++;
       // GridFunction x(fes.get());
-      // double peri_airfoil;
-      // peri_airfoil = res->GetEnergy(x);
-      // cout << "airfoil perimeter: " << peri_airfoil << endl;
+      // double peri_circle;
+      // peri_circle = res->GetEnergy(x);
+      // cout << "exact circle perimeter: " << M_PI << endl;
+      // cout << "calculated circle perimeter: " << peri_circle << endl;
    }
 
    if (bcs.find("far-field") != bcs.end())
@@ -182,6 +183,17 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    // cout << "error: " << endl;
    // cout << abs(2 * M_PI * 30 - peri_far) << endl;
    }
+   if (bcs.find("potential-flow") != bcs.end())
+   {
+      // far-field boundary conditions
+      vector<int> tmp = bcs["potential-flow"].template get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
+      idx++;
+   }
    if (bcs.find("inviscid-mms") != bcs.end())
    {
       // viscous MMS boundary conditions
@@ -196,7 +208,6 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    }
 
 }
-
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {

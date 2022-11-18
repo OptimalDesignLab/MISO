@@ -324,7 +324,7 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
 #if 1
    //GridFunction x(fes.get());
-   ParCentGridFunction x(fes_gd.get());
+   //ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    // double area;
@@ -381,7 +381,7 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    area = res->GetEnergy(x);
    // cout << "after GetEnergy() " << endl;
    //  double exact_area = 400 - 0.0817073;  // airfoil
-   double exact_area = 400.0 - M_PI * 4.0;
+   double exact_area = 100.0 - M_PI * 0.25;
    //double exact_area = 2 * M_PI;
    cout << "correct area: " << (exact_area) << endl;
    cout << "calculated area: " << area << endl;
@@ -410,11 +410,11 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
-   //double eip = M_PI/2.0;
+   double eip = 2.0*M_PI*0.5;
    eip_c = res->GetEnergy(x)  - area;
-   // cout << "exact inner perimeter: " << eip << endl;
+   cout << "exact inner perimeter: " << eip << endl;
    cout << "calcualted bdr perimeter: " << eip_c << endl;
-   //cout << "bdr peri error:  "  << abs(eip-eip_c) << endl;
+   cout << "bdr peri error:  "  << abs(eip-eip_c) << endl;
    int idx = 0.0;
    if (bcs.find("vortex") != bcs.end())
    {
@@ -660,7 +660,7 @@ void CutEulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
 {
    if (fun == "drag")
    {
-      // drag on the specified boundaries
+      // drag on the specified boundaries (not used for cut-cell mesh)
       auto bdrs = options["boundaries"].template get<vector<int>>();
 
       mfem::Vector drag_dir(dim);
@@ -683,9 +683,9 @@ void CutEulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
    }
    else if (fun == "lift")
    {
-      // lift on the specified boundaries
+      cout << "calling lift integrator " << endl;
+      // lift on the specified boundaries (not used for cut-cell mesh)
       auto bdrs = options["boundaries"].template get<vector<int>>();
-
       mfem::Vector lift_dir(dim);
       lift_dir = 0.0;
       if (dim == 1)
@@ -698,12 +698,9 @@ void CutEulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
          lift_dir(ipitch) = cos(aoa_fs);
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
-
       FunctionalOutput out(*fes, res_fields);
-      out.addOutputBdrFaceIntegrator(
-          new CutDGPressureForce<dim, entvar>(
-              diff_stack, fec.get(), lift_dir, cutSegmentIntRules, phi),
-          std::move(bdrs));
+      out.addOutputDomainIntegrator(new CutDGPressureForce<dim, entvar>(
+          diff_stack, fec.get(), lift_dir, cutSegmentIntRules, phi));
       outputs.emplace(fun, std::move(out));
    }
    else if (fun == "entropy")

@@ -30,6 +30,8 @@ set(SANDBOX_SRCS
    exLaplace_cut
    gd_interpolation
    ellipse_potential_flow
+   potential_flow_cylinder_cut
+   potential_flow_cylinder_dg
    # magnetostatic_box
    magnetostatic_motor
    magnetostatic_wire

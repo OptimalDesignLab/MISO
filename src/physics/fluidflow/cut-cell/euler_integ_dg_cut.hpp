@@ -87,7 +87,7 @@ public:
    CutDGIsentropicVortexBC(adept::Stack &diff_stack,
                            const mfem::FiniteElementCollection *fe_coll,
                            std::map<int, IntegrationRule *> cutSegmentIntRules,
-                           /*Algoim::LevelSet<2>*/ circle<2> phi,
+                           Algoim::LevelSet<2> /*circle<2>*/ phi,
                            double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGIsentropicVortexBC<dim, entvar>>(
           diff_stack,
@@ -155,7 +155,7 @@ public:
    CutDGSlipWallBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
                    std::map<int, IntegrationRule *> cutSegmentIntRules,
-                   /*Algoim::LevelSet<2>*/ circle<2> phi,
+                   Algoim::LevelSet<2> /*circle<2>*/ phi,
                    double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipWallBC<dim, entvar>>(
           diff_stack,
@@ -225,7 +225,7 @@ public:
    CutDGSlipFarFieldBC(adept::Stack &diff_stack,
                        const mfem::FiniteElementCollection *fe_coll,
                        std::map<int, IntegrationRule *> cutSegmentIntRules,
-                       /*Algoim::LevelSet<2>*/ circle<2> phi,
+                       Algoim::LevelSet<2> /*circle<2>*/ phi,
                        const mfem::Vector &q_far,
                        double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipFarFieldBC<dim, entvar>>(
@@ -604,7 +604,7 @@ public:
                       const mfem::FiniteElementCollection *fe_coll,
                       const mfem::Vector &force_dir,
                       std::map<int, IntegrationRule *> cutSegmentIntRules,
-                      /*Algoim::LevelSet<2>*/ circle<2> phi)
+                      Algoim::LevelSet<2> /*circle<2>*/ phi)
     : CutDGInviscidBoundaryIntegrator<CutDGPressureForce<dim, entvar>>(
           diff_stack,
           fe_coll,
@@ -789,7 +789,7 @@ public:
    CutDGInviscidExactBC(adept::Stack &diff_stack,
                         const mfem::FiniteElementCollection *fe_coll,
                         std::map<int, IntegrationRule *> cutSegmentIntRules,
-                        /*Algoim::LevelSet<2>*/ circle<2> phi,
+                        Algoim::LevelSet<2> /*circle<2>*/ phi,
                         void (*fun)(const mfem::Vector &, mfem::Vector &),
                         double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGInviscidExactBC<dim, entvar>>(
@@ -853,75 +853,6 @@ private:
    mfem::Vector qexact;
    /// work space for flux computations
    mfem::Vector work_vec;
-};
-// Integrator for exact, prescribed BCs (with zero normal derivative)
-/// \tparam dim - number of spatial dimensions (1, 2, or 3)
-/// \note This derived class uses the CRTP
-template <int dim, bool entvar>
-class DGPotentialFlowBC
- : public DGInviscidBoundaryIntegrator<DGPotentialFlowBC<dim, entvar>>
-{
-public:
-   /// Constructs an integrator for a viscous exact BCs
-   /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] fe_coll - used to determine the face elements
-   /// \param[in] Re_num - Reynolds number
-   /// \param[in] Pr_num - Prandtl number
-   /// \param[in] q_far - state at the far-field
-   /// \param[in] vis - viscosity (if negative use Sutherland's law)
-   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   DGPotentialFlowBC(adept::Stack &diff_stack,
-                     const mfem::FiniteElementCollection *fe_coll,
-                     double a = 1.0)
-    : DGInviscidBoundaryIntegrator<DGPotentialFlowBC<dim, entvar>>(diff_stack,
-                                                                   fe_coll,
-                                                                   dim + 2,
-                                                                   a)
-   { }
-
-   /// Contracts flux with the entropy variables
-   /// \param[in] x - coordinate location at which function is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the function
-   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
-   /// \returns fun - w^T*flux
-   double calcBndryFun(const mfem::Vector &x,
-                       const mfem::Vector &dir,
-                       const mfem::Vector &q);
-
-   /// Compute flux corresponding to an exact solution
-   /// \param[in] x - coordinate location at which flux is evaluated (not used)
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
-   /// \param[out] flux_vec - value of the flux
-   void calcFlux(const mfem::Vector &x,
-                 const mfem::Vector &dir,
-                 const mfem::Vector &q,
-                 mfem::Vector &flux_vec);
-
-   /// Compute jacobian of flux corresponding to an exact solution
-   /// w.r.t `states`
-   /// \param[in] x - coordinate location at which flux is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
-   /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacState(const mfem::Vector &x,
-                         const mfem::Vector &dir,
-                         const mfem::Vector &q,
-                         mfem::DenseMatrix &flux_jac);
-
-   /// Compute jacobian of flux corresponding to an exact solution
-   /// w.r.t `dir`
-   /// \param[in] x - coordinate location at which flux is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] q - conservative variables at which to evaluate the flux
-   /// \param[out] flux_jac - jacobian of the flux
-   void calcFluxJacDir(const mfem::Vector &x,
-                       const mfem::Vector &dir,
-                       const mfem::Vector &q,
-                       mfem::DenseMatrix &flux_jac);
-
-private:
 };
 
 }  // namespace mach

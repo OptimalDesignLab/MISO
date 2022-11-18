@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
       auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name,
                                                          move(smesh));
       solver->setInitialCondition(uexact);
-      solver->printSolution("vortex_dg_init", 0);
+      // solver->printSolution("vortex_dg_init", 0);
 
       // get the initial density error
       double l2_error = (static_cast<EulerDGSolver<2, entvar>&>(*solver)

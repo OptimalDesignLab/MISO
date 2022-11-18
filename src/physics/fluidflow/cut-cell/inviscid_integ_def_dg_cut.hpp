@@ -445,7 +445,8 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       /// this is used for area test
-      double area = sqrt(trans.Weight());
+      // double area = sqrt(trans.Weight());
+      // area += face_ip.weight * alpha * area;
       //fun += face_ip.weight * alpha * area;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *alpha;
    }

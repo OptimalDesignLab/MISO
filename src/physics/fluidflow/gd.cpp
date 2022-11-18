@@ -253,6 +253,9 @@ void ParGalerkinDifference::SortNeighbors(int id,
          refCent(1) = 0.5 * (coord[1] + center(1));
       }
    }
+   /// required for conforming mesh case
+   // refCent(0) = center(0);
+   // refCent(1) = center(1);
    // if (id == 3)
    // {
    //    cout << "ref center :" << endl;
@@ -401,7 +404,7 @@ void ParGalerkinDifference::BuildGDProlongation() const
    case 2:
       nreq = (degree + 1) * (degree + 2) / 2;
       nreq_init = (degree + 2) * (degree + 3) / 2;
-      //nreq_init = nreq;
+    //  nreq_init = nreq; /// old stencil
       break;
    case 3:
       cout << "Not implemeneted yet.\n" << endl;
@@ -448,6 +451,7 @@ void ParGalerkinDifference::BuildGDProlongation() const
          //      << endl;
          //cout << "building vandermonde for element: " << i << endl;
          buildVandermondeMat(dim, nreq, elmt_id, stencil_elid, cent_mat, V);
+          //buildVandermondeMat(dim, nreq, nels, stencil_elid, cent_mat, V); // old stencil approach
          // cout << " =================================================== "
          //      << endl;
          // cout << "#elements in stencil afterwards " << stencil_elid.Size()
@@ -679,7 +683,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
    int num_elem = x_center.Width();
    double vand_scale = calcVandScale(elem_id, dim, x_center);
   // cout << "vand_scale for elem_id " << elem_id << " is " << vand_scale << endl;
-   //double vand_scale = 1.0;
+   //vand_scale = 1.0;
    // number of total polynomial basis functions
    int num_basis = -1;
    if (1 == dim)

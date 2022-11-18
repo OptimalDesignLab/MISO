@@ -17,10 +17,11 @@ double DGInviscidIntegrator<Derived>::GetElementEnergy(
 {
 
    using namespace mfem;
+   using namespace std;
    double energy;
 
    int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
-   const IntegrationRule *ir = IntRule;
+   const IntegrationRule *ir = NULL;// = IntRule;
    if (ir == NULL)
    {
       ir = &IntRules.Get(el.GetGeomType(), intorder);
@@ -192,7 +193,7 @@ double DGInviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
       //fun += face_ip.weight * trans.Weight();
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight *alpha; /// should  be multiplied ?
    }
    return fun;
 }

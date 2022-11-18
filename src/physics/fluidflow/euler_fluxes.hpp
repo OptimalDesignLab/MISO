@@ -1155,7 +1155,7 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    }
 }
 /// ------------------- Potential flow over a circle -------------------
-#if 0
+#if 1
 /// Potential solution exact state as a function of position
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`
@@ -1163,32 +1163,35 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
 template <typename xdouble>
 void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
 {
-   xdouble Ma = 0.2;  // 0.95
+   xdouble Ma = 0.2;
    xdouble rho = 1.0;
    xdouble p = 1.0 / euler::gamma;
    xdouble theta;
-   // ellipse parameters
-   xdouble a = 4.0;
-   xdouble b = 4.0;
-   xdouble xc = 10.0;
-   xdouble yc = 10.0;
-   if (x[0] > 1e-15)
+   xdouble xc = 5.0;
+   xdouble yc = 5.0;
+   xdouble circ = 0.5;
+   xdouble rad = 0.5;
+   theta = atan2(x[1] - yc, x[0] - xc);
+   if (abs(x[0] - xc) < 1e-14)
    {
-      theta = atan2(x[1]-yc, x[0]-xc);
-   }
-   else
-   {
-      theta = M_PI / 2.0;
+    theta = 0.5*M_PI;
    }
    xdouble r = sqrt(((x[0] - xc) * (x[0] - xc)) + ((x[1] - yc) * (x[1] - yc)));
-   xdouble rad = 4.0;
    xdouble rinv = rad / r;
-   xdouble Vr = rho * Ma * (1.0 - rinv * rinv) * cos(theta);
-   xdouble Vth = -rho * Ma * (1.0 + rinv * rinv) * sin(theta);
+   xdouble rtilde = 1.0 / rinv;
+   xdouble Vr = Ma * (1.0 - rinv * rinv) * cos(theta);
+   xdouble Vth =
+       -Ma * (1.0 + rinv * rinv) * sin(theta) + circ / (M_PI * rtilde);
+   xdouble ux = Vr * cos(theta) - (Vth * sin(theta));
+   xdouble uy = Vr * sin(theta) + (Vth * cos(theta));
+   xdouble p_bern =
+       1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 * rho * (ux * ux + uy * uy);
+//    rho = euler::gamma * p_bern;
    qbnd[0] = rho;
-   qbnd[1] = Vr * cos(theta) - (Vth * sin(theta));
-   qbnd[2] = Vr * sin(theta) + (Vth * cos(theta));
-   qbnd[3] = p / euler::gami + 0.5 * Ma * Ma;
+   qbnd[1] = rho * ux;
+   qbnd[2] = rho * uy;
+//    qbnd[3] = p_bern / euler::gami + 0.5 * Ma * Ma;
+   qbnd[3] = p_bern / euler::gami + 0.5 * (ux * ux + uy * uy);
 }
 #endif
 /// ------------------- Potential flow over an ellipse -------------------
@@ -1196,6 +1199,7 @@ void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
 /// \param[in] x - location at which the exact state is desired
 /// \param[out] qbnd - vortex conservative variable at `x`
 /// \tparam xdouble - typically `double` or `adept::adouble`
+#if 0
 template <typename xdouble>
 void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
 {
@@ -1229,6 +1233,7 @@ void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
    qbnd[2] = -rho * Ma * 2.0 * xi * eta * (term_b - term_a) / term_d;
    qbnd[3] = p / euler::gami + 0.5 * Ma * Ma;
 }
+#endif
 /// A wrapper for `calcBoundaryFlux` in the case of the isentropic vortex
 /// \param[in] x - location at which the boundary flux is desired
 /// \param[in] dir - desired (scaled) direction of the flux

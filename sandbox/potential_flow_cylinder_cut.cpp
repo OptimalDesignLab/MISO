@@ -32,7 +32,7 @@ void uexact(const Vector &x, Vector &u);
 Mesh buildMesh(int N);
 int main(int argc, char *argv[])
 {
-   const char *options_file = "airfoil_steady_dg_cut_options.json";
+   const char *options_file = "potential_flow_cylinder_cut_options.json";
    // Initialize MPI
    int num_procs, rank;
    MPI_Init(&argc, &argv);
@@ -50,7 +50,9 @@ int main(int argc, char *argv[])
       args.PrintUsage(cout);
       return 1;
    }
-
+   double M = 0.2;
+   double circ = 0.1;
+   double rad = 0.5;
    try
    {
       // construct the solver, set the initial condition, and solve
@@ -62,21 +64,26 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       auto solver =
           createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
-      Vector qfar(4);
-      static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
-          ->getFreeStreamState(qfar);
+      //   Vector qfar(4);
+      //   static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
+      //       ->getFreeStreamState(qfar);
       // qfar.Print();
       out->precision(15);
       // Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the
       // solver...
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(qfar);
-      solver->printSolution("airfoil-steady-dg-cut-potential-init", 0);
+      // solver->setInitialCondition(qfar);
+      solver->setInitialCondition(uexact);
+      solver->printSolution("cylinder-steady-dg-cut-potential-init", 0);
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
       solver->createOutput("drag", drag_opts);
+      solver->createOutput("lift", drag_opts);
       double drag;
       *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
+           << endl;
+      *out << "\nexact cl value = " << (circ / M) << endl;
+      *out << "\nInitial cl value = " << abs(solver->calcOutput("lift"))
            << endl;
       // get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
@@ -85,13 +92,14 @@ int main(int argc, char *argv[])
       *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->solveForState();
-      solver->printSolution("airfoil-steady-dg-cut-potential-final", -1);
+      solver->printSolution("cylinder-steady-dg-cut-potential-final", -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
+      *out << "\ncl value = " << abs(solver->calcOutput("lift")) << endl;
    }
 
    catch (MachException &exception)
@@ -124,10 +132,10 @@ void uexact(const Vector &x, Vector &q)
    double theta;
    double Ma = 0.2;
    double rho = 1.0;
-   double p = 1.0 / euler::gamma;
+   double p = 1.0 /*/ euler::gamma*/;
    /// ellipse parameters
-   double xc = 10.0;
-   double yc = 10.0;
+   double xc = 5.0;
+   double yc = 5.0;
    double a = 2.5;
    double b = sqrt(a * (a - 1.0));
    double s =
@@ -160,10 +168,7 @@ void uexact(const Vector &x, Vector &q)
    }
 }
 #endif
-#if 0
-// Exact solution; note that I reversed the flow direction to be clockwise, so
-// the problem and mesh are consistent with the LPS paper (that is, because the
-// triangles are subdivided from the quads using the opposite diagonal)
+#if 1
 void uexact(const Vector &x, Vector &q)
 {
    q.SetSize(4);
@@ -173,29 +178,34 @@ void uexact(const Vector &x, Vector &q)
    double rho = 1.0;
    double p = 1.0 / euler::gamma;
    /// circle parameters
-   double xc = 10.00;
-   double yc = 10.00;
-   double rad = 4.0;
-   if (x(0) > 1e-15)
-   {
-      theta = atan2(x(1) - yc, x(0) - xc);
-   }
-   else
-   {
-      theta = M_PI / 2.0;
-   }
+   double xc = 5.00;
+   double yc = 5.00;
+   double rad = 0.5;
+   double circ = 0.1;
+   theta = atan2(x(1) - yc, x(0) - xc);
    double r = sqrt(((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)));
    double rinv = rad / r;
-   // rinv = 1.0;
-   double Vr = rho * Ma * (1.0 - rinv * rinv) * cos(theta);
-   double Vth = -rho * Ma * (1.0 + rinv * rinv) * sin(theta);
-   u(0) = rho;
-   // u(1) = (Vr * cos(theta)) - (Vth * sin(theta));
-   // u(2) = (Vr * sin(theta)) + (Vth * cos(theta));
+   double rtilde = 1.0 / rinv;
+   double Vr = Ma * (1.0 - rinv * rinv) * cos(theta);
+   double Vth = -Ma * (1.0 + rinv * rinv) * sin(theta) - circ / (M_PI * rtilde);
+   double ux = (Vr * cos(theta)) - (Vth * sin(theta));
+   double uy = (Vr * sin(theta)) + (Vth * cos(theta));
    // directly derived u , v from complex potential, w
-   u(1) = rho*Ma*(1.0 - rinv * rinv*cos(2.0*theta));
-   u(2) = -rho * Ma*rinv * rinv * sin(2.0*theta);
-   u(3) = p / euler::gami + 0.5 * Ma * Ma;
+   //    u(1) = rho*Ma*(1.0 - rinv * rinv*cos(2.0*theta));
+   //    u(2) = -rho * Ma*rinv * rinv * sin(2.0*theta);
+   // u(3) = p / euler::gami + 0.5 * Ma * Ma;
+   double p_bern =
+       1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 * rho * (ux * ux + uy * uy);
+   double p_euler =
+       euler::gami * (u(3) - 0.5 * rho * (u(1) * u(1) + u(2) * u(2)));
+
+   u(0) = rho;
+   u(1) = rho * ux;
+   u(2) = rho * uy;
+   //u(3) = p_bern / euler::gami + 0.5 * Ma * Ma;
+   u(3) = p_bern / euler::gami + 0.5 * (ux * ux + uy * uy);
+   //    cout << "p_bern: " << p_bern << endl;
+   //    cout << "p_euler: " << p_euler << endl;
    if (entvar == false)
    {
       q = u;
@@ -204,11 +214,12 @@ void uexact(const Vector &x, Vector &q)
    {
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
    }
+
 }
 #endif
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 20.0, 20.0, true);
+       N, N, Element::QUADRILATERAL, true, 10.0, 10.0, true);
    return mesh;
 }

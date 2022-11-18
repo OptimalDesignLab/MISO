@@ -142,7 +142,7 @@ public:
       }
       return kappa;
    }
-#if 1
+#if 0
    /// construct exact levelset
    circle<2> constructLevelSet() const
    {
@@ -151,24 +151,24 @@ public:
       phi_ls.yscale = 1.0;
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
-      phi_ls.xc = 10.0;
-      phi_ls.yc = 10.0;
+      phi_ls.xc = 5.0;
+      phi_ls.yc = 5.0;
       if (ls == 1)
       {
          phi_ls.lsign = -1.0;
-         phi_ls.a = 4.0;
-         phi_ls.b = 1.0;
+         phi_ls.a = 0.5;
+         phi_ls.b = 0.5;
       }
       else
       {
          phi_ls.lsign = 1.0;
          phi_ls.a = 4.0;
-         phi_ls.b = 1.0;
+         phi_ls.b = 4.0;
       }
       return phi_ls;
    }
 #endif
-#if 0
+#if 1
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
@@ -260,8 +260,8 @@ public:
       }
       /// translate ellipse/airfoil
       TinyVector<double, N> xcent;
-      xcent(0) = 1.5;
-      xcent(1) = 2.0;
+      xcent(0) = 10.0;
+      xcent(1) = 10.0;
       std::vector<TinyVector<double, N>> Xcoord;
       for (int k = 0; k < nbnd; ++k)
       {
@@ -279,18 +279,18 @@ public:
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
       TinyVector<double, 2> xle, xte;
-      // xle(0) = 19.5;
-      // xle(1) = 20.0;
-      // xte(0) = 19.997592;
-      // xte(1) = 20.0;
+      xle(0) = 19.5;
+      xle(1) = 20.0;
+      xte(0) = 19.997592;
+      xte(1) = 20.0;
       // xle(0) = 6.0;
       // xle(1) = 10.0;
       // xte(0) = 14.0;
       // xte(1) = 10.0;
-      xle(0) = 1.5;
-      xle(1) = 2.0;
-      xte(0) = 2.5;
-      xte(1) = 2.0;
+      // xle(0) = 1.5;
+      // xle(1) = 2.0;
+      // xte(0) = 2.5;
+      // xte(1) = 2.0;
       std::cout << std::setprecision(10) << std::endl;
       cout << "phi , gradphi at leading edge: " << endl;
       cout << phi_ls(xle) << " , " << phi_ls.grad(xle) << endl;
@@ -947,8 +947,8 @@ public:
 protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
-   // Algoim::LevelSet<N> phi;
-   circle<N> phi;
+   Algoim::LevelSet<N> phi;
+   //circle<N> phi;
 };
 }  // namespace mach
 
