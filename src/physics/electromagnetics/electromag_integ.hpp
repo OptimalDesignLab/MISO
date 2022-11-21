@@ -1085,9 +1085,9 @@ class DCLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \brief - Compute DC copper losses in the domain
-   /// \param[in] sigma - the electrical conductivity coefficient
+   /// \param[in] sigma - the temperature dependent electrical conductivity coefficient TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    /// \param[in] current_density - the current density magnitude
-   DCLossFunctionalIntegrator(mfem::Coefficient &sigma) : sigma(sigma) { }
+   DCLossFunctionalIntegrator(StateCoefficient &sigma) : sigma(sigma) { }
 
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] el - the finite element
@@ -1099,7 +1099,8 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
-   mfem::Coefficient &sigma;
+   /// TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
+   StateCoefficient &sigma;
    // double rms_current;
    // double strand_radius;
    // double num_strands_in_hand;
@@ -1176,13 +1177,15 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
 
+   /// TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    DCLossFunctionalDistributionIntegrator(mfem::Coefficient &sigma,
                                           std::string name = "")
     : sigma(sigma), name(std::move(name))
    { }
 
 private:
-   /// Electrical conductivity
+   /// Temperature dependent Electrical conductivity 
+   /// TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    mfem::Coefficient &sigma;
    // optional integrator name to differentiate setting inputs
    std::string name;
@@ -1210,7 +1213,8 @@ class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
-   /// \param[in] sigma - the electrical conductivity coefficient
+   /// \param[in] sigma - the temperature dependent electrical conductivity coefficient
+   /// TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    ACLossFunctionalIntegrator(mfem::Coefficient &sigma) : sigma(sigma) { }
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
@@ -1224,6 +1228,7 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
+   /// TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    mfem::Coefficient &sigma;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
@@ -1304,6 +1309,7 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
 
+   ///TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    ACLossFunctionalDistributionIntegrator(mfem::GridFunction &peak_flux,
                                           mfem::Coefficient &sigma,
                                           std::string name = "")
@@ -1312,7 +1318,8 @@ public:
 
 private:
    mfem::GridFunction &peak_flux;
-   /// Electrical conductivity
+   /// Temperature Dependent Electrical conductivity
+   ///TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    mfem::Coefficient &sigma;
    // optional integrator name to differentiate setting inputs
    std::string name;
@@ -1351,10 +1358,11 @@ public:
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
-   /// \param[in] sigma - the electrical conductivity coefficient
+   /// \param[in] sigma - the temperature dependent electrical conductivity coefficient
    /// \param[in] freq - the electrical excitation frequency
    /// \param[in] diam - the diameter of a strand in the bundle
    /// \param[in] fill_factor - the density of strands in the bundle
+   ///TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    HybridACLossFunctionalIntegrator(mfem::Coefficient &sigma,
                                     const double freq,
                                     const double diam,
@@ -1373,6 +1381,7 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
+   ///TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
    mfem::Coefficient &sigma;
    double freq;
    double diam;
@@ -1647,6 +1656,90 @@ private:
    /// class that implements mesh sensitivities for SteinmetzLossIntegrator
    friend class SteinmetzLossIntegratorMeshSens;
 };
+
+///TODO: Don't forget to uncomment. Commented out since ThreeStateCoefficient was causing some errors when trying make (even before make build_tests), so will come back to.
+// /// Functional integrator to compute core losses based on the CAL2 core loss model,
+// /// a two term loss separation model consisting of a term for hysteresis losses and a term for eddy current losses 
+// /// that assumes the hysteresis exponent for B to be constant and equal to 2, like for eddy currents
+// class CAL2CoreLossIntegrator : public mfem::NonlinearFormIntegrator
+// {
+// public:
+//    friend void setInputs(CAL2CoreLossIntegrator &integ,
+//                          const MachInputs &inputs);
+
+//    /// \brief - Compute element contribution to global force/torque
+//    /// \param[in] el - the finite element
+//    /// \param[in] trans - defines the reference to physical element mapping
+//    /// \param[in] elfun - state vector of the element
+//    /// \returns the element contribution to global force/torque
+//    double GetElementEnergy(const mfem::FiniteElement &el,
+//                            mfem::ElementTransformation &trans,
+//                            const mfem::Vector &elfun) override;
+
+//    /// TODO: Copied over from SteimetzLossIntegrator, Likely not needed
+//    // /// \brief - Computes dJdu, for solving for the adjoint
+//    // /// \param[in] el - the finite element
+//    // /// \param[in] trans - defines the reference to physical element mapping
+//    // /// \param[in] elfun - state vector of the element
+//    // /// \param[out] elfun_bar - \partial J \partial u for this functional
+//    // void AssembleElementVector(const mfem::FiniteElement &el,
+//    //                            mfem::ElementTransformation &trans,
+//    //                            const mfem::Vector &elfun,
+//    //                            mfem::Vector &elfun_bar) override;
+
+//    /// Commenting out this attempt at a constructor because the material library parameters should be taken care of at the higher level definition of these 3 state coeffs
+//    // CAL2CoreLossIntegrator(ThreeStateCoefficient &kh,
+//    //                         ThreeStateCoefficient &ke,
+//    //                         mfem::Coefficient &T0,
+//    //                         mfem::VectorCoefficient &kh_T0,
+//    //                         mfem::VectorCoefficient &ke_T0,
+//    //                         mfem::Coefficient &T1,
+//    //                         mfem::VectorCoefficient &kh_T1,
+//    //                         mfem::VectorCoefficient &ke_T1,
+//    //                         std::string name = "")
+//    //  : kh(kh), ke(ke), T0(T0), kh_T0(kh_T0), ke_T0(ke_T0), T1(T1), kh_T1(kh_T1), ke_T1(ke_T1), name(std::move(name))
+//    // { }
+
+//    CAL2CoreLossIntegrator(ThreeStateCoefficient &kh,
+//                            ThreeStateCoefficient &ke,
+//                            std::string name = "")
+//     : kh(kh), ke(ke), name(std::move(name))
+//    { }
+
+// private:
+//    /// Density - not needed for CAL2
+//    /// mfem::Coefficient &rho;
+//    /// CAL2 Coefficients
+//    ThreeStateCoefficient &kh;
+//    ThreeStateCoefficient &ke;
+
+//    /// Commenting out these because the material library parameters should be taken care of at the higher level definition of these 3 state coeffs
+//    // /// The material library data that the coefficients require
+//    // mfem::Coefficient &kh_T0;
+//    // mfem::Coefficient &kh_T1;
+//    // mfem::Coefficient &ke_T0;
+//    // mfem::Coefficient &kh_T1;
+
+//    // optional integrator name to differentiate setting inputs
+//    std::string name;
+
+//    ///TODO: Change these state types to match as needed
+//    /// Temperature
+//    double temperature = 1.0;
+//    /// Electrical excitation frequency
+//    double freq = 1.0;
+//    /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
+//    double max_flux_mag = 1.0;
+// #ifndef MFEM_THREAD_SAFE
+//    mfem::Vector shape;
+// #endif
+
+//    /// class that implements mesh sensitivities for CAL2CoreLossIntegrator
+//    ///TODO: Will this needed to be added? The equivalent for Steinmetz never was made.
+//    friend class CAL2CoreLossIntegratorMeshSens;
+// };
+
+///TODO: Is there a need to make a CAL2CoreLossDistributionIntegrator (mirroring SteinmetzLossDistributionIntegrator below)? SteinmetzLossDistributionIntegrator is seemingly never used outside of this hpp and cpp file.
 
 class SteinmetzLossDistributionIntegrator : public mfem::LinearFormIntegrator
 {

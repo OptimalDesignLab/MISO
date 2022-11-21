@@ -11,6 +11,9 @@
 #include "electromag_test_data.hpp"
 #include "reluctivity_coefficient.hpp"
 
+///TODO: Ultimately change below line to #include "reluctivity_coefficient.hpp" once re-install mach and file ends up in mach/include
+#include "../../src/physics/electromagnetics/conductivity_coefficient.hpp"
+
 namespace
 {
 
@@ -585,6 +588,154 @@ TEST_CASE("ReluctivityCoefficient lognu vs bh")
             std::cout << "])\n";
             std::cout << "bh_dnudb = np.array([np.";
             printVector(bh_dnudb);
+            std::cout << "])\n";
+         }
+      }
+   }
+}
+
+TEST_CASE("ConductivityCoefficient: Models vs. Desired")
+{
+   using namespace mfem;
+   using namespace mach;
+
+   std::stringstream meshStr;
+   meshStr << two_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   const int dim = mesh.SpaceDimension();
+
+
+   /// Construct coefficient
+   for (int p = 1; p <= 1; p++)
+   {
+      /// construct elements
+      ND_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+      const auto &TempDepSigma_options = R"(
+      {
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "hiperco50",
+                  "conductivity": {
+                     "model": "linear",
+                     "sigma_T_ref": 5.6497e7,
+                     "T_ref": 20,
+                     "alpha_resistivity": 3.8e-3
+                  }
+               }
+            }
+         }
+      })"_json;
+      auto TempDepSigma_coeff = ConductivityCoefficient(TempDepSigma_options, material_library);
+
+      const auto &ConstantSigma_options = R"(
+      {
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "hiperco50",
+                  "conductivity": {
+                     "model": "constant"
+                  }
+               }
+            }
+         }
+      })"_json;
+      auto ConstantSigma_coeff = ConductivityCoefficient(ConstantSigma_options, material_library);
+
+      const auto &OldSigma_options = R"(
+      {
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "hiperco50",
+                  "sigma": 58.14e6
+               }
+            }
+         }
+      })"_json;
+      auto OldSigma_coeff = ConductivityCoefficient(OldSigma_options, material_library);
+
+      int npts = 201;
+      std::vector<double> temperatures(npts);
+      ///TODO: Add in other protected outputs if needed
+      for (int i = 0; i < npts; ++i)
+      {
+         temperatures[i] = i;
+      }
+
+      std::vector<double> TempDepSigma_sigma(npts);
+      std::vector<double> TempDepSigma_dsigmadT(npts);
+
+      std::vector<double> ConstantSigma_sigma(npts);
+      std::vector<double> ConstantSigma_dsigmadT(npts);
+
+      std::vector<double> OldSigma_sigma(npts);
+      std::vector<double> OldSigma_dsigmadT(npts);
+
+      // for (int j = 0; j < fes.GetNE(); j++)
+      for (int j = 0; j < 1; j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         // for (int i = 0; i < ir->GetNPoints(); i++)
+         for (int i = 0; i < 1; i++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+
+            for (int k = 0; k < npts; ++k)
+            {
+               auto temperature = temperatures[k];
+
+               TempDepSigma_sigma[k] = TempDepSigma_coeff.Eval(trans, ip, temperature);
+               TempDepSigma_dsigmadT[k] = TempDepSigma_coeff.EvalStateDeriv(trans, ip, temperature);
+               ConstantSigma_sigma[k] = ConstantSigma_coeff.Eval(trans, ip, temperature);
+               ConstantSigma_dsigmadT[k] = ConstantSigma_coeff.EvalStateDeriv(trans, ip, temperature);
+               OldSigma_sigma[k] = OldSigma_coeff.Eval(trans, ip, temperature);
+               OldSigma_dsigmadT[k] = OldSigma_coeff.EvalStateDeriv(trans, ip, temperature);
+            }
+
+            std::cout << "temperatures = np.array([";
+            printVector(temperatures);
+            std::cout << "])\n";
+
+            std::cout << "TempDepSigma_sigma = np.array([";
+            printVector(TempDepSigma_sigma);
+            std::cout << "])\n";
+            std::cout << "TempDepSigma_dsigmadT = np.array([";
+            printVector(TempDepSigma_dsigmadT);
+            std::cout << "])\n";
+
+            std::cout << "ConstantSigma_sigma = np.array([";
+            printVector(ConstantSigma_sigma);
+            std::cout << "])\n";
+            std::cout << "ConstantSigma_dsigmadT = np.array([";
+            printVector(ConstantSigma_dsigmadT);
+            std::cout << "])\n";
+
+            std::cout << "OldSigma_sigma = np.array([";
+            printVector(OldSigma_sigma);
+            std::cout << "])\n";
+            std::cout << "OldSigma_dsigmadT = np.array([";
+            printVector(OldSigma_dsigmadT);
             std::cout << "])\n";
          }
       }

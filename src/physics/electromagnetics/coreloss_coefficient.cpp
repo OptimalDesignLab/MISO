@@ -15,25 +15,31 @@
 
 namespace
 {
-/// TODO: If needed, uncomment the below global variables and/or add in necessary global variables
-/// permeability of free space
-// constexpr double mu_0 = 4e-7 * M_PI;
-// constexpr double nu0 = 1 / mu_0;
-
+/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 class TempDepCoreLossCoefficient : public mach::ThreeStateCoefficient
 {
 public:
    /// \brief Define a model to represent the temperature dependent core losses as calculated by the two term loss separation model, 
    ///      empirically derived from a data source (NASA, Carpenter, ADA, etc.)
    /// \param[in] rho - TODO: material density? 
-   /// \param[in] kh - vector of variable hysteresis loss coefficients, empirically found.
-   ///                     kh=[kh0, kh1, kh2, ...], kh(B)=kh0+kh1*B+kh2*B^2...
-   /// \param[in] ke - vector of variable eddy current loss coefficients, empirically found.
-   ///                     ke=[ke0, ke1, ke2, ...], ke(B)=ke0+ke1*B+ke2*B^2...
+   /// \param[in] T0 - the lower temperature used for curve fitting kh(f,B) and ke(f,B)
+   /// \param[in] kh_T0 - vector of variable hysteresis loss coefficients at temperature T0, empirically found.
+   ///                     kh_T0=[kh0_T0, kh1_T0, kh2_T0, ...], kh_T0(B)=kh0_T0+kh1_T0*B+kh2_T0*B^2...
+   /// \param[in] ke_T0 - vector of variable eddy current loss coefficients at temperature T0, empirically found.
+   ///                     ke_T0=[ke0_T0, ke1_T0, ke2_T0, ...], ke_T0(B)=ke0_T0+ke1_T0*B+ke2_T0*B^2...
+   /// \param[in] T1 - the upper temperature used for curve fitting kh(f,B) and ke(f,B)
+   /// \param[in] kh_T1 - vector of variable hysteresis loss coefficients at temperature T1, empirically found.
+   ///                     kh_T1=[kh0_T1, kh1_T1, kh2_T1, ...], kh_T1(B)=kh0_T1+kh1_T1*B+kh2_T1*B^2...
+   /// \param[in] ke_T1 - vector of variable eddy current loss coefficients at temperature T1, empirically found.
+   ///                     ke_T1=[ke0_T1, ke1_T1, ke2_T1, ...], ke_T1(B)=ke0_T1+ke1_T1*B+ke2_T1*B^2...
    /// \param[in] A - magnetic vector potential GridFunction
    TempDepCoreLossCoefficient(double &rho,
-                        const std::vector<double> &kh,
-                        const std::vector<double> &ke,
+                        const double &T0,
+                        const std::vector<double> &kh_T0,
+                        const std::vector<double> &ke_T0,
+                        const double &T1,
+                        const std::vector<double> &kh_T1,
+                        const std::vector<double> &ke_T1,
                         mfem::GridFunction &A);
 
    ///TODO: Figure out how to handle A here AND throughout file
@@ -184,21 +190,23 @@ public:
                double state2,
                double state3) override;
 
-   /// TODO: Adapt EvalRevDiff as needed for temp dep core losses
-   void EvalRevDiff(double Q_bar,
+   /// TODO: Adapt EvalRevDiff if needed for temp dep core losses
+   void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
-                    mfem::DenseMatrix &PointMat_bar) override;
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
 
 protected:
 /// TODO: determine protected outputs that will be useful (protected meaning child classes can access too, but other classes cannot) 
-   double rho, kh, ke;
+   double rho, T0, T1;
+   std::vector<double> kh_T0, ke_T0, kh_T1, ke_T1;
    mfem::GridFunction &A;
 };
 
 /// Brought this in from coefficient.hpp file (and adapted) so have the option to compute core losses as were done before
-/// Translated from an mfem::Coeffient to convert to a mach::ThreeStateCoefficient
-/// TODO: Remove/overwrite the SteinmetzCoefficient class in coefficient.cpp and .hpp as needed
+/// Translated from an mfem::Coeffient to a mach::ThreeStateCoefficient
+/// TODO: UPDATE/REMOVE THIS CLASS. NEED TO FOCUS EFFORT ON SteinmetzLossIntegrator
 class SteinmetzCoefficient : public mach::ThreeStateCoefficient
 {
 public:
@@ -416,10 +424,15 @@ std::unique_ptr<mfem::Coefficient> constructCoreLossCoeff(
       ///TODO: Move this obtaining of density as needed, and/or change default value
       double rho = materials[material_name].value("rho", 1.0);
 
-      if (material.contains("kh") && material.contains("ke"))
+      ///TODO: Perhaps soften this if statement (impose default T0 and T1 values, for example)
+      if (material.contains("T0") && material.contains("kh_T0") && material.contains("ke_T0") && material.contains("T1") && material.contains("kh_T1") && material.contains("ke_T1"))
       {
-         std::vector<double> kh = material["kh"].get<std::vector<double>>();
-         std::vector<double> ke = material["ke"].get<std::vector<double>>();
+         double T0 = material["T0"].get<double>();
+         std::vector<double> kh_T0 = material["kh_T0"].get<std::vector<double>>();
+         std::vector<double> ke_T0 = material["ke_T0"].get<std::vector<double>>();
+         double T1 = material["T1"].get<double>();
+         std::vector<double> kh_T1 = material["kh_T1"].get<std::vector<double>>();
+         std::vector<double> ke_T1 = material["ke_T1"].get<std::vector<double>>();
 
          ///TODO: temp_coeff = std::make_unique<TempDepCoreLossCoefficient...
       }
@@ -502,7 +515,7 @@ double CoreLossCoefficient::Eval2ndDerivS1(
    return pFe.Eval2ndDerivS1(trans, ip, state1, state2, state3);
 }
 
-double TempDepCoreLossCoefficient::Eval2ndDerivS2(
+double CoreLossCoefficient::Eval2ndDerivS2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -512,7 +525,7 @@ double TempDepCoreLossCoefficient::Eval2ndDerivS2(
    return pFe.Eval2ndDerivS2(trans, ip, state1, state2, state3);
 }
 
-double TempDepCoreLossCoefficient::Eval2ndDerivS3(
+double CoreLossCoefficient::Eval2ndDerivS3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -522,7 +535,7 @@ double TempDepCoreLossCoefficient::Eval2ndDerivS3(
    return pFe.Eval2ndDerivS3(trans, ip, state1, state2, state3);
 }
 
-double TempDepCoreLossCoefficient::EvalDerivS1S2(
+double CoreLossCoefficient::EvalDerivS1S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -532,7 +545,7 @@ double TempDepCoreLossCoefficient::EvalDerivS1S2(
    return pFe.EvalDerivS1S2(trans, ip, state1, state2, state3);
 }
 
-double TempDepCoreLossCoefficient::EvalDerivS1S3(
+double CoreLossCoefficient::EvalDerivS1S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -542,7 +555,7 @@ double TempDepCoreLossCoefficient::EvalDerivS1S3(
    return pFe.EvalDerivS1S3(trans, ip, state1, state2, state3);
 }
 
-double TempDepCoreLossCoefficient::EvalDerivS2S3(
+double CoreLossCoefficient::EvalDerivS2S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -553,7 +566,7 @@ double TempDepCoreLossCoefficient::EvalDerivS2S3(
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S2
-double TempDepCoreLossCoefficient::EvalDerivS2S1(
+double CoreLossCoefficient::EvalDerivS2S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -564,7 +577,7 @@ double TempDepCoreLossCoefficient::EvalDerivS2S1(
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S3
-double TempDepCoreLossCoefficient::EvalDerivS3S1(
+double CoreLossCoefficient::EvalDerivS3S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -575,7 +588,7 @@ double TempDepCoreLossCoefficient::EvalDerivS3S1(
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS2S3
-double TempDepCoreLossCoefficient::EvalDerivS3S2(
+double CoreLossCoefficient::EvalDerivS3S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
@@ -585,8 +598,8 @@ double TempDepCoreLossCoefficient::EvalDerivS3S2(
    return pFe.EvalDerivS3S2(trans, ip, state1, state2, state3);
 }
 
-/// TODO: Adapt if keeping, remove if not
-void TempDepCoreLossCoefficient::EvalRevDiff(const double Q_bar,
+/// TODO: Adapt if needed
+void CoreLossCoefficient::EvalRevDiff(const double Q_bar,
                                          mfem::ElementTransformation &trans,
                                          const mfem::IntegrationPoint &ip,
                                          mfem::DenseMatrix &PointMat_bar)
@@ -626,10 +639,14 @@ namespace
 {
 TempDepCoreLossCoefficient::TempDepCoreLossCoefficient(
    double &rho,
-   const std::vector<double> &kh,
-   const std::vector<double> &ke,
+   const double &T0,
+   const std::vector<double> &kh_T0,
+   const std::vector<double> &ke_T0,
+   const double &T1,
+   const std::vector<double> &kh_T1,
+   const std::vector<double> &ke_T1,
    mfem::GridFunction &A)
- : rho(rho), kh(kh), ke(ke), A(A)
+ : rho(rho), T0(T0), kh_T0(kh_T0), ke_T0(ke_T0), T1(T1), kh_T1(kh_T1), ke_T1(ke_T1), A(A)
 
 ///TODO: As needed, add in more definitions of protected class members here
 {
@@ -646,11 +663,46 @@ double TempDepCoreLossCoefficient::Eval(mfem::ElementTransformation &trans,
 {
    ///TODO: As needed, utilize logic of protected class members to eval pFe
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double pFe = 
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   auto T = state1;
+   auto f = state2;
+   auto Bm = state3;
+
+   ///TODO: Double check the below is all good
+   // First, the hysteresis loss term subequations
+   double kh_T0_f_B = 0.0;
+   for (int i = 0; i < kh_T0.size(); ++i)
+   {
+      kh_T0_f_B += kh_T0[i]*pow(Bm,i);
+   }
+   double kh_T1_f_B = 0.0;
+   for (int i = 0; i < kh_T1.size(); ++i)
+   {
+      kh_T1_f_B += kh_T1[i]*pow(Bm,i);
+   }
+   double D_hyst = (kh_T1_f_B-kh_T0_f_B)/((T1-T0)*kh_T0_f_B);
+   double kth = 1+(T-T0)*D_hyst;
+   double kh_T_f_B = kth*kh_T0_f_B;
+
+   // Second, the eddy current loss term subequations
+   double ke_T0_f_B = 0.0;
+   for (int i = 0; i < ke_T0.size(); ++i)
+   {
+      ke_T0_f_B += ke_T0[i]*pow(Bm,i);
+   }
+   double ke_T1_f_B = 0.0;
+   for (int i = 0; i < ke_T1.size(); ++i)
+   {
+      ke_T1_f_B += ke_T1[i]*pow(Bm,i);
+   }
+   double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   double kte = 1+(T-T0)*D_eddy;
+   double ke_T_f_B = kte*ke_T0_f_B;
+
+   // Can now calculate specific core losses (W/kg)
+   double pFe = kh_T_f_B*f*std::pow(Bm,2)+ke_T_f_B*std::pow(f,2)*std::pow(Bm,2);
+   ///TODO: Return negative pFe (-pFe) below to be consistent with SteinmetzCoefficient::Eval from coefficient.cpp?
    return pFe;
-   */
 }
 
 double TempDepCoreLossCoefficient::EvalDerivS1(mfem::ElementTransformation &trans,
@@ -661,7 +713,7 @@ double TempDepCoreLossCoefficient::EvalDerivS1(mfem::ElementTransformation &tran
 {
    ///TODO: As needed, utilize logic of protected class members to eval pFe
 
-   ///TODO: Derive and code the below, then uncomment
+   ///TODO: Derived in Overleaf. Just need to code the below, then uncomment
    /*
    double dpFedf = 
    return dpFedf;
@@ -676,7 +728,7 @@ double TempDepCoreLossCoefficient::EvalDerivS2(mfem::ElementTransformation &tran
 {
    ///TODO: As needed, utilize logic of protected class members to eval pFe
 
-   ///TODO: Derive and code the below, then uncomment
+   ///TODO: Derived in Overleaf. Just need to code the below, then uncomment
    /*
    double dpFedB = 
    return dpFedB;
@@ -691,7 +743,7 @@ double TempDepCoreLossCoefficient::EvalDerivS3(mfem::ElementTransformation &tran
 {
    ///TODO: As needed, utilize logic of protected class members to eval pFe
 
-   ///TODO: Derive and code the below, then uncomment
+   ///TODO: Derived in Overleaf. Just need to code the below, then uncomment
    /*
    double dpFedT = 
    return dpFedT;
@@ -836,7 +888,7 @@ double TempDepCoreLossCoefficient::Eval2ndDerivS3S2(mfem::ElementTransformation 
    */
 }
 
-///TODO: is there a need to code EvalRevDiff for temp dep core loss method here?
+///TODO: is there a need to code EvalRevDiff for temp dep core loss method here? No, but YES for Steinmetz (copy from coefficient.cpp)
 
 SteinmetzCoefficient::SteinmetzCoefficient(
    double &rho,
@@ -861,12 +913,14 @@ double SteinmetzCoefficient::Eval(mfem::ElementTransformation &trans,
 {
    ///TODO: As needed, utilize logic of protected class members to eval pFe
 
-   ///TODO: Derive and code the below, add in pseudo if statement and paste in code from coefficient.cpp, then uncomment
-   /*
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   auto T = state1; // not used for Steinmetz
+   auto f = state2;
+   auto Bm = state3; 
 
-   double pFe = 
+   double pFe = rho * ks * std::pow(f, alpha) * std::pow(Bm, beta)
+   ///TODO: Return negative pFe (-pFe) below to be consistent with SteinmetzCoefficient::Eval from coefficient.cpp?
    return pFe;
-   */
 }
 
 double SteinmetzCoefficient::EvalDerivS1(mfem::ElementTransformation &trans,
@@ -1052,7 +1106,7 @@ double SteinmetzCoefficient::Eval2ndDerivS3S2(mfem::ElementTransformation &trans
    */
 }
 
-///TODO: is there a need to code EvalRevDiff for Steinmetz method here?
+///TODO: Code EvalRevDiff for Steinmetz method here (copy from coefficient.cpp)
 
 }
 

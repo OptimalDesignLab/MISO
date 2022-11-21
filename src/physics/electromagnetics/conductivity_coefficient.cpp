@@ -15,16 +15,17 @@ namespace
 {
 /// TODO: If needed, add in necessary global variables
 
+/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 class LinearTempDepConductivityCoefficient : public mach::StateCoefficient
 {
 public:
    /// \brief Define a conductivity model that is a linear function of temperature
-   /// \param[in] alpha_resistivity - temperature dependent resistivity coefficient (TODO: ensure double type is correct)
-   /// \param[in] T_ref - reference temperature (TODO: ensure double type is correct)
-   /// \param[in] sigma_T_ref - the conductivity at the reference temperature (TODO: ensure double type is correct)
-   LinearTempDepConductivityCoefficient(double &alpha_resistivity,
-                                        double &T_ref,
-                                        double &sigma_T_ref);
+   /// \param[in] alpha_resistivity - temperature dependent resistivity coefficient
+   /// \param[in] T_ref - reference temperature
+   /// \param[in] sigma_T_ref - the conductivity at the reference temperature
+   LinearTempDepConductivityCoefficient(const double &alpha_resistivity,
+                                        const double &T_ref,
+                                        const double &sigma_T_ref);
 
    /// \brief Evaluate the conductivity in the element described by trans at the
    /// point ip.
@@ -109,11 +110,11 @@ void getAlphaAndT_RefAndSigma_T_Ref(const nlohmann::json &material,
    }
    if (material["conductivity"].contains("sigma_T_ref"))
    {
-      T_ref = material["conductivity"]["sigma_T_ref"].get<double>();
+      sigma_T_ref = material["conductivity"]["sigma_T_ref"].get<double>();
    }
    else
    {
-      T_ref = materials[material_name]["conductivity"][model]["sigma_T_ref"]
+      sigma_T_ref = materials[material_name]["conductivity"][model]["sigma_T_ref"]
                 .get<double>();
    }
 }
@@ -153,7 +154,7 @@ std::unique_ptr<mfem::Coefficient> constructConductivityCoeff(
             double sigma_T_ref;
             getAlphaAndT_RefAndSigma_T_Ref(material, materials, sigma_model, alpha_resistivity, T_ref,sigma_T_ref);
             temp_coeff = std::make_unique<LinearTempDepConductivityCoefficient>(
-                alpha_resistivity, T_ref);
+                alpha_resistivity, T_ref, sigma_T_ref);
          }
          else
          {
@@ -248,9 +249,9 @@ LinearTempDepConductivityCoefficient::LinearTempDepConductivityCoefficient(
    const double &alpha_resistivity,
    const double &T_ref,
    const double &sigma_T_ref)
- : alpha_resistivity(std::make_unique<mfem::ConstantCoefficient>(alpha_resistivity)),
-   T_ref(std::make_unique<mfem::ConstantCoefficient>(T_ref)),
-   sigma_T_ref(std::make_unique<mfem::ConstantCoefficient>(sigma_T_ref))
+ : alpha_resistivity(alpha_resistivity),
+   T_ref(T_ref),
+   sigma_T_ref(sigma_T_ref)
 
 ///TODO: As needed, add in more definitions of protected class members here
 {
@@ -265,8 +266,8 @@ double LinearTempDepConductivityCoefficient::Eval(
    const double state)
 {
    ///TODO: As needed, utilize logic of protected class members to eval sigma
-    
-   double sigma = sigma_T_ref/(1+alpha_resistivity*(state-T_ref));
+   double T=state; // assuming the state is the temperature
+   double sigma = sigma_T_ref/(1+alpha_resistivity*(T-T_ref));
    return sigma;
 
 }
@@ -276,7 +277,8 @@ double LinearTempDepConductivityCoefficient::EvalStateDeriv(
     const mfem::IntegrationPoint &ip,
     const double state)
 {
-   double dsigmadT = (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+   double T=state; // assuming the state is the temperature
+   double dsigmadT = (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(T-T_ref),2);
    return dsigmadT;
 }
 
@@ -285,10 +287,9 @@ double LinearTempDepConductivityCoefficient::EvalState2ndDeriv(
     const mfem::IntegrationPoint &ip,
     const double state)
 {
-   double d2sigmadT2 = (2*sigma_T_ref*std::pow(alpha_resistivity,2))/std::pow(1+alpha_resistivity*(state-T_ref),3);
+   double T=state; // assuming the state is the temperature
+   double d2sigmadT2 = (2*sigma_T_ref*std::pow(alpha_resistivity,2))/std::pow(1+alpha_resistivity*(T-T_ref),3);
    return d2sigmadT2;
 }
-
-///TODO: is there a need to code EvalRevDiff method here?
 
 }

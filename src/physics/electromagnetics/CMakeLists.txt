@@ -10,6 +10,7 @@ set(MACH_PHYSICS_ELECTROMAGNETICS_HEADERS
    magnetostatic_residual.hpp
    magnetostatic.hpp
    reluctivity_coefficient.hpp
+   conductivity_coefficient.hpp
 )
 
 target_sources(mach
@@ -23,6 +24,7 @@ target_sources(mach
       magnetostatic_residual.cpp
       magnetostatic.cpp
       reluctivity_coefficient.cpp
+      conductivity_coefficient.cpp
       ${MACH_PHYSICS_ELECTROMAGNETICS_HEADERS}
 )
 

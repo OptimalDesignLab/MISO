@@ -3,6 +3,10 @@
 #include "electromag_integ.hpp"
 #include "mach_input.hpp"
 
+///TODO: Don't forget to uncomment. Commented out since ThreeStateCoefficient was causing some errors when trying make (even before make build_tests), so will come back to.
+// #include "cal2_kh_coefficient.hpp"
+// #include "cal2_ke_coefficient.hpp"
+
 using namespace mfem;
 
 namespace mach
@@ -3466,7 +3470,10 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       double trans_weight = trans.Weight();
 
       double w = ip.weight * trans_weight;
-      const double sigma_v = sigma.Eval(trans, ip);
+      ///TODO: double temperature = (after incorporate temperature field)
+      double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+      // const double sigma_v = sigma.Eval(trans, ip);
       fun += w / sigma_v;
    }
    return fun;
@@ -3518,7 +3525,9 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
 
       double trans_weight = trans.Weight();
       double w = ip.weight * trans_weight;
-
+      ///TODO: double temperature = (after incorporate temperature field)
+      // double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      // const double sigma_v = sigma.Eval(trans, ip, temperature);
       const double sigma_v = sigma.Eval(trans, ip);
       // fun += w / sigma_v;
 
@@ -3535,6 +3544,7 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
 
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
+      ///TODO: Stick with default EvalRevDiff or adapt?
       sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
 
       /// double w = ip.weight * trans_weight;
@@ -3604,7 +3614,9 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
 
       /// holds quadrature weight
       const double w = ip.weight * trans.Weight();
-
+      ///TODO: double temperature = (after incorporate temperature field)
+      // double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      // const auto sigma_v = sigma.Eval(trans, ip, temperature);
       const auto sigma_v = sigma.Eval(trans, ip);
 
       double strand_area = M_PI * pow(strand_radius, 2);
@@ -3662,7 +3674,9 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 
       el.CalcPhysShape(trans, shape);
       const auto b_mag = shape * elfun;
-
+      ///TODO: double temperature = (after incorporate temperature field)
+      // double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      // const auto sigma_val = sigma.Eval(trans, ip, temperature);
       const auto sigma_val = sigma.Eval(trans, ip);
 
       const auto loss = sigma_val * pow(b_mag, 2);
@@ -3737,7 +3751,9 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
 
       el.CalcPhysShape(trans, shape);
       const double b_mag = shape * elfun;
-
+      ///TODO: double temperature = (after incorporate temperature field)
+      // double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      // const double sigma_v = sigma.Eval(trans, ip, temperature);
       const double sigma_v = sigma.Eval(trans, ip);
 
       const double loss = sigma_v * pow(b_mag, 2);
@@ -3756,6 +3772,7 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
 
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
+      ///TODO: Adapt EvalRevDiff if needed
       sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
 
       /// const double b_mag = shape * elfun;
@@ -3856,7 +3873,9 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
 
       /// holds quadrature weight
       const double w = ip.weight * trans.Weight();
-
+      ///TODO: double temperature = (after incorporate temperature field)
+      // double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      // const auto sigma_v = sigma.Eval(trans, ip, temperature);
       const auto sigma_v = sigma.Eval(trans, ip);
 
       double loss = stack_length * M_PI * pow(radius, 4) *
@@ -3952,7 +3971,9 @@ double HybridACLossFunctionalIntegrator::GetElementEnergy(
 
       curlshape_dFt.AddMultTranspose(elfun, b_vec);
       const double b_mag = b_vec.Norml2() / trans.Weight();
-
+      ///TODO: double temperature = (after incorporate temperature field)
+      // double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      // const double sigma_val = sigma.Eval(trans, ip, temperature);
       const double sigma_val = sigma.Eval(trans, ip);
 
       const double loss = std::pow(diam, 2) * sigma_val *
@@ -5565,6 +5586,77 @@ double SteinmetzLossIntegrator::GetElementEnergy(
    }
    return fun;
 }
+
+///TODO: Don't forget to uncomment. Commented out since ThreeStateCoefficient was causing some errors when trying make (even before make build_tests), so will come back to.
+// void setInputs(CAL2CoreLossIntegrator &integ, const MachInputs &inputs)
+// {
+//    ///TODO: Need to change how temperature is accessed. This will not do it.
+//    if (!integ.name.empty())
+//    {
+//       setValueFromInputs(
+//           inputs, "temperature:" + integ.name, integ.temperature);
+//    }
+//    else
+//    {
+//       setValueFromInputs(inputs, "temperature", integ.temperature);
+//    }
+//    setValueFromInputs(inputs, "frequency", integ.freq);
+//    ///TODO: Alter how the maximum alternating flux density is acquired
+//    if (!integ.name.empty())
+//    {
+//       setValueFromInputs(
+//           inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
+//    }
+//    else
+//    {
+//       setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
+//    }
+// }
+
+// double CAL2CoreLossIntegrator::GetElementEnergy(
+//     const mfem::FiniteElement &el,
+//     mfem::ElementTransformation &trans,
+//     const mfem::Vector &elfun)
+// {
+//    const auto *ir = IntRule;
+//    if (ir == nullptr)
+//    {
+//       int order = [&]()
+//       {
+//          if (el.Space() == FunctionSpace::Pk)
+//          {
+//             return 2 * el.GetOrder() - 1;
+//          }
+//          else
+//          {
+//             return 2 * el.GetOrder();
+//          }
+//       }();
+
+//       ir = &IntRules.Get(el.GetGeomType(), order);
+//    }
+
+//    double fun = 0.0;
+//    for (int i = 0; i < ir->GetNPoints(); i++)
+//    {
+//       const IntegrationPoint &ip = ir->IntPoint(i);
+//       trans.SetIntPoint(&ip);
+
+//       /// holds quadrature weight
+//       const double w = ip.weight * trans.Weight();
+
+//       ///TODO: Maybe need to make the variable coefficients aware of the material library coeffs
+
+//       // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
+//       // kh(f,T,Bm) and ke(f,T,Bm)
+//       auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, max_flux_mag);
+//       auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, max_flux_mag);
+      
+//       fun += kh_v * freq * std::pow(max_flux_mag,2) * w; // Add the hysteresis loss constribution
+//       fun += ke_v * std::pow(freq,2) * std::pow(max_flux_mag,2) * w; // Add the eddy current loss constribution
+//    }
+//    return fun;
+// }
 
 void setInputs(SteinmetzLossDistributionIntegrator &integ,
                const MachInputs &inputs)

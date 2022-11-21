@@ -62,6 +62,13 @@ std::vector<int> getCurrentAttributes(nlohmann::json &options)
 
 }  // anonymous namespace
 
+/// TODO: Find and replace per the below
+/*  
+sigma(
+       constructMaterialCoefficient("sigma", options["components"], materials)
+
+sigma(options,materials)
+*/
 namespace mach
 {
 MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
@@ -195,6 +202,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       auto dc_loss_options = options;
       dc_loss_options["attributes"] =
           getCurrentAttributes(AbstractSolver2::options);
+      /// TODO: Is the below line ok as is?
       DCLossFunctional out(fields, sigma, dc_loss_options);
       outputs.emplace(fun, std::move(out));
    }
@@ -211,6 +219,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       auto ac_loss_options = options;
       ac_loss_options["attributes"] =
           getCurrentAttributes(AbstractSolver2::options);
+      /// TODO: Is the below line ok as is?
       ACLossFunctional out(fields, sigma, ac_loss_options);
       outputs.emplace(fun, std::move(out));
    }
@@ -257,6 +266,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("temperature"),
                      std::forward_as_tuple(mesh(), temp_field_options));
 
+      /// TODO: Is the below still ok now that sigma is not a constant?
       EMHeatSourceOutput out(fields,
                              rho,
                              sigma,

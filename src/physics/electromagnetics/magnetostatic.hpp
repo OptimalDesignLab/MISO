@@ -13,7 +13,7 @@
 #include "mfem_extensions.hpp"
 #include "pde_solver.hpp"
 #include "reluctivity_coefficient.hpp"
-//TODO: When ready, add: #include "conductivity_coefficient.hpp"
+#include "conductivity_coefficient.hpp"
 
 namespace mach
 {
@@ -31,9 +31,12 @@ private:
    /// Material dependent coefficient representing density
    MeshDependentCoefficient rho;
    /// Material dependent coefficient representing electrical conductivity
-   ///TODO: When ready, replace the above line with: Coefficient representing the temperature-dependent electrical conductivity
    MeshDependentCoefficient sigma;
-   ///TODO: When ready, replace the above line with: ReluctivityCoefficient sigma;
+   ///TODO: Replace above two lines with: 
+   /*
+   /// Coefficient representing the temperature-dependent electrical conductivity
+   ConductivityCoefficient sigma;
+   */
 
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state

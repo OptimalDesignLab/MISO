@@ -11,6 +11,7 @@
 #include "mach_input.hpp"
 
 /// TODO: Add/remove above includes as needed
+/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 namespace mach
 {
 class ConductivityCoefficient : public StateCoefficient

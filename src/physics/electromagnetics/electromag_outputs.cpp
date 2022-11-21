@@ -471,9 +471,10 @@ void vectorJacobianProduct(DCLossFunctional &output,
    }
 }
 
+///TODO: Once again make sigma either a StateCoefficient or ConductivityCoefficient
 DCLossFunctional::DCLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
-    mfem::Coefficient &sigma,
+    StateCoefficient &sigma,
     const nlohmann::json &options)
  : resistivity(fields.at("state").space(), fields), volume(fields, options)
 {
@@ -527,6 +528,7 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
    // pv.RegisterField("FluxMag", &flux_mag.gridFunc());
    // pv.Save();
 
+   ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
    double sigma_b2 = calcOutput(output.output, output.inputs);
 
    double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -549,6 +551,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
 {
    if (wrt.rfind("strand_radius", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -570,6 +573,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("frequency", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -591,6 +595,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("stack_length", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -612,6 +617,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -633,6 +639,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_turns", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -654,6 +661,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_slots", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -675,7 +683,9 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("mesh_coords", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
+      ///TODO: Determine if and how sigma_b2_dot needs to be changed (multiple layers of other files)
       double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -709,6 +719,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 {
    if (wrt.rfind("strand_radius", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -767,6 +778,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("frequency", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -824,6 +836,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("stack_length", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -882,6 +895,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -939,6 +953,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_turns", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -996,6 +1011,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_slots", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1064,6 +1080,7 @@ void vectorJacobianProduct(ACLossFunctional &output,
 {
    if (wrt.rfind("mesh_coords", 0) == 0)
    {
+      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1105,6 +1122,7 @@ void vectorJacobianProduct(ACLossFunctional &output,
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
       ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///TODO: Determine if and how sigma_b2_bar needs to be changed (multiple layers of other files)
       double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
                             pow(output.radius, 4) *
                             pow(2 * M_PI * output.freq, 2) / 32.0;
@@ -1120,11 +1138,13 @@ void vectorJacobianProduct(ACLossFunctional &output,
       //                        pow(2 * M_PI, 2) / 32.0;
 
       /// double sigma_b2 = calcOutput(output.output, output.inputs);
+      ///TODO: Determine if/how these two below lines need to be changed
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
    }
 }
 
+///TODO: Once again make sigma either a StateCoefficient or ConductivityCoefficient
 ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &sigma,
@@ -1219,6 +1239,7 @@ void calcOutput(EMHeatSourceOutput &output,
    addLoad(output.lf, out_vec);
 }
 
+///TODO: Once again make sigma either a StateCoefficient or ConductivityCoefficient
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &rho,
@@ -1237,6 +1258,7 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    //                        stator_attrs);
 
    auto winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
+   ///TODO: Is the below line ok as is?
    lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma),
                           winding_attrs);
    // lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(

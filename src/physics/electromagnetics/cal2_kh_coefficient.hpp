@@ -1,5 +1,5 @@
-#ifndef MACH_CORELOSS_COEFFICIENT
-#define MACH_CORELOSS_COEFFICIENT
+#ifndef MACH_CAL2_KH_COEFFICIENT
+#define MACH_CAL2_KH_COEFFICIENT
 
 #include <map>
 #include <string>
@@ -15,10 +15,10 @@
 /// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 namespace mach
 {
-class CoreLossCoefficient : public ThreeStateCoefficient
+class CAL2khCoefficient : public ThreeStateCoefficient
 {
 public:
-   friend void setInputs(CoreLossCoefficient &current,
+   friend void setInputs(CAL2khCoefficient &current,
                          const MachInputs &inputs)
    { }
 
@@ -112,13 +112,13 @@ public:
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
 
-   CoreLossCoefficient(const nlohmann::json &coreloss_options,
+   CAL2khCoefficient(const nlohmann::json &coreloss_options,
                        const nlohmann::json &materials);
 
 private:
    /// The underlying coefficient that does all the heavy lifting (TODO: determine if this is OK)
    /// TODO: Replace/add to if needed
-   MeshDependentCoefficient pFe;
+   MeshDependentCoefficient CAL2_kh;
 };
 
 }  // namespace mach

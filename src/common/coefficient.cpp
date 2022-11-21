@@ -217,7 +217,16 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
          material_name = material["name"].get<std::string>();
       }
 
-      double val = materials[material_name].value(name, default_val);
+      // JSON structure changed for Steinmetz core losses. If statement below added to account for this
+      double val;
+      if (name == "ks" || name == "alpha" || name == "beta")
+      { 
+         val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
+      }
+      else
+      {
+         val = materials[material_name].value(name, default_val);
+      }
 
       if (-1 != attr)
       {
@@ -448,126 +457,130 @@ void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
-double SteinmetzCoefficient::Eval(ElementTransformation &trans,
-                                  const IntegrationPoint &ip)
-{
-   int dim = trans.GetSpaceDim();
-   // Array<int> vdofs;
-   // Vector elfun;
-   // A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-   // A.GetSubVector(vdofs, elfun);
+///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+// double SteinmetzCoefficient::Eval(ElementTransformation &trans,
+//                                   const IntegrationPoint &ip)
+// {
+//    int dim = trans.GetSpaceDim();
+//    // Array<int> vdofs;
+//    // Vector elfun;
+//    // A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+//    // A.GetSubVector(vdofs, elfun);
 
-   // auto &el = *A.FESpace()->GetFE(trans.ElementNo);
-   // int ndof = el.GetDof();
+//    // auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+//    // int ndof = el.GetDof();
 
-   // DenseMatrix curlshape(ndof,dim);
-   // DenseMatrix curlshape_dFt(ndof,dim);
-   Vector b_vec(dim);
-   b_vec = 0.0;
+//    // DenseMatrix curlshape(ndof,dim);
+//    // DenseMatrix curlshape_dFt(ndof,dim);
+//    Vector b_vec(dim);
+//    b_vec = 0.0;
 
-   trans.SetIntPoint(&ip);
+//    trans.SetIntPoint(&ip);
 
-   /// TODO: this changes how I differentiate
-   A.GetCurl(trans, b_vec);
+//    /// TODO: this changes how I differentiate
+//    A.GetCurl(trans, b_vec);
 
-   // el.CalcCurlShape(ip, curlshape);
-   // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-   // curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   // curlshape.AddMultTranspose(elfun, b_vec);
+//    // el.CalcCurlShape(ip, curlshape);
+//    // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+//    // curlshape_dFt.AddMultTranspose(elfun, b_vec);
+//    // curlshape.AddMultTranspose(elfun, b_vec);
 
-   double b_mag = b_vec.Norml2();
+//    double b_mag = b_vec.Norml2();
 
-   // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
-   // ke*freq*freq*b_mag*b_mag);
+//    // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
+//    // ke*freq*freq*b_mag*b_mag);
 
-   double S = rho * ks * std::pow(freq, alpha) * std::pow(b_mag, beta);
-   return -S;
-}
+//    double S = rho * ks * std::pow(freq, alpha) * std::pow(b_mag, beta);
+//    return -S;
+// }
 
-void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
-                                       ElementTransformation &trans,
-                                       const IntegrationPoint &ip,
-                                       DenseMatrix &PointMat_bar)
-{
-   int dim = trans.GetSpaceDim();
-   Array<int> vdofs;
-   Vector elfun;
-   A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-   A.GetSubVector(vdofs, elfun);
 
-   const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
-   int ndof = el.GetDof();
+///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+// void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
+//                                        ElementTransformation &trans,
+//                                        const IntegrationPoint &ip,
+//                                        DenseMatrix &PointMat_bar)
+// {
+//    int dim = trans.GetSpaceDim();
+//    Array<int> vdofs;
+//    Vector elfun;
+//    A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+//    A.GetSubVector(vdofs, elfun);
 
-   DenseMatrix curlshape(ndof, dim);
-   DenseMatrix curlshape_dFt(ndof, dim);
-   Vector b_vec(dim);
-   Vector b_hat(dim);
-   b_vec = 0.0;
-   b_hat = 0.0;
+//    const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+//    int ndof = el.GetDof();
 
-   trans.SetIntPoint(&ip);
+//    DenseMatrix curlshape(ndof, dim);
+//    DenseMatrix curlshape_dFt(ndof, dim);
+//    Vector b_vec(dim);
+//    Vector b_hat(dim);
+//    b_vec = 0.0;
+//    b_hat = 0.0;
 
-   el.CalcCurlShape(ip, curlshape);
-   MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-   curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   curlshape.AddMultTranspose(elfun, b_hat);
+//    trans.SetIntPoint(&ip);
 
-   // double b_mag = b_vec.Norml2();
-   // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
-   // ke*freq*freq*b_mag*b_mag); double dS = rho*(alpha*kh*freq*std::pow(b_mag,
-   // alpha-2) + 2*ke*freq*freq);
-   double dS = 1.0;
+//    el.CalcCurlShape(ip, curlshape);
+//    MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+//    curlshape_dFt.AddMultTranspose(elfun, b_vec);
+//    curlshape.AddMultTranspose(elfun, b_hat);
 
-   DenseMatrix Jac_bar(3);
-   MultVWt(b_vec, b_hat, Jac_bar);
-   Jac_bar *= dS;
+//    // double b_mag = b_vec.Norml2();
+//    // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
+//    // ke*freq*freq*b_mag*b_mag); double dS = rho*(alpha*kh*freq*std::pow(b_mag,
+//    // alpha-2) + 2*ke*freq*freq);
+//    double dS = 1.0;
 
-   // cast the ElementTransformation
-   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+//    DenseMatrix Jac_bar(3);
+//    MultVWt(b_vec, b_hat, Jac_bar);
+//    Jac_bar *= dS;
 
-   DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
-   loc_PointMat_bar = 0.0;
+//    // cast the ElementTransformation
+//    auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
-   isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
+//    DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
+//    loc_PointMat_bar = 0.0;
 
-   PointMat_bar.Add(Q_bar, loc_PointMat_bar);
-}
+//    isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
 
-void SteinmetzVectorDiffCoefficient::Eval(Vector &V,
-                                          ElementTransformation &trans,
-                                          const IntegrationPoint &ip)
-{
-   int dim = trans.GetSpaceDim();
-   Array<int> vdofs;
-   Vector elfun;
-   A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-   A.GetSubVector(vdofs, elfun);
+//    PointMat_bar.Add(Q_bar, loc_PointMat_bar);
+// }
 
-   const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
-   int ndof = el.GetDof();
+///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+// void SteinmetzVectorDiffCoefficient::Eval(Vector &V,
+//                                           ElementTransformation &trans,
+//                                           const IntegrationPoint &ip)
+// {
+//    int dim = trans.GetSpaceDim();
+//    Array<int> vdofs;
+//    Vector elfun;
+//    A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+//    A.GetSubVector(vdofs, elfun);
 
-   DenseMatrix curlshape(ndof, dim);
-   DenseMatrix curlshape_dFt(ndof, dim);
-   Vector b_vec(dim);
-   Vector temp_vec(ndof);
-   b_vec = 0.0;
-   temp_vec = 0.0;
+//    const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+//    int ndof = el.GetDof();
 
-   trans.SetIntPoint(&ip);
+//    DenseMatrix curlshape(ndof, dim);
+//    DenseMatrix curlshape_dFt(ndof, dim);
+//    Vector b_vec(dim);
+//    Vector temp_vec(ndof);
+//    b_vec = 0.0;
+//    temp_vec = 0.0;
 
-   el.CalcCurlShape(ip, curlshape);
-   MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-   curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   double b_mag = b_vec.Norml2();
+//    trans.SetIntPoint(&ip);
 
-   V = 0.0;
-   curlshape_dFt.Mult(b_vec, temp_vec);
-   V = temp_vec;
-   double dS = rho * (alpha * kh * freq * std::pow(b_mag, alpha - 2) +
-                      2 * ke * freq * freq);
+//    el.CalcCurlShape(ip, curlshape);
+//    MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+//    curlshape_dFt.AddMultTranspose(elfun, b_vec);
+//    double b_mag = b_vec.Norml2();
 
-   V *= dS;
-}
+//    V = 0.0;
+//    curlshape_dFt.Mult(b_vec, temp_vec);
+//    V = temp_vec;
+//    double dS = rho * (alpha * kh * freq * std::pow(b_mag, alpha - 2) +
+//                       2 * ke * freq * freq);
+
+//    V *= dS;
+// }
 
 double ElementFunctionCoefficient::Eval(ElementTransformation &trans,
                                         const IntegrationPoint &ip)

@@ -106,17 +106,43 @@ const auto hiperco50 = R"(
             2.5]
       }
    },
-   "alpha": 1.286,
-   "beta": 1.76835,
+   "core_loss": {
+      "steinmetz": {
+         "ks": 0.0044,
+         "alpha": 1.286,
+         "beta": 1.76835
+      },
+      "CAL2": {
+         "T0" : 20,
+         "kh_T0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0],
+         "ke_T0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0],
+         "T1" : 200,
+         "kh_T1": [
+            0.0,
+            0.0,
+            0.0,
+            0.0],
+         "ke_T1": [
+            0.0,
+            0.0,
+            0.0,
+            0.0]
+      }
+   },
    "cv": 0.42,
    "kappa": 20,
-   "ks": 0.0044,
    "mu_r": 500,
    "rho": 8110
 }
 )"_json;
-
-///TODO: Replace "ks" above with "kh":[std::vector<double>] and "ke":[std::vector<double>]
 
 const auto team13 = R"(
 {
@@ -177,13 +203,23 @@ const auto air = R"(
 }
 )"_json;
 
-// meant for windings (should have reduced conductivity)
+// Copper Wire that accounts for temperature dependent conductivity/resistivity
+// Current value is (=1 divided by resistivity value from https://www.britannica.com/science/resistivity)
+///NOTE: Reference conductivity value is slightly less than the 58.14e6 that was there (wasn't sure about where that # came from)
+// Current alpha value for resistivity is from https://www.engineeringtoolbox.com/resistivity-conductivity-d_418.html
+/// TODO: since this is meant for windings, should have reduced conductivity...
 const auto copper_wire = R"(
 {
    "rho": 8960,
    "cv": 376,
    "kappa": 2.49,
-   "sigma": 58.14e6
+   "conductivity":{
+      "linear":{
+         "sigma_T_ref": 5.6497e7,
+         "T_ref": 20,
+         "alpha_resistivity": 3.8e-3
+      }
+   }
 }
 )"_json;
 
@@ -204,25 +240,6 @@ const auto Al2024_T3 = R"(
    "kappa": 120
 }
 )"_json;
-
-// Copper Wire that accounts for temperature dependent conductivity/resistivity
-// Current value is (=1 divided by resistivity value from https://www.britannica.com/science/resistivity)
-// Current alpha value for resistivity is from https://www.engineeringtoolbox.com/resistivity-conductivity-d_418.html
-// TODO: Replace copper_wire and/or add this to const nlohmann::json material_library
-// const auto temp_dep_copper_wire = R"(
-// {
-//    "rho": 8960,
-//    "cv": 376,
-//    "kappa": 2.49,
-//    "conductivity":{
-//       "linear":{
-//          "sigma_t_ref": 5.6497e7,
-//          "t_ref": 20,
-//          "alpha_resistivity": 3.8e-3
-//       }
-//    }
-// }
-// )"_json;
 
 const nlohmann::json material_library = {{"hiperco50", hiperco50},
                                          {"team13", team13},
