@@ -245,6 +245,677 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
    return material_coeff;
 }
 
+/// MeshDependentCoefficient::Eval copied over. No changes needed to get to MeshDependentCoefficient
+double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
+                                      const IntegrationPoint &ip)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      value = coeff->Eval(trans, ip);
+   }
+   else if (default_coeff)
+   {
+      value = default_coeff->Eval(trans, ip);
+   }
+   else  // if attribute not found and no default set, evaluate to zero
+   {
+      value = 0.0;
+   }
+   // std::cout << "val in eval: " << value << "\n";
+   return value;
+}
+
+// MeshDependentCoefficient::Eval copied over and adapted for MeshDependentThreeStateCoefficient
+double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
+                                      const IntegrationPoint &ip,
+                                      const double state1,
+                                      const double state2,
+                                      const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = coeff->Eval(trans, ip);
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = default_coeff->Eval(trans, ip);
+      }
+   }
+   else  // if attribute not found and no default set, evaluate to zero
+   {
+      value = 0.0;
+   }
+   // std::cout << "val in eval: " << value << "\n";
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalStateDeriv to make MeshDependentThreeStateCoefficient::EvalDerivS1
+double MeshDependentThreeStateCoefficient::EvalDerivS1(ElementTransformation &trans,
+                                                const IntegrationPoint &ip,
+                                                const double state1,
+                                                const double state2,
+                                                const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalDerivS1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalDerivS1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentThreeStateCoefficient::EvalDerivS1 to make MeshDependentThreeStateCoefficient::EvalDerivS2
+double MeshDependentThreeStateCoefficient::EvalDerivS2(ElementTransformation &trans,
+                                                const IntegrationPoint &ip,
+                                                const double state1,
+                                                const double state2,
+                                                const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalDerivS2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalDerivS2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentThreeStateCoefficient::EvalDerivS1 to make MeshDependentThreeStateCoefficient::EvalDerivS3
+double MeshDependentThreeStateCoefficient::EvalDerivS3(ElementTransformation &trans,
+                                                const IntegrationPoint &ip,
+                                                const double state1,
+                                                const double state2,
+                                                const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalDerivS3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->EvalDerivS3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS1
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS1(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS2
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS2(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS3
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS3(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS1S2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS1S2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS1S3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS1S3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS2S3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS2S3(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+///TODO: Likely not necessary because of Eval2ndDerivS1S2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS2S1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS2S1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+///TODO: Likely not necessary because of Eval2ndDerivS1S3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS3S1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS3S1(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+///TODO: Likely not necessary because of Eval2ndDerivS2S3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2
+double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   double value = NAN;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS3S2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         value = state_coeff->Eval2ndDerivS3S2(trans, ip, state1, state2, state3);
+      }
+      else
+      {
+         value = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      value = 0.0;
+   }
+   return value;
+}
+
+// Copied over from MeshDependentCoefficient::EvalRevDiff. No changes needed
+void MeshDependentThreeStateCoefficient::EvalRevDiff(const double Q_bar,
+                                           ElementTransformation &trans,
+                                           const IntegrationPoint &ip,
+                                           DenseMatrix &PointMat_bar)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   Coefficient *coeff = nullptr;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      coeff->EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   }
+   else if (default_coeff)
+   {
+      default_coeff->EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   }
+   // if attribute not found and no default set, don't change PointMat_bar
+}
+
+///Copied from MeshDependentCoefficient and adapted for MeshDependentThreeStateCoefficient
+std::unique_ptr<mach::MeshDependentThreeStateCoefficient> constructMaterialThreeStateCoefficient(
+    const std::string &name,
+    const nlohmann::json &components,
+    const nlohmann::json &materials,
+    double default_val)
+{
+   auto material_coeff = std::make_unique<mach::MeshDependentThreeStateCoefficient>();
+   /// loop over all components, construct coeff for each
+   for (const auto &component : components)
+   {
+      int attr = component.value("attr", -1);
+
+      const auto &material = component["material"];
+      std::string material_name;
+      if (material.is_string())
+      {
+         material_name = material.get<std::string>();
+      }
+      else
+      {
+         material_name = material["name"].get<std::string>();
+      }
+
+      // JSON structure changed for Steinmetz core losses. If statement below added to account for this
+      double val;
+      if (name == "ks" || name == "alpha" || name == "beta")
+      { 
+         val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
+      }
+      else
+      {
+         val = materials[material_name].value(name, default_val);
+      }
+
+      if (-1 != attr)
+      {
+         auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
+         material_coeff->addCoefficient(attr, move(coeff));
+      }
+      else
+      {
+         for (const auto &attribute : component["attrs"])
+         {
+            auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
+            material_coeff->addCoefficient(attribute, move(coeff));
+         }
+      }
+   }
+   return material_coeff;
+}
+
 // NonlinearReluctivityCoefficient::NonlinearReluctivityCoefficient(
 //     const std::vector<double> &B,
 //     const std::vector<double> &H)

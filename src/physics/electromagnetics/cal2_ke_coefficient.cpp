@@ -187,8 +187,10 @@ public:
 
 protected:
 /// TODO: determine protected outputs that will be useful (protected meaning child classes can access too, but other classes cannot) 
-   double T0, T1;
-   std::vector<double> ke_T0, ke_T1;
+   double T0;
+   std::vector<double> ke_T0;
+   double T1;
+   std::vector<double> ke_T1;
 };
 
 /// TODO: this default variable eddy current loss coefficient will need to be altered
@@ -198,7 +200,7 @@ std::unique_ptr<mfem::Coefficient> constructDefaultCAL2_keCoeff(
     const nlohmann::json &materials)
 {
    auto CAL2_ke = materials[material_name].value("ke", 1.0);
-   return std::make_unique<mfem::ConstantCoefficient>(ke);
+   return std::make_unique<mfem::ConstantCoefficient>(CAL2_ke);
 }
 
 std::unique_ptr<mfem::Coefficient> constructCAL2_keCoeff(
@@ -226,10 +228,12 @@ std::unique_ptr<mfem::Coefficient> constructCAL2_keCoeff(
          materials[material_name]["core_loss"]["CAL2"].contains("ke_T0") && 
          materials[material_name]["core_loss"]["CAL2"].contains("ke_T1"))
       {
-         double T0 = material["T0"].get<double>();
+         double T0 = materials[material_name]["core_loss"]
+                                 ["CAL2"]["T0"].get<double>();
          std::vector<double> ke_T0 = materials[material_name]["core_loss"]
                                  ["CAL2"]["ke_T0"].get<std::vector<double>>();
-         double T1 = material["T1"].get<double>();
+         double T1 = materials[material_name]["core_loss"]
+                                 ["CAL2"]["T1"].get<double>();
          std::vector<double> ke_T1 = materials[material_name]["core_loss"]
                                  ["CAL2"]["ke_T1"].get<std::vector<double>>();
 
@@ -327,67 +331,67 @@ double CAL2keCoefficient::Eval2ndDerivS3(
    return CAL2_ke.Eval2ndDerivS3(trans, ip, state1, state2, state3);
 }
 
-double CAL2keCoefficient::EvalDerivS1S2(
+double CAL2keCoefficient::Eval2ndDerivS1S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_ke.EvalDerivS1S2(trans, ip, state1, state2, state3);
+   return CAL2_ke.Eval2ndDerivS1S2(trans, ip, state1, state2, state3);
 }
 
-double CAL2keCoefficient::EvalDerivS1S3(
+double CAL2keCoefficient::Eval2ndDerivS1S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_ke.EvalDerivS1S3(trans, ip, state1, state2, state3);
+   return CAL2_ke.Eval2ndDerivS1S3(trans, ip, state1, state2, state3);
 }
 
-double CAL2keCoefficient::EvalDerivS2S3(
+double CAL2keCoefficient::Eval2ndDerivS2S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_ke.EvalDerivS2S3(trans, ip, state1, state2, state3);
+   return CAL2_ke.Eval2ndDerivS2S3(trans, ip, state1, state2, state3);
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S2
-double CAL2keCoefficient::EvalDerivS2S1(
+double CAL2keCoefficient::Eval2ndDerivS2S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_ke.EvalDerivS2S1(trans, ip, state1, state2, state3);
+   return CAL2_ke.Eval2ndDerivS2S1(trans, ip, state1, state2, state3);
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S3
-double CAL2keCoefficient::EvalDerivS3S1(
+double CAL2keCoefficient::Eval2ndDerivS3S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_ke.EvalDerivS3S1(trans, ip, state1, state2, state3);
+   return CAL2_ke.Eval2ndDerivS3S1(trans, ip, state1, state2, state3);
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS2S3
-double CAL2keCoefficient::EvalDerivS3S2(
+double CAL2keCoefficient::Eval2ndDerivS3S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_ke.EvalDerivS3S2(trans, ip, state1, state2, state3);
+   return CAL2_ke.Eval2ndDerivS3S2(trans, ip, state1, state2, state3);
 }
 
 /// TODO: Adapt if needed
@@ -456,14 +460,14 @@ double PolyVarEddyCurrentLossCoeff::Eval(mfem::ElementTransformation &trans,
    auto Bm = state3;
 
    double ke_T0_f_B = 0.0;
-   for (int i = 0; i < ke_T0.size(); ++i)
+   for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
    {
-      ke_T0_f_B += ke_T0[i]*pow(Bm,i);
+      ke_T0_f_B += ke_T0[i]*std::pow(Bm,i);
    }
    double ke_T1_f_B = 0.0;
-   for (int i = 0; i < ke_T1.size(); ++i)
+   for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
    {
-      ke_T1_f_B += ke_T1[i]*pow(Bm,i);
+      ke_T1_f_B += ke_T1[i]*std::pow(Bm,i);
    }
    double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
    double kte = 1+(T-T0)*D_eddy;

@@ -1,9 +1,11 @@
 #include <random>
+#include <typeinfo>
 
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "electromag_integ.hpp"
+///TODO: Once install mach again, replace the below line with simply: #include "electromag_integ.hpp"
+#include "../../src/physics/electromagnetics/electromag_integ.hpp"
 #include "electromag_test_data.hpp"
 
 TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
@@ -2081,12 +2083,18 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
    }
 }
 
-TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
+TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Field")
 {
    using namespace mfem;
    using namespace electromag_data;
 
-   double delta = 1e-5;
+   //Create a temperature grid function
+   //First, make a function coefficient
+   //Then, project it onto a square 2D domain
+   //Lastly, compare the resistivity solution found using the integrator to using assert
+
+   //First case will be a simple 2D domain with a constant temperature of 20 deg C
+   //The resistivity recovered should be 1/sigma_T_ref = 1/5.6497e7 = 1.770E-8 Ohm*m
 
    // generate a 8 element mesh
    int num_edge = 2;
@@ -2095,25 +2103,27 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
+   //Function Coefficient model Representing the Temperature Field
+   FunctionCoefficient model(
       [](const mfem::Vector &x)
       {
-         double q = 0;
+         // x will be the point in space
+         double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            q += pow(x(i), 2);
-            // q += sqrt(x(i));
-            // q += pow(x(i), 5);
+            T = 20; //constant temperature throughout mesh FOR NOW
+            // T = 100;
+            // T += some function that is easy to analytically integrate;
          }
-         return q;
+         return T;
       },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+      [](const mfem::Vector &x, const double T_bar, mfem::Vector &x_bar)
       {
          for (int i = 0; i < x.Size(); ++i)
          {
-            x_bar(i) += q_bar * 2 * x(i);
-            // x_bar(i) += q_bar * 0.5 / sqrt(x(i));
-            // x_bar(i) += q_bar * 5 * pow(x(i), 4);
+            ///TODO: determine if this is needed. May only be needed for MeshSens
+            x_bar(i) = 0;
+            
          }
       });
 
@@ -2121,58 +2131,148 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         // mesh.SetCurvature(p);
 
+         // Create the finite element collection and finite element space for the current order
          H1_FECollection fec(p, dim);
          FiniteElementSpace fes(&mesh, &fec);
-
-         // initialize state
-         GridFunction a(&fes);
-         FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
-
-         auto *integ = new mach::DCLossFunctionalIntegrator(model);
-         NonlinearForm functional(&fes);
-         functional.AddDomainIntegrator(integ);
 
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = *mesh.GetNodes();
          auto &mesh_fes = *x_nodes.FESpace();
 
-         // create v displacement field
-         GridFunction v(&mesh_fes);
-         VectorFunctionCoefficient v_pert(dim, randVectorState);
-         v.ProjectCoefficient(v_pert);
+         // Create the temperature_field grid function by mapping the function coefficient to a grid function
+         GridFunction temperature_field_test(&fes);
+         temperature_field_test.ProjectCoefficient(model);
+         
+         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
+         std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
 
-         // initialize the vector that dJdx multiplies
-         GridFunction p(&mesh_fes);
-         p.ProjectCoefficient(v_pert);
+         // Define the resistivity, as will be computed by the functional integrator
+         NonlinearForm functional(&fes);
+         ///TODO: Figure out how to make temperature_field_test a mfem::GridFunction*
+         //As it stands, if do temperature_field_test or **temperature_field_test, type is mfem::GridFunction& (reference rather than pointer)  
+         //As it stands, if do *temperature_field_test, type is mfem::Double& (double rather than pointer) 
+         //As it stands, it doesn't have any problems with sigma
+         // functional.AddDomainIntegrator(
+         //    new mach::DCLossFunctionalIntegrator(*sigma,**temperature_field_test));       
+         functional.AddDomainIntegrator(
+            new mach::DCLossFunctionalIntegrator(*sigma));       
 
-         // evaluate dJdx and compute its product with p
-         LinearForm dJdx(&mesh_fes);
-         dJdx.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegratorMeshSens(a, *integ));
-         dJdx.Assemble();
-         double dJdx_dot_p = dJdx * p;
+         // Compute the resistivity
+         auto resistivity = functional.GetEnergy(temperature_field_test);
+         std::cout << "resistivity = " << resistivity << "\n";
+ 
+         // Compare the computed resistivity to the value found by integration
+         ///TODO: change this assertion once have a temperature field
+         double expected_resistivity;
+         double alpha_resistivity = 3.8e-3; 
+         double T_ref = 20;
+         double sigma_T_ref = 5.6497e7;
+         double state = 100; // from electromag_integ.cpp file, around line 3510
+         expected_resistivity = std::pow(sigma_T_ref/(1+alpha_resistivity*(state-T_ref)),-1);
+         REQUIRE(resistivity == Approx(expected_resistivity)); // for the nullptr temperature field case
 
-         // now compute the finite-difference approximation...
-         GridFunction x_pert(x_nodes);
-         x_pert.Add(-delta, p);
-         mesh.SetNodes(x_pert);
-         fes.Update();
-         double dJdx_dot_p_fd = -functional.GetEnergy(a);
-         x_pert.Add(2 * delta, p);
-         mesh.SetNodes(x_pert);
-         fes.Update();
-         dJdx_dot_p_fd += functional.GetEnergy(a);
-         dJdx_dot_p_fd /= (2 * delta);
-         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
-         fes.Update();
-
-         REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+         // // May not be necessary, but just in case
+         // mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         // fes.Update();
       }
    }
 }
+
+
+
+// TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
+// {
+//    using namespace mfem;
+//    using namespace electromag_data;
+
+//    double delta = 1e-5;
+
+//    // generate a 8 element mesh
+//    int num_edge = 2;
+//    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+//                                      Element::TRIANGLE);
+//    mesh.EnsureNodes();
+//    const auto dim = mesh.SpaceDimension();
+
+//    mfem::FunctionCoefficient model(
+//       [](const mfem::Vector &x)
+//       {
+//          double q = 0;
+//          for (int i = 0; i < x.Size(); ++i)
+//          {
+//             q += pow(x(i), 2);
+//             // q += sqrt(x(i));
+//             // q += pow(x(i), 5);
+//          }
+//          return q;
+//       },
+//       [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+//       {
+//          for (int i = 0; i < x.Size(); ++i)
+//          {
+//             x_bar(i) += q_bar * 2 * x(i);
+//             // x_bar(i) += q_bar * 0.5 / sqrt(x(i));
+//             // x_bar(i) += q_bar * 5 * pow(x(i), 4);
+//          }
+//       });
+
+//    for (int p = 1; p <= 4; ++p)
+//    {
+//       DYNAMIC_SECTION("...for degree p = " << p)
+//       {
+//          // mesh.SetCurvature(p);
+
+//          H1_FECollection fec(p, dim);
+//          FiniteElementSpace fes(&mesh, &fec);
+
+//          // initialize state
+//          GridFunction a(&fes);
+//          FunctionCoefficient pert(randState);
+//          a.ProjectCoefficient(pert);
+
+//          auto *integ = new mach::DCLossFunctionalIntegrator(model);
+//          NonlinearForm functional(&fes);
+//          functional.AddDomainIntegrator(integ);
+
+//          // extract mesh nodes and get their finite-element space
+//          auto &x_nodes = *mesh.GetNodes();
+//          auto &mesh_fes = *x_nodes.FESpace();
+
+//          // create v displacement field
+//          GridFunction v(&mesh_fes);
+//          VectorFunctionCoefficient v_pert(dim, randVectorState);
+//          v.ProjectCoefficient(v_pert);
+
+//          // initialize the vector that dJdx multiplies
+//          GridFunction p(&mesh_fes);
+//          p.ProjectCoefficient(v_pert);
+
+//          // evaluate dJdx and compute its product with p
+//          LinearForm dJdx(&mesh_fes);
+//          dJdx.AddDomainIntegrator(
+//             new mach::DCLossFunctionalIntegratorMeshSens(a, *integ));
+//          dJdx.Assemble();
+//          double dJdx_dot_p = dJdx * p;
+
+//          // now compute the finite-difference approximation...
+//          GridFunction x_pert(x_nodes);
+//          x_pert.Add(-delta, p);
+//          mesh.SetNodes(x_pert);
+//          fes.Update();
+//          double dJdx_dot_p_fd = -functional.GetEnergy(a);
+//          x_pert.Add(2 * delta, p);
+//          mesh.SetNodes(x_pert);
+//          fes.Update();
+//          dJdx_dot_p_fd += functional.GetEnergy(a);
+//          dJdx_dot_p_fd /= (2 * delta);
+//          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+//          fes.Update();
+
+//          REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+//       }
+//    }
+// }
 
 TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
 {
@@ -2225,8 +2325,10 @@ TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          a.ProjectCoefficient(pert);
 
          auto *integ = new mach::ACLossFunctionalIntegrator(model);
+         std::cout << "2311" << *a << "\n";
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
+         std::cout << "2315" << *a << "\n";
 
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = *mesh.GetNodes();

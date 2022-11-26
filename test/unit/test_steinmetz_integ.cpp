@@ -2,7 +2,8 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
-#include "electromag_integ.hpp"
+///TODO: Once install mach again, replace the below line with simply: #include "electromag_integ.hpp"
+#include "../../src/physics/electromagnetics/electromag_integ.hpp"
 #include "material_library.hpp"
 
 TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
@@ -42,8 +43,44 @@ TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
    REQUIRE(core_loss == Approx(15.5341269187));
 }
 
+// Adding CAL2 Core Loss Integrator test here (too lazy to make a new/separate test file)
+TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
+{
+   const int dim = 3;
+   int num_edge = 3;
+   auto smesh = mfem::Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+                                            mfem::Element::TETRAHEDRON,
+                                            1.0, 1.0, 1.0, true);
+
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   mesh.EnsureNodes();
 
 
+   mfem::L2_FECollection fec(1, dim);
+   mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+   mfem::NonlinearForm functional(&fes);
+
+   // mfem::ConstantCoefficient rho(1.0);
+   // mfem::ConstantCoefficient k_s(0.01);
+   // mfem::ConstantCoefficient alpha(1.21);
+   // mfem::ConstantCoefficient beta(1.62);
+   
+   ///TODO: Resume here once have a sense of how can handle passing in some of these parameters. Maybe define some functions before test case?
+   // Want to focus efforts on resistivity test first
+   auto *integ = new mach::CAL2CoreLossIntegrator(CAL2_kh, CAL2_ke, peak_flux, temperature_field);
+   setInputs(*integ, {
+      {"frequency", 1000.0}
+   });
+
+   functional.AddDomainIntegrator(integ);
+
+   mfem::Vector dummy_vec(fes.GetTrueVSize());
+   auto CAL2_core_loss = functional.GetEnergy(dummy_vec);
+
+   ///TODO: Comment out the calculation and replace the TBD 
+   // REQUIRE(core_loss == Approx(TBD));
+}
 
 
 /** not maintaining anymore

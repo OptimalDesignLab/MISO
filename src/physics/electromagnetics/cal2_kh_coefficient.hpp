@@ -118,7 +118,7 @@ public:
 private:
    /// The underlying coefficient that does all the heavy lifting (TODO: determine if this is OK)
    /// TODO: Replace/add to if needed
-   MeshDependentCoefficient CAL2_kh;
+   MeshDependentThreeStateCoefficient CAL2_kh;
 };
 
 }  // namespace mach

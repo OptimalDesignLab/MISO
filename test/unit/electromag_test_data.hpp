@@ -145,6 +145,46 @@ public:
    }
 };
 
+/// Simple coefficient for conductivity for testing resistivity
+class SigmaCoefficient : public mach::StateCoefficient
+{
+public:
+   SigmaCoefficient(double alpha_resistivity = 3.8e-3, 
+                    double T_ref = 20,
+                    double sigma_T_ref = 5.6497e7) 
+   : alpha_resistivity(alpha_resistivity), T_ref(T_ref), sigma_T_ref(sigma_T_ref) {}
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      // Logic from ConductivityCoefficient
+      return sigma_T_ref/(1+alpha_resistivity*(state-T_ref));
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         const double state) override
+   {
+      // Logic from ConductivityCoefficient
+      return (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+
+   }
+
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override
+   {
+      // Logic from ConductivityCoefficient
+      return (2*sigma_T_ref*std::pow(alpha_resistivity,2))/std::pow(1+alpha_resistivity*(state-T_ref),3);
+   }
+
+private:
+   double alpha_resistivity;
+   double T_ref;
+   double sigma_T_ref;
+};
+
 nlohmann::json getBoxOptions(int order)
 {
    nlohmann::json box_options = {

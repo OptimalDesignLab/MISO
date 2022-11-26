@@ -11,6 +11,8 @@ set(MACH_PHYSICS_ELECTROMAGNETICS_HEADERS
    magnetostatic.hpp
    reluctivity_coefficient.hpp
    conductivity_coefficient.hpp
+   cal2_ke_coefficient.hpp
+   cal2_kh_coefficient.hpp
 )
 
 target_sources(mach
@@ -25,6 +27,8 @@ target_sources(mach
       magnetostatic.cpp
       reluctivity_coefficient.cpp
       conductivity_coefficient.cpp
+      cal2_ke_coefficient.cpp
+      cal2_kh_coefficient.cpp
       ${MACH_PHYSICS_ELECTROMAGNETICS_HEADERS}
 )
 

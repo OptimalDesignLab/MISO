@@ -4,8 +4,8 @@
 #include "mach_input.hpp"
 
 ///TODO: Don't forget to uncomment. Commented out since ThreeStateCoefficient was causing some errors when trying make (even before make build_tests), so will come back to.
-// #include "cal2_kh_coefficient.hpp"
-// #include "cal2_ke_coefficient.hpp"
+#include "cal2_kh_coefficient.hpp"
+#include "cal2_ke_coefficient.hpp"
 
 using namespace mfem;
 
@@ -3443,6 +3443,34 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
     ElementTransformation &trans,
     const Vector &elfun)
 {
+   // Obtain correct element, DOFs, etc for temperature field
+   const int element = trans.ElementNo;
+
+// #ifdef MFEM_THREAD_SAFE
+//    mfem::Vector shape;
+//    mfem::Array<int> vdofs;
+//    mfem::Vector temp_elfun;
+// #endif
+
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof);
+      
+   }
+
+   //Should be fine to leave el as is in this scope (rather than replace with temp_el)
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
@@ -3463,18 +3491,29 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
-   {
+   {      
       const IntegrationPoint &ip = ir->IntPoint(i);
-      trans.SetIntPoint(&ip);
+      trans.SetIntPoint(&ip); 
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
 
-      double trans_weight = trans.Weight();
+      double temperature;
 
-      double w = ip.weight * trans_weight;
-      ///TODO: double temperature = (after incorporate temperature field)
-      double temperature = 100; /// temporary. Will remove after incorporate temperature field
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
+         ///TODO: elfun or temp_elfun below?
+         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+      }
+      else
+      {
+         temperature = 100;
+      }
+
       const double sigma_v = sigma.Eval(trans, ip, temperature);
       // const double sigma_v = sigma.Eval(trans, ip);
       fun += w / sigma_v;
+   
    }
    return fun;
 }
@@ -5588,75 +5627,109 @@ double SteinmetzLossIntegrator::GetElementEnergy(
 }
 
 ///TODO: Don't forget to uncomment. Commented out since ThreeStateCoefficient was causing some errors when trying make (even before make build_tests), so will come back to.
-// void setInputs(CAL2CoreLossIntegrator &integ, const MachInputs &inputs)
-// {
-//    ///TODO: Need to change how temperature is accessed. This will not do it.
-//    if (!integ.name.empty())
-//    {
-//       setValueFromInputs(
-//           inputs, "temperature:" + integ.name, integ.temperature);
-//    }
-//    else
-//    {
-//       setValueFromInputs(inputs, "temperature", integ.temperature);
-//    }
-//    setValueFromInputs(inputs, "frequency", integ.freq);
-//    ///TODO: Alter how the maximum alternating flux density is acquired
-//    if (!integ.name.empty())
-//    {
-//       setValueFromInputs(
-//           inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
-//    }
-//    else
-//    {
-//       setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
-//    }
-// }
+void setInputs(CAL2CoreLossIntegrator &integ, const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "frequency", integ.freq);
+   // Temperature and max flux density handled below
+   ///TODO: Determine if the flux that is being used is correct
+}
 
-// double CAL2CoreLossIntegrator::GetElementEnergy(
-//     const mfem::FiniteElement &el,
-//     mfem::ElementTransformation &trans,
-//     const mfem::Vector &elfun)
-// {
-//    const auto *ir = IntRule;
-//    if (ir == nullptr)
-//    {
-//       int order = [&]()
-//       {
-//          if (el.Space() == FunctionSpace::Pk)
-//          {
-//             return 2 * el.GetOrder() - 1;
-//          }
-//          else
-//          {
-//             return 2 * el.GetOrder();
-//          }
-//       }();
+double CAL2CoreLossIntegrator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   int ndof = el.GetDof();
 
-//       ir = &IntRules.Get(el.GetGeomType(), order);
-//    }
+   // Using flux logic from ACLossFunctionalDistributionIntegrator and adapting as needed
+   const int element = trans.ElementNo;
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
+   const int flux_ndof = flux_el.GetDof();
+   
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
 
-//    double fun = 0.0;
-//    for (int i = 0; i < ir->GetNPoints(); i++)
-//    {
-//       const IntegrationPoint &ip = ir->IntPoint(i);
-//       trans.SetIntPoint(&ip);
+   shape.SetSize(ndof);
+   flux_shape.SetSize(flux_ndof);
 
-//       /// holds quadrature weight
-//       const double w = ip.weight * trans.Weight();
+   // Using temperature logic from DCLossFunctional Integrator
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
 
-//       ///TODO: Maybe need to make the variable coefficients aware of the material library coeffs
-
-//       // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
-//       // kh(f,T,Bm) and ke(f,T,Bm)
-//       auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, max_flux_mag);
-//       auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, max_flux_mag);
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
       
-//       fun += kh_v * freq * std::pow(max_flux_mag,2) * w; // Add the hysteresis loss constribution
-//       fun += ke_v * std::pow(freq,2) * std::pow(max_flux_mag,2) * w; // Add the eddy current loss constribution
-//    }
-//    return fun;
-// }
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof); // shape will pertain to temperature
+      
+   }
+
+   //Should be fine to leave el as is in this scope (rather than replace with temp_el)
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip); 
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape);
+
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
+         ///TODO: elfun or temp_elfun below?
+         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+      }
+      else
+      {
+         temperature = 100;
+      }
+
+      flux_el.CalcPhysShape(flux_trans, flux_shape);
+      const auto max_flux_mag = flux_shape * flux_elfun;
+
+      // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
+      // kh(f,T,Bm) and ke(f,T,Bm)
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, max_flux_mag);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, max_flux_mag);
+      
+      fun += kh_v * freq * std::pow(max_flux_mag,2) * w; // Add the hysteresis loss constribution
+      fun += ke_v * std::pow(freq,2) * std::pow(max_flux_mag,2) * w; // Add the eddy current loss constribution
+   }
+   return fun;
+}
 
 void setInputs(SteinmetzLossDistributionIntegrator &integ,
                const MachInputs &inputs)

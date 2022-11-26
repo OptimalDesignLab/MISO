@@ -187,8 +187,10 @@ public:
 
 protected:
 /// TODO: determine protected outputs that will be useful (protected meaning child classes can access too, but other classes cannot) 
-   double T0, T1;
-   std::vector<double> kh_T0, kh_T1;
+   double T0;
+   std::vector<double> kh_T0;
+   double T1;
+   std::vector<double> kh_T1;
 };
 
 /// TODO: this default variable hysteresis loss coefficient will need to be altered
@@ -198,7 +200,7 @@ std::unique_ptr<mfem::Coefficient> constructDefaultCAL2_khCoeff(
     const nlohmann::json &materials)
 {
    auto CAL2_kh = materials[material_name].value("kh", 1.0);
-   return std::make_unique<mfem::ConstantCoefficient>(kh);
+   return std::make_unique<mfem::ConstantCoefficient>(CAL2_kh);
 }
 
 std::unique_ptr<mfem::Coefficient> constructCAL2_khCoeff(
@@ -226,10 +228,12 @@ std::unique_ptr<mfem::Coefficient> constructCAL2_khCoeff(
          materials[material_name]["core_loss"]["CAL2"].contains("kh_T0") && 
          materials[material_name]["core_loss"]["CAL2"].contains("kh_T1"))
       {
-         double T0 = material["T0"].get<double>();
+         double T0 = materials[material_name]["core_loss"]
+                                 ["CAL2"]["T0"].get<double>();
          std::vector<double> kh_T0 = materials[material_name]["core_loss"]
                                  ["CAL2"]["kh_T0"].get<std::vector<double>>();
-         double T1 = material["T1"].get<double>();
+         double T1 = materials[material_name]["core_loss"]
+                                 ["CAL2"]["T1"].get<double>();
          std::vector<double> kh_T1 = materials[material_name]["core_loss"]
                                  ["CAL2"]["kh_T1"].get<std::vector<double>>();
 
@@ -327,71 +331,71 @@ double CAL2khCoefficient::Eval2ndDerivS3(
    return CAL2_kh.Eval2ndDerivS3(trans, ip, state1, state2, state3);
 }
 
-double CAL2khCoefficient::EvalDerivS1S2(
+double CAL2khCoefficient::Eval2ndDerivS1S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_kh.EvalDerivS1S2(trans, ip, state1, state2, state3);
+   return CAL2_kh.Eval2ndDerivS1S2(trans, ip, state1, state2, state3);
 }
 
-double CAL2khCoefficient::EvalDerivS1S3(
+double CAL2khCoefficient::Eval2ndDerivS1S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_kh.EvalDerivS1S3(trans, ip, state1, state2, state3);
+   return CAL2_kh.Eval2ndDerivS1S3(trans, ip, state1, state2, state3);
 }
 
-double CAL2khCoefficient::EvalDerivS2S3(
+double CAL2khCoefficient::Eval2ndDerivS2S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_kh.EvalDerivS2S3(trans, ip, state1, state2, state3);
+   return CAL2_kh.Eval2ndDerivS2S3(trans, ip, state1, state2, state3);
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S2
-double CAL2khCoefficient::EvalDerivS2S1(
+double CAL2khCoefficient::Eval2ndDerivS2S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_kh.EvalDerivS2S1(trans, ip, state1, state2, state3);
+   return CAL2_kh.Eval2ndDerivS2S1(trans, ip, state1, state2, state3);
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S3
-double CAL2khCoefficient::EvalDerivS3S1(
+double CAL2khCoefficient::Eval2ndDerivS3S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_kh.EvalDerivS3S1(trans, ip, state1, state2, state3);
+   return CAL2_kh.Eval2ndDerivS3S1(trans, ip, state1, state2, state3);
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS2S3
-double CAL2keCoefficient::EvalDerivS3S2(
+double CAL2khCoefficient::Eval2ndDerivS3S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
     double state1,
     double state2,
     double state3)
 {
-   return CAL2_kh.EvalDerivS3S2(trans, ip, state1, state2, state3);
+   return CAL2_kh.Eval2ndDerivS3S2(trans, ip, state1, state2, state3);
 }
 
 /// TODO: Adapt if needed
-void CAL2keCoefficient::EvalRevDiff(const double Q_bar,
+void CAL2khCoefficient::EvalRevDiff(const double Q_bar,
                                          mfem::ElementTransformation &trans,
                                          const mfem::IntegrationPoint &ip,
                                          mfem::DenseMatrix &PointMat_bar)
@@ -456,14 +460,14 @@ double PolyVarHysteresisLossCoeff::Eval(mfem::ElementTransformation &trans,
    auto Bm = state3;
 
    double kh_T0_f_B = 0.0;
-   for (int i = 0; i < kh_T0.size(); ++i)
+   for (int i = 0; i < static_cast<int>(kh_T0.size()); ++i)
    {
-      kh_T0_f_B += kh_T0[i]*pow(Bm,i);
+      kh_T0_f_B += kh_T0[i]*std::pow(Bm,i);
    }
    double kh_T1_f_B = 0.0;
-   for (int i = 0; i < kh_T1.size(); ++i)
+   for (int i = 0; i < static_cast<int>(kh_T1.size()); ++i)
    {
-      kh_T1_f_B += kh_T1[i]*pow(Bm,i);
+      kh_T1_f_B += kh_T1[i]*std::pow(Bm,i);
    }
    double D_hyst = (kh_T1_f_B-kh_T0_f_B)/((T1-T0)*kh_T0_f_B);
    double kth = 1+(T-T0)*D_hyst;

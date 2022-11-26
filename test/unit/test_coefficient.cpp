@@ -11,8 +11,12 @@
 #include "electromag_test_data.hpp"
 #include "reluctivity_coefficient.hpp"
 
-///TODO: Ultimately change below line to #include "reluctivity_coefficient.hpp" once re-install mach and file ends up in mach/include
+///TODO: Ultimately change below line to #include "conductivity_coefficient.hpp" once re-install mach and file ends up in mach/include
 #include "../../src/physics/electromagnetics/conductivity_coefficient.hpp"
+///TODO: Make the below absolute paths relative/shorter
+#include "../../src/physics/electromagnetics/cal2_kh_coefficient.hpp"
+#include "../../src/physics/electromagnetics/cal2_ke_coefficient.hpp"
+
 
 namespace
 {
@@ -664,7 +668,6 @@ TEST_CASE("ConductivityCoefficient: Models vs. Desired")
 
       int npts = 201;
       std::vector<double> temperatures(npts);
-      ///TODO: Add in other protected outputs if needed
       for (int i = 0; i < npts; ++i)
       {
          temperatures[i] = i;
@@ -736,6 +739,118 @@ TEST_CASE("ConductivityCoefficient: Models vs. Desired")
             std::cout << "])\n";
             std::cout << "OldSigma_dsigmadT = np.array([";
             printVector(OldSigma_dsigmadT);
+            std::cout << "])\n";
+         }
+      }
+   }
+}
+
+///TODO: Add in Steinmetz test
+///TODO: Test the derivatives of the coefficients for both
+TEST_CASE("CAL2 Coefficient: Models vs. Desired")
+{
+   using namespace mfem;
+   using namespace mach;
+
+   std::stringstream meshStr;
+   meshStr << two_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   const int dim = mesh.SpaceDimension();
+
+
+   /// Construct coefficient
+   for (int p = 1; p <= 1; p++)
+   {
+      /// construct elements
+      ND_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+      ///TODO: Determine why these options for T0, kh, ke, et al. aren't used (rather it is material library)
+      const auto &CAL2_options = R"(
+      {
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "hiperco50",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 20,
+                     "kh_T0": [1.0, 2.0, 3.0, 4.0],
+                     "ke_T0": [-1.0, -2.0, -3.0, -4.0],
+                     "T1": 200,
+                     "kh_T1": [10.0, 20.0, 30.0, 40.0],
+                     "ke_T1": [-10.0, -20.0, -30.0, -40.0]
+                  }
+               }
+            }
+         }
+      })"_json;
+
+      auto CAL2_kh_coeff = CAL2khCoefficient(CAL2_options, material_library);
+      auto CAL2_ke_coeff = CAL2keCoefficient(CAL2_options, material_library);
+
+      int npts = 50;
+      std::vector<double> temperatures(npts);
+      std::vector<double> max_fluxes(npts);
+      double frequency = 1000;
+      // Note, these cal2 coeffients are independent of frequency
+      ///TODO: Fix these vectors to produce the desired numbers
+      for (int i = 0; i < npts; ++i)
+      {
+         temperatures[i] = 20*remainder(i+5,5);
+         max_fluxes[i] = 0.2*remainder(i+10,10);
+      }
+
+      std::vector<double> CAL2_kh(npts);
+      std::vector<double> CAL2_ke(npts);
+
+      // for (int j = 0; j < fes.GetNE(); j++)
+      for (int j = 0; j < 1; j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         // for (int i = 0; i < ir->GetNPoints(); i++)
+         for (int i = 0; i < 1; i++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+
+            for (int k = 0; k < npts; ++k)
+            {
+               auto temperature = temperatures[k];
+               auto max_flux = max_fluxes[k];
+
+               CAL2_kh[k] = CAL2_kh_coeff.Eval(trans, ip, temperature, frequency, max_flux);
+               CAL2_ke[k] = CAL2_ke_coeff.Eval(trans, ip, temperature, frequency, max_flux);
+            }
+
+            std::cout << "temperatures = np.array([";
+            printVector(temperatures);
+            std::cout << "])\n";
+
+            std::cout << "max_fluxes = np.array([";
+            printVector(max_fluxes);
+            std::cout << "])\n";
+
+            std::cout << "CAL2_kh = np.array([";
+            printVector(CAL2_kh);
+            std::cout << "])\n";
+
+            std::cout << "CAL2_ke = np.array([";
+            printVector(CAL2_ke);
             std::cout << "])\n";
          }
       }
