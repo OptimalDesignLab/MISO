@@ -2111,9 +2111,13 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            T = 20; //constant temperature throughout mesh FOR NOW
-            // T = 100;
-            // T += some function that is easy to analytically integrate;
+            // T = 37; //constant temperature throughout mesh
+            // T = 77*x(0); // temperature linearly dependent in the x1 direction
+            // T = 63*x(1); // temperature linearly dependent in the x2 direction
+            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x1 direction
+            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x1 and x2 directions
+            T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x1 and x2 directions
+
          }
          return T;
       },
@@ -2149,18 +2153,14 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
 
          // Define the resistivity, as will be computed by the functional integrator
          NonlinearForm functional(&fes);
-         ///TODO: Figure out how to make temperature_field_test a mfem::GridFunction*
-         //As it stands, if do temperature_field_test or **temperature_field_test, type is mfem::GridFunction& (reference rather than pointer)  
-         //As it stands, if do *temperature_field_test, type is mfem::Double& (double rather than pointer) 
-         //As it stands, it doesn't have any problems with sigma
-         // functional.AddDomainIntegrator(
-         //    new mach::DCLossFunctionalIntegrator(*sigma,**temperature_field_test));       
          functional.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegrator(*sigma));       
+            new mach::DCLossFunctionalIntegrator(*sigma,&temperature_field_test));       
+         // functional.AddDomainIntegrator(
+         //    new mach::DCLossFunctionalIntegrator(*sigma)); //confirms that DCLossFunctional integrator works as intended even if don't pass in a temperature field          
 
          // Compute the resistivity
          auto resistivity = functional.GetEnergy(temperature_field_test);
-         std::cout << "resistivity = " << resistivity << "\n";
+         // std::cout << "resistivity = " << resistivity << "\n";
  
          // Compare the computed resistivity to the value found by integration
          ///TODO: change this assertion once have a temperature field
@@ -2168,9 +2168,20 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          double alpha_resistivity = 3.8e-3; 
          double T_ref = 20;
          double sigma_T_ref = 5.6497e7;
-         double state = 100; // from electromag_integ.cpp file, around line 3510
+         double state; // the average temperature over the simple 2D domain. 
+         // State from electromag_integ.cpp file, line ~3510 if temperature field is null pointer, else it analytically derived from the model function coefficient
+         // state = 37; //constant temperature throughout mesh
+         // state = 77/2; // temperature linearly dependent in the x1 direction
+         // state = 63/2; // temperature linearly dependent in the x2 direction
+         // state = 30/3; // temperature quadratically dependent in the x1 direction
+         // state = 77/2+63/2; // temperature linearly dependent in both x1 and x2 directions
+         state = 30/3+3/3; // temperature linearly dependent in both x1 and x2 directions
+
          expected_resistivity = std::pow(sigma_T_ref/(1+alpha_resistivity*(state-T_ref)),-1);
-         REQUIRE(resistivity == Approx(expected_resistivity)); // for the nullptr temperature field case
+         // std::cout << resistivity-expected_resistivity << "\n";
+         // REQUIRE(resistivity == Approx(expected_resistivity).epsilon(1e-8));
+         REQUIRE(abs(resistivity - expected_resistivity) <= Approx(0).margin(1e-10));
+
 
          // // May not be necessary, but just in case
          // mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
@@ -2325,10 +2336,8 @@ TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          a.ProjectCoefficient(pert);
 
          auto *integ = new mach::ACLossFunctionalIntegrator(model);
-         std::cout << "2311" << *a << "\n";
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
-         std::cout << "2315" << *a << "\n";
 
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = *mesh.GetNodes();
