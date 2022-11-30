@@ -471,7 +471,7 @@ void vectorJacobianProduct(DCLossFunctional &output,
    }
 }
 
-///TODO: Once again make sigma either a StateCoefficient or ConductivityCoefficient
+// Made sigma a StateCoefficient (was formerly an mfem::coefficient)
 DCLossFunctional::DCLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
@@ -1144,10 +1144,10 @@ void vectorJacobianProduct(ACLossFunctional &output,
    }
 }
 
-///TODO: Once again make sigma either a StateCoefficient or ConductivityCoefficient
+// Made sigma a StateCoefficient (was formerly an mfem::coefficient)
 ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
-    mfem::Coefficient &sigma,
+    StateCoefficient &sigma,
     const nlohmann::json &options)
  : output(fields.at("peak_flux").space(), fields), volume(fields, options)
 {
@@ -1239,11 +1239,11 @@ void calcOutput(EMHeatSourceOutput &output,
    addLoad(output.lf, out_vec);
 }
 
-///TODO: Once again make sigma either a StateCoefficient or ConductivityCoefficient
+// Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &rho,
-    mfem::Coefficient &sigma,
+    StateCoefficient &sigma,
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
@@ -1258,7 +1258,6 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    //                        stator_attrs);
 
    auto winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
-   ///TODO: Is the below line ok as is?
    lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma),
                           winding_attrs);
    // lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(

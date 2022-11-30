@@ -5,6 +5,7 @@
 ///TODO: Once install mach again, replace the below line with simply: #include "electromag_integ.hpp"
 #include "../../src/physics/electromagnetics/electromag_integ.hpp"
 #include "material_library.hpp"
+#include "electromag_test_data.hpp"
 
 TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
 {
@@ -43,9 +44,11 @@ TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
    REQUIRE(core_loss == Approx(15.5341269187));
 }
 
-// Adding CAL2 Core Loss Integrator test here (too lazy to make a new/separate test file)
+// Adding CAL2 Core Loss Integrator test here (can always make a new/separate test file)
 TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 {
+   using namespace electromag_data;
+
    const int dim = 3;
    int num_edge = 3;
    auto smesh = mfem::Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
@@ -55,31 +58,112 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
    mfem::ParMesh mesh(MPI_COMM_WORLD, smesh); 
    mesh.EnsureNodes();
 
-
-   mfem::L2_FECollection fec(1, dim);
+   mfem::L2_FECollection fec(1, dim); // Stick with L2 elements or use other FEs? 
    mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+   // extract mesh nodes and get their finite-element space
+   auto &x_nodes = *mesh.GetNodes();
+   auto &mesh_fes = *x_nodes.FESpace();
 
    mfem::NonlinearForm functional(&fes);
 
-   // mfem::ConstantCoefficient rho(1.0);
-   // mfem::ConstantCoefficient k_s(0.01);
-   // mfem::ConstantCoefficient alpha(1.21);
-   // mfem::ConstantCoefficient beta(1.62);
+   // Define CAL2_kh (similar methodology to SigmaCoefficient from test_electromag_integ)
+   double T0 = 20;
+   double T1 = 200;
+   std::vector<double> kh_T0 = {0.0997091541786544,
+            -0.129193571991623,
+            0.0900090637806644,
+            -0.0212834836667556};
+   std::vector<double> kh_T1 = {0.0895406177349016,
+            -0.0810594723247055,
+            0.0377588555136910,
+            -0.00511339186996760};
+   std::unique_ptr<mach::ThreeStateCoefficient> CAL2_kh(new CAL2Coefficient(T0, kh_T0, T1, kh_T1));
+
+   // Define CAL2_ke (similar methodology to SigmaCoefficient from test_electromag_integ)
+   // T0=20 and T1=200 once again
+   std::vector<double> ke_T0 = {-5.93693970727006e-06,
+            0.000117138629373709,
+            -0.000130355460369590,
+            4.10973552619398e-05};
+   std::vector<double> ke_T1 = {1.79301614571386e-05,
+            7.45159671115992e-07,
+            -1.19410662547280e-06,
+            3.53133402660246e-07};
+   std::unique_ptr<mach::ThreeStateCoefficient> CAL2_ke(new CAL2Coefficient(T0, ke_T0, T1, ke_T1));
+
+   //Function Coefficient model Representing the B Field (peak flux density in this case)
+   mfem::FunctionCoefficient Bfield_model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double B = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            B = 2.2; //constant flux density throughout mesh
+            // B = 2.4*x(0); // flux density linearly dependent in the x(0) direction
+            // B = 1.1*x(1); // flux density linearly dependent in the x(1) direction
+            // B = 3.0*std::pow(x(0),2); // flux density quadratically dependent in the x(0) direction
+            // B = 2.4*x(0)+1.1*x(1); // flux density linearly dependent in both x(0) and x(1) directions
+            // B = 3.0*std::pow(x(0),2) + 0.3*std::pow(x(1),2); // flux density quadratically dependent in both x(0) and x(1) directions
+
+         }
+         return B;
+      });
+
+   //Function Coefficient model Representing the Temperature Field
+   mfem::FunctionCoefficient Tfield_model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double T = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            T = 37; //constant temperature throughout mesh
+            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+
+         }
+         return T;
+      });
+
+   // Create the temperature_field grid function by mapping the function coefficient to a grid function
+   mfem::GridFunction temperature_field(&fes);
+   temperature_field.ProjectCoefficient(Tfield_model);
+
+   // Create the peak flux field (B) grid function by mapping the function coefficient to a grid function
+   mfem::GridFunction peak_flux(&fes);
+   peak_flux.ProjectCoefficient(Bfield_model);
    
-   ///TODO: Resume here once have a sense of how can handle passing in some of these parameters. Maybe define some functions before test case?
-   // Want to focus efforts on resistivity test first
-   auto *integ = new mach::CAL2CoreLossIntegrator(CAL2_kh, CAL2_ke, peak_flux, temperature_field);
+   auto *integ = new mach::CAL2CoreLossIntegrator(*CAL2_kh, *CAL2_ke, peak_flux, &temperature_field);
    setInputs(*integ, {
       {"frequency", 1000.0}
    });
+   // auto *integ = new mach::CAL2CoreLossIntegrator(*CAL2_kh, *CAL2_ke, peak_flux);
+   // setInputs(*integ, {
+   //    {"frequency", 1000.0}
+   // }); // for the case where the temperature_field is a null pointer (not passed in)
 
    functional.AddDomainIntegrator(integ);
 
    mfem::Vector dummy_vec(fes.GetTrueVSize());
    auto CAL2_core_loss = functional.GetEnergy(dummy_vec);
+   // std::cout << "CAL2_core_loss=" << CAL2_core_loss << "\n";
 
-   ///TODO: Comment out the calculation and replace the TBD 
-   // REQUIRE(core_loss == Approx(TBD));
+   double Expected_core_loss;
+   // At B=1.7, T=20 (both const): CAL2_kh=0.03564052086424506, CAL2_ke=1.8382756161830418e-05, pFe=(0.03564052086424506)*1000*pow(1.7,2)+(1.8382756161830418e-05)*pow(1000,2)*pow(1.7,2)=156.12727060535812 W/kg
+   // Expected_core_loss = 156.12727060535812;
+   // At B=1.7, T=100 (both const): CAL2_kh=0.03568496179583322, CAL2_ke=1.798193527110098e-05, pFe=(0.03568496179583322)*1000*pow(1.7,2)+(1.798193527110098e-05)*pow(1000,2)*pow(1.7,2)=155.0973325234398 W/kg
+   // Expected_core_loss = 155.0973325234398;
+   // At B=2.2, T=37 (both const): CAL2_kh=0.025918677125662013, CAL2_ke=5.4589283749123626e-05, pFe=(0.025918677125662013)*1000*pow(2.2,2)+(5.4589283749123626e-05)*pow(1000,2)*pow(2.2,2)=389.6585306339625 W/kg
+   Expected_core_loss = 389.6585306339625;
+
+   ///TODO: Try to go beyond constant B and T. Difficult to compute expected core loss when both values are not constant 
+
+   REQUIRE(CAL2_core_loss == Approx(Expected_core_loss));
 }
 
 

@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <random>
+#include <vector>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -145,7 +146,7 @@ public:
    }
 };
 
-/// Simple coefficient for conductivity for testing resistivity
+/// Simple coefficient for conductivity for testing resistivity (and DCLFIMS)
 class SigmaCoefficient : public mach::StateCoefficient
 {
 public:
@@ -179,10 +180,215 @@ public:
       return (2*sigma_T_ref*std::pow(alpha_resistivity,2))/std::pow(1+alpha_resistivity*(state-T_ref),3);
    }
 
+   // Implementing method for the purposes of DCLossFunctionalIntegratorMeshSens test
+   void EvalRevDiff(const double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      // Implementing method for the purposes of DCLossFunctionalIntegratorMeshSens test
+      // Trivial implementation (MFEM just needs method to be present so it can call it)
+   } 
 private:
    double alpha_resistivity;
    double T_ref;
    double sigma_T_ref;
+};
+
+/// Simple coefficient for CAL2 coefficients for testing CAL2CoreLossIntegrator
+// Can represent either CAL2_kh coefficients or CAL2_ke coefficients
+class CAL2Coefficient : public mach::ThreeStateCoefficient
+{
+public:
+   CAL2Coefficient(double &T0, 
+                    std::vector<double> &k_T0,
+                    double &T1,
+                    std::vector<double> &k_T1) 
+   : T0(T0), k_T0(k_T0), T1(T1), k_T1(k_T1) {}
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state1,
+               double state2,
+               double state3) override
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      auto T = state1;
+      auto f = state2;
+      auto Bm = state3;
+
+      double k_T0_f_B = 0.0;
+      for (int i = 0; i < static_cast<int>(k_T0.size()); ++i)
+      {
+         k_T0_f_B += k_T0[i]*std::pow(Bm,i);
+      }
+      double k_T1_f_B = 0.0;
+      for (int i = 0; i < static_cast<int>(k_T1.size()); ++i)
+      {
+         k_T1_f_B += k_T1[i]*std::pow(Bm,i);
+      }
+      double D = (k_T1_f_B-k_T0_f_B)/((T1-T0)*k_T0_f_B);
+      double kt = 1+(T-T0)*D;
+      
+      double CAL2_k = kt*k_T0_f_B;
+
+      return CAL2_k;
+   }
+
+   double EvalDerivS1(mfem::ElementTransformation &trans,
+                           const mfem::IntegrationPoint &ip,
+                           const double state1,
+                           const double state2,
+                           const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double EvalDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double EvalDerivS3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double Eval2ndDerivS1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double Eval2ndDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double Eval2ndDerivS3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double Eval2ndDerivS1S3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   double Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS1S3
+   double Eval2ndDerivS3S1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS2S3
+   double Eval2ndDerivS3S2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3)
+   {
+      // Logic from CAL2_kh and CAL2_ke Coefficient files
+
+      ///TODO: Add in the derivative
+      return 0;
+   }
+
+private:
+   double &T0;
+   std::vector<double> &k_T0;
+   double &T1;
+   std::vector<double> &k_T1;
 };
 
 nlohmann::json getBoxOptions(int order)

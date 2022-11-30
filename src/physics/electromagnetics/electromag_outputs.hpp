@@ -263,7 +263,7 @@ public:
                                      const std::string &wrt,
                                      mfem::Vector &wrt_bar);
 
-   ///TODO: Once again, chage sigma to StateCoefficient or ConductivityCoefficient
+   // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
    DCLossFunctional(std::map<std::string, FiniteElementState> &fields,
                     StateCoefficient &sigma,
                     const nlohmann::json &options);
@@ -308,9 +308,9 @@ public:
                                      const std::string &wrt,
                                      mfem::Vector &wrt_bar);
 
-   ///TODO: Once again, chage sigma to StateCoefficient or ConductivityCoefficient
+   // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
    ACLossFunctional(std::map<std::string, FiniteElementState> &fields,
-                    mfem::Coefficient &sigma,
+                    StateCoefficient &sigma,
                     const nlohmann::json &options);
 
 private:
@@ -390,10 +390,10 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   ///TODO: Once again, chage sigma to StateCoefficient or ConductivityCoefficient
+   // Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
    EMHeatSourceOutput(std::map<std::string, FiniteElementState> &fields,
                       mfem::Coefficient &rho,
-                      mfem::Coefficient &sigma,
+                      StateCoefficient &sigma,
                       const nlohmann::json &components,
                       const nlohmann::json &materials,
                       const nlohmann::json &options);
