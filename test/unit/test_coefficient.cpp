@@ -796,7 +796,7 @@ TEST_CASE("CAL2 Coefficient: Models vs. Desired")
       std::vector<double> max_fluxes(npts);
       double frequency = 1000;
       // Note, these cal2 coeffients are independent of frequency
-      ///TODO: Fix these vectors to produce the desired numbers
+      ///TODO: Fix these vectors to produce more meaningful combinations
       for (int i = 0; i < npts; ++i)
       {
          temperatures[i] = 20*remainder(i+5,5);

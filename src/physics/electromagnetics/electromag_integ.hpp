@@ -1436,60 +1436,61 @@ private:
 // #endif
 // };
 
-///TODO: In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
+/// In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
 /// Functional integrator to compute AC copper losses based on hybrid approach
-class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
-{
-public:
-   /// \brief allows changing the frequency and diameter of the strands for AC
-   /// loss calculation
-   friend void setInputs(HybridACLossFunctionalIntegrator &integ,
-                         const MachInputs &inputs);
+// class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
+// {
+// public:
+//    /// \brief allows changing the frequency and diameter of the strands for AC
+//    /// loss calculation
+//    friend void setInputs(HybridACLossFunctionalIntegrator &integ,
+//                          const MachInputs &inputs);
 
-   /// \brief - Compute AC copper losses in the domain based on a hybrid
-   ///          analytical-FEM approach
-   /// \param[in] sigma - the temperature dependent electrical conductivity coefficient
-   /// \param[in] freq - the electrical excitation frequency
-   /// \param[in] diam - the diameter of a strand in the bundle
-   /// \param[in] fill_factor - the density of strands in the bundle
-   /// \param[in] temperature_field - the temperature field that informs the conductivity
-   // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
-   HybridACLossFunctionalIntegrator(StateCoefficient &sigma,
-                                    const double freq,
-                                    const double diam,
-                                    const double fill_factor,
-                                    mfem::GridFunction *temperature_field=nullptr)
-    : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor), temperature_field(temperature_field)
-   { }
+//    /// \brief - Compute AC copper losses in the domain based on a hybrid
+//    ///          analytical-FEM approach
+//    /// \param[in] sigma - the temperature dependent electrical conductivity coefficient
+//    /// \param[in] freq - the electrical excitation frequency
+//    /// \param[in] diam - the diameter of a strand in the bundle
+//    /// \param[in] fill_factor - the density of strands in the bundle
+//    /// \param[in] temperature_field - the temperature field that informs the conductivity
+//    // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
+//    HybridACLossFunctionalIntegrator(StateCoefficient &sigma,
+//                                     const double freq,
+//                                     const double diam,
+//                                     const double fill_factor,
+//                                     mfem::GridFunction *temperature_field=nullptr)
+//     : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor), temperature_field(temperature_field)
+//    { }
 
-   /// \brief - Compute AC copper losses in the domain based on a hybrid
-   ///          analytical-FEM approach
-   /// \param[in] el - the finite element
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - state vector of the element
-   /// \returns the AC losses calculated over an element
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun) override;
+//    /// \brief - Compute AC copper losses in the domain based on a hybrid
+//    ///          analytical-FEM approach
+//    /// \param[in] el - the finite element
+//    /// \param[in] trans - defines the reference to physical element mapping
+//    /// \param[in] elfun - state vector of the element
+//    /// \returns the AC losses calculated over an element
+//    double GetElementEnergy(const mfem::FiniteElement &el,
+//                            mfem::ElementTransformation &trans,
+//                            const mfem::Vector &elfun) override;
 
-private:
-   // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
-   StateCoefficient &sigma;
+// private:
+//    // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
+//    StateCoefficient &sigma;
    
-   double freq;
-   double diam;
-   double fill_factor;
+//    double freq;
+//    double diam;
+//    double fill_factor;
 
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+//    mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
    
-#ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix curlshape, curlshape_dFt;
-   mfem::Vector b_vec;
-   mfem::Vector shape;
-   mfem::Array<int> vdofs;
-   mfem::Vector temp_elfun;
-#endif
-};
+// #ifndef MFEM_THREAD_SAFE
+//    mfem::DenseMatrix curlshape, curlshape_dFt;
+//    mfem::Vector b_vec;
+//    mfem::Vector shape;
+//    mfem::Array<int> vdofs;
+//    mfem::Vector temp_elfun;
+// #endif
+// };
 
 class ForceIntegrator3 : public mfem::NonlinearFormIntegrator
 {

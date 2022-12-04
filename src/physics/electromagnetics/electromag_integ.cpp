@@ -3724,11 +3724,13 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
     const Vector &elfun)
 {
    int ndof = el.GetDof(); // number of degrees of freedom
+   // std::cout << "el.GetDof() = " << ndof << "\n";
    shape.SetSize(ndof);
 
    // Obtain correct element, DOFs, etc for temperature field
    // Logic from DCLossFunctionalIntegrator
    const int element = trans.ElementNo;
+   // std::cout << "element = " << element << "\n";   
 
    const FiniteElement *temp_el=nullptr;
    if (temperature_field != nullptr)
@@ -3743,6 +3745,7 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       }
       
       int ndof = temp_el->GetDof();
+      // std::cout << "temp_el->GetDof() = " << ndof << "\n";
       temp_shape.SetSize(ndof);
       
    }
@@ -3756,6 +3759,8 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
          if (el.Space() == FunctionSpace::Pk)
          {
             return 2 * el.GetOrder() - 2;
+            // return 2 * el.GetOrder() - 1;
+            // return 10;
          }
          else
          {
@@ -3763,8 +3768,11 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
          }
       }();
 
+      // std::cout << "order = " << order << "\n";
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
+
+   // std::cout << "ir->GetNPoints() = " << ir->GetNPoints() << "\n";
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -3777,6 +3785,14 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       const double w = ip.weight * trans_weight;
 
       el.CalcPhysShape(trans, shape);
+      for (int j = 0; j < ndof; j++)
+      {
+         if (el.GetOrder() == 1)
+         {
+            // std::cout << "shape[" << j << "]= " << shape[j] << "\n";
+            // std::cout << "elfun[" << j << "]= " << elfun[j] << "\n";
+         }         
+      }
       const auto b_mag = shape * elfun;
 
       // Logic from DCLossFunctionalIntegrator
@@ -3785,6 +3801,14 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       if (temperature_field != nullptr)
       {
          temp_el->CalcPhysShape(trans, temp_shape);
+         for (int j = 0; j < ndof; j++)
+         {
+            if (el.GetOrder() == 1)
+            {
+               // std::cout << "temp_shape[" << j << "]= " << temp_shape[j] << "\n";
+               // std::cout << "temp_elfun[" << j << "]= " << temp_elfun[j] << "\n";
+            }
+         }
          temperature = temp_shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
       }
       else
@@ -3795,6 +3819,17 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
 
       const auto sigma_val = sigma.Eval(trans, ip, temperature);
       // const auto sigma_val = sigma.Eval(trans, ip);
+
+      ///TODO: Comment out or remove once finish debugging
+      if (el.GetOrder() ==1)
+      {
+         // std::cout << "trans_weight = " << trans_weight << "\n";
+         // std::cout << "ip.weight = " << ip.weight << "\n";
+         // std::cout << "w = ip.weight * trans_weight = " << w << "\n";
+         // std::cout << "b_mag = " << b_mag << "\n";
+         // std::cout << "temperature = " << temperature << "\n";
+         // std::cout << "sigma_val = " << sigma_val << "\n";
+      }
 
       const auto loss = sigma_val * pow(b_mag, 2);
       fun += loss * w;
@@ -4071,30 +4106,32 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
    ///TODO: Logic is up to date now. Need to finish the implementation and then test
 }
 
-void setInputs(HybridACLossFunctionalIntegrator &integ,
-               const MachInputs &inputs)
-{
-   // auto it = inputs.find("diam");
-   // if (it != inputs.end())
-   // {
-   //    integ.diam = it->second.getValue();
-   // }
-   // it = inputs.find("diam");
-   // if (it != inputs.end())
-   // {
-   //    integ.freq = it->second.getValue();
-   // }
-   // it = inputs.find("fill-factor");
-   // if (it != inputs.end())
-   // {
-   //    integ.fill_factor = it->second.getValue();
-   // }
-   setValueFromInputs(inputs, "diam", integ.diam);
-   setValueFromInputs(inputs, "freq", integ.freq);
-   setValueFromInputs(inputs, "fill-factor", integ.fill_factor);
-}
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
+// void setInputs(HybridACLossFunctionalIntegrator &integ,
+//                const MachInputs &inputs)
+// {
+//    // auto it = inputs.find("diam");
+//    // if (it != inputs.end())
+//    // {
+//    //    integ.diam = it->second.getValue();
+//    // }
+//    // it = inputs.find("diam");
+//    // if (it != inputs.end())
+//    // {
+//    //    integ.freq = it->second.getValue();
+//    // }
+//    // it = inputs.find("fill-factor");
+//    // if (it != inputs.end())
+//    // {
+//    //    integ.fill_factor = it->second.getValue();
+//    // }
+//    setValueFromInputs(inputs, "diam", integ.diam);
+//    setValueFromInputs(inputs, "freq", integ.freq);
+//    setValueFromInputs(inputs, "fill-factor", integ.fill_factor);
+// }
 
-///TODO: In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented if want mfem::Coefficient logic for test_acloss_functional
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
+/// In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented if want mfem::Coefficient logic for test_acloss_functional
 // double HybridACLossFunctionalIntegrator::GetElementEnergy(
 //     const FiniteElement &el,
 //     ElementTransformation &trans,
@@ -4169,113 +4206,114 @@ void setInputs(HybridACLossFunctionalIntegrator &integ,
 //    return fun;
 // }
 
-///TODO: In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
-double HybridACLossFunctionalIntegrator::GetElementEnergy(
-    const FiniteElement &el,
-    ElementTransformation &trans,
-    const Vector &elfun)
-{
-   /// number of degrees of freedom
-   int ndof = el.GetDof();
-   int dim = el.GetDim();
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
+/// In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
+// double HybridACLossFunctionalIntegrator::GetElementEnergy(
+//     const FiniteElement &el,
+//     ElementTransformation &trans,
+//     const Vector &elfun)
+// {
+//    /// number of degrees of freedom
+//    int ndof = el.GetDof();
+//    int dim = el.GetDim();
 
-   /// I believe this takes advantage of a 2D problem not having
-   /// a properly defined curl? Need more investigation
-   int dimc = (dim == 3) ? 3 : 1;
+//    /// I believe this takes advantage of a 2D problem not having
+//    /// a properly defined curl? Need more investigation
+//    int dimc = (dim == 3) ? 3 : 1;
 
-// #ifdef MFEM_THREAD_SAFE
-   DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc);
-   Vector b_vec(dimc);
-// #else
-//    curlshape.SetSize(ndof, dimc);
-//    curlshape_dFt.SetSize(ndof, dimc);
-//    b_vec.SetSize(dimc);
-// #endif
+// // #ifdef MFEM_THREAD_SAFE
+//    DenseMatrix curlshape(ndof, dimc), curlshape_dFt(ndof, dimc);
+//    Vector b_vec(dimc);
+// // #else
+// //    curlshape.SetSize(ndof, dimc);
+// //    curlshape_dFt.SetSize(ndof, dimc);
+// //    b_vec.SetSize(dimc);
+// // #endif
 
-   // Obtain correct element, DOFs, etc for temperature field
-   // Logic from DCLossFunctionalIntegrator
-   const int element = trans.ElementNo;
-   const FiniteElement *temp_el=nullptr;
-   if (temperature_field != nullptr)
-   {
-      temp_el = temperature_field->FESpace()->GetFE(element);
+//    // Obtain correct element, DOFs, etc for temperature field
+//    // Logic from DCLossFunctionalIntegrator
+//    const int element = trans.ElementNo;
+//    const FiniteElement *temp_el=nullptr;
+//    if (temperature_field != nullptr)
+//    {
+//       temp_el = temperature_field->FESpace()->GetFE(element);
 
-      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-      temperature_field->GetSubVector(vdofs, temp_elfun);
-      if (dof_tr != nullptr)
-      {
-         dof_tr->InvTransformPrimal(temp_elfun);
-      }
+//       auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+//       temperature_field->GetSubVector(vdofs, temp_elfun);
+//       if (dof_tr != nullptr)
+//       {
+//          dof_tr->InvTransformPrimal(temp_elfun);
+//       }
       
-      int ndof = temp_el->GetDof();
-      shape.SetSize(ndof);
+//       int ndof = temp_el->GetDof();
+//       shape.SetSize(ndof);
       
-   }
+//    }
 
-   const IntegrationRule *ir = IntRule;
-   if (ir == nullptr)
-   {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 2;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
+//    const IntegrationRule *ir = IntRule;
+//    if (ir == nullptr)
+//    {
+//       int order = [&]()
+//       {
+//          if (el.Space() == FunctionSpace::Pk)
+//          {
+//             return 2 * el.GetOrder() - 2;
+//          }
+//          else
+//          {
+//             return 2 * el.GetOrder();
+//          }
+//       }();
 
-      ir = &IntRules.Get(el.GetGeomType(), order);
-   }
+//       ir = &IntRules.Get(el.GetGeomType(), order);
+//    }
 
-   double fun = 0.0;
+//    double fun = 0.0;
 
-   for (int i = 0; i < ir->GetNPoints(); i++)
-   {
-      b_vec = 0.0;
-      const IntegrationPoint &ip = ir->IntPoint(i);
+//    for (int i = 0; i < ir->GetNPoints(); i++)
+//    {
+//       b_vec = 0.0;
+//       const IntegrationPoint &ip = ir->IntPoint(i);
 
-      trans.SetIntPoint(&ip);
+//       trans.SetIntPoint(&ip);
 
-      auto w = ip.weight * trans.Weight();
-      if (dim == 3)
-      {
-         el.CalcCurlShape(ip, curlshape);
-         MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-      }
-      else
-      {
-         el.CalcCurlShape(ip, curlshape_dFt);
-      }
+//       auto w = ip.weight * trans.Weight();
+//       if (dim == 3)
+//       {
+//          el.CalcCurlShape(ip, curlshape);
+//          MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+//       }
+//       else
+//       {
+//          el.CalcCurlShape(ip, curlshape_dFt);
+//       }
 
-      curlshape_dFt.AddMultTranspose(elfun, b_vec);
-      const double b_mag = b_vec.Norml2() / trans.Weight();
+//       curlshape_dFt.AddMultTranspose(elfun, b_vec);
+//       const double b_mag = b_vec.Norml2() / trans.Weight();
    
-      double temperature;
+//       double temperature;
 
-      if (temperature_field != nullptr)
-      {
-         ///TODO: Edit the logic here. Had to make temperature a vector coefficient in test_acloss_functional.bin, and CalcShape cannot work with vector, only scalar
-         temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
-         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
-      }
-      else
-      {
-         ///TODO: Change default value of 100 if needed (be consistent throughout)
-         temperature = 100; 
-      }
+//       if (temperature_field != nullptr)
+//       {
+//          ///TODO: Edit the logic here. Had to make temperature a vector coefficient in test_acloss_functional.bin, and CalcShape cannot work with vector, only scalar
+//          temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
+//          temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+//       }
+//       else
+//       {
+//          ///TODO: Change default value of 100 if needed (be consistent throughout)
+//          temperature = 100; 
+//       }
 
-      const double sigma_val = sigma.Eval(trans, ip, temperature);
-      // const double sigma_val = sigma.Eval(trans, ip);
+//       const double sigma_val = sigma.Eval(trans, ip, temperature);
+//       // const double sigma_val = sigma.Eval(trans, ip);
 
-      const double loss = std::pow(diam, 2) * sigma_val *
-                          std::pow(2 * M_PI * freq * b_mag, 2) / 128.0;
-      fun += loss * fill_factor * w;
-   }
-   return fun;
-}
+//       const double loss = std::pow(diam, 2) * sigma_val *
+//                           std::pow(2 * M_PI * freq * b_mag, 2) / 128.0;
+//       fun += loss * fill_factor * w;
+//    }
+//    return fun;
+// }
 
 double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
                                           ElementTransformation &trans,
@@ -5956,14 +5994,13 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
       const double trans_weight = trans.Weight();
       const double w = ip.weight * trans_weight;
 
-      el.CalcPhysShape(trans, shape);
+      el.CalcPhysShape(trans, shape); // may be unused
 
       double temperature;
 
       if (temperature_field != nullptr)
       {
          temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
-         ///TODO: elfun or temp_elfun below?
          temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
       }
       else

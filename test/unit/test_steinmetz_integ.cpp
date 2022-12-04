@@ -47,19 +47,39 @@ TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
 // Adding CAL2 Core Loss Integrator test here (can always make a new/separate test file)
 TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 {
+   using namespace mfem;
    using namespace electromag_data;
 
-   const int dim = 3;
-   int num_edge = 3;
-   auto smesh = mfem::Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                            mfem::Element::TETRAHEDRON,
-                                            1.0, 1.0, 1.0, true);
+   const int p = 1;
+   const int dim = 2;
+   // if (dim==2)
+   // {
+   // Option 1: Generate an 8 element mesh in 2D
 
-   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                    Element::TRIANGLE);
    mesh.EnsureNodes();
+   
+   // Create the finite element collection and finite element space for the current order
+   H1_FECollection fec(p, dim);
+   FiniteElementSpace fes(&mesh, &fec);
+   // }
+   // else if (dim==3)
+   // {
+   // // Option 2: Generate a 3D unit cube mesh
+   
+   // int num_edge = 3;
+   // auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+   //                                        Element::TETRAHEDRON,
+   //                                        1.0, 1.0, 1.0, true);
 
-   mfem::L2_FECollection fec(1, dim); // Stick with L2 elements or use other FEs? 
-   mfem::ParFiniteElementSpace fes(&mesh, &fec);
+   // ParMesh mesh(MPI_COMM_WORLD, smesh); 
+   // mesh.EnsureNodes();
+
+   // L2_FECollection fec(p, dim); // Stick with L2 elements or use other FEs? 
+   // ParFiniteElementSpace fes(&mesh, &fec);
+   // }
 
    // extract mesh nodes and get their finite-element space
    auto &x_nodes = *mesh.GetNodes();
@@ -119,8 +139,8 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            T = 37; //constant temperature throughout mesh
-            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
+            // T = 37; //constant temperature throughout mesh
+            T = 77*x(0); // temperature linearly dependent in the x(0) direction
             // T = 63*x(1); // temperature linearly dependent in the x(1) direction
             // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
             // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
@@ -151,17 +171,22 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 
    mfem::Vector dummy_vec(fes.GetTrueVSize());
    auto CAL2_core_loss = functional.GetEnergy(dummy_vec);
-   // std::cout << "CAL2_core_loss=" << CAL2_core_loss << "\n";
+   std::cout << "CAL2_core_loss=" << CAL2_core_loss << "\n";
 
    double Expected_core_loss;
    // At B=1.7, T=20 (both const): CAL2_kh=0.03564052086424506, CAL2_ke=1.8382756161830418e-05, pFe=(0.03564052086424506)*1000*pow(1.7,2)+(1.8382756161830418e-05)*pow(1000,2)*pow(1.7,2)=156.12727060535812 W/kg
-   // Expected_core_loss = 156.12727060535812;
+   // Expected_core_loss = 156.12727060535812; // passes for all orders of p, including p=1
    // At B=1.7, T=100 (both const): CAL2_kh=0.03568496179583322, CAL2_ke=1.798193527110098e-05, pFe=(0.03568496179583322)*1000*pow(1.7,2)+(1.798193527110098e-05)*pow(1000,2)*pow(1.7,2)=155.0973325234398 W/kg
-   // Expected_core_loss = 155.0973325234398;
+   // Expected_core_loss = 155.0973325234398; // passes for all orders of p, including p=1
    // At B=2.2, T=37 (both const): CAL2_kh=0.025918677125662013, CAL2_ke=5.4589283749123626e-05, pFe=(0.025918677125662013)*1000*pow(2.2,2)+(5.4589283749123626e-05)*pow(1000,2)*pow(2.2,2)=389.6585306339625 W/kg
-   Expected_core_loss = 389.6585306339625;
-
-   ///TODO: Try to go beyond constant B and T. Difficult to compute expected core loss when both values are not constant 
+   // Expected_core_loss = 389.6585306339625; // passes for all orders of p, including p=1
+   // At B=2.2, T=77*x(0): CAL2_kh=0.026043798894524624, CAL2_ke=5.424843329564548e-05, pFe=(0.026043798894524624)*1000*pow(2.2,2)+(5.424843329564548e-05)*pow(1000,2)*pow(2.2,2)=388.61440380042336 W/kg
+   Expected_core_loss = 388.61440380042336; // passes for all orders of p, including p=1
+   // At B=2.2, T=63*x(1): CAL2_kh=0.02545989730649911, CAL2_ke=5.583906874521016e-05, pFe=(0.02545989730649911)*1000*pow(2.2,2)+(5.583906874521016e-05)*pow(1000,2)*pow(2.2,2)=393.4869956902729 W/kg
+   // Expected_core_loss = 393.4869956902729; // passes for all orders of p, including p=1
+   // Temporarily adjusting logic in CAL2CLI to have CAL2_kh and CAL2_ke=1 (temporarily)
+   // With B=2.4*x(0), T=37: CAL2_kh and CAL2_ke=1 (temporarily), pFe=1.92192e6 W/kg (analytical calc, WolframAlpha verified)
+   // Expected_core_loss = 1.92192e6; // as expected, fails for p=1 and passes for p=2
 
    REQUIRE(CAL2_core_loss == Approx(Expected_core_loss));
 }
