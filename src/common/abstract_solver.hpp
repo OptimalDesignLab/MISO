@@ -426,8 +426,7 @@ void AbstractSolver2::setState(T function,
          {
             return std::make_any<decltype(function)>(function);
          }
-      }
-      ();
+      }();
       setState_(any, name, state);
    }
 }
@@ -466,8 +465,7 @@ double AbstractSolver2::calcStateError(T ex_sol,
          {
             return std::make_any<decltype(ex_sol)>(ex_sol);
          }
-      }
-      ();
+      }();
       return calcStateError_(any, name, state);
    }
 }
