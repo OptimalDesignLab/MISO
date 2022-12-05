@@ -525,6 +525,7 @@ void PDESolver::terminalHook(int iter,
                              const mfem::Vector &state)
 {
    AbstractSolver2::terminalHook(iter, t_final, state);
+   derivedPDETerminalHook(iter, t_final, state);
 }
 
 }  // namespace mach

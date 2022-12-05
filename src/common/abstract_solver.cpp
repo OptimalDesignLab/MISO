@@ -126,6 +126,8 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       mfem::Vector zero;
       nonlinear_solver->Mult(zero, state);
 
+      terminalHook(1, 1.0, state);
+
       /// log final state
       for (auto &[logger, options] : loggers)
       {

@@ -1,6 +1,8 @@
 #include <memory>
 #include <string>
+#include <variant>
 
+#include "data_logging.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -90,6 +92,16 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
    mach::ParaViewLogger paraview("magnetostatic", &mesh());
    paraview.registerField("state", fields.at("state").gridFunc());
    paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
+   paraview.registerField(
+       "residual",
+       dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
+
+   const auto &temp_field_iter = fields.find("temperature");
+   if (temp_field_iter != fields.end())
+   {
+      auto &temp_field = temp_field_iter->second;
+      paraview.registerField("temperature", temp_field.gridFunc());
+   }
    addLogger(std::move(paraview), {});
 }
 
@@ -158,6 +170,19 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       fields.emplace(std::piecewise_construct,
                      std::forward_as_tuple(fun),
                      std::forward_as_tuple(mesh(), dg_field_options));
+
+      // mach::ParaViewLogger paraview("flux_magnitude", &mesh());
+      // paraview.registerField("flux_magnitude",
+      // fields.at("flux_magnitude").gridFunc()); addLogger(std::move(paraview),
+      // {});
+
+      auto &[logger, logger_opts] = loggers.back();
+      if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      {
+         auto &paraview = std::get<mach::ParaViewLogger>(logger);
+         paraview.registerField("flux_magnitude",
+                                fields.at("flux_magnitude").gridFunc());
+      }
 
       auto &dg_field = fields.at(fun);
       L2CurlMagnitudeProjection out(
@@ -271,6 +296,15 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                           " not supported by "
                           "MagnetostaticSolver!\n");
    }
+}
+
+void MagnetostaticSolver::derivedPDETerminalHook(int iter,
+                                                 double t_final,
+                                                 const mfem::Vector &state)
+{
+   work.SetSize(state.Size());
+   calcResidual(state, work);
+   res_vec().distributeSharedDofs(work);
 }
 
 }  // namespace mach

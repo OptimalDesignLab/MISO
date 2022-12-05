@@ -180,11 +180,11 @@ void finalizeAdjointSystem(MachNonlinearForm &form,
                            mfem::Vector &state_bar,
                            mfem::Vector &adjoint)
 {
-   const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
-   if (ess_tdof_list.Size() == 0)
-   {
-      return;
-   }
+   // const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+   // if (ess_tdof_list.Size() == 0)
+   // {
+   //    return;
+   // }
 
    // adjoint.SetSubVector(ess_tdof_list, form.scratch);
 
