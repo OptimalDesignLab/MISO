@@ -559,27 +559,29 @@ double box1CurrentSource2D(const mfem::Vector &x)
    return box1_current2D(x.GetData());
 }
 
+/// TODO: this is how Adept should be used here, eventually
+/// should update the rest of the use cases to match this
+/// (it's more efficient)
 void box1CurrentSource2DRevDiff(adept::Stack &diff_stack,
                                 const mfem::Vector &x,
-                                const double &J_bar,
+                                double J_bar,
                                 mfem::Vector &x_bar)
 {
-   // mfem::DenseMatrix source_jac(3);
-   // // declare vectors of active input variables
-   // std::vector<adouble> x_a(x.Size());
-   // // copy data from mfem::Vector
-   // adept::set_values(x_a.data(), x.Size(), x.GetData());
-   // // start recording
-   // diff_stack.new_recording();
-   // // the depedent variable must be declared after the recording
-   // std::vector<adouble> J_a(x.Size());
-   // box1_current<adouble>(x_a.data(), J_a.data());
-   // // set the independent and dependent variable
-   // diff_stack.independent(x_a.data(), x.Size());
-   // diff_stack.dependent(J_a.data(), x.Size());
-   // // calculate the jacobian w.r.t state vaiables
-   // diff_stack.jacobian(source_jac.GetData());
-   // source_jac.MultTranspose(V_bar, x_bar);
+   std::array<adouble, 2> x_a;
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+
+   // start recording
+   diff_stack.new_recording();
+
+   // the depedent variable must be declared after the recording
+   auto J_a = box1_current2D<adouble>(x_a.data());
+
+   J_a.set_gradient(J_bar);
+   diff_stack.compute_adjoint();
+
+   // calculate the vector jacobian product w.r.t position
+   adept::get_gradients(x_a.data(), x.Size(), x_bar.GetData());
 }
 
 double box2CurrentSource2D(const mfem::Vector &x)
@@ -587,26 +589,29 @@ double box2CurrentSource2D(const mfem::Vector &x)
    return box2_current2D(x.GetData());
 }
 
+/// TODO: this is how Adept should be used here, eventually
+/// should update the rest of the use cases to match this
+/// (it's more efficient)
 void box2CurrentSource2DRevDiff(adept::Stack &diff_stack,
                                 const mfem::Vector &x,
-                                const double &J_bar,
+                                double J_bar,
                                 mfem::Vector &x_bar)
 {
-   // mfem::DenseMatrix source_jac(3);
-   // // declare vectors of active input variables
-   // std::vector<adouble> x_a(x.Size());
-   // // copy data from mfem::Vector
-   // adept::set_values(x_a.data(), x.Size(), x.GetData());
-   // // start recording
-   // diff_stack.new_recording();
-   // // the depedent variable must be declared after the recording
-   // adouble J_a = box2_current2D<adouble>(x_a.data());
-   // // set the independent and dependent variable
-   // diff_stack.independent(x_a.data(), x.Size());
-   // diff_stack.dependent(J_a);
-   // // calculate the jacobian w.r.t state vaiables
-   // diff_stack.jacobian(source_jac.GetData());
-   // source_jac.MultTranspose(V_bar, x_bar);
+   std::array<adouble, 2> x_a;
+   // copy data from mfem::Vector
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+
+   // start recording
+   diff_stack.new_recording();
+
+   // the depedent variable must be declared after the recording
+   auto J_a = box2_current2D<adouble>(x_a.data());
+
+   J_a.set_gradient(J_bar);
+   diff_stack.compute_adjoint();
+
+   // calculate the vector jacobian product w.r.t position
+   adept::get_gradients(x_a.data(), x.Size(), x_bar.GetData());
 }
 
 void team13CurrentSource(const mfem::Vector &x, mfem::Vector &J)
@@ -1038,7 +1043,7 @@ void CurrentDensityCoefficient2D::EvalRevDiff(
     const mfem::IntegrationPoint &ip,
     mfem::DenseMatrix &PointMat_bar)
 {
-   Q_bar *= 1.0;
+   Q_bar *= -1.0;
    current_coeff.EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
 }
 

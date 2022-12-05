@@ -46,6 +46,10 @@ public:
                          const mfem::IntegrationPoint &ip,
                          double state) override;
 
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override;
+
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
@@ -61,6 +65,8 @@ protected:
    std::unique_ptr<tinyspline::BSpline> lognu;
    /// spline representing dlog(nu)/dB
    std::unique_ptr<tinyspline::BSpline> dlognudb;
+   /// spline representing d2log(nu)/dB2
+   std::unique_ptr<tinyspline::BSpline> d2lognudb2;
 };
 
 class BHBSplineReluctivityCoefficient : public mach::StateCoefficient
@@ -407,6 +413,41 @@ double logNuBBSplineReluctivityCoefficient::EvalStateDeriv(
       double nu = exp(lognu->eval(state).result()[0]);
       double dnudb = nu * dlognudb->eval(state).result()[0];
       return dnudb;
+   }
+   else
+   {
+      return 0.0;
+   }
+}
+
+double logNuBBSplineReluctivityCoefficient::EvalState2ndDeriv(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    const double state)
+{
+   if (d2lognudb2 == nullptr)
+   {
+      d2lognudb2 = std::make_unique<tinyspline::BSpline>(dlognudb->derive());
+   }
+   if (state > b_max)
+   {
+      std::cout << "lognu state: " << state;
+      std::cout << " !!!LARGE STATE!!!";
+      std::cout << "\n";
+   }
+
+   if (state <= b_max)
+   {
+      double lognu_val = lognu->eval(state).result()[0];
+      double nu = exp(lognu_val);
+
+      double dlognudb_val = dlognudb->eval(state).result()[0];
+      // double dnudb = nu * dlognudb_val;
+
+      double d2lognudb2_val = d2lognudb2->eval(state).result()[0];
+      double d2nudb2 = nu * (d2lognudb2_val + pow(dlognudb_val, 2));
+
+      return d2nudb2;
    }
    else
    {

@@ -707,6 +707,30 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       return loss_dot / volume - loss / pow(volume, 2) * volume_dot;
    }
+   else if (wrt.rfind("peak_flux", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+      double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+
+      double strand_loss_dot =
+          output.stack_length * M_PI * pow(output.radius, 4) *
+          pow(2 * M_PI * output.freq, 2) / 32.0 * sigma_b2_dot;
+
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double loss = num_strands * strand_loss;
+      double loss_dot = num_strands * strand_loss_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+      // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+
+      return loss_dot / volume;  // - loss / pow(volume, 2) * volume_dot;
+   }
    else
    {
       return 0.0;
@@ -1142,6 +1166,67 @@ void vectorJacobianProduct(ACLossFunctional &output,
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
    }
+   else if (wrt.rfind("peak_flux", 0) == 0)
+   {
+      double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      double strand_loss = sigma_b2 * output.stack_length * M_PI *
+                           pow(output.radius, 4) *
+                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // mfem::Vector vol_bar_vec(&volume_bar, 1);
+      // vectorJacobianProduct(output.volume, vol_bar_vec, "state", wrt_bar);
+
+      /// double loss = num_strands * strand_loss;
+      // double num_strands_bar = loss_bar * strand_loss;
+      double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+                            pow(output.radius, 4) *
+                            pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+
+      /// double sigma_b2 = calcOutput(output.output, output.inputs);
+      mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
+      vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
+   }
 }
 
 // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
@@ -1179,19 +1264,26 @@ double calcOutput(CoreLossFunctional &output, const MachInputs &inputs)
    return calcOutput(output.output, inputs);
 }
 
-double calcOutputPartial(CoreLossFunctional &output,
-                         const std::string &wrt,
-                         const MachInputs &inputs)
+double jacobianVectorProduct(CoreLossFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
 {
-   return calcOutputPartial(output.output, wrt, inputs);
+   return jacobianVectorProduct(output.output, wrt_dot, wrt);
 }
 
-void calcOutputPartial(CoreLossFunctional &output,
-                       const std::string &wrt,
-                       const MachInputs &inputs,
-                       mfem::Vector &partial)
+double vectorJacobianProduct(CoreLossFunctional &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
 {
-   calcOutputPartial(output.output, wrt, inputs, partial);
+   return vectorJacobianProduct(output.output, out_bar, wrt);
+}
+
+void vectorJacobianProduct(CoreLossFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
 }
 
 CoreLossFunctional::CoreLossFunctional(
@@ -1199,7 +1291,7 @@ CoreLossFunctional::CoreLossFunctional(
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
- : output(fields.at("peak_flux").space(), fields),
+ : output(fields.at("state").space(), fields),
    rho(constructMaterialCoefficient("rho", components, materials)),
    k_s(constructMaterialCoefficient("ks", components, materials)),
    alpha(constructMaterialCoefficient("alpha", components, materials)),

@@ -104,11 +104,45 @@ double jacobianVectorProduct(FunctionalOutput &output,
    }
    else
    {
-      output.output_sens.at(wrt).Assemble();
-      output.output_sens.at(wrt).ParallelAssemble(output.scratch);
+      if (wrt_dot.Size() == 1)
+      {
+         Vector state;
+         output.func_fields->at("state").setTrueVec(state);
+         const auto &state_gf = output.func_fields->at("state").gridFunc();
+
+         auto wrt_key = wrt.substr(0, wrt.find(':'));
+         // output.scratch(0) =
+         // output.output_scalar_sens.at(wrt).GetEnergy(state);
+         // TODO: need to confirm what OpenMDAO expects in terms of parallel
+         // outputs: should we give it the already reduced value or not?
+         output.scratch(0) =
+             output.output_scalar_sens.at(wrt_key).GetEnergy(state_gf);
+      }
+      else
+      {
+         output.output_sens.at(wrt).Assemble();
+         output.output_sens.at(wrt).ParallelAssemble(output.scratch);
+      }
    }
 
    return InnerProduct(output.scratch, wrt_dot);
+}
+
+double vectorJacobianProduct(FunctionalOutput &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   // Vector state;
+   // output.func_fields->at("state").setTrueVec(state);
+   const auto &state_gf = output.func_fields->at("state").gridFunc();
+
+   auto wrt_key = wrt.substr(0, wrt.find(':'));
+   // double sens = output.output_scalar_sens.at(wrt_key).GetEnergy(state);
+   // TODO: need to confirm what OpenMDAO expects in terms of parallel outputs:
+   // should we give it the already reduced value or not?
+   double sens = output.output_scalar_sens.at(wrt_key).GetEnergy(state_gf);
+
+   return sens * out_bar(0);
 }
 
 void vectorJacobianProduct(FunctionalOutput &output,

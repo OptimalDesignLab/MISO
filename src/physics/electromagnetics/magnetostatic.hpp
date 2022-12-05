@@ -52,13 +52,13 @@ private:
    //                                      double dt,
    //                                      const mfem::Vector &state) override;
 
-   // /// Code that should be executed after time stepping ends
-   // /// \param[in] iter - the terminal iteration
-   // /// \param[in] t_final - the final time
-   // /// \param[in] state - the current state
-   // void derivedPDETerminalHook(int iter,
-   //                                     double t_final,
-   //                                     const mfem::Vector &state) override;
+   /// Code that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   void derivedPDETerminalHook(int iter,
+                               double t_final,
+                               const mfem::Vector &state) override;
 
    // /// Find the step size based on the options; e.g. for constant CFL or PTC
    // /// \param[in] iter - the current iteration

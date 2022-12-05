@@ -58,8 +58,7 @@ namespace mach
 double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
                                       double phi0,
                                       double dphi0,
-                                      double alpha,
-                                      int max_iter)
+                                      double alpha)
 {
    auto alpha1 = alpha;
    auto alpha2 = alpha;
@@ -77,7 +76,11 @@ double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
       if (iter > max_iter)
       {
          std::cout << "Max iterations reached!\n";
-         return alpha2;
+         // return alpha2;
+
+         // return 0.0 indicating the linesearch failed to improve,
+         // so then Newton will terminate
+         return 0.0;
       }
 
       double alpha_tmp = 0.0;

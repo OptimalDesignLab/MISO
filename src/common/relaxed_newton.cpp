@@ -25,6 +25,7 @@ std::unique_ptr<mach::LineSearch> createLineSearch(
          ls->rho_hi = options.value("rhohi", ls->rho_hi);
          ls->rho_lo = options.value("rholo", ls->rho_lo);
          ls->interp_order = options.value("interp-order", ls->interp_order);
+         ls->max_iter = options.value("maxiter", ls->max_iter);
       }
       return ls;
    }

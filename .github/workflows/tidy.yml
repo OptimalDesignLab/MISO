@@ -26,6 +26,10 @@ jobs:
             buildflags: "-fno-openmp",
           }
     steps:
+    - name: Set up Homebrew
+      id: set-up-homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+
     - name: Clone Mach
       uses: actions/checkout@v2
       with:

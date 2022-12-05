@@ -81,6 +81,21 @@ public:
       return calcOutput(output.output, inputs);
    }
 
+   friend double jacobianVectorProduct(MassFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      return jacobianVectorProduct(output.output, wrt_dot, wrt);
+   }
+
+   friend void vectorJacobianProduct(MassFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
+
    MassFunctional(std::map<std::string, FiniteElementState> &fields,
                   const nlohmann::json &components,
                   const nlohmann::json &materials,
@@ -208,6 +223,7 @@ public:
    friend void setInputs(IEAggregateFunctional &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.numerator, inputs);
       setInputs(output.denominator, inputs);
    }
@@ -215,10 +231,24 @@ public:
    friend double calcOutput(IEAggregateFunctional &output,
                             const MachInputs &inputs)
    {
+      mfem::Vector state;
+      setVectorFromInputs(inputs, "state", state);
+      double true_max = state.Max();
+      setInputs(output, {{"true_max", true_max}});
+
       double num = calcOutput(output.numerator, inputs);
       double denom = calcOutput(output.denominator, inputs);
       return num / denom;
    }
+
+   friend double jacobianVectorProduct(IEAggregateFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(IEAggregateFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    IEAggregateFunctional(mfem::ParFiniteElementSpace &fes,
                          std::map<std::string, FiniteElementState> &fields,
@@ -227,6 +257,8 @@ public:
 private:
    FunctionalOutput numerator;
    FunctionalOutput denominator;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 class IECurlMagnitudeAggregateFunctional

@@ -731,15 +731,15 @@ public:
    { }
 
    /// \brief - assemble an element's contribution to dJdX
-   /// \param[in] el - the finite element that describes the mesh element
-   /// \param[in] trans - the transformation between reference and physical
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
    /// space \param[out] mesh_coords_bar - dJdX for the element
-   void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
-   /// state vector for evaluating force
+   /// state vector for evaluating energy
    mfem::GridFunction &state;
    /// reference to primal integrator
    MagneticEnergyIntegrator &integ;
@@ -751,17 +751,29 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     MagneticEnergyIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
-   output_sens.at("mesh_coords")
-       .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
-           fields.at("state").gridFunc(), primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
+              fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
+   }
 }
 
 /** commenting out co-energy stuff since I'm stopping maintaining it
@@ -1266,17 +1278,18 @@ private:
 #endif
 
    friend class ACLossFunctionalIntegratorMeshSens;
+   friend class ACLossFunctionalIntegratorPeakFluxSens;
 };
 
 class ACLossFunctionalIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
 public:
-   /// \param[in] state - the state grid function
+   /// \param[in] peak_flux - the peak_flux grid function
    /// \param[in] integ - reference to primal integrator that holds inputs for
    /// integrator
-   ACLossFunctionalIntegratorMeshSens(mfem::GridFunction &state,
+   ACLossFunctionalIntegratorMeshSens(mfem::GridFunction &peak_flux,
                                       ACLossFunctionalIntegrator &integ)
-    : state(state), integ(integ)
+    : peak_flux(peak_flux), integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX
@@ -1289,8 +1302,8 @@ public:
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
-   /// State GridFunction, needed to get integration order for each element
-   mfem::GridFunction &state;
+   /// peak_flux GridFunction
+   mfem::GridFunction &peak_flux;
    /// reference to primal integrator
    ACLossFunctionalIntegrator &integ;
 
@@ -1307,6 +1320,38 @@ private:
 #endif
 };
 
+class ACLossFunctionalIntegratorPeakFluxSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] peak_flux - the peak_flux grid function
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrator
+   ACLossFunctionalIntegratorPeakFluxSens(mfem::GridFunction &peak_flux,
+                                          ACLossFunctionalIntegrator &integ)
+    : peak_flux(peak_flux), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] pf_el - the finite element to integrate over
+   /// \param[in] pf_trans - the transformation between reference and physical
+   /// space
+   /// \param[out] peak_flux_bar - dJdB for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &pf_el,
+                               mfem::ElementTransformation &pf_trans,
+                               mfem::Vector &peak_flux_bar) override;
+
+private:
+   /// peak_flux GridFunction
+   mfem::GridFunction &peak_flux;
+   /// reference to primal integrator
+   ACLossFunctionalIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+};
+
 inline void addDomainSensitivityIntegrator(
     ACLossFunctionalIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -1317,10 +1362,17 @@ inline void addDomainSensitivityIntegrator(
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
 
+   auto &peak_flux_fes = fields.at("peak_flux").space();
+   output_sens.emplace("peak_flux", &peak_flux_fes);
+
    if (attr_marker == nullptr)
    {
       output_sens.at("mesh_coords")
           .AddDomainIntegrator(new ACLossFunctionalIntegratorMeshSens(
+              fields.at("peak_flux").gridFunc(), primal_integ));
+
+      output_sens.at("peak_flux")
+          .AddDomainIntegrator(new ACLossFunctionalIntegratorPeakFluxSens(
               fields.at("peak_flux").gridFunc(), primal_integ));
    }
    else
@@ -1328,6 +1380,11 @@ inline void addDomainSensitivityIntegrator(
       output_sens.at("mesh_coords")
           .AddDomainIntegrator(
               new ACLossFunctionalIntegratorMeshSens(
+                  fields.at("peak_flux").gridFunc(), primal_integ),
+              *attr_marker);
+      output_sens.at("peak_flux")
+          .AddDomainIntegrator(
+              new ACLossFunctionalIntegratorPeakFluxSens(
                   fields.at("peak_flux").gridFunc(), primal_integ),
               *attr_marker);
    }
@@ -1579,17 +1636,29 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     ForceIntegrator3 &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
-   output_sens.at("mesh_coords")
-       .AddDomainIntegrator(new ForceIntegratorMeshSens3(
-           fields.at("state").gridFunc(), primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new ForceIntegratorMeshSens3(
+              fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new ForceIntegratorMeshSens3(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
+   }
 }
 
 /// Functional integrator to compute forces/torques based on the virtual work
@@ -1748,9 +1817,12 @@ private:
    double freq = 1.0;
    /// Maximum flux density magnitude
    double max_flux_mag = 1.0;
-#ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-#endif
+
+   /// class that implements frequency sensitivities for SteinmetzLossIntegrator
+   friend class SteinmetzLossIntegratorFreqSens;
+
+   /// class that implements max flux sensitivities for SteinmetzLossIntegrator
+   friend class SteinmetzLossIntegratorMaxFluxSens;
 
    /// class that implements mesh sensitivities for SteinmetzLossIntegrator
    friend class SteinmetzLossIntegratorMeshSens;
@@ -1850,6 +1922,121 @@ private:
 };
 
 ///TODO: Is there a need to make a CAL2CoreLossDistributionIntegrator (mirroring SteinmetzLossDistributionIntegrator below)? SteinmetzLossDistributionIntegrator is seemingly never used outside of this hpp and cpp file.
+
+class SteinmetzLossIntegratorFreqSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   SteinmetzLossIntegratorFreqSens(SteinmetzLossIntegrator &integ)
+    : integ(integ)
+   { }
+
+   /// \brief - Compute element contribution to global sensitivity
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global sensitvity
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// reference to primal integrator
+   SteinmetzLossIntegrator &integ;
+};
+
+class SteinmetzLossIntegratorMaxFluxSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   SteinmetzLossIntegratorMaxFluxSens(SteinmetzLossIntegrator &integ)
+    : integ(integ)
+   { }
+
+   /// \brief - Compute element contribution to global sensitivity
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global sensitvity
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// reference to primal integrator
+   SteinmetzLossIntegrator &integ;
+};
+
+class SteinmetzLossIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   SteinmetzLossIntegratorMeshSens(mfem::GridFunction &state,
+                                   SteinmetzLossIntegrator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
+   /// space \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating loss
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   SteinmetzLossIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+inline void addDomainSensitivityIntegrator(
+    SteinmetzLossIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &state_fes = fields.at("state").space();
+   output_scalar_sens.emplace("frequency", &state_fes);
+   output_scalar_sens.emplace("max_flux_magnitude", &state_fes);
+
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+
+   if (attr_marker == nullptr)
+   {
+      output_scalar_sens.at("frequency")
+          .AddDomainIntegrator(
+              new SteinmetzLossIntegratorFreqSens(primal_integ));
+
+      output_scalar_sens.at("max_flux_magnitude")
+          .AddDomainIntegrator(
+              new SteinmetzLossIntegratorMaxFluxSens(primal_integ));
+
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new SteinmetzLossIntegratorMeshSens(
+              fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_scalar_sens.at("frequency")
+          .AddDomainIntegrator(
+              new SteinmetzLossIntegratorFreqSens(primal_integ), *attr_marker);
+
+      output_scalar_sens.at("max_flux_magnitude")
+          .AddDomainIntegrator(
+              new SteinmetzLossIntegratorMaxFluxSens(primal_integ),
+              *attr_marker);
+
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new SteinmetzLossIntegratorMeshSens(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
+   }
+}
 
 class SteinmetzLossDistributionIntegrator : public mfem::LinearFormIntegrator
 {

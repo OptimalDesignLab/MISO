@@ -114,6 +114,7 @@ class MachFunctional(om.ExplicitComponent):
     def compute_jacvec_product(self, inputs, d_inputs, d_outputs, mode):
         solver = self.options["solver"]
         func = self.options["func"]
+        # print(f"Calling compute_jacvec_product for func {func} with inputs: {inputs}, d_inputs: {d_inputs}, d_outputs: {d_outputs}, and mode: {mode}")
 
         # Copy vector inputs into internal contiguous data buffers
         for input in inputs:
@@ -125,17 +126,28 @@ class MachFunctional(om.ExplicitComponent):
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(self.vectors)  
 
-        for input in inputs:
-            print(f"d_inputs[{input}]: {d_inputs[input]}")
+        # for input in inputs:
+            # print(f"inputs[{input}] stride: {inputs[input].strides}")
+
+        # for input in inputs:
+        #     if input in d_inputs:
+                # print(f"d_inputs[{input}]: {d_inputs[input]}")
+                # print(f"d_inputs[{input}] stride: {d_inputs[input].strides}")
+
+        # print(f"d_outputs[{func}] stride: {d_outputs[func].strides}")
 
         try:
             if mode == 'fwd':
                 if func in d_outputs:
+                    # print(f"func {func} is in d_outputs")
                     for input in inputs:
                         if input in d_inputs:
+                            # print(f"input {input} is in d_inputs")
+                            # print(f"")
+                            func_dot = np.zeros_like(d_outputs[func])
                             func_dot = np.zeros_like(d_outputs[func])
 
-                            print(f"wrt_dot for input {input}: {d_inputs[input]}")
+                            # print(f"wrt_dot for input {input}: {d_inputs[input]} for fun {func}")
                             solver.outputJacobianVectorProduct(of=func,
                                                               inputs=input_dict,
                                                               wrt_dot=d_inputs[input],
@@ -152,6 +164,7 @@ class MachFunctional(om.ExplicitComponent):
                                 # Recommended to make sure your code can run without MPI too, for testing.
                                 d_outputs[func] += func_dot
 
+                            # print(f"out_dot for func {func}: {d_outputs[func]}")
             elif mode == 'rev':
                 if func in d_outputs:
                     for input in inputs:
@@ -170,10 +183,22 @@ class MachFunctional(om.ExplicitComponent):
                                                                out_bar=func_bar,
                                                                wrt=input,
                                                                wrt_bar=d_inputs[input])
-        except NotImplementedError as err:
-            if self.options["check_partials"]:
-                pass
+        except Exception as err:
+            if isinstance(err, NotImplementedError):
+                if self.options["check_partials"]:
+                    print(f"\n\nNot implemented error passed!!!\n\n")
+                    pass
+                else:
+                    print(f"\n\nNot implemented error raised!!!\n\n")
+                    raise err
             else:
+                print("\n\ngeneric exception!!!\n\n")
                 raise err
+
+        # except NotImplementedError as err:
+        #     if self.options["check_partials"]:
+        #         pass
+        #     else:
+        #         raise err
 
 

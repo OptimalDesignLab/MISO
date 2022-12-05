@@ -51,6 +51,12 @@ public:
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
+   friend void finalizeAdjointSystem(MachNonlinearForm &form,
+                                     mfem::Solver &adj_solver,
+                                     const MachInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(MachNonlinearForm &form,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
@@ -164,6 +170,8 @@ private:
 
    /// Holds the transpose of the Jacobian, needed for solving for the adjoint
    std::unique_ptr<mfem::Operator> jac_trans;
+
+   mfem::Vector adj_work1, adj_work2;
 };
 
 template <typename T>

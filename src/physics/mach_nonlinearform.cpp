@@ -71,15 +71,24 @@ void evaluate(MachNonlinearForm &form,
 
 void linearize(MachNonlinearForm &form, const MachInputs &inputs)
 {
+   std::cout << "In linearize!\n";
    setInputs(form, inputs);
-   // getJacobianTranspose also gets the regular Jacobian
-   getJacobianTranspose(form, inputs, "state");
+   if (form.jac.Ptr() == nullptr)
+   {
+      getJacobian(form, inputs, "state");
+   }
+   if (form.jac_trans == nullptr)
+   {
+      getJacobianTranspose(form, inputs, "state");
+   }
 }
 
 mfem::Operator &getJacobian(MachNonlinearForm &form,
                             const MachInputs &inputs,
                             const std::string &wrt)
 {
+   std::cout << "Re-assembling Jacobian!\n";
+
    mfem::Vector state;
    setVectorFromInputs(inputs, "state", state, false, true);
 
@@ -101,6 +110,9 @@ mfem::Operator &getJacobian(MachNonlinearForm &form,
    // reset our essential BCs to what they used to be
    form.nf.SetEssentialTrueDofs(ess_tdof_list);
 
+   // reset transposed Jacobian to null (to indicate we should re-transpose it)
+   form.jac_trans = nullptr;
+
    return *form.jac;
 }
 
@@ -108,17 +120,21 @@ mfem::Operator &getJacobianTranspose(MachNonlinearForm &form,
                                      const MachInputs &inputs,
                                      const std::string &wrt)
 {
-   getJacobian(form, inputs, wrt);
-
-   auto *hypre_jac = form.jac.As<mfem::HypreParMatrix>();
-   if (hypre_jac == nullptr)
+   if (form.jac_trans == nullptr)
    {
-      throw MachException(
-          "getJacobianTranspose (MachNonlinearForm) only supports "
-          "Jacobian matrices assembled to a HypreParMatrix!\n");
-   }
+      std::cout << "Re-transposing Jacobian!\n";
+      // getJacobian(form, inputs, wrt);
 
-   form.jac_trans = std::unique_ptr<mfem::Operator>(hypre_jac->Transpose());
+      auto *hypre_jac = form.jac.As<mfem::HypreParMatrix>();
+      if (hypre_jac == nullptr)
+      {
+         throw MachException(
+             "getJacobianTranspose (MachNonlinearForm) only supports "
+             "Jacobian matrices assembled to a HypreParMatrix!\n");
+      }
+
+      form.jac_trans = std::unique_ptr<mfem::Operator>(hypre_jac->Transpose());
+   }
    return *form.jac_trans;
 }
 
@@ -128,6 +144,8 @@ void setUpAdjointSystem(MachNonlinearForm &form,
                         mfem::Vector &state_bar,
                         mfem::Vector &adjoint)
 {
+   std::cout << "Setting up adjoint system!\n";
+
    auto &jac_trans = getJacobianTranspose(form, inputs, "state");
    adj_solver.SetOperator(jac_trans);
 
@@ -136,6 +154,7 @@ void setUpAdjointSystem(MachNonlinearForm &form,
    {
       return;
    }
+
    adj_solver.Mult(state_bar, adjoint);
 
    auto *hypre_jac_e = form.jac_e.As<mfem::HypreParMatrix>();
@@ -146,6 +165,35 @@ void setUpAdjointSystem(MachNonlinearForm &form,
           "Jacobian matrices assembled to a HypreParMatrix!\n");
    }
    hypre_jac_e->MultTranspose(-1.0, adjoint, 1.0, state_bar);
+
+   // state_bar.GetSubVector(ess_tdof_list, form.scratch);
+   // state_bar.SetSubVector(ess_tdof_list, 0.0);
+
+   // form.adj_work1 = state_bar;
+   // state_bar.SetSubVector(ess_tdof_list, 0.0);
+   // form.adj_work2 = state_bar;
+}
+
+void finalizeAdjointSystem(MachNonlinearForm &form,
+                           mfem::Solver &adj_solver,
+                           const MachInputs &inputs,
+                           mfem::Vector &state_bar,
+                           mfem::Vector &adjoint)
+{
+   // const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+   // if (ess_tdof_list.Size() == 0)
+   // {
+   //    return;
+   // }
+
+   // adjoint.SetSubVector(ess_tdof_list, form.scratch);
+
+   // mfem::Vector diff = form.adj_work2;
+   // diff -= form.adj_work1;
+   // adjoint -= diff;
+
+   // std::cout << "adjoint:\n";
+   // adjoint.Print(mfem::out, 1);
 }
 
 double jacobianVectorProduct(MachNonlinearForm &form,

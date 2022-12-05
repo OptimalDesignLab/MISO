@@ -1,10 +1,12 @@
 #ifndef MACH_MFEM_COMMON_INTEG
 #define MACH_MFEM_COMMON_INTEG
 
+#include <linalg/vector.hpp>
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "finite_element_state.hpp"
+#include "mach_input.hpp"
 #include "mach_integrator.hpp"
 
 namespace mach
@@ -156,17 +158,29 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     MagnitudeCurlStateIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
-   output_sens.at("mesh_coords")
-       .AddDomainIntegrator(new MagnitudeCurlStateIntegratorMeshSens(
-           fields.at("state").gridFunc(), primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new MagnitudeCurlStateIntegratorMeshSens(
+              fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new MagnitudeCurlStateIntegratorMeshSens(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
+   }
 }
 
 class IEAggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
@@ -175,19 +189,98 @@ public:
    friend void setOptions(IEAggregateIntegratorNumerator &integ,
                           const nlohmann::json &options);
 
-   IEAggregateIntegratorNumerator(const double rho) : rho(rho) { }
+   friend void setInputs(IEAggregateIntegratorNumerator &integ,
+                         const MachInputs &inputs);
+
+   IEAggregateIntegratorNumerator(const double rho,
+                                  std::string state_name = "state")
+    : rho(rho), _state_name(std::move(state_name))
+   { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override;
+
+   const std::string &state_name() { return _state_name; }
+
 private:
    /// aggregation parameter rho
    double rho;
+   /// name of state integrating over - needed for mesh sens
+   std::string _state_name;
+   /// true max value - used to improve numerical conditioning
+   double true_max = 1.0;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
+   friend class IEAggregateIntegratorNumeratorMeshSens;
 };
+
+class IEAggregateIntegratorNumeratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - Compute forces/torques based on the virtual work method
+   /// \param[in] state - the state vector to evaluate force at
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrators
+   IEAggregateIntegratorNumeratorMeshSens(mfem::GridFunction &state,
+                                          IEAggregateIntegratorNumerator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating integrator
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   IEAggregateIntegratorNumerator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+};
+
+inline void addDomainSensitivityIntegrator(
+    IEAggregateIntegratorNumerator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+
+   const auto &state_name = primal_integ.state_name();
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new IEAggregateIntegratorNumeratorMeshSens(
+              fields.at(state_name).gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new IEAggregateIntegratorNumeratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
 
 class IEAggregateIntegratorDenominator : public mfem::NonlinearFormIntegrator
 {
@@ -195,19 +288,100 @@ public:
    friend void setOptions(IEAggregateIntegratorDenominator &integ,
                           const nlohmann::json &options);
 
-   IEAggregateIntegratorDenominator(const double rho) : rho(rho) { }
+   friend void setInputs(IEAggregateIntegratorDenominator &integ,
+                         const MachInputs &inputs);
+
+   IEAggregateIntegratorDenominator(const double rho,
+                                    std::string state_name = "state")
+    : rho(rho), _state_name(std::move(state_name))
+   { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override;
+
+   const std::string &state_name() { return _state_name; }
+
 private:
    /// aggregation parameter rho
    double rho;
+   /// name of state integrating over - needed for mesh sens
+   std::string _state_name;
+   /// true max value - used to improve numerical conditioning
+   double true_max = 1.0;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
+   friend class IEAggregateIntegratorDenominatorMeshSens;
 };
+
+class IEAggregateIntegratorDenominatorMeshSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - Compute forces/torques based on the virtual work method
+   /// \param[in] state - the state vector to evaluate force at
+   /// \param[in] integ - reference to primal integrator that holds inputs for
+   /// integrators
+   IEAggregateIntegratorDenominatorMeshSens(
+       mfem::GridFunction &state,
+       IEAggregateIntegratorDenominator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating integrator
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   IEAggregateIntegratorDenominator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+};
+
+inline void addDomainSensitivityIntegrator(
+    IEAggregateIntegratorDenominator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+
+   const auto &state_name = primal_integ.state_name();
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new IEAggregateIntegratorDenominatorMeshSens(
+              fields.at(state_name).gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new IEAggregateIntegratorDenominatorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
 
 class IECurlMagnitudeAggregateIntegratorNumerator
  : public mfem::NonlinearFormIntegrator
@@ -278,18 +452,31 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     IECurlMagnitudeAggregateIntegratorNumerator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
-   output_sens.at("mesh_coords")
-       .AddDomainIntegrator(
-           new IECurlMagnitudeAggregateIntegratorNumeratorMeshSens(
-               fields.at("state").gridFunc(), primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new IECurlMagnitudeAggregateIntegratorNumeratorMeshSens(
+                  fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new IECurlMagnitudeAggregateIntegratorNumeratorMeshSens(
+                  fields.at("state").gridFunc(), primal_integ),
+              *attr_marker);
+   }
 }
 
 class IECurlMagnitudeAggregateIntegratorDenominator
@@ -361,18 +548,31 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     IECurlMagnitudeAggregateIntegratorDenominator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
-   output_sens.at("mesh_coords")
-       .AddDomainIntegrator(
-           new IECurlMagnitudeAggregateIntegratorDenominatorMeshSens(
-               fields.at("state").gridFunc(), primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new IECurlMagnitudeAggregateIntegratorDenominatorMeshSens(
+                  fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new IECurlMagnitudeAggregateIntegratorDenominatorMeshSens(
+                  fields.at("state").gridFunc(), primal_integ),
+              *attr_marker);
+   }
 }
 
 class DiffusionIntegratorMeshSens final : public mfem::LinearFormIntegrator

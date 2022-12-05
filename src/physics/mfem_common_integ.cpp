@@ -1,8 +1,11 @@
+#include <cmath>
+
 #include "mfem.hpp"
+#include "nlohmann/json.hpp"
+
+#include "mach_input.hpp"
 
 #include "mfem_common_integ.hpp"
-
-#include <cmath>
 
 using namespace mfem;
 
@@ -471,6 +474,11 @@ void setOptions(IEAggregateIntegratorNumerator &integ,
    }
 }
 
+void setInputs(IEAggregateIntegratorNumerator &integ, const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "true_max", integ.true_max);
+}
+
 double IEAggregateIntegratorNumerator::GetElementEnergy(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -489,11 +497,136 @@ double IEAggregateIntegratorNumerator::GetElementEnergy(
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
       el.CalcShape(ip, shape);
-      double g = shape * elfun;
-      fun += ip.weight * trans.Weight() * g * exp(rho * g);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      fun += g * exp_rho_g * w;
    }
    return fun;
+}
+
+void IEAggregateIntegratorNumerator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape(elfun.Size());
+#else
+   shape.SetSize(elfun.Size());
+#endif
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      /// fun += g * exp_rho_g * w;
+      const double fun_bar = 1.0;
+      double g_bar = fun_bar * exp_rho_g * w;
+      double exp_rho_g_bar = fun_bar * g * w;
+      // double w_bar = fun_bar * g * exp_rho_g;
+
+      /// double exp_rho_g = exp(rho * (g - true_max));
+      g_bar += exp_rho_g_bar * rho * exp_rho_g;
+
+      /// double g = shape * elfun;
+      elfun_bar.Add(g_bar, shape);
+   }
+}
+
+void IEAggregateIntegratorNumeratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(elfun.Size());
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   auto rho = integ.rho;
+   auto true_max = integ.true_max;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      /// fun += g * exp_rho_g * w;
+      const double fun_bar = 1.0;
+      // double g_bar = fun_bar * exp_rho_g * w;
+      // double exp_rho_g_bar = fun_bar * g * w;
+      double w_bar = fun_bar * g * exp_rho_g;
+
+      /// const double w = ip.weight * trans_weight;
+
+      double trans_weight_bar = w_bar * ip.weight;
+      PointMat_bar = 0.0;
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// double exp_rho_g = exp(rho * (g - true_max));
+      // g_bar += exp_rho_g_bar * rho * exp_rho_g;
+
+      /// double g = shape * elfun;
+      // elfun_bar.Add(g_bar, shape);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setOptions(IEAggregateIntegratorDenominator &integ,
@@ -503,6 +636,12 @@ void setOptions(IEAggregateIntegratorDenominator &integ,
    {
       integ.rho = options["rho"].get<double>();
    }
+}
+
+void setInputs(IEAggregateIntegratorDenominator &integ,
+               const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "true_max", integ.true_max);
 }
 
 double IEAggregateIntegratorDenominator::GetElementEnergy(
@@ -522,11 +661,133 @@ double IEAggregateIntegratorDenominator::GetElementEnergy(
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
       el.CalcShape(ip, shape);
-      double g = shape * elfun;
-      fun += ip.weight * trans.Weight() * exp(rho * g);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      fun += exp_rho_g * w;
    }
    return fun;
+}
+
+void IEAggregateIntegratorDenominator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape(elfun.Size());
+#else
+   shape.SetSize(elfun.Size());
+#endif
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      /// fun += exp_rho_g * w;
+      double fun_bar = 1.0;
+      double exp_rho_g_bar = fun_bar * w;
+      // double w_bar = fun_bar * exp_rho_g;
+
+      /// double exp_rho_g = exp(rho * (g - true_max));
+      double g_bar = exp_rho_g_bar * rho * exp_rho_g;
+
+      /// double g = shape * elfun;
+      elfun_bar.Add(g_bar, shape);
+   }
+}
+
+void IEAggregateIntegratorDenominatorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(elfun.Size());
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   auto rho = integ.rho;
+   auto true_max = integ.true_max;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      /// fun += exp_rho_g * w;
+      const double fun_bar = 1.0;
+      // double exp_rho_g_bar = fun_bar * g * w;
+      double w_bar = fun_bar * exp_rho_g;
+
+      /// const double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+      PointMat_bar = 0.0;
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// double exp_rho_g = exp(rho * (g - true_max));
+      // double g_bar = exp_rho_g_bar * rho * exp_rho_g;
+
+      /// const double g = shape * elfun;
+      // elfun_bar.Add(g_bar, shape);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setOptions(IECurlMagnitudeAggregateIntegratorNumerator &integ,
