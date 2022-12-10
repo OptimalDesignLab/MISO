@@ -87,7 +87,7 @@ public:
    CutDGIsentropicVortexBC(adept::Stack &diff_stack,
                            const mfem::FiniteElementCollection *fe_coll,
                            std::map<int, IntegrationRule *> cutSegmentIntRules,
-                           Algoim::LevelSet<2> /*circle<2>*/ phi,
+                           /*Algoim::LevelSet<2>*/ circle<2> phi,
                            double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGIsentropicVortexBC<dim, entvar>>(
           diff_stack,
@@ -155,7 +155,7 @@ public:
    CutDGSlipWallBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
                    std::map<int, IntegrationRule *> cutSegmentIntRules,
-                   Algoim::LevelSet<2> /*circle<2>*/ phi,
+                   /*Algoim::LevelSet<2>*/ circle<2> phi,
                    double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipWallBC<dim, entvar>>(
           diff_stack,
@@ -225,7 +225,7 @@ public:
    CutDGSlipFarFieldBC(adept::Stack &diff_stack,
                        const mfem::FiniteElementCollection *fe_coll,
                        std::map<int, IntegrationRule *> cutSegmentIntRules,
-                       Algoim::LevelSet<2> /*circle<2>*/ phi,
+                       /*Algoim::LevelSet<2>*/ circle<2> phi,
                        const mfem::Vector &q_far,
                        double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipFarFieldBC<dim, entvar>>(
@@ -604,7 +604,7 @@ public:
                       const mfem::FiniteElementCollection *fe_coll,
                       const mfem::Vector &force_dir,
                       std::map<int, IntegrationRule *> cutSegmentIntRules,
-                      Algoim::LevelSet<2> /*circle<2>*/ phi)
+                      /*Algoim::LevelSet<2>*/ circle<2> phi)
     : CutDGInviscidBoundaryIntegrator<CutDGPressureForce<dim, entvar>>(
           diff_stack,
           fe_coll,
@@ -789,7 +789,7 @@ public:
    CutDGInviscidExactBC(adept::Stack &diff_stack,
                         const mfem::FiniteElementCollection *fe_coll,
                         std::map<int, IntegrationRule *> cutSegmentIntRules,
-                        Algoim::LevelSet<2> /*circle<2>*/ phi,
+                        /*Algoim::LevelSet<2>*/ circle<2> phi,
                         void (*fun)(const mfem::Vector &, mfem::Vector &),
                         double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGInviscidExactBC<dim, entvar>>(
@@ -853,6 +853,42 @@ private:
    mfem::Vector qexact;
    /// work space for flux computations
    mfem::Vector work_vec;
+};
+/// Source-term integrator for a 2D Euler MMS problem
+/// \note For details on the MMS problem, see the file viscous_mms.py
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class CutPotentialMMSIntegrator
+ : public CutMMSIntegrator<CutPotentialMMSIntegrator<dim, entvar>>
+{
+public:
+   /// Construct an integrator for a 2D Navier-Stokes MMS source
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] cutSquareIntRules - integration rule for cut cells
+   /// \param[in] embeddedElements - elements completely inside the geometry
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   CutPotentialMMSIntegrator(adept::Stack &diff_stack,
+                             std::map<int, IntegrationRule *> cutSquareIntRules,
+                             std::vector<bool> embeddedElements,
+                             double a = 1.0)
+    : CutMMSIntegrator<CutPotentialMMSIntegrator<dim, entvar>>(
+          cutSquareIntRules,
+          embeddedElements,
+          dim + 2,
+          a)
+   { }
+
+   /// Computes the MMS source term at a give point
+   /// \param[in] x - spatial location at which to evaluate the source
+   /// \param[out] src - source term evaluated at `x`
+   void calcSource(const mfem::Vector &x, mfem::Vector &src) const
+   {
+      calcPotentialMMS<double>(x.GetData(), src.GetData());
+   }
+
+private:
 };
 
 }  // namespace mach

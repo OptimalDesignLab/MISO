@@ -22,10 +22,8 @@ public:
    /// states used by, nor the number of fluxes returned by, `source`.
    /// For example, there may be 5 states for the 2D RANS equations, but
    /// `source` may use only the first 4.
-   InviscidMMSIntegrator(int num_state_vars = 1,
-                    double a = 1.0)
-    : num_states(num_state_vars),
-      alpha(a)
+   InviscidMMSIntegrator(int num_state_vars = 1, double a = 1.0)
+    : num_states(num_state_vars), alpha(a)
    { }
 
    /// Get the contribution of this element to a functional

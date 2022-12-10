@@ -61,29 +61,26 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       auto solver =
           createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
-      //   Vector qfar(4);
-      //   static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
-      //       ->getFreeStreamState(qfar);
-      //   qfar.Print();
-      //       solver->setInitialCondition(qfar);
       solver->setInitialCondition(uexact);
       solver->printSolution("airfoil-steady-dg-cut-mms-init", 0);
-      //solver->checkJacobian(pert);
+      solver->checkJacobian(pert);
       // solver->printResidual("residual-init", 0);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
       // get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 0));
+                             .calcConservativeVarsL2Error(uexact, 1));
 
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      // solver->solveForState();
-      // solver->printSolution("airfoil-steady-dg-cut-mms-final", 0);
-      // mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-      //           << endl;
-      // l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-      //                 .calcConservativeVarsL2Error(uexact, 0));
-      // *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      solver->solveForState();
+      solver->printSolution("airfoil-steady-dg-cut-mms-final", 0);
+      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+                << endl;
+      l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                      .calcConservativeVarsL2Error(uexact, 1));
+      *out << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      *out << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
       // auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       // solver->createOutput("drag", drag_opts);
       // double drag = abs(solver->calcOutput("drag"));
@@ -115,7 +112,7 @@ void pert(const Vector &x, Vector &p)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 20.0, 20.0, true);
+       N, N, Element::QUADRILATERAL, true, 1.0, 1.0, true);
    return mesh;
 }
 
@@ -130,18 +127,19 @@ void uexact(const Vector &x, Vector &q)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
-   const double scale = 20.0;
+   const double scale = 1.0;
+   const double trans = 0.0;
    /// define the exact solution
-   double rho = rho0 + rhop * pow(sin(M_PI * x(0) / scale), 2) *
-                           sin(M_PI * x(1) / scale);
+   double rho = rho0 + rhop * pow(sin(M_PI * (x(0) - trans) / scale), 2) *
+                           sin(M_PI * ((x(1)- trans) / scale));
    double ux =
-       4.0 * u0 * (x(1) / scale) * (1.0 - x(1) / scale) +
-       (up * sin(2.0 * M_PI * x(1) / scale) * pow(sin(M_PI * x(0) / scale), 2));
+       4.0 * u0 * ((x(1)-trans) / scale) * (1.0 - (x(1)-trans)/scale ) +
+       (up * sin(2.0 * M_PI * (x(1)-trans) / scale) * pow(sin(M_PI * (x(0)-trans) / scale), 2));
    double uy =
-       -up * pow(sin(2.0 * M_PI * x(0) / scale), 2) * sin(M_PI * x(1) / scale);
-   double T = T0 + Tp * (pow(x(0) / scale, 4) - (2.0 * pow(x(0) / scale, 3)) +
-                         pow(x(0) / scale, 2) + pow(x(1) / scale, 4) -
-                         (2.0 * pow(x(1) / scale, 3)) + pow(x(1) / scale, 2));
+       -up * pow(sin(2.0 * M_PI * (x(0)-trans) / scale), 2) * sin(M_PI * (x(1)-trans) / scale);
+   double T = T0 + Tp * (pow((x(0)-trans) / scale, 4) - (2.0 * pow((x(0)-trans) / scale, 3)) +
+                         pow((x(0)-trans) / scale, 2) + pow((x(1)-trans) / scale, 4) -
+                         (2.0 * pow((x(1)-trans) / scale, 3)) + pow((x(1)-trans) / scale, 2));
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;

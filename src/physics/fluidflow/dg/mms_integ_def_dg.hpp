@@ -28,7 +28,7 @@ void InviscidMMSIntegrator<Derived>::AssembleElementVector(
    if (ir == NULL)
    {
       // ir = &IntRules.Get(el.GetGeomType(), intorder);
-      intorder = 2*el.GetOrder();
+      intorder = 2 * el.GetOrder();
       ir = &IntRules.Get(el.GetGeomType(), intorder);
    }
    for (int i = 0; i < ir->GetNPoints(); ++i)
@@ -48,8 +48,8 @@ void InviscidMMSIntegrator<Derived>::AssembleElementVector(
          }
       }
    }
-   // res *= alpha;
-   res *= -1;
+   res *= alpha;
+   //res *= -1;
 }
 
 template <typename Derived>

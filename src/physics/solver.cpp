@@ -256,8 +256,10 @@ void AbstractSolver::initDerived()
    if (res)
    {
       cout << "inside if res" << endl;
+      visc_coeff = options["space-dis"]["visc-coeff"].template get<double>();
       /// TODO: look at partial assembly
       addResVolumeIntegrators(alpha);
+      addResVolumeIntegrators(alpha, visc_coeff);
       addResBoundaryIntegrators(alpha);
       addResInterfaceIntegrators(alpha);
    }
@@ -363,7 +365,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
           "AbstractSolver::constructMesh(smesh)\n"
           "\tMesh file has no extension!\n");
    }
-
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
@@ -373,7 +374,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       /// let us see if this works
       /// find the elements to refine
       CutCell<2, 1> cut_init(smesh.get());
-     Algoim::LevelSet<2> /*circle<2>*/ phi_init = cut_init.constructLevelSet();
+      /*Algoim::LevelSet<2>*/ circle<2> phi_init = cut_init.constructLevelSet();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
       int ncr = options["mesh"]["ncr"].template get<int>();
@@ -392,7 +393,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
       double rdist;
-      rdist = 4.0;
+      rdist = 3.0;
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -416,7 +417,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
          // rdist = 0.5 * rdist;
       }
-      rdist = 2.0;
+      rdist = 1.0;
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -432,7 +433,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             TinyVector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
             double dist = sqrt(Algoim::magsqr(x_diff));
-            if (abs(lsv) < rdist && cut_init.insideBoundary(i) == 0)
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
@@ -1948,33 +1949,67 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
 #endif
 void AbstractSolver::solveSteady(ParCentGridFunction &state)
 {
+   using namespace std;
    *out << "AbstractSolver::solveSteady() is not deprecated!!!!!!!!!!!!!!"
         << endl;
+   double reltol = 1e-04;
    double t1, t2;
-   if (0 == rank)
+   while (visc_coeff > 1e-12)
    {
-      t1 = MPI_Wtime();
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
+      cout << "visc_coeff: " << visc_coeff << endl;
+      if (0 == rank)
+      {
+         t1 = MPI_Wtime();
+      }
+      /// set diffusion coefficient here
+      // Solve the nonlinear problem with r.h.s at 0
+      mfem::Vector b;
+      HypreParVector *u_true = state.GetTrueDofs();
+      newton_solver->SetRelTol(reltol);
+      newton_solver->SetOperator(*res);
+      newton_solver->Mult(b, *u_true);
+      MFEM_VERIFY(newton_solver->GetConverged(),
+                  "Newton solver did not converge.");
+      state = *u_true;
+      if (0 == rank)
+      {
+         t2 = MPI_Wtime();
+         *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+      }
+      fes_gd->GetProlongationMatrix()->Mult(state, *u);
+      if (visc_coeff <= 0.1)
+      {
+         visc_coeff -= 0.0001;
+      }
+      else
+      {
+         visc_coeff -= 0.05;
+      }
+      visc_coeff = max(0.0, visc_coeff);
    }
-   // Solve the nonlinear problem with r.h.s at 0
+   cout << "visc_coeff : " << visc_coeff << endl;
+   reltol = 1e-12;
    mfem::Vector b;
    HypreParVector *u_true = state.GetTrueDofs();
+   newton_solver->SetRelTol(reltol);
    newton_solver->SetOperator(*res);
    newton_solver->Mult(b, *u_true);
    MFEM_VERIFY(newton_solver->GetConverged(),
                "Newton solver did not converge.");
-   state=*u_true;
+   state = *u_true;
    if (0 == rank)
    {
       t2 = MPI_Wtime();
       *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
    }
    fes_gd->GetProlongationMatrix()->Mult(state, *u);
-   //fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
-   //std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+
+   // fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
+   // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 }
 void AbstractSolver::solveSteady(ParGridFunction &state)
 {
- 
    *out << "AbstractSolver::solveSteady() is not deprecated!!!!!!!!!!!!!!"
         << endl;
    double t1, t2;
@@ -1986,12 +2021,12 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    HypreParVector *u_true = state.GetTrueDofs();
    HypreParVector b;
    HypreParVector r;
-   res->Mult(*u_true, r);
+   // res->Mult(*u_true, r);
    // u->GetTrueDofs(u_true);
    cout << "b4 mult " << endl;
    newton_solver->SetOperator(*res);
    newton_solver->Mult(b, *u_true);
-    cout << "after mult " << endl;
+   cout << "after mult " << endl;
    MFEM_VERIFY(newton_solver->GetConverged(),
                "Newton solver did not converge.");
    u->SetFromTrueDofs(*u_true);

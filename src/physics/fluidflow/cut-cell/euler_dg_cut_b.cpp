@@ -260,7 +260,7 @@ void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
+void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double &diff_coeff)
 {
    // GridFunction x(fes.get());
    ParCentGridFunction x(fes_gd.get());

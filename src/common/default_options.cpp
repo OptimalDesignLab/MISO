@@ -18,7 +18,11 @@ const nlohmann::json default_options{
          {"Pr", 0.72},       // the Prandtl number
          {"mu",
           -1.0},  // nondimensional viscosity (if negative, use Sutherland's)
-         {"viscous-mms", false}  // if true, include MMS terms for viscous test
+         {"viscous-mms", false},  // if true, include MMS terms for viscous test
+         {"inviscid-mms",
+          false},  // if true, include MMS terms for inviscid test
+         {"potential-mms",
+          false},  // if true, include MMS terms for potential solution test
      }},
 
     {"space-dis",  // options related to spatial discretization
@@ -27,7 +31,8 @@ const nlohmann::json default_options{
          {"lps-coeff",
           1.0},  // scaling coefficient for local-proj stabilization
          {"iface-coeff", 1.0},  // scaling coefficient for interface dissipation
-         {"basis-type", "csbp"}  // csbp & dsbp for continuous & discrete SBP
+         {"visc-coeff", 1.0}, // scaling coefficient for artificial viscosity        
+ 	 {"basis-type", "csbp"}  // csbp & dsbp for continuous & discrete SBP
      }},
 
     {"steady", false},  // deprecated; now included in "time-dis"
@@ -51,6 +56,7 @@ const nlohmann::json default_options{
          {"type", "newton"},  // type of nonlinear solver
          {"printlevel", 1},   // linear solver print level (no printing if zero)
          {"maxiter", 100},    // default to 100 iterations
+         {"maxlsiter", 50},   // linesearch iterations, default 50
          {"reltol", 1e-14},   // solver relative tolerance
          {"abstol", 1e-14},   // solver absolute tolerance
          {"abort", true},     // should program abort if Newton doesn't converge

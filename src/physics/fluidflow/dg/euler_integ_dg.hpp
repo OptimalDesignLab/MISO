@@ -456,10 +456,8 @@ public:
    /// Construct an integrator for a 2D Navier-Stokes MMS source
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   EulerMMSIntegrator(adept::Stack &diff_stack,
-                         double a = 1.0)
-    : InviscidMMSIntegrator<EulerMMSIntegrator<dim, entvar>>(dim + 2,
-                                                           a)
+   EulerMMSIntegrator(adept::Stack &diff_stack, double a = 1.0)
+    : InviscidMMSIntegrator<EulerMMSIntegrator<dim, entvar>>(dim + 2, a)
    { }
 
    /// Computes the MMS source term at a give point
@@ -489,13 +487,13 @@ public:
    /// \param[in] vis - viscosity (if negative use Sutherland's law)
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    InviscidDGExactBC(adept::Stack &diff_stack,
-                   const mfem::FiniteElementCollection *fe_coll,
-                   void (*fun)(const mfem::Vector &, mfem::Vector &),
-                   double a = 1.0)
+                     const mfem::FiniteElementCollection *fe_coll,
+                     void (*fun)(const mfem::Vector &, mfem::Vector &),
+                     double a = 1.0)
     : DGInviscidBoundaryIntegrator<InviscidDGExactBC<dim, entvar>>(diff_stack,
-                                                                 fe_coll,
-                                                                 dim + 2,
-                                                                 a),
+                                                                   fe_coll,
+                                                                   dim + 2,
+                                                                   a),
       qexact(dim + 2),
       work_vec(dim + 2)
    {
@@ -618,6 +616,34 @@ public:
                        const mfem::Vector &dir,
                        const mfem::Vector &q,
                        mfem::DenseMatrix &flux_jac);
+
+private:
+};
+
+/// Source-term integrator for a 2D Euler (Potentail) MMS problem
+/// \note For details on the MMS problem, see the file
+/// viscous_mms_potential_flow.py \tparam dim - number of spatial dimensions (1,
+/// 2, or 3) \tparam entvar - if true, states = ent. vars; otherwise, states =
+/// conserv. \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class PotentialMMSIntegrator
+ : public InviscidMMSIntegrator<PotentialMMSIntegrator<dim, entvar>>
+{
+public:
+   /// Construct an integrator for a 2D Navier-Stokes MMS source
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   PotentialMMSIntegrator(adept::Stack &diff_stack, double a = 1.0)
+    : InviscidMMSIntegrator<PotentialMMSIntegrator<dim, entvar>>(dim + 2, a)
+   { }
+
+   /// Computes the MMS source term at a give point
+   /// \param[in] x - spatial location at which to evaluate the source
+   /// \param[out] src - source term evaluated at `x`
+   void calcSource(const mfem::Vector &x, mfem::Vector &src) const
+   {
+      calcPotentialMMS<double>(x.GetData(), src.GetData());
+   }
 
 private:
 };

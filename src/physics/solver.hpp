@@ -797,6 +797,8 @@ protected:
    std::unique_ptr<MachLoad> load;
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
+   /// 
+   double visc_coeff;
 
    //--------------------------------------------------------------------------
    // Members associated with external inputs
@@ -883,7 +885,9 @@ protected:
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addResVolumeIntegrators(double alpha) { }
-
+      /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   virtual void addResVolumeIntegrators(double alpha, double &diff_coeff) { }
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addResBoundaryIntegrators(double alpha) { }

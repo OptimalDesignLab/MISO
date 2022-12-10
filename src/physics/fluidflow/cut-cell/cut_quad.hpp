@@ -142,7 +142,7 @@ public:
       }
       return kappa;
    }
-#if 0
+#if 1
    /// construct exact levelset
    circle<2> constructLevelSet() const
    {
@@ -168,7 +168,7 @@ public:
       return phi_ls;
    }
 #endif
-#if 1
+#if 0
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
@@ -947,8 +947,8 @@ public:
 protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
-   Algoim::LevelSet<N> phi;
-   //circle<N> phi;
+   //Algoim::LevelSet<N> phi;
+   circle<N> phi;
 };
 }  // namespace mach
 

@@ -3,7 +3,8 @@
 
 #include "adept.h"
 #include "mfem.hpp"
-
+using namespace mfem;
+using namespace std;
 namespace mach
 {
 /// Integrator for one-point inviscid flux functions
@@ -405,6 +406,147 @@ protected:
       static_cast<Derived *>(this)->calcFluxJacDir(
           dir, u_left, u_right, flux_dir);
    }
+};
+/// Integrator for diffusion (artificial viscosity)
+/// \tparam Derived - a class Derived from this one (needed for CRTP)
+/// \note This probably does not need to be a nonlinear integrator, but this
+/// makes it easier to incorporate directly into the nonlinear form.
+template <int dim>
+class EulerDiffusionIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Construct an integrator for MMS sources
+   /// \param[in] a - factor, usually used to move terms to rhs
+   EulerDiffusionIntegrator(Coefficient &visc_coeff , double a = 1.0)
+    : num_states(dim + 2), 
+    diff_coeff(&visc_coeff),
+    alpha(a)
+   { }
+   // cutSquareIntRules(_cutSquareIntRules),
+   // embeddedElements(_embeddedElements)
+
+   /// Get the contribution of this element to a functional
+   /// \param[in] el - the finite element whose contribution we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun)
+   {
+      return 0.0;
+   }
+
+   /// Construct the element local residual
+   /// \param[in] el - the finite element whose residual we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state function
+   /// \param[out] elvect - element local residual
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect)
+   {
+      using namespace mfem;
+      using namespace std;
+      const int num_nodes = el.GetDof();
+      elvect.SetSize(num_states * num_nodes);
+      elvect = 0.0;
+         DenseMatrix u_mat(elfun.GetData(), num_nodes, num_states);
+         DenseMatrix res(elvect.GetData(), num_nodes, num_states);
+         dshape.SetSize(num_nodes, dim);
+         pelmat.SetSize(num_states, dim);
+         pelmat2.SetSize(num_states, dim);
+         gshape.SetSize(dim);
+         Jinv.SetSize(dim);
+         const IntegrationRule *ir = NULL;
+         if (ir == NULL)
+         {
+            ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));
+         }
+         for (int i = 0; i < ir->GetNPoints(); i++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+            CalcAdjugate(trans.Jacobian(), Jinv);
+            double w = ip.weight / trans.Weight();
+            if (diff_coeff)
+            {
+               cout << "w before: " << w << endl;
+               w *= diff_coeff->Eval(trans, ip);
+               cout << "w after: " << w <<endl;
+            }
+            MultAAt(Jinv, gshape);
+            gshape *= w;
+
+            el.CalcDShape(ip, dshape);
+
+            MultAtB(u_mat, dshape, pelmat);
+            MultABt(pelmat, gshape, pelmat2);
+            AddMultABt(dshape, pelmat2, res);
+         }
+         res *= alpha;
+   }
+
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] trans - defines the reference to physical element
+   /// mapping \param[in] elfun - element local state function \param[out]
+   /// elmat - element local Jacobian
+   void AssembleElementGrad(const mfem::FiniteElement &el,
+                            mfem::ElementTransformation &trans,
+                            const mfem::Vector &elfun,
+                            mfem::DenseMatrix &elmat)
+   {
+      using namespace mfem;
+      using namespace std;
+      const int num_nodes = el.GetDof();
+      int ndof = elfun.Size();
+      elmat.SetSize(ndof);
+      elmat = 0.0;
+      dshape.SetSize(num_nodes, dim);
+      pelmat.SetSize(num_nodes, dim);
+      gshape.SetSize(dim);
+      Jinv.SetSize(dim);
+      elmat1.SetSize(num_nodes);
+      const IntegrationRule *ir = NULL;
+      if (ir == NULL)
+      {
+         int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
+         ir = &IntRules.Get(el.GetGeomType(), intorder);
+      }
+      for (int i = 0; i < ir->GetNPoints(); i++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(i);
+         trans.SetIntPoint(&ip);
+         CalcAdjugate(trans.Jacobian(), Jinv);
+         double w = ip.weight / trans.Weight();
+         if (diff_coeff)
+         {
+            w *= diff_coeff->Eval(trans, ip);
+         }
+         MultAAt(Jinv, gshape);
+         gshape *= w;
+         el.CalcDShape(ip, dshape);
+         MultABt(dshape, gshape, pelmat);
+         MultABt(dshape, pelmat, elmat1);
+         for (int m = 0; m < dim + 2; ++m)
+         {
+            elmat.AddMatrix(elmat1, m * num_nodes, m * num_nodes);
+         }
+      }
+   }
+
+protected:
+   /// number of states
+   int num_states;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+     /// viscosity coefficient
+   Coefficient *diff_coeff;
+private:
+   DenseMatrix dshape, dshapedxt, pelmat, pelmat2;
+   DenseMatrix Jinv, gshape, elmat1;
 };
 }  // namespace mach
 

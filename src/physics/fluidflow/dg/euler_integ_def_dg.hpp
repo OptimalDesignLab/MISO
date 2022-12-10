@@ -463,6 +463,7 @@ double DGPressureForce<dim, entvar>::calcBndryFun(const mfem::Vector &x,
                                                   const mfem::Vector &dir,
                                                   const mfem::Vector &q)
 {
+   //calcSlipWallFlux2
    calcSlipWallFlux<double, dim, entvar>(
        x.GetData(), dir.GetData(), q.GetData(), work_vec.GetData());
    return dot<double, dim>(force_nrm.GetData(), work_vec.GetData() + 1);

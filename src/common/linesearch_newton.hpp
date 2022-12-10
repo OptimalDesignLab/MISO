@@ -31,7 +31,7 @@ public:
       double norm0 = Norm(r);
       // cout << "||r_0|| " << norm0 << endl;
       double norm = norm0;
-      double tol = 1e-13;
+      double tol = 1e-14;
       for (int k = 0; k < maxlsitr; ++k)
       {
          x_new = 0.0;
@@ -46,7 +46,7 @@ public:
                    << " : ||r|| = " << norm;
          mfem::out << ", ||r||/||r_0|| = " << norm / norm0;
          mfem::out << '\n';
-         if (norm < (tol + norm0))
+         if ((norm + tol) < (norm0))
          {
             return alpha;
          }

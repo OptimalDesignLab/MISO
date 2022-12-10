@@ -17,8 +17,8 @@ namespace mach
 {
 template <int dim, bool entvar>
 EulerDGSolver<dim, entvar>::EulerDGSolver(const nlohmann::json &json_options,
-                                      unique_ptr<mfem::Mesh> smesh,
-                                      MPI_Comm comm)
+                                          unique_ptr<mfem::Mesh> smesh,
+                                          MPI_Comm comm)
  : AbstractSolver(json_options, move(smesh), comm)
 {
    if (entvar)
@@ -100,10 +100,9 @@ template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
 {
    // TODO: should decide between one-point and two-point fluxes using options
-   //GridFunction x(fes.get());
-   ParCentGridFunction x(fes_gd.get());
-   res->AddDomainIntegrator(
-       new EulerDGIntegrator<dim>(diff_stack, alpha));
+   // GridFunction x(fes.get());
+   // ParCentGridFunction x(fes_gd.get());
+   res->AddDomainIntegrator(new EulerDGIntegrator<dim>(diff_stack, alpha));
    double area;
    // area = res->GetEnergy(x);
    // // cout << "exact area: " << (5.45*5.45 - 0.25)*M_PI << endl;
@@ -113,15 +112,25 @@ void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    // add the LPS stabilization
    // auto lps_coeff = options["space-dis"]["lps-coeff"].template get<double>();
    // res->AddDomainIntegrator(
-   //     new EntStableLPSIntegrator<dim, entvar>(diff_stack, alpha, lps_coeff));
+   //     new EntStableLPSIntegrator<dim, entvar>(diff_stack, alpha,
+   //     lps_coeff));
    if (options["flow-param"]["inviscid-mms"].template get<bool>())
    {
       if (dim != 2)
       {
          throw MachException("Inviscid MMS problem only available for 2D!");
       }
-      res->AddDomainIntegrator(new EulerMMSIntegrator<dim, entvar>(
-          diff_stack, -alpha));
+      res->AddDomainIntegrator(
+          new EulerMMSIntegrator<dim, entvar>(diff_stack, -alpha));
+   }
+   if (options["flow-param"]["potential-mms"].template get<bool>())
+   {
+      if (dim != 2)
+      {
+         throw MachException("Potential MMS problem only available for 2D!");
+      }
+      res->AddDomainIntegrator(
+          new PotentialMMSIntegrator<dim, entvar>(diff_stack, -alpha));
    }
 }
 
@@ -176,12 +185,12 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           new DGFarFieldBC<dim, entvar>(diff_stack, fec.get(), qfar, alpha),
           bndry_marker[idx]);
       idx++;
-      //double peri_far;
-   // peri_far = res->GetEnergy(x);
-   // cout << "farfield perimeter: " << 2 * M_PI * 30 << endl;
-   // cout << "calculated perimeter: " << peri_far << endl;
-   // cout << "error: " << endl;
-   // cout << abs(2 * M_PI * 30 - peri_far) << endl;
+      // double peri_far;
+      // peri_far = res->GetEnergy(x);
+      // cout << "farfield perimeter: " << 2 * M_PI * 30 << endl;
+      // cout << "calculated perimeter: " << peri_far << endl;
+      // cout << "error: " << endl;
+      // cout << abs(2 * M_PI * 30 - peri_far) << endl;
    }
    if (bcs.find("potential-flow") != bcs.end())
    {
@@ -206,16 +215,14 @@ void EulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
           this->bndry_marker[idx]);
       idx++;
    }
-
 }
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {
    // add the integrators based on if discretization is continuous or discrete
-     auto diss_coeff =
-          options["space-dis"]["iface-coeff"].template get<double>();
-      res->AddInteriorFaceIntegrator(new DGInterfaceIntegrator<dim, entvar>(
-          diff_stack, diss_coeff, fec.get(), alpha));
+   auto diss_coeff = options["space-dis"]["iface-coeff"].template get<double>();
+   res->AddInteriorFaceIntegrator(new DGInterfaceIntegrator<dim, entvar>(
+       diff_stack, diss_coeff, fec.get(), alpha));
 }
 
 template <int dim, bool entvar>
@@ -249,7 +256,7 @@ void EulerDGSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
    }
    // TODO: this should only be output if necessary
    GridFunType u_state(fes.get());
-   fes_gd->GetProlongationMatrix()->Mult(state, u_state );
+   fes_gd->GetProlongationMatrix()->Mult(state, u_state);
    // double entropy = ent->GetEnergy(u_state);
    // *out << "before time stepping, entropy is " << entropy << endl;
    // remove("entropylog.txt");
@@ -258,20 +265,21 @@ void EulerDGSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
 }
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::iterationHook(int iter,
-                                             double t,
-                                             double dt,
-                                             const ParGridFunction &state)
+                                               double t,
+                                               double dt,
+                                               const ParGridFunction &state)
 {
    double entropy = ent->GetEnergy(state);
    entropylog << t << ' ' << entropy << endl;
 }
 
 template <int dim, bool entvar>
-bool EulerDGSolver<dim, entvar>::iterationExit(int iter,
-                                             double t,
-                                             double t_final,
-                                             double dt,
-                                             const ParGridFunction &state) const
+bool EulerDGSolver<dim, entvar>::iterationExit(
+    int iter,
+    double t,
+    double t_final,
+    double dt,
+    const ParGridFunction &state) const
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -327,8 +335,8 @@ bool EulerDGSolver<dim, entvar>::iterationExit(
 
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::terminalHook(int iter,
-                                            double t_final,
-                                            const ParGridFunction &state)
+                                              double t_final,
+                                              const ParGridFunction &state)
 {
    double entropy = ent->GetEnergy(state);
    entropylog << t_final << ' ' << entropy << endl;
@@ -337,7 +345,7 @@ void EulerDGSolver<dim, entvar>::terminalHook(int iter,
 
 template <int dim, bool entvar>
 void EulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
-                                         const nlohmann::json &options)
+                                           const nlohmann::json &options)
 {
    if (fun == "drag")
    {
@@ -575,7 +583,8 @@ void EulerDGSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
       q_ref(iroll + 1) = q_ref(0) * mach_fs * cos(aoa_fs);
       q_ref(ipitch + 1) = q_ref(0) * mach_fs * sin(aoa_fs);
    }
-   q_ref(dim + 1) = 1.0 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+   q_ref(dim + 1) =
+       1.0 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 }
 
 template <int dim, bool entvar>
@@ -627,7 +636,7 @@ double EulerDGSolver<dim, entvar>::calcConservativeVarsL2Error(
    for (int i = 0; i < fes->GetNE(); i++)
    {
       const FiniteElement *fe = fes->GetFE(i);
-      //const IntegrationRule *ir = &(fe->GetNodes());
+      // const IntegrationRule *ir = &(fe->GetNodes());
       const IntegrationRule *ir;
       int intorder = fe->GetOrder();
       ir = &(IntRules.Get(fe->GetGeomType(), intorder));
@@ -717,18 +726,22 @@ void inviscidDGMMSExact(const mfem::Vector &x, mfem::Vector &q)
    double rho = rho0 + rhop * pow(sin(M_PI * (x(0) + trans) / scale), 2) *
                            sin(M_PI * (x(1) + trans) / scale);
    double ux =
-       4.0 * u0 * ((x(1) + trans) / scale) * (1.0 - (x(1) + trans)/ scale) +
-       (up * sin(2.0 * M_PI * (x(1) + trans) / scale) * pow(sin(M_PI * (x(0)+ trans) / scale), 2));
-   double uy =
-       -up * pow(sin(2.0 * M_PI * (x(0) + trans) / scale), 2) * sin(M_PI * (x(1) + trans) / scale);
-   double T = T0 + Tp * (pow((x(0) + trans) / scale, 4) - (2.0 * pow((x(0) + trans) / scale, 3)) +
-                         pow((x(0) + trans) / scale, 2) + pow((x(1) + trans) / scale, 4) -
-                         (2.0 * pow((x(1) + trans) / scale, 3)) + pow((x(1) + trans) / scale, 2));
+       4.0 * u0 * ((x(1) + trans) / scale) * (1.0 - (x(1) + trans) / scale) +
+       (up * sin(2.0 * M_PI * (x(1) + trans) / scale) *
+        pow(sin(M_PI * (x(0) + trans) / scale), 2));
+   double uy = -up * pow(sin(2.0 * M_PI * (x(0) + trans) / scale), 2) *
+               sin(M_PI * (x(1) + trans) / scale);
+   double T = T0 + Tp * (pow((x(0) + trans) / scale, 4) -
+                         (2.0 * pow((x(0) + trans) / scale, 3)) +
+                         pow((x(0) + trans) / scale, 2) +
+                         pow((x(1) + trans) / scale, 4) -
+                         (2.0 * pow((x(1) + trans) / scale, 3)) +
+                         pow((x(1) + trans) / scale, 2));
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
-   u(1) = rho*ux;  // multiply by rho ?
-   u(2) = rho*uy;
+   u(1) = rho * ux;  // multiply by rho ?
+   u(2) = rho * uy;
    u(3) = e;
    q = u;
 }

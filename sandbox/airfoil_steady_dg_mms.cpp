@@ -72,35 +72,35 @@ int main(int argc, char *argv[])
 
       string opt_file_name(options_file);
       // construct the mesh
-      unique_ptr<Mesh> smesh(new Mesh(buildMesh(N)));
-      //unique_ptr<Mesh> smesh(new Mesh(buildCurvilinearMesh(degree, nx, ny)));
+      //unique_ptr<Mesh> smesh(new Mesh(buildMesh(N)));
+      unique_ptr<Mesh> smesh(new Mesh(buildCurvilinearMesh(degree, nx, ny)));
       // construct the solver and set initial conditions
       auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
       solver->printSolution("airfoil_dg_mms_init", 0);
 
       // get the initial density error
-      double l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 0));
-      double res_error = solver->calcResidualNorm();
-      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
-      *out << "\ninitial residual norm = " << res_error << endl;
-      //solver->printResidual("residual-dg-mms-init", 0);
-      // solver->checkJacobian(pert);
-      solver->solveForState();
-      solver->printSolution("airfoil_dg_mms_final", 0);
-      // get the final density error
-      l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
-                      .calcConservativeVarsL2Error(uexact, 0));
-      res_error = solver->calcResidualNorm();
-      auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
-      solver->createOutput("drag", drag_opts);
-      double drag = abs(solver->calcOutput("drag"));
-      // double entropy = solver->calcOutput("entropy");
-      out->precision(15);
-      *out << "\nfinal residual norm = " << res_error;
-      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      *out << "\nDrag error = " << drag << endl;
+      // double l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
+      //                        .calcConservativeVarsL2Error(uexact, 0));
+      // double res_error = solver->calcResidualNorm();
+      // *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
+      // *out << "\ninitial residual norm = " << res_error << endl;
+      // //solver->printResidual("residual-dg-mms-init", 0);
+      // // solver->checkJacobian(pert);
+      // solver->solveForState();
+      // solver->printSolution("airfoil_dg_mms_final", 0);
+      // // get the final density error
+      // l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
+      //                 .calcConservativeVarsL2Error(uexact, 0));
+      // res_error = solver->calcResidualNorm();
+      // auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
+      // solver->createOutput("drag", drag_opts);
+      // double drag = abs(solver->calcOutput("drag"));
+      // // double entropy = solver->calcOutput("entropy");
+      // out->precision(15);
+      // *out << "\nfinal residual norm = " << res_error;
+      // *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      // *out << "\nDrag error = " << drag << endl;
       // *out << "\nTotal entropy = " << entropy;
       // *out << "\nEntropy error = "
       //      << fabs(entropy - calcEntropyTotalExact()) << endl;

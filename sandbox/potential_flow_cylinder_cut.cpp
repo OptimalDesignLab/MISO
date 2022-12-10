@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
       return 1;
    }
    double M = 0.2;
-   double circ = 0.1;
+   double circ = 0.0;
    double rad = 0.5;
    try
    {
@@ -77,8 +77,9 @@ int main(int argc, char *argv[])
       solver->setInitialCondition(uexact);
       solver->printSolution("cylinder-steady-dg-cut-potential-init", 0);
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
+      auto lift_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
-      solver->createOutput("lift", drag_opts);
+      solver->createOutput("lift", lift_opts);
       double drag;
       *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
            << endl;
@@ -87,17 +88,21 @@ int main(int argc, char *argv[])
            << endl;
       // get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 0));
+                             .calcConservativeVarsL2Error(uexact, 1));
       double res_error = solver->calcResidualNorm();
-      *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
+      // *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "Initial \n|| (rho.u)_h - (rho.u) ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->solveForState();
       solver->printSolution("cylinder-steady-dg-cut-potential-final", -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                      .calcConservativeVarsL2Error(uexact, 1));
+      *out << "\n|| (rho.u)_h - (rho.u) ||_{L^2}  = " << l2_error << endl;
+
+      *out << "\n|| rho_h - rho ||_{L^2} = " << (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
-      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
       *out << "\ncl value = " << abs(solver->calcOutput("lift")) << endl;
    }
@@ -181,7 +186,7 @@ void uexact(const Vector &x, Vector &q)
    double xc = 5.00;
    double yc = 5.00;
    double rad = 0.5;
-   double circ = 0.1;
+   double circ = 0.0;
    theta = atan2(x(1) - yc, x(0) - xc);
    double r = sqrt(((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)));
    double rinv = rad / r;
@@ -195,15 +200,14 @@ void uexact(const Vector &x, Vector &q)
    //    u(2) = -rho * Ma*rinv * rinv * sin(2.0*theta);
    // u(3) = p / euler::gami + 0.5 * Ma * Ma;
    double p_bern =
-       1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 * rho * (ux * ux + uy * uy);
-   double p_euler =
-       euler::gami * (u(3) - 0.5 * rho * (u(1) * u(1) + u(2) * u(2)));
-
+       1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 *rho* (ux * ux + uy * uy);
    u(0) = rho;
    u(1) = rho * ux;
    u(2) = rho * uy;
-   //u(3) = p_bern / euler::gami + 0.5 * Ma * Ma;
-   u(3) = p_bern / euler::gami + 0.5 * (ux * ux + uy * uy);
+   // u(3) = p_bern / euler::gami + 0.5 * Ma * Ma;
+   u(3) = p_bern / euler::gami + 0.5 * rho * (ux * ux + uy * uy);
+   // double p_euler =
+   //     euler::gami * (u(3) - 0.5 * rho * (u(1) * u(1) + u(2) * u(2)));
    //    cout << "p_bern: " << p_bern << endl;
    //    cout << "p_euler: " << p_euler << endl;
    if (entvar == false)
@@ -214,7 +218,6 @@ void uexact(const Vector &x, Vector &q)
    {
       calcEntropyVars<double, 2>(u.GetData(), q.GetData());
    }
-
 }
 #endif
 Mesh buildMesh(int N)

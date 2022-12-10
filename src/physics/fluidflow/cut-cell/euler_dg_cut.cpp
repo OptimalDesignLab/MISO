@@ -5,6 +5,7 @@
 #include "euler_integ_dg.hpp"
 #include "euler_integ.hpp"
 #include "euler_integ_dg_cut.hpp"
+#include "inviscid_integ_dg_cut.hpp"
 #include "functional_output.hpp"
 #include "sbp_fe.hpp"
 #include "utils.hpp"
@@ -320,20 +321,14 @@ void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
+void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double &diff_coeff)
 {
 #if 1
-   //GridFunction x(fes.get());
-   //ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-   // double area;
-   // area = res->GetEnergy(x);
-   // // double exact_area = 400 - 0.0817073;  // airfoil
-   //double exact_area = 400.0 - M_PI * 4.0;
-   // cout << "correct area: " << (exact_area) << endl;
-   // cout << "calculated area: " << area << endl;
-   // cout << "area err = " << abs(area - exact_area) << endl;
+   //double diff_coeff = options["space-dis"]["visc-coeff"].template get<double>();
+   res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
+       cutSquareIntRules, embeddedElements, diff_coeff, alpha));
    auto &bcs = options["bcs"];
    if (bcs.find("vortex") != bcs.end())
    {  // isentropic vortex BC
@@ -361,6 +356,7 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
       }
       res->AddDomainIntegrator(new CutEulerMMSIntegrator<dim, entvar>(
           diff_stack, cutSquareIntRules, embeddedElements, -alpha));
+
       res->AddDomainIntegrator(
           new CutDGInviscidExactBC<dim, entvar>(diff_stack,
                                                 fec.get(),
@@ -369,6 +365,16 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
                                                 inviscidMMSExact,
                                                 alpha));
    }
+   if (options["flow-param"]["potential-mms"].template get<bool>())
+   {
+      if (dim != 2)
+      {
+         throw MachException("Inviscid MMS problem only available for 2D!");
+      }
+      res->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
+          diff_stack, cutSquareIntRules, embeddedElements, -alpha));
+   }
+
 #endif
 /// use this for testing purposes
 #if 0
@@ -699,6 +705,9 @@ void CutEulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
       }
       lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
       FunctionalOutput out(*fes, res_fields);
+      // out.addOutputBdrFaceIntegrator(
+      //     new DGPressureForce<dim, entvar>(diff_stack, fec.get(), lift_dir),
+      //     std::move(bdrs));
       out.addOutputDomainIntegrator(new CutDGPressureForce<dim, entvar>(
           diff_stack, fec.get(), lift_dir, cutSegmentIntRules, phi));
       outputs.emplace(fun, std::move(out));
