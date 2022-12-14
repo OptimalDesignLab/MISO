@@ -2096,7 +2096,7 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
    //First case will be a simple 2D domain with a constant temperature of 20 deg C
    //The resistivity recovered should be 1/sigma_T_ref = 1/5.6497e7 = 1.770E-8 Ohm*m
 
-   // generate a 8 element mesh
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
    int num_edge = 2;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                      Element::TRIANGLE);
@@ -2122,6 +2122,7 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          return T;
       });
 
+   // Loop over various degrees of elements (1 to 4)
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -2150,7 +2151,7 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
 
          // Compute the resistivity
          auto resistivity = functional.GetEnergy(temperature_field_test);
-         std::cout << "resistivity = " << resistivity << "\n";
+         // std::cout << "resistivity = " << resistivity << "\n";
  
          // Compare the computed resistivity to the value found by integration
          double expected_resistivity;
@@ -2167,10 +2168,9 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          // state = 30.0/3+3.0/3; // temperature linearly dependent in both x(0) and x(1) directions; fails for p=1 as expected
 
          expected_resistivity = (1+alpha_resistivity*(state-T_ref))/sigma_T_ref; // the inverse of equation for sigma
-         std::cout << "expected_resistivity = " << expected_resistivity << "\n";
-         std::cout << "diff = " << resistivity-expected_resistivity << "\n";
-         REQUIRE(resistivity == Approx(expected_resistivity));
-         // REQUIRE(abs(resistivity - expected_resistivity) <= Approx(0).margin(1e-10));
+         // std::cout << "expected_resistivity = " << expected_resistivity << "\n";
+         // std::cout << "diff = " << resistivity-expected_resistivity << "\n";
+         REQUIRE(resistivity == Approx(expected_resistivity)); // Assert the DCLossFunctionalIntegrator is working as expected
 
       }
    }
@@ -2301,7 +2301,7 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
    }
 }
 
-// Added test case for ACLossFunctionalIntegrator
+// Added test case for ACLossFunctionalIntegrator (sigma*B^2 value)
 TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
 {
    using namespace mfem;
@@ -2311,7 +2311,7 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
    // Just needs an additional function coefficient to represent the elfun corresponding to the B field
    // Instead of using the sigma value to calculate resistivity, uses the sigma value to compute sigma_b2
 
-   // generate a 8 element mesh
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
    int num_edge = 2;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                      Element::TRIANGLE);
@@ -2356,6 +2356,7 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          return T;
       });
 
+   // Loop over various degrees of elements (1 to 4)
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
@@ -2386,7 +2387,7 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);                 
 
-         // Compute the value of sigma_b2
+         // Compute the value of sigma_b2 (sigma*B^2)
          auto sigma_b2 = functional.GetEnergy(flux_density_field);
          // std::cout << "p=" << p << "sigma_b2 = " << sigma_b2 << "\n";
  
@@ -2411,7 +2412,7 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
 
          // std::cout << "p=" << p << "expected_sigma_b2 = " << expected_sigma_b2 << "\n";
          // std::cout << "p=" << p << "diff=" <<sigma_b2-expected_sigma_b2 << "\n";
-         REQUIRE(sigma_b2 == Approx(expected_sigma_b2));
+         REQUIRE(sigma_b2 == Approx(expected_sigma_b2)); // Assert the DCLossFunctionalIntegrator is working as expected
 
       }
    }

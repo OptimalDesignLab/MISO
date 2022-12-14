@@ -10,9 +10,6 @@
 #include "coefficient.hpp"
 #include "mach_input.hpp"
 
-/// TODO: Add/remove above includes as needed
-
-/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 namespace mach
 {
 class CAL2khCoefficient : public ThreeStateCoefficient
@@ -116,8 +113,7 @@ public:
                        const nlohmann::json &materials);
 
 private:
-   /// The underlying coefficient that does all the heavy lifting (TODO: determine if this is OK)
-   /// TODO: Replace/add to if needed
+   /// The underlying coefficient that does all the heavy lifting
    MeshDependentThreeStateCoefficient CAL2_kh;
 };
 

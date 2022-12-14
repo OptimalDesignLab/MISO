@@ -10,12 +10,8 @@
 #include "conductivity_coefficient.hpp"
 #include "utils.hpp"
 
-/// TODO: Add/remove above includes as needed
 namespace
 {
-/// TODO: If needed, add in necessary global variables
-
-/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 class LinearTempDepConductivityCoefficient : public mach::StateCoefficient
 {
 public:
@@ -65,8 +61,6 @@ public:
 protected:
    // alpha_resistivity, T_ref, and sigma_T_ref are needed for methods
    double alpha_resistivity, T_ref, sigma_T_ref;
-
-/// TODO: Add in any more protected class members that will be useful (protected meaning child classes can access too, but other classes cannot)
    
 };
 
@@ -76,11 +70,12 @@ std::unique_ptr<mfem::Coefficient> constructConstantConductivityCoeff(
     const nlohmann::json &materials)
 {
    /// TODO: Make sure agrees with material library json structure at the end of the day
-   /// TODO: Change default value of sigma to something more appropriate than 1
-   auto sigma = materials[material_name].value("sigma", 1.0);
+   /// TODO: Decide if want to change default value of sigma to something other than what was there originally
+   auto sigma = materials[material_name].value("sigma", 58.14e6);
    return std::make_unique<mfem::ConstantCoefficient>(sigma);
 }
 
+// Function to extract the values for alpha, T_ref, and sigma from the material library JSON structure
 void getAlphaAndT_RefAndSigma_T_Ref(const nlohmann::json &material,
                           const nlohmann::json &materials,
                           const std::string &model,
@@ -119,12 +114,13 @@ void getAlphaAndT_RefAndSigma_T_Ref(const nlohmann::json &material,
    }
 }
 
+// Construct the conductivity coefficient
 std::unique_ptr<mfem::Coefficient> constructConductivityCoeff(
     const nlohmann::json &component,
     const nlohmann::json &materials)
 {
    std::unique_ptr<mfem::Coefficient> temp_coeff; // temp=temporary, not temperature
-   const auto &material = component["material"];
+   const auto &material = component["material"]; // set material
 
    /// If "material" is a string, it is interpreted to be the name of a 
    /// material. We default to a conductivity of ///TODO: (insert default value here) unless
@@ -138,6 +134,7 @@ std::unique_ptr<mfem::Coefficient> constructConductivityCoeff(
    {
       const auto &material_name = material["name"].get<std::string>();
 
+      // Aligns with newer format of the material library JSON structure
       if (material.contains("conductivity"))
       {
          const auto &sigma_model =
@@ -215,11 +212,11 @@ void ConductivityCoefficient::EvalRevDiff(const double Q_bar,
    sigma.EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
 }
 
-/// TODO: Change sigma(std::make_unique<mfem::ConstantCoefficient>(1.0) line IF the equivalent line...
+/// TODO: Change sigma(std::make_unique<mfem::ConstantCoefficient>(58.14e6) line IF the equivalent line...
 /// std::unique_ptr<mfem::Coefficient> constructConstantConductivityCoeff( from earlier changes
 ConductivityCoefficient::ConductivityCoefficient(const nlohmann::json &sigma_options,
                                                const nlohmann::json &materials)
- : sigma(std::make_unique<mfem::ConstantCoefficient>(1.0)) 
+ : sigma(std::make_unique<mfem::ConstantCoefficient>(58.14e6)) 
 {
    /// loop over all components, construct a conductivity coefficient for each
    for (const auto &component : sigma_options["components"])
@@ -253,10 +250,8 @@ LinearTempDepConductivityCoefficient::LinearTempDepConductivityCoefficient(
    T_ref(T_ref),
    sigma_T_ref(sigma_T_ref)
 
-///TODO: As needed, add in more definitions of protected class members here
 {
   
-///TODO: As needed, add in calculations of protected class members here
 
 }
 
@@ -265,8 +260,8 @@ double LinearTempDepConductivityCoefficient::Eval(
    const mfem::IntegrationPoint &ip,
    const double state)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval sigma
    double T=state; // assuming the state is the temperature
+   // Evaluate the value for the conductivity sigma
    double sigma = sigma_T_ref/(1+alpha_resistivity*(T-T_ref));
    return sigma;
 
@@ -278,6 +273,7 @@ double LinearTempDepConductivityCoefficient::EvalStateDeriv(
     const double state)
 {
    double T=state; // assuming the state is the temperature
+   // Evaluate the derivative of sigma with respect to the state (temperature)
    double dsigmadT = (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(T-T_ref),2);
    return dsigmadT;
 }
@@ -288,6 +284,7 @@ double LinearTempDepConductivityCoefficient::EvalState2ndDeriv(
     const double state)
 {
    double T=state; // assuming the state is the temperature
+   // Evaluate the second derivative of sigma with respect to the state (temperature)
    double d2sigmadT2 = (2*sigma_T_ref*std::pow(alpha_resistivity,2))/std::pow(1+alpha_resistivity*(T-T_ref),3);
    return d2sigmadT2;
 }

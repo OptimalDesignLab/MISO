@@ -14,6 +14,9 @@
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
 
+#include "cal2_kh_coefficient.hpp"
+#include "cal2_ke_coefficient.hpp"
+
 namespace mach
 {
 class ForceFunctional final
@@ -369,6 +372,14 @@ private:
    std::unique_ptr<mfem::Coefficient> k_s;
    std::unique_ptr<mfem::Coefficient> alpha;
    std::unique_ptr<mfem::Coefficient> beta;
+
+   /// CAL2 Coefficients   
+   std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
+   std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
+   
+   ///TODO: Find a way to add in
+   // Temperature Field
+
 };
 
 class EMHeatSourceOutput final

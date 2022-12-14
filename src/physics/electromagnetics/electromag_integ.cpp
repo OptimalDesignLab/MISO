@@ -3446,11 +3446,15 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
    // Obtain correct element, DOFs, etc for temperature field
    const int element = trans.ElementNo;
 
+   // Handle the temperature field, if there is one
    const FiniteElement *temp_el=nullptr;
    if (temperature_field != nullptr)
    {
+      // std::cout << "Per DCLFI, temperature field is not a null pointer\n";
+
       temp_el = temperature_field->FESpace()->GetFE(element);
 
+      // Transform the degrees of freedom corresponding to the temperature field
       auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
       temperature_field->GetSubVector(vdofs, temp_elfun);
       if (dof_tr != nullptr)
@@ -3458,12 +3462,13 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
          dof_tr->InvTransformPrimal(temp_elfun);
       }
       
+      // Set the shape functions for the temperature field
       int ndof = temp_el->GetDof();
       shape.SetSize(ndof);
       
    }
 
-   //Should be fine to leave el as is in this scope (rather than replace with temp_el)
+   // Set the integration rule
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
@@ -3471,7 +3476,7 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 2; 
          }
          else
          {
@@ -3482,9 +3487,11 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
+   // Loop over all integration points and evaluate the resistivity
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {      
+      // Set the current integration point and quadrature weight
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip); 
       const double trans_weight = trans.Weight();
@@ -3494,17 +3501,20 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
 
       if (temperature_field != nullptr)
       {
-         temp_el->CalcPhysShape(trans, shape);
-         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+         temp_el->CalcPhysShape(trans, shape); // Calculate the values of the shape functions
+         temperature = shape * temp_elfun; // Take dot product to get the value at the integration point
       }
       else
       {
          ///TODO: Change default value of 100 if needed (be consistent throughout)
-         temperature = 100; 
+         temperature = 100; // default value for temperature in absence of field
       }
 
+      // Calculate the value of the conductivity at the integration point
       const double sigma_v = sigma.Eval(trans, ip, temperature);
       // const double sigma_v = sigma.Eval(trans, ip);
+
+      // Add the contribution to the resistivity value
       fun += w / sigma_v;
    
    }
@@ -3724,19 +3734,19 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
     const Vector &elfun)
 {
    int ndof = el.GetDof(); // number of degrees of freedom
-   // std::cout << "el.GetDof() = " << ndof << "\n";
    shape.SetSize(ndof);
 
    // Obtain correct element, DOFs, etc for temperature field
-   // Logic from DCLossFunctionalIntegrator
+   // Same logic as DCLossFunctionalIntegrator
    const int element = trans.ElementNo;
-   // std::cout << "element = " << element << "\n";   
-
+   
+   // Handle the temperature field, if there is one 
    const FiniteElement *temp_el=nullptr;
    if (temperature_field != nullptr)
    {
       temp_el = temperature_field->FESpace()->GetFE(element);
 
+      // Transform the degrees of freedom corresponding to the temperature field
       auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
       temperature_field->GetSubVector(vdofs, temp_elfun);
       if (dof_tr != nullptr)
@@ -3744,13 +3754,13 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
          dof_tr->InvTransformPrimal(temp_elfun);
       }
       
+      // Set the shape functions for the temperature field
       int ndof = temp_el->GetDof();
-      // std::cout << "temp_el->GetDof() = " << ndof << "\n";
       temp_shape.SetSize(ndof);
       
    }
    
-   ///TODO: Perhaps enforce higher order integration rules to pass the ACLossFunctionalIntegrator test in test_electromag_integ.cpp
+   // Set the integration rule
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
@@ -3759,8 +3769,6 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
          if (el.Space() == FunctionSpace::Pk)
          {
             return 2 * el.GetOrder() - 2;
-            // return 2 * el.GetOrder() - 1;
-            // return 10;
          }
          else
          {
@@ -3768,15 +3776,14 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
          }
       }();
 
-      // std::cout << "order = " << order << "\n";
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   // std::cout << "ir->GetNPoints() = " << ir->GetNPoints() << "\n";
-
+   // Loop over all integration points and evaluate the sigma*B^2 value
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
+      // Set the current integration point and quadrature weight
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
@@ -3784,32 +3791,20 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       double trans_weight = trans.Weight();
       const double w = ip.weight * trans_weight;
 
+      // Evalate the values of shape functions for the flux density magnitude
       el.CalcPhysShape(trans, shape);
-      for (int j = 0; j < ndof; j++)
-      {
-         if (el.GetOrder() == 1)
-         {
-            // std::cout << "shape[" << j << "]= " << shape[j] << "\n";
-            // std::cout << "elfun[" << j << "]= " << elfun[j] << "\n";
-         }         
-      }
+      // Compute the value for the magnitude of the flux density
       const auto b_mag = shape * elfun;
 
-      // Logic from DCLossFunctionalIntegrator
+      // Now, handle the temperature
       double temperature;
 
       if (temperature_field != nullptr)
       {
+         // Calculate the values of the shape functions for the temperature field
          temp_el->CalcPhysShape(trans, temp_shape);
-         for (int j = 0; j < ndof; j++)
-         {
-            if (el.GetOrder() == 1)
-            {
-               // std::cout << "temp_shape[" << j << "]= " << temp_shape[j] << "\n";
-               // std::cout << "temp_elfun[" << j << "]= " << temp_elfun[j] << "\n";
-            }
-         }
-         temperature = temp_shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+         
+         temperature = temp_shape * temp_elfun; //Take dot product  to get the value at the integration point
       }
       else
       {
@@ -3817,20 +3812,11 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
          temperature = 100; 
       }
 
+      // Calculate the value of the conductivity at the integration point
       const auto sigma_val = sigma.Eval(trans, ip, temperature);
       // const auto sigma_val = sigma.Eval(trans, ip);
 
-      ///TODO: Comment out or remove once finish debugging
-      if (el.GetOrder() ==1)
-      {
-         // std::cout << "trans_weight = " << trans_weight << "\n";
-         // std::cout << "ip.weight = " << ip.weight << "\n";
-         // std::cout << "w = ip.weight * trans_weight = " << w << "\n";
-         // std::cout << "b_mag = " << b_mag << "\n";
-         // std::cout << "temperature = " << temperature << "\n";
-         // std::cout << "sigma_val = " << sigma_val << "\n";
-      }
-
+      // Add the contribution to the sigma*B^2 value
       const auto loss = sigma_val * pow(b_mag, 2);
       fun += loss * w;
    }
@@ -6059,6 +6045,7 @@ double SteinmetzLossIntegrator::GetElementEnergy(
       auto k_s_v = k_s.Eval(trans, ip);
       auto alpha_v = alpha.Eval(trans, ip);
       auto beta_v = beta.Eval(trans, ip);
+      // std::cout << "k_s_v = " << k_s_v << "\n";
 
       fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) * w;
    }
@@ -6077,14 +6064,16 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
     mfem::ElementTransformation &trans,
     const mfem::Vector &elfun)
 {
+   // Get the number of degrees of freedom
    int ndof = el.GetDof();
 
-   // Using flux logic from ACLossFunctionalDistributionIntegrator and adapting as needed
+   // Keeping the flux separate from the temperature. Establish element, trans, etc.
    const int element = trans.ElementNo;
    const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
    auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
    const int flux_ndof = flux_el.GetDof();
    
+   // Transform the degrees of freedom fot the flux
    auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
    peak_flux.GetSubVector(vdofs, flux_elfun);
    if (dof_tr != nullptr)
@@ -6092,15 +6081,17 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
       dof_tr->InvTransformPrimal(flux_elfun);
    }
 
+   // Set the size of the shape functions
    shape.SetSize(ndof);
    flux_shape.SetSize(flux_ndof);
 
-   // Using temperature logic from DCLossFunctional Integrator
-   const FiniteElement *temp_el=nullptr;
+   // Deal with the temperature field, if it exists
+   const FiniteElement *temp_el=nullptr; // Default to a nullptr
    if (temperature_field != nullptr)
    {
       temp_el = temperature_field->FESpace()->GetFE(element);
 
+      // Transform the degrees of freedom
       auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
       temperature_field->GetSubVector(vdofs, temp_elfun);
       if (dof_tr != nullptr)
@@ -6108,12 +6099,13 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
          dof_tr->InvTransformPrimal(temp_elfun);
       }
       
+      // Set the size of the shape functions
       int ndof = temp_el->GetDof();
       shape.SetSize(ndof); // shape will pertain to temperature
       
    }
 
-   //Should be fine to leave el as is in this scope (rather than replace with temp_el)
+   // Set the integration rule
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
@@ -6132,9 +6124,11 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
+   // Loop over all integration points and evaluate the CAL2 core losses
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
+      // Set the current integration point and quadrature weight
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip); 
       const double trans_weight = trans.Weight();
@@ -6142,28 +6136,37 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
 
       el.CalcPhysShape(trans, shape); // may be unused
 
+      // Determine the temperature
       double temperature;
 
       if (temperature_field != nullptr)
       {
-         temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
-         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+         temp_el->CalcPhysShape(trans, shape); // calculate the values of the shape functions
+         temperature = shape * temp_elfun; //Take dot product to get the value at the integration point
       }
       else
       {
-         temperature = 100;
+         temperature = 100; // default value for temperature in absence of temperature field
       }
 
+      // Compute the magnitude of the flux density
       flux_el.CalcPhysShape(flux_trans, flux_shape);
       const auto max_flux_mag = flux_shape * flux_elfun;
 
       // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
       // kh(f,T,Bm) and ke(f,T,Bm)
+
+      // std::cout << "temperature = " << temperature << "; freq = " << freq << "; max_flux_mag = " << max_flux_mag << "\n";
+
       auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, max_flux_mag);
       auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, max_flux_mag);
 
-      fun += kh_v * freq * std::pow(max_flux_mag,2) * w; // Add the hysteresis loss constribution
-      fun += ke_v * std::pow(freq,2) * std::pow(max_flux_mag,2) * w; // Add the eddy current loss constribution
+      // Evaluate the material density (constant)
+      auto rho_v = rho.Eval(trans, ip);
+
+      // Calculate the CAL2 Core Losses at the integration point
+      fun += rho_v * kh_v * freq * std::pow(max_flux_mag,2) * w; // Add the hysteresis loss constribution
+      fun += rho_v * ke_v * std::pow(freq,2) * std::pow(max_flux_mag,2) * w; // Add the eddy current loss constribution
    }
    return fun;
 }

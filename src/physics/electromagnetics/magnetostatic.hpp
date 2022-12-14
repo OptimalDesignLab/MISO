@@ -14,6 +14,8 @@
 #include "pde_solver.hpp"
 #include "reluctivity_coefficient.hpp"
 #include "conductivity_coefficient.hpp"
+#include "cal2_kh_coefficient.hpp"
+#include "cal2_ke_coefficient.hpp"
 
 namespace mach
 {
@@ -30,13 +32,8 @@ private:
    ReluctivityCoefficient nu;
    /// Material dependent coefficient representing density
    MeshDependentCoefficient rho;
-   /// Material dependent coefficient representing electrical conductivity
-   MeshDependentCoefficient sigma;
-   ///TODO: Replace above two lines with: 
-   /*
    /// Coefficient representing the temperature-dependent electrical conductivity
    ConductivityCoefficient sigma;
-   */
 
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state

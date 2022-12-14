@@ -47,8 +47,6 @@ public:
    }
 };
 
-///TODO: Don't forget to uncomment. Was causing some errors when trying make (even before make build_tests), so will come back to.
-///TODO: Will likely have to look into how StateCoefficient is implemented in .cpp (whatwith dynamic_cast and all that)
 /// Abstract class ThreeStateCoefficient
 /// Defines new signature for Eval() and new methods for State Derivatives that
 /// subclasses must implement.

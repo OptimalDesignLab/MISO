@@ -472,22 +472,36 @@ void vectorJacobianProduct(DCLossFunctional &output,
 }
 
 // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
+///Also make this functional see the pre-computed temperature field
 DCLossFunctional::DCLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
  : resistivity(fields.at("state").space(), fields), volume(fields, options)
 {
+   
+   // Making the integrator see the temperature field
+   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
+   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   if (temp_field_iter != fields.end())
+   {
+      // If temperature field exists, turn it into a grid function
+      auto &temp_field = temp_field_iter->second;
+      temperature_field = &temp_field.gridFunc();
+   }
+   
+   // Assign the integrator used to compute the DC losses
    if (options.contains("attributes"))
    {
+      
       auto attributes = options["attributes"].get<std::vector<int>>();
       resistivity.addOutputDomainIntegrator(
-          new DCLossFunctionalIntegrator(sigma), attributes);
+          new DCLossFunctionalIntegrator(sigma,temperature_field), attributes);
    }
    else
    {
       resistivity.addOutputDomainIntegrator(
-          new DCLossFunctionalIntegrator(sigma));
+          new DCLossFunctionalIntegrator(sigma, temperature_field));
    }
 }
 
@@ -528,7 +542,6 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
    // pv.RegisterField("FluxMag", &flux_mag.gridFunc());
    // pv.Save();
 
-   ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
    double sigma_b2 = calcOutput(output.output, output.inputs);
 
    double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -551,7 +564,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
 {
    if (wrt.rfind("strand_radius", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -573,7 +585,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("frequency", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -595,7 +606,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("stack_length", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -617,7 +627,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -639,7 +648,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_turns", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -661,7 +669,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_slots", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -683,9 +690,8 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("mesh_coords", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
-      ///TODO: Determine if and how sigma_b2_dot needs to be changed (multiple layers of other files)
+      ///TODO: Determine if and how sigma_b2_dot needs to be changed
       double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -743,7 +749,6 @@ double vectorJacobianProduct(ACLossFunctional &output,
 {
    if (wrt.rfind("strand_radius", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -802,7 +807,6 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("frequency", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -860,7 +864,6 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("stack_length", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -919,7 +922,6 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -977,7 +979,6 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_turns", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1035,7 +1036,6 @@ double vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("num_slots", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1104,7 +1104,6 @@ void vectorJacobianProduct(ACLossFunctional &output,
 {
    if (wrt.rfind("mesh_coords", 0) == 0)
    {
-      ///TODO: Determine if and how sigma_b2 needs to be changed (multiple layers of other files)
       double sigma_b2 = calcOutput(output.output, output.inputs);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1146,7 +1145,7 @@ void vectorJacobianProduct(ACLossFunctional &output,
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
       ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
-      ///TODO: Determine if and how sigma_b2_bar needs to be changed (multiple layers of other files)
+      ///TODO: Determine if and how sigma_b2_bar needs to be changed 
       double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
                             pow(output.radius, 4) *
                             pow(2 * M_PI * output.freq, 2) / 32.0;
@@ -1230,21 +1229,33 @@ void vectorJacobianProduct(ACLossFunctional &output,
 }
 
 // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
+/// Also made this functional see the temperature field
 ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
  : output(fields.at("peak_flux").space(), fields), volume(fields, options)
 {
+   // Making the integrator see the temperature field
+   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
+   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   if (temp_field_iter != fields.end())
+   {
+      // If temperature field exists, turn it into a grid function
+      auto &temp_field = temp_field_iter->second;
+      temperature_field = &temp_field.gridFunc();
+   }
+
+   // Assign the integrator used to compute the AC losses
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma),
+      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma, temperature_field),
                                        attributes);
    }
    else
    {
-      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma));
+      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma, temperature_field));
    }
    setOptions(*this, options);
 }
@@ -1295,19 +1306,64 @@ CoreLossFunctional::CoreLossFunctional(
    rho(constructMaterialCoefficient("rho", components, materials)),
    k_s(constructMaterialCoefficient("ks", components, materials)),
    alpha(constructMaterialCoefficient("alpha", components, materials)),
-   beta(constructMaterialCoefficient("beta", components, materials))
+   beta(constructMaterialCoefficient("beta", components, materials)),
+   CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
+   CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {
+   
+   ///TODO: Remove the below line and replace with more permanent logic (only for obtaining results)
+   bool UseCAL2CoreLossModel = true;
+
+   // Making the integrator see the peak flux field
+   const auto &peak_flux_iter = fields.find("peak_flux"); // find where peak flux field is
+   mfem::GridFunction *peak_flux=nullptr; // default peak flux field to null pointer
+   if (peak_flux_iter != fields.end())
+   {
+      // If peak flux field exists, turn it into a grid function
+      ///TODO: Ultimately handle the case where there is no peak flux field
+      auto &flux_field = peak_flux_iter->second;
+      peak_flux = &flux_field.gridFunc();
+   }
+
+   // Making the integrator see the temperature field
+   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
+   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   if (temp_field_iter != fields.end())
+   {
+      // If temperature field exists, turn it into a grid function
+      auto &temp_field = temp_field_iter->second;
+      temperature_field = &temp_field.gridFunc();
+   }
+
    if (options.contains("attributes"))
    {
-      auto attributes = options["attributes"].get<std::vector<int>>();
-      output.addOutputDomainIntegrator(
+      if (UseCAL2CoreLossModel)
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         output.addOutputDomainIntegrator(
+          new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
+          attributes);
+      }
+      else
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         output.addOutputDomainIntegrator(
           new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, "stator"),
           attributes);
+      }
    }
    else
    {
-      output.addOutputDomainIntegrator(
-          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
+      if (UseCAL2CoreLossModel)
+      {
+         output.addOutputDomainIntegrator(
+            new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field));
+      }
+      else
+      {
+         output.addOutputDomainIntegrator(
+             new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
+      }
    }
 }
 

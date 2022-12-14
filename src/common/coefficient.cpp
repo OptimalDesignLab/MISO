@@ -221,7 +221,15 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
       double val;
       if (name == "ks" || name == "alpha" || name == "beta")
       { 
-         val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
+         if (materials[material_name].contains("core_loss"))
+         {
+            val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
+            // std::cout << "Steinmetz now correctly accounting for new JSON structure for name = " << name << " with a value = " << val << "\n";
+         }
+         else
+         {
+            val = materials[material_name].value(name, default_val);
+         }
       }
       else
       {

@@ -205,8 +205,9 @@ const auto air = R"(
 
 // Copper Wire that accounts for temperature dependent conductivity/resistivity
 // Current value is (=1 divided by resistivity value from https://www.britannica.com/science/resistivity)
-///NOTE: Reference conductivity value is slightly less than the 58.14e6 that was there (wasn't sure about where that # came from)
+///NOTE: Sigma_T_ref value is slightly less than the 58.14e6 that was there (wasn't sure about where that # came from)
 // Current alpha value for resistivity is from https://www.engineeringtoolbox.com/resistivity-conductivity-d_418.html
+///TODO: Ultimately remove "sigma": 58.14e6 once sigma logic has moved away from MeshDependentCoefficient & ConstantCoefficient and to StateCoefficient & Conductivity Coefficient
 /// TODO: since this is meant for windings, should have reduced conductivity...
 const auto copper_wire = R"(
 {
@@ -219,7 +220,8 @@ const auto copper_wire = R"(
          "T_ref": 20,
          "alpha_resistivity": 3.8e-3
       }
-   }
+   },
+   "sigma": 58.14e6
 }
 )"_json;
 

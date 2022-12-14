@@ -64,7 +64,7 @@ std::vector<int> getCurrentAttributes(nlohmann::json &options)
 
 }  // anonymous namespace
 
-/// TODO: Find and replace per the below
+/// NOTE: As needed, found and replaced per the below
 /*  
 sigma(
        constructMaterialCoefficient("sigma", options["components"], materials)
@@ -79,8 +79,7 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
    nu(options, materials),
    rho(constructMaterialCoefficient("rho", options["components"], materials)),
-   sigma(
-       constructMaterialCoefficient("sigma", options["components"], materials))
+   sigma(options, materials)
 {
    options["time-dis"]["type"] = "steady";
 
@@ -103,11 +102,13 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
        "residual",
        dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
 
+   std::cout << "Start of temperature log logic\n";
    const auto &temp_field_iter = fields.find("temperature");
    if (temp_field_iter != fields.end())
    {
       auto &temp_field = temp_field_iter->second;
       paraview.registerField("temperature", temp_field.gridFunc());
+      std::cout << "Temperature log added\n";
    }
    addLogger(std::move(paraview), {});
 }
@@ -227,7 +228,6 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       auto dc_loss_options = options;
       dc_loss_options["attributes"] =
           getCurrentAttributes(AbstractSolver2::options);
-      /// TODO: Is the below line ok as is?
       DCLossFunctional out(fields, sigma, dc_loss_options);
       outputs.emplace(fun, std::move(out));
    }
@@ -244,7 +244,6 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       auto ac_loss_options = options;
       ac_loss_options["attributes"] =
           getCurrentAttributes(AbstractSolver2::options);
-      /// TODO: Is the below line ok as is?
       ACLossFunctional out(fields, sigma, ac_loss_options);
       outputs.emplace(fun, std::move(out));
    }
@@ -257,7 +256,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       fields.emplace(std::piecewise_construct,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
-
+                     
       CoreLossFunctional out(
           fields, AbstractSolver2::options["components"], materials, options);
       outputs.emplace(fun, std::move(out));

@@ -15,7 +15,6 @@
 
 namespace
 {
-/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 class PolyVarHysteresisLossCoeff : public mach::ThreeStateCoefficient
 {
 public:
@@ -186,7 +185,6 @@ public:
    { }
 
 protected:
-/// TODO: determine protected outputs that will be useful (protected meaning child classes can access too, but other classes cannot) 
    double T0;
    std::vector<double> kh_T0;
    double T1;
@@ -203,6 +201,65 @@ std::unique_ptr<mfem::Coefficient> constructDefaultCAL2_khCoeff(
    return std::make_unique<mfem::ConstantCoefficient>(CAL2_kh);
 }
 
+// Get T0, kh_T0, T1, and kh_T1 from JSON
+///TODO: Add in argument of const std::string &model if decide to combine Steinmetz and CAL2 into one
+void getTsAndKhs(const nlohmann::json &material,
+                  const nlohmann::json &materials,
+                  double &T0, 
+                  std::vector<double> &kh_T0,
+                  double &T1, 
+                  std::vector<double> &kh_T1)
+{
+   const auto &material_name = material["name"].get<std::string>();
+    
+   // Assign T0 based on material options, else refer to material library
+   if (material["core_loss"].contains("T0"))
+   {
+      T0 = material["core_loss"]["T0"].get<double>();
+   }
+   else
+   {
+      T0 = materials[material_name]["core_loss"]
+                              ["CAL2"]["T0"].get<double>();
+   }
+
+   // Assign kh_T0 based on material options, else refer to material library
+   if (material["core_loss"].contains("kh_T0"))
+   {
+      kh_T0 = material["core_loss"]
+                              ["kh_T0"].get<std::vector<double>>();
+   }  
+   else
+   {
+      kh_T0 = materials[material_name]["core_loss"]
+                              ["CAL2"]["kh_T0"].get<std::vector<double>>();
+   }         
+   
+   // Assign T1 based on material options, else refer to material library
+   if (material["core_loss"].contains("T1"))
+   {
+      T1 = material["core_loss"]["T1"].get<double>();
+   }
+   else
+   {
+      T1 = materials[material_name]["core_loss"]
+                              ["CAL2"]["T1"].get<double>();
+   }
+
+   // Assign kh_T1 based on material options, else refer to material library
+   if (material["core_loss"].contains("kh_T1"))
+   {
+      kh_T1 = material["core_loss"]
+                              ["kh_T1"].get<std::vector<double>>();
+   }  
+   else
+   {
+      kh_T1 = materials[material_name]["core_loss"]
+                              ["CAL2"]["kh_T1"].get<std::vector<double>>();
+   }
+}
+      
+// Construct the kh coefficient
 std::unique_ptr<mfem::Coefficient> constructCAL2_khCoeff(
     const nlohmann::json &component,
     const nlohmann::json &materials)
@@ -211,7 +268,7 @@ std::unique_ptr<mfem::Coefficient> constructCAL2_khCoeff(
    const auto &material = component["material"];
 
    /// If "material" is a string, it is interpreted to be the name of a 
-   /// material. We default to a CAL2_kh coeff of ///TODO: (insert default value here) unless
+   /// material. We default to a CAL2_kh coeff of 1 ///TODO: (change this value as needed) unless
    /// there is a different value in the material library
    if (material.is_string())
    {
@@ -222,31 +279,37 @@ std::unique_ptr<mfem::Coefficient> constructCAL2_khCoeff(
    else
    {
       const auto &material_name = material["name"].get<std::string>();
-
-      ///TODO: Perhaps soften this if statement (impose default T0 and T1 values, for example)
-      if (materials[material_name]["core_loss"]["CAL2"].contains("T0") && 
-         materials[material_name]["core_loss"]["CAL2"].contains("kh_T0") && 
-         materials[material_name]["core_loss"]["CAL2"].contains("kh_T1"))
+      
+      if (material.contains("core_loss"))
       {
-         double T0 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["T0"].get<double>();
-         std::vector<double> kh_T0 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["kh_T0"].get<std::vector<double>>();
-         double T1 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["T1"].get<double>();
-         std::vector<double> kh_T1 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["kh_T1"].get<std::vector<double>>();
 
+         // Declare variables
+         double T0;
+         std::vector<double> kh_T0;
+         double T1;
+         std::vector<double> kh_T1;
+
+         // Obtain the necessary parameters from the JSON
+         getTsAndKhs(material, materials, T0, kh_T0, T1, kh_T1);
+
+         // Can now construct the coefficient accordingly
          temp_coeff = std::make_unique<PolyVarHysteresisLossCoeff>(
-            T0, kh_T0, T1, kh_T1);
+               T0, kh_T0, T1, kh_T1);
+
+         ///TODO: Add this error handing in if add in multiple models or combine Steinmetz and CAL2 into one
+         // else
+         // {
+         //    std::string error_msg =
+         //          "Insufficient information to compute CAL2 variable hysteresis loss coefficient for material \"";
+         //    error_msg += material_name;
+         //    error_msg += "\"!\n";
+         //    throw mach::MachException(error_msg);
+         // }
       }
       else
       {
-         std::string error_msg =
-               "Insufficient information to compute CAL2 variable hysteresis loss coefficient for material \"";
-         error_msg += material_name;
-         error_msg += "\"!\n";
-         throw mach::MachException(error_msg);
+         // Doesn't have the core loss JSON structure; assign it default coefficient
+         temp_coeff = constructDefaultCAL2_khCoeff(material_name, materials);
       }
    }
    return temp_coeff;
@@ -409,21 +472,46 @@ CAL2khCoefficient::CAL2khCoefficient(const nlohmann::json &CAL2_kh_options,
                                                const nlohmann::json &materials)
  : CAL2_kh(std::make_unique<mfem::ConstantCoefficient>(1.0)) 
 {
-   /// loop over all components, construct a CAL2_kh loss coefficient for each
-   for (const auto &component : CAL2_kh_options["components"])
+   if (CAL2_kh_options.contains("components"))
    {
-      int attr = component.value("attr", -1);
-      if (-1 != attr)
+      /// Options are being passed in. Loop over the components within and construct a CAL2_kh loss coefficient for each
+      for (const auto &component : CAL2_kh_options["components"])
       {
-         CAL2_kh.addCoefficient(attr,
-                           constructDefaultCAL2_khCoeff(component, materials));
-      }
-      else
-      {
-         for (const auto &attribute : component["attrs"])
+         int attr = component.value("attr", -1);
+         if (-1 != attr)
          {
-            CAL2_kh.addCoefficient(attribute,
-                              constructCAL2_khCoeff(component, materials));
+            CAL2_kh.addCoefficient(attr,
+                              constructDefaultCAL2_khCoeff(component, materials));
+         }
+         else
+         {
+            for (const auto &attribute : component["attrs"])
+            {
+               CAL2_kh.addCoefficient(attribute,
+                                 constructCAL2_khCoeff(component, materials));
+            }
+         }
+      }
+   }
+   else
+   {
+      /// Components themselves are being passed in. Loop over the components and construct a CAL2_kh loss coefficient for each
+      auto components = CAL2_kh_options;
+      for (const auto &component : components)
+      {
+         int attr = component.value("attr", -1);
+         if (-1 != attr)
+         {
+            CAL2_kh.addCoefficient(attr,
+                              constructDefaultCAL2_khCoeff(component, materials));
+         }
+         else
+         {
+            for (const auto &attribute : component["attrs"])
+            {
+               CAL2_kh.addCoefficient(attribute,
+                                 constructCAL2_khCoeff(component, materials));
+            }
          }
       }
    }
@@ -439,10 +527,8 @@ PolyVarHysteresisLossCoeff::PolyVarHysteresisLossCoeff(const double &T0,
                         const std::vector<double> &kh_T1)
  : T0(T0), kh_T0(kh_T0), T1(T1), kh_T1(kh_T1)
 
-///TODO: As needed, add in more definitions of protected class members here
 {
   
-///TODO: As needed, add in calculations of protected class members here
 
 }
 
@@ -452,8 +538,6 @@ double PolyVarHysteresisLossCoeff::Eval(mfem::ElementTransformation &trans,
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_kh
-
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    auto T = state1;
    auto f = state2;

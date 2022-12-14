@@ -15,7 +15,6 @@
 
 namespace
 {
-/// TODO: Ensure all states will be doubles (they may be grid functions or something else)
 class PolyVarEddyCurrentLossCoeff : public mach::ThreeStateCoefficient
 {
 public:
@@ -186,7 +185,6 @@ public:
    { }
 
 protected:
-/// TODO: determine protected outputs that will be useful (protected meaning child classes can access too, but other classes cannot) 
    double T0;
    std::vector<double> ke_T0;
    double T1;
@@ -203,6 +201,65 @@ std::unique_ptr<mfem::Coefficient> constructDefaultCAL2_keCoeff(
    return std::make_unique<mfem::ConstantCoefficient>(CAL2_ke);
 }
 
+// Get T0, ke_T0, T1, and ke_T1 from JSON
+///TODO: Add in argument of const std::string &model if decide to combine Steinmetz and CAL2 into one
+void getTsAndKes(const nlohmann::json &material,
+                  const nlohmann::json &materials,
+                  double &T0, 
+                  std::vector<double> &ke_T0,
+                  double &T1, 
+                  std::vector<double> &ke_T1)
+{
+   const auto &material_name = material["name"].get<std::string>();
+    
+   // Assign T0 based on material options, else refer to material library
+   if (material["core_loss"].contains("T0"))
+   {
+      T0 = material["core_loss"]["T0"].get<double>();
+   }
+   else
+   {
+      T0 = materials[material_name]["core_loss"]
+                              ["CAL2"]["T0"].get<double>();
+   }
+
+   // Assign ke_T0 based on material options, else refer to material library
+   if (material["core_loss"].contains("ke_T0"))
+   {
+      ke_T0 = material["core_loss"]
+                              ["ke_T0"].get<std::vector<double>>();
+   }  
+   else
+   {
+      ke_T0 = materials[material_name]["core_loss"]
+                              ["CAL2"]["ke_T0"].get<std::vector<double>>();
+   }         
+   
+   // Assign T1 based on material options, else refer to material library
+   if (material["core_loss"].contains("T1"))
+   {
+      T1 = material["core_loss"]["T1"].get<double>();
+   }
+   else
+   {
+      T1 = materials[material_name]["core_loss"]
+                              ["CAL2"]["T1"].get<double>();
+   }
+
+   // Assign ke_T1 based on material options, else refer to material library
+   if (material["core_loss"].contains("ke_T1"))
+   {
+      ke_T1 = material["core_loss"]
+                              ["ke_T1"].get<std::vector<double>>();
+   }  
+   else
+   {
+      ke_T1 = materials[material_name]["core_loss"]
+                              ["CAL2"]["ke_T1"].get<std::vector<double>>();
+   }
+}
+      
+// Construct the ke coefficient
 std::unique_ptr<mfem::Coefficient> constructCAL2_keCoeff(
     const nlohmann::json &component,
     const nlohmann::json &materials)
@@ -211,7 +268,7 @@ std::unique_ptr<mfem::Coefficient> constructCAL2_keCoeff(
    const auto &material = component["material"];
 
    /// If "material" is a string, it is interpreted to be the name of a 
-   /// material. We default to a CAL2_ke coeff of ///TODO: (insert default value here) unless
+   /// material. We default to a CAL2_ke coeff of 1 ///TODO: (change this value as needed) unless
    /// there is a different value in the material library
    if (material.is_string())
    {
@@ -222,31 +279,37 @@ std::unique_ptr<mfem::Coefficient> constructCAL2_keCoeff(
    else
    {
       const auto &material_name = material["name"].get<std::string>();
-
-      ///TODO: Perhaps soften this if statement (impose default T0 and T1 values, for example)
-      if (materials[material_name]["core_loss"]["CAL2"].contains("T0") && 
-         materials[material_name]["core_loss"]["CAL2"].contains("ke_T0") && 
-         materials[material_name]["core_loss"]["CAL2"].contains("ke_T1"))
+      
+      if (material.contains("core_loss"))
       {
-         double T0 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["T0"].get<double>();
-         std::vector<double> ke_T0 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["ke_T0"].get<std::vector<double>>();
-         double T1 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["T1"].get<double>();
-         std::vector<double> ke_T1 = materials[material_name]["core_loss"]
-                                 ["CAL2"]["ke_T1"].get<std::vector<double>>();
 
+         // Declare variables
+         double T0;
+         std::vector<double> ke_T0;
+         double T1;
+         std::vector<double> ke_T1;
+
+         // Obtain the necessary parameters from the JSON
+         getTsAndKes(material, materials, T0, ke_T0, T1, ke_T1);
+
+         // Can now construct the coefficient accordingly
          temp_coeff = std::make_unique<PolyVarEddyCurrentLossCoeff>(
-            T0, ke_T0, T1, ke_T1);
+               T0, ke_T0, T1, ke_T1);
+
+         ///TODO: Add this error handing in if add in multiple models or combine Steinmetz and CAL2 into one
+         // else
+         // {
+         //    std::string error_msg =
+         //          "Insufficient information to compute CAL2 variable eddy current loss coefficient for material \"";
+         //    error_msg += material_name;
+         //    error_msg += "\"!\n";
+         //    throw mach::MachException(error_msg);
+         // }
       }
       else
       {
-         std::string error_msg =
-               "Insufficient information to compute CAL2 variable eddy current loss coefficient for material \"";
-         error_msg += material_name;
-         error_msg += "\"!\n";
-         throw mach::MachException(error_msg);
+         // Doesn't have the core loss JSON structure; assign it default coefficient
+         temp_coeff = constructDefaultCAL2_keCoeff(material_name, materials);
       }
    }
    return temp_coeff;
@@ -409,21 +472,46 @@ CAL2keCoefficient::CAL2keCoefficient(const nlohmann::json &CAL2_ke_options,
                                                const nlohmann::json &materials)
  : CAL2_ke(std::make_unique<mfem::ConstantCoefficient>(1.0)) 
 {
-   /// loop over all components, construct a CAL2_ke loss coefficient for each
-   for (const auto &component : CAL2_ke_options["components"])
+   if (CAL2_ke_options.contains("components"))
    {
-      int attr = component.value("attr", -1);
-      if (-1 != attr)
+      /// Options are being passed in. Loop over the components within and construct a CAL2_ke loss coefficient for each
+      for (const auto &component : CAL2_ke_options["components"])
       {
-         CAL2_ke.addCoefficient(attr,
-                           constructDefaultCAL2_keCoeff(component, materials));
-      }
-      else
-      {
-         for (const auto &attribute : component["attrs"])
+         int attr = component.value("attr", -1);
+         if (-1 != attr)
          {
-            CAL2_ke.addCoefficient(attribute,
-                              constructCAL2_keCoeff(component, materials));
+            CAL2_ke.addCoefficient(attr,
+                              constructDefaultCAL2_keCoeff(component, materials));
+         }
+         else
+         {
+            for (const auto &attribute : component["attrs"])
+            {
+               CAL2_ke.addCoefficient(attribute,
+                                 constructCAL2_keCoeff(component, materials));
+            }
+         }
+      }
+   }
+   else
+   {
+      /// Components themselves are being passed in. Loop over the components and construct a CAL2_ke loss coefficient for each
+      auto components = CAL2_ke_options;
+      for (const auto &component : components)
+      {
+         int attr = component.value("attr", -1);
+         if (-1 != attr)
+         {
+            CAL2_ke.addCoefficient(attr,
+                              constructDefaultCAL2_keCoeff(component, materials));
+         }
+         else
+         {
+            for (const auto &attribute : component["attrs"])
+            {
+               CAL2_ke.addCoefficient(attribute,
+                                 constructCAL2_keCoeff(component, materials));
+            }
          }
       }
    }
@@ -663,6 +751,4 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3S2(mfem::ElementTransformation
 ///TODO: is there a need to code EvalRevDiff for variable eddy current coefficient method here? I'm thinking not
 
 }
-
-///TODO: After code derivatives, circle back around and check this and hpp file for logic/consistency
 

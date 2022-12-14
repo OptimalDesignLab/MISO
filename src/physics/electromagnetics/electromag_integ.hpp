@@ -1116,7 +1116,7 @@ private:
    // Made sigma a StateCoefficient (formerly mfem::Coefficient)
    StateCoefficient &sigma;
 
-   mfem::GridFunction *temperature_field;
+   mfem::GridFunction *temperature_field; // pointer to the temperature field
 
    ///TODO: Figure out the best way to handle these three. Thread-safe was not working for me in this or cpp file, so had to eliminate the #ifdef MFEM_THREAD_SAFE for variables to be in scope. However, don't fully realize the repercussions
 #ifndef MFEM_THREAD_SAFE
@@ -1268,7 +1268,7 @@ public:
 private:
    StateCoefficient &sigma; // Made sigma a StateCoefficient (formerly an MFEM coefficient)
 
-   mfem::GridFunction *temperature_field;
+   mfem::GridFunction *temperature_field; // temperature field, if it exists
 
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
@@ -1445,53 +1445,6 @@ private:
    /// ACLossFunctionalDistributionIntegrator
    friend class ACLossFunctionalDistributionIntegratorMeshSens;
 };
-
-///TODO: In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented if want mfem::Coefficient logic for test_acloss_functional
-// /// Functional integrator to compute AC copper losses based on hybrid approach
-// class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
-// {
-// public:
-//    /// \brief allows changing the frequency and diameter of the strands for AC
-//    /// loss calculation
-//    friend void setInputs(HybridACLossFunctionalIntegrator &integ,
-//                          const MachInputs &inputs);
-
-//    /// \brief - Compute AC copper losses in the domain based on a hybrid
-//    ///          analytical-FEM approach
-//    /// \param[in] sigma - the temperature dependent electrical conductivity coefficient
-//    /// \param[in] freq - the electrical excitation frequency
-//    /// \param[in] diam - the diameter of a strand in the bundle
-//    /// \param[in] fill_factor - the density of strands in the bundle
-//    ///TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
-//    HybridACLossFunctionalIntegrator(mfem::Coefficient &sigma,
-//                                     const double freq,
-//                                     const double diam,
-//                                     const double fill_factor)
-//     : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor)
-//    { }
-
-//    /// \brief - Compute AC copper losses in the domain based on a hybrid
-//    ///          analytical-FEM approach
-//    /// \param[in] el - the finite element
-//    /// \param[in] trans - defines the reference to physical element mapping
-//    /// \param[in] elfun - state vector of the element
-//    /// \returns the AC losses calculated over an element
-//    double GetElementEnergy(const mfem::FiniteElement &el,
-//                            mfem::ElementTransformation &trans,
-//                            const mfem::Vector &elfun) override;
-
-// private:
-//    ///TODO: Again, make sigma a StateCoefficient or ConductivityCoefficient
-//    mfem::Coefficient &sigma;
-//    double freq;
-//    double diam;
-//    double fill_factor;
-   
-// #ifndef MFEM_THREAD_SAFE
-//    mfem::DenseMatrix curlshape, curlshape_dFt;
-//    mfem::Vector b_vec;
-// #endif
-// };
 
 /// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
 /// In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
@@ -1846,7 +1799,7 @@ public:
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-   /// TODO: Copied over from SteimetzLossIntegrator, Likely not needed
+   /// TODO: Copied over from SteimetzLossIntegrator, Adjust as needed
    // /// \brief - Computes dJdu, for solving for the adjoint
    // /// \param[in] el - the finite element
    // /// \param[in] trans - defines the reference to physical element mapping
@@ -1857,31 +1810,20 @@ public:
    //                            const mfem::Vector &elfun,
    //                            mfem::Vector &elfun_bar) override;
 
-   /// Commenting out this attempt at a constructor because the material library parameters should be taken care of at the higher level definition of these 3 state coeffs
-   // CAL2CoreLossIntegrator(ThreeStateCoefficient &kh,
-   //                         ThreeStateCoefficient &ke,
-   //                         mfem::Coefficient &T0,
-   //                         mfem::VectorCoefficient &kh_T0,
-   //                         mfem::VectorCoefficient &ke_T0,
-   //                         mfem::Coefficient &T1,
-   //                         mfem::VectorCoefficient &kh_T1,
-   //                         mfem::VectorCoefficient &ke_T1,
-   //                         std::string name = "")
-   //  : kh(kh), ke(ke), T0(T0), kh_T0(kh_T0), ke_T0(ke_T0), T1(T1), kh_T1(kh_T1), ke_T1(ke_T1), name(std::move(name))
-   // { }
 
-   CAL2CoreLossIntegrator(ThreeStateCoefficient &CAL2_kh,
+   CAL2CoreLossIntegrator(mfem::Coefficient &rho,
+                           ThreeStateCoefficient &CAL2_kh,
                            ThreeStateCoefficient &CAL2_ke,
                            mfem::GridFunction &peak_flux,
                            mfem::GridFunction *temperature_field=nullptr,
                            std::string name = "")
-    : CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
+    : rho(rho), CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
     temperature_field(temperature_field), name(std::move(name))
    { }
 
 private:
-   /// Density - not needed for CAL2
-   /// mfem::Coefficient &rho;
+   // Density
+   mfem::Coefficient &rho;
    /// CAL2 Coefficients
    ThreeStateCoefficient &CAL2_kh;
    ThreeStateCoefficient &CAL2_ke;
