@@ -102,13 +102,11 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
        "residual",
        dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
 
-   std::cout << "Start of temperature log logic\n";
    const auto &temp_field_iter = fields.find("temperature");
    if (temp_field_iter != fields.end())
    {
       auto &temp_field = temp_field_iter->second;
       paraview.registerField("temperature", temp_field.gridFunc());
-      std::cout << "Temperature log added\n";
    }
    addLogger(std::move(paraview), {});
 }

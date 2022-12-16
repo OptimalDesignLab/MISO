@@ -1310,9 +1310,6 @@ CoreLossFunctional::CoreLossFunctional(
    CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
    CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {
-   
-   ///TODO: Remove the below line and replace with more permanent logic (only for obtaining results)
-   bool UseCAL2CoreLossModel = true;
 
    // Making the integrator see the peak flux field
    const auto &peak_flux_iter = fields.find("peak_flux"); // find where peak flux field is
@@ -1337,7 +1334,7 @@ CoreLossFunctional::CoreLossFunctional(
 
    if (options.contains("attributes"))
    {
-      if (UseCAL2CoreLossModel)
+      if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
       {
          auto attributes = options["attributes"].get<std::vector<int>>();
          output.addOutputDomainIntegrator(
@@ -1354,7 +1351,7 @@ CoreLossFunctional::CoreLossFunctional(
    }
    else
    {
-      if (UseCAL2CoreLossModel)
+      if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
       {
          output.addOutputDomainIntegrator(
             new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field));

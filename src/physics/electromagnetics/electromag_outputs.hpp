@@ -377,9 +377,9 @@ private:
    std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
    std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
    
-   ///TODO: Find a way to add in
-   // Temperature Field
+   bool Test_bool = true;
 
+   MachInputs inputs;
 };
 
 class EMHeatSourceOutput final
