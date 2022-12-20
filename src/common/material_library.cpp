@@ -179,6 +179,9 @@ const auto team13 = R"(
 }
 )"_json;
 
+// Adding parameters needed for permanent magnet demagnetization model's constraint equation
+// Demag parameters explained in mach/src/physics/electromagnetics/pm_demag_constraint_coeff.cpp file
+// Manufacturer taken to be Arnold Magnetics. Data sheet: https://www.arnoldmagnetics.com/wp-content/uploads/2017/11/N48H-151021.pdf 
 const auto Nd2Fe14B = R"(
 {
    "mu_r": 1.04,
@@ -189,7 +192,18 @@ const auto Nd2Fe14B = R"(
    "max-temp": 583.15,
    "ks": 500,
    "beta": 0.0,
-   "alpha": 0.0
+   "alpha": 0.0,
+   "Demag": {
+      "T0": 20,
+      "alpha_B_r": -0.12,
+      "B_r_T0": 1.39,
+      "alpha_H_ci": -0.57,
+      "H_ci_T0": -1273.0,
+      "alpha_B_knee": 0.005522656,
+      "beta_B_knee": 0.064272862,
+      "alpha_H_knee": 5.548346445,
+      "beta_H_knee": -1055.87196
+   }
 }
 )"_json;
 // {"ks", 18.092347463670936,

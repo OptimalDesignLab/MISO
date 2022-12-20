@@ -13,6 +13,7 @@ set(MACH_PHYSICS_ELECTROMAGNETICS_HEADERS
    conductivity_coefficient.hpp
    cal2_ke_coefficient.hpp
    cal2_kh_coefficient.hpp
+   pm_demag_constraint_coeff.hpp
 )
 
 target_sources(mach
@@ -29,6 +30,7 @@ target_sources(mach
       conductivity_coefficient.cpp
       cal2_ke_coefficient.cpp
       cal2_kh_coefficient.cpp
+      pm_demag_constraint_coeff.cpp
       ${MACH_PHYSICS_ELECTROMAGNETICS_HEADERS}
 )
 

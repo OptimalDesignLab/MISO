@@ -16,6 +16,8 @@
 ///TODO: Make the below absolute paths relative/shorter
 #include "../../src/physics/electromagnetics/cal2_kh_coefficient.hpp"
 #include "../../src/physics/electromagnetics/cal2_ke_coefficient.hpp"
+///TODO: Make the below absolute path relative/shorter
+#include "../../src/physics/electromagnetics/pm_demag_constraint_coeff.hpp"
 
 
 namespace
@@ -940,6 +942,104 @@ TEST_CASE("CAL2 Coefficient: Models vs. Desired")
 
             std::cout << "CAL2_ke = np.array([";
             printVector(CAL2_ke);
+            std::cout << "])\n";
+         }
+      }
+   }
+}
+
+///TODO: Test the derivatives of the coefficients for PMDemagConstraint (once implement)
+TEST_CASE("PMDemagConstraint Coefficient")
+{
+   using namespace mfem;
+   using namespace mach;
+
+   std::stringstream meshStr;
+   meshStr << two_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   const int dim = mesh.SpaceDimension();
+
+
+   /// Construct coefficient
+   for (int p = 1; p <= 1; p++)
+   {
+      /// construct elements
+      ND_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+      // Set the options in JSON format for the CAL2 coefficients
+      const auto &pm_demag_options = R"(
+      {
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "Nd2Fe14B",
+                  "Demag": {
+                     "T0": 20,
+                     "alpha_B_r": -0.12,
+                     "B_r_T0": 1.39,
+                     "alpha_H_ci": -0.57,
+                     "H_ci_T0": -1273.0,
+                     "alpha_B_knee": 0.005522656,
+                     "beta_B_knee": 0.064272862,
+                     "alpha_H_knee": 5.548346445,
+                     "beta_H_knee": -1055.87196
+                  }
+               }
+            }
+         }
+      })"_json;
+
+      auto PMDemagConstraint_coeff = PMDemagConstraintCoefficient(pm_demag_options, material_library);
+
+      int npts = 6;
+      std::vector<double> C_BT(npts);
+      // Assortment of temperatures and frequencies chosen to map to each region of the visualized constraint equation in B-T space
+      // With flux_densities={0.2, 1.0, 2.0, 0.1, 0.7, 1.8}; and temperatures={90.0, 80.0, 120.0, 40.0, 50.0, 20.0};
+      // expect to get C_BT={-148.197, 165.436, 725.237, 46.739, -12.416, -1788.199}
+      std::vector<double> flux_densities={0.2, 1.0, 2.0, 0.1, 0.7, 1.8};  
+      std::vector<double> temperatures={90.0, 80.0, 120.0, 40.0, 50.0, 20.0};
+       
+      for (int j = 0; j < 1; j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         for (int i = 0; i < 1; i++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+
+            for (int k = 0; k < npts; ++k)
+            {
+               auto flux_density = flux_densities[k];
+               auto temperature = temperatures[k];
+
+               C_BT[k] = PMDemagConstraint_coeff.Eval(trans, ip, flux_density, temperature);
+            }
+
+            std::cout << "flux densities = np.array([";
+            printVector(flux_densities);
+            std::cout << "])\n";
+
+            std::cout << "temperatures = np.array([";
+            printVector(temperatures);
+            std::cout << "])\n";
+
+            std::cout << "C_BT = np.array([";
+            printVector(C_BT);
             std::cout << "])\n";
          }
       }
