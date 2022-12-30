@@ -836,7 +836,6 @@ TEST_CASE("ConductivityCoefficient: Models vs. Desired")
 //    }
 // }
 
-///TODO: Test the derivatives of the coefficients for CAL2 (once implement)
 TEST_CASE("CAL2 Coefficient: Models vs. Desired")
 {
    using namespace mfem;
@@ -895,7 +894,32 @@ TEST_CASE("CAL2 Coefficient: Models vs. Desired")
       }
 
       std::vector<double> CAL2_kh(npts);
+      std::vector<double> dCAL2_khdT(npts);
+      std::vector<double> dCAL2_khdf(npts);
+      std::vector<double> dCAL2_khdB_m(npts);
+      std::vector<double> d2CAL2_khdT2(npts);
+      std::vector<double> d2CAL2_khdf2(npts);
+      std::vector<double> d2CAL2_khdB_m2(npts);
+      std::vector<double> d2CAL2_khdTdf(npts);
+      std::vector<double> d2CAL2_khdTdB_m(npts);
+      std::vector<double> d2CAL2_khdfdB_m(npts);
+      std::vector<double> d2CAL2_khdfdT(npts);
+      std::vector<double> d2CAL2_khdB_mdT(npts);
+      std::vector<double> d2CAL2_khdB_mdf(npts);
+      
       std::vector<double> CAL2_ke(npts);
+      std::vector<double> dCAL2_kedT(npts);
+      std::vector<double> dCAL2_kedf(npts);
+      std::vector<double> dCAL2_kedB_m(npts);
+      std::vector<double> d2CAL2_kedT2(npts);
+      std::vector<double> d2CAL2_kedf2(npts);
+      std::vector<double> d2CAL2_kedB_m2(npts);
+      std::vector<double> d2CAL2_kedTdf(npts);
+      std::vector<double> d2CAL2_kedTdB_m(npts);
+      std::vector<double> d2CAL2_kedfdB_m(npts);
+      std::vector<double> d2CAL2_kedfdT(npts);
+      std::vector<double> d2CAL2_kedB_mdT(npts);
+      std::vector<double> d2CAL2_kedB_mdf(npts);
 
       // for (int j = 0; j < fes.GetNE(); j++)
       for (int j = 0; j < 1; j++)
@@ -925,7 +949,32 @@ TEST_CASE("CAL2 Coefficient: Models vs. Desired")
                auto max_flux = max_fluxes[k];
 
                CAL2_kh[k] = CAL2_kh_coeff.Eval(trans, ip, temperature, frequency, max_flux);
+               dCAL2_khdT[k] = CAL2_kh_coeff.EvalDerivS1(trans, ip, temperature, frequency, max_flux);
+               dCAL2_khdf[k] = CAL2_kh_coeff.EvalDerivS2(trans, ip, temperature, frequency, max_flux);
+               dCAL2_khdB_m[k] = CAL2_kh_coeff.EvalDerivS3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdT2[k] = CAL2_kh_coeff.Eval2ndDerivS1(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdf2[k] = CAL2_kh_coeff.Eval2ndDerivS2(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdB_m2[k] = CAL2_kh_coeff.Eval2ndDerivS3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdTdf[k] = CAL2_kh_coeff.Eval2ndDerivS1S2(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdTdB_m[k] = CAL2_kh_coeff.Eval2ndDerivS1S3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdfdB_m[k] = CAL2_kh_coeff.Eval2ndDerivS2S3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdfdT[k] = CAL2_kh_coeff.Eval2ndDerivS2S1(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdB_mdT[k] = CAL2_kh_coeff.Eval2ndDerivS3S1(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_khdB_mdf[k] = CAL2_kh_coeff.Eval2ndDerivS3S2(trans, ip, temperature, frequency, max_flux);
+
                CAL2_ke[k] = CAL2_ke_coeff.Eval(trans, ip, temperature, frequency, max_flux);
+               dCAL2_kedT[k] = CAL2_ke_coeff.EvalDerivS1(trans, ip, temperature, frequency, max_flux);
+               dCAL2_kedf[k] = CAL2_ke_coeff.EvalDerivS2(trans, ip, temperature, frequency, max_flux);
+               dCAL2_kedB_m[k] = CAL2_ke_coeff.EvalDerivS3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedT2[k] = CAL2_ke_coeff.Eval2ndDerivS1(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedf2[k] = CAL2_ke_coeff.Eval2ndDerivS2(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedB_m2[k] = CAL2_ke_coeff.Eval2ndDerivS3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedTdf[k] = CAL2_ke_coeff.Eval2ndDerivS1S2(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedTdB_m[k] = CAL2_ke_coeff.Eval2ndDerivS1S3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedfdB_m[k] = CAL2_ke_coeff.Eval2ndDerivS2S3(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedfdT[k] = CAL2_ke_coeff.Eval2ndDerivS2S1(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedB_mdT[k] = CAL2_ke_coeff.Eval2ndDerivS3S1(trans, ip, temperature, frequency, max_flux);
+               d2CAL2_kedB_mdf[k] = CAL2_ke_coeff.Eval2ndDerivS3S2(trans, ip, temperature, frequency, max_flux);
             }
 
             std::cout << "temperatures = np.array([";
@@ -940,15 +989,112 @@ TEST_CASE("CAL2 Coefficient: Models vs. Desired")
             printVector(CAL2_kh);
             std::cout << "])\n";
 
+            // Uncomment the below if want to see derivatives in terminal output
+            // std::cout << "dCAL2_khdT = np.array([";
+            // printVector(dCAL2_khdT);
+            // std::cout << "])\n";
+
+            // std::cout << "dCAL2_khdf = np.array([";
+            // printVector(dCAL2_khdf);
+            // std::cout << "])\n";
+
+            // std::cout << "dCAL2_khdB_m = np.array([";
+            // printVector(dCAL2_khdB_m);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdT2 = np.array([";
+            // printVector(d2CAL2_khdT2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdf2 = np.array([";
+            // printVector(d2CAL2_khdf2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdB_m2 = np.array([";
+            // printVector(d2CAL2_khdB_m2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdTdf = np.array([";
+            // printVector(d2CAL2_khdTdf);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdTdB_m = np.array([";
+            // printVector(d2CAL2_khdTdB_m);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdfdB_m = np.array([";
+            // printVector(d2CAL2_khdfdB_m);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdfdT = np.array([";
+            // printVector(d2CAL2_khdfdT);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdB_mdT = np.array([";
+            // printVector(d2CAL2_khdB_mdT);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_khdB_mdf = np.array([";
+            // printVector(d2CAL2_khdB_mdf);
+            // std::cout << "])\n";
+
             std::cout << "CAL2_ke = np.array([";
             printVector(CAL2_ke);
             std::cout << "])\n";
+
+            // Uncomment the below if want to see derivatives in terminal output
+            // std::cout << "dCAL2_kedT = np.array([";
+            // printVector(dCAL2_kedT);
+            // std::cout << "])\n";
+
+            // std::cout << "dCAL2_kedf = np.array([";
+            // printVector(dCAL2_kedf);
+            // std::cout << "])\n";
+
+            // std::cout << "dCAL2_kedB_m = np.array([";
+            // printVector(dCAL2_kedB_m);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedT2 = np.array([";
+            // printVector(d2CAL2_kedT2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedf2 = np.array([";
+            // printVector(d2CAL2_kedf2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedB_m2 = np.array([";
+            // printVector(d2CAL2_kedB_m2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedTdf = np.array([";
+            // printVector(d2CAL2_kedTdf);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedTdB_m = np.array([";
+            // printVector(d2CAL2_kedTdB_m);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedfdB_m = np.array([";
+            // printVector(d2CAL2_kedfdB_m);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedfdT = np.array([";
+            // printVector(d2CAL2_kedfdT);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedB_mdT = np.array([";
+            // printVector(d2CAL2_kedB_mdT);
+            // std::cout << "])\n";
+
+            // std::cout << "d2CAL2_kedB_mdf = np.array([";
+            // printVector(d2CAL2_kedB_mdf);
+            // std::cout << "])\n";
          }
       }
    }
 }
 
-///TODO: Test the derivatives of the coefficients for PMDemagConstraint (once implement)
 TEST_CASE("PMDemagConstraint Coefficient")
 {
    using namespace mfem;
@@ -996,6 +1142,12 @@ TEST_CASE("PMDemagConstraint Coefficient")
 
       int npts = 6;
       std::vector<double> C_BT(npts);
+      std::vector<double> dC_BTdB(npts);
+      std::vector<double> dC_BTdT(npts);
+      std::vector<double> d2C_BTdB2(npts);
+      std::vector<double> d2C_BTdT2(npts);
+      std::vector<double> d2C_BTdBdT(npts);
+      std::vector<double> d2C_BTdTdB(npts);
       // Assortment of temperatures and frequencies chosen to map to each region of the visualized constraint equation in B-T space
       // With flux_densities={0.2, 1.0, 2.0, 0.1, 0.7, 1.8}; and temperatures={90.0, 80.0, 120.0, 40.0, 50.0, 20.0};
       // expect to get C_BT={-148.197, 165.436, 725.237, 46.739, -12.416, -1788.199}
@@ -1028,6 +1180,12 @@ TEST_CASE("PMDemagConstraint Coefficient")
                auto temperature = temperatures[k];
 
                C_BT[k] = PMDemagConstraint_coeff.Eval(trans, ip, flux_density, temperature);
+               dC_BTdB[k] = PMDemagConstraint_coeff.EvalDerivS1(trans, ip, flux_density, temperature);
+               dC_BTdT[k] = PMDemagConstraint_coeff.EvalDerivS2(trans, ip, flux_density, temperature);
+               d2C_BTdB2[k] = PMDemagConstraint_coeff.Eval2ndDerivS1(trans, ip, flux_density, temperature);
+               d2C_BTdT2[k] = PMDemagConstraint_coeff.Eval2ndDerivS2(trans, ip, flux_density, temperature);
+               d2C_BTdBdT[k] = PMDemagConstraint_coeff.Eval2ndDerivS1S2(trans, ip, flux_density, temperature);
+               d2C_BTdTdB[k] = PMDemagConstraint_coeff.Eval2ndDerivS2S1(trans, ip, flux_density, temperature);
             }
 
             std::cout << "flux densities = np.array([";
@@ -1041,6 +1199,31 @@ TEST_CASE("PMDemagConstraint Coefficient")
             std::cout << "C_BT = np.array([";
             printVector(C_BT);
             std::cout << "])\n";
+
+            // Uncomment the below if want to see derivatives in terminal output
+            // std::cout << "dC_BTdB = np.array([";
+            // printVector(dC_BTdB);
+            // std::cout << "])\n";
+            
+            // std::cout << "dC_BTdT = np.array([";
+            // printVector(dC_BTdT);
+            // std::cout << "])\n";
+
+            // std::cout << "d2C_BTdB2 = np.array([";
+            // printVector(d2C_BTdB2);
+            // std::cout << "])\n";
+
+            // std::cout << "d2C_BTdT2 = np.array([";
+            // printVector(d2C_BTdT2);
+            // std::cout << "])\n";
+            
+            // std::cout << "d2C_BTdBdT = np.array([";
+            // printVector(d2C_BTdBdT);
+            // std::cout << "])\n";
+            
+            // std::cout << "d2C_BTdTdB = np.array([";
+            // printVector(d2C_BTdTdB);
+            // std::cout << "])\n";
          }
       }
    }

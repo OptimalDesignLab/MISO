@@ -691,7 +691,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    else if (wrt.rfind("mesh_coords", 0) == 0)
    {
       double sigma_b2 = calcOutput(output.output, output.inputs);
-      ///TODO: Determine if and how sigma_b2_dot needs to be changed
       double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1145,7 +1144,6 @@ void vectorJacobianProduct(ACLossFunctional &output,
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
       ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
-      ///TODO: Determine if and how sigma_b2_bar needs to be changed 
       double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
                             pow(output.radius, 4) *
                             pow(2 * M_PI * output.freq, 2) / 32.0;
@@ -1161,7 +1159,6 @@ void vectorJacobianProduct(ACLossFunctional &output,
       //                        pow(2 * M_PI, 2) / 32.0;
 
       /// double sigma_b2 = calcOutput(output.output, output.inputs);
-      ///TODO: Determine if/how these two below lines need to be changed
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
    }

@@ -3,7 +3,6 @@
 #include "electromag_integ.hpp"
 #include "mach_input.hpp"
 
-///TODO: Don't forget to uncomment. Commented out since ThreeStateCoefficient was causing some errors when trying make (even before make build_tests), so will come back to.
 #include "cal2_kh_coefficient.hpp"
 #include "cal2_ke_coefficient.hpp"
 
@@ -3620,6 +3619,16 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       PointMat_bar = 0.0;
       ///TODO: Stick with default EvalRevDiff or adapt?
       sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
+      std::cout << "PointMat_bar=[\n";
+      for (int d = 0; d < space_dim; ++d)
+      {
+         for (int j = 0; j < mesh_ndof; ++j)
+         {
+            std::cout << PointMat_bar(d, j) << ",";
+         }
+         std::cout << "\n";
+      }
+      std::cout << "]\n";
 
       /// double w = ip.weight * trans_weight;
       double trans_weight_bar = w_bar * ip.weight;
@@ -3635,6 +3644,17 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
             mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
          }
       }
+
+      ///TODO: Remove this temporary comment out once done debugging
+      std::cout << "mesh_coords_bar=[";
+      for (int k = 0; k < (mesh_ndof * space_dim); ++k)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            std::cout << mesh_coords_bar(k) << ",";
+         }
+      }
+      std::cout << "]\n";
    }
 }
 
@@ -3673,6 +3693,7 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       
    }
 
+   // Integration Rule
    const auto *ir = IntRule;
    if (ir == nullptr)
    {
@@ -3691,7 +3712,8 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
-   elvect = 0.0;
+   // Loop over all integration points in the element and add/store the FE's contribution to the heat source in elvect
+   elvect = 0.0; // zero out element vector
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       // Logic from DCLossFunctionalIntegrator
@@ -3704,8 +3726,8 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
 
       if (temperature_field != nullptr)
       {
-         temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
-         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+         temp_el->CalcPhysShape(trans, shape); // calculate shape functions for the temperature FE
+         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the temperature value at the integration point
       }
       else
       {
@@ -3723,6 +3745,7 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       // not sure about this... but it matches MotorCAD's values
       loss *= sqrt(2);
 
+      // Add/store the FE's contribution to the heat source due to DC losses in elvect
       elvect.Add(loss * w, shape);
    }
    ///TODO: Logic is up to date now. Need to finish the implementation and then test
@@ -4039,6 +4062,7 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
+///TODO: This class is still hanging on to the old sigma logic. Have it handle sigma as a StateCoefficient and the temperature field as well
 void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -6056,7 +6080,16 @@ void setInputs(CAL2CoreLossIntegrator &integ, const MachInputs &inputs)
 {
    setValueFromInputs(inputs, "frequency", integ.freq);
    // Temperature and max flux density handled below
-   ///TODO: Determine if the flux that is being used is correct
+   ///TODO: Determine if the flux that is being used is correct. Bringing in the max flux value so can decide if using max flux magnitude or peak flux field
+   if (!integ.name.empty())
+   {
+      setValueFromInputs(
+          inputs, "max_flux_magnitude:" + integ.name, integ.max_flux_mag);
+   }
+   else
+   {
+      setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
+   }
 }
 
 double CAL2CoreLossIntegrator::GetElementEnergy(
@@ -6149,24 +6182,36 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
          temperature = 100; // default value for temperature in absence of temperature field
       }
 
-      // Compute the magnitude of the flux density
-      flux_el.CalcPhysShape(flux_trans, flux_shape);
-      const auto max_flux_mag = flux_shape * flux_elfun;
+      // Compute the magnitude of the max/peak flux density (B_m or B_pk)
+      ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+      bool UseMaxFluxValueAndNotPeakFluxField = true;
+      double B_m;
+      if (UseMaxFluxValueAndNotPeakFluxField)
+      {
+         // Using the max flux value. Already was set in inputs
+         B_m = max_flux_mag;
+      }
+      else
+      {
+         // Using the peak flux field. Max/peak flux value will vary based on where you are in mesh
+         flux_el.CalcPhysShape(flux_trans, flux_shape);
+         B_m = flux_shape * flux_elfun;
+      }
 
       // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
       // kh(f,T,Bm) and ke(f,T,Bm)
 
-      // std::cout << "temperature = " << temperature << "; freq = " << freq << "; max_flux_mag = " << max_flux_mag << "\n";
+      std::cout << "temperature = " << temperature << "; freq = " << freq << "; B_m = " << B_m << "\n";
 
-      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, max_flux_mag);
-      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, max_flux_mag);
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
 
       // Evaluate the material density (constant)
       auto rho_v = rho.Eval(trans, ip);
 
       // Calculate the CAL2 Core Losses at the integration point
-      fun += rho_v * kh_v * freq * std::pow(max_flux_mag,2) * w; // Add the hysteresis loss constribution
-      fun += rho_v * ke_v * std::pow(freq,2) * std::pow(max_flux_mag,2) * w; // Add the eddy current loss constribution
+      fun += rho_v * kh_v * freq * std::pow(B_m,2) * w; // Add the hysteresis loss constribution
+      fun += rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w; // Add the eddy current loss constribution
    }
    return fun;
 }

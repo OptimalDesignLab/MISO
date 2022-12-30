@@ -1239,6 +1239,7 @@ private:
 
    /// class that implements mesh sensitivities for
    /// DCLossFunctionalDistributionIntegrator
+   ///TODO: Define and Implement this class
    friend class DCLossFunctionalDistributionIntegratorMeshSens;
 };
 
@@ -1320,6 +1321,7 @@ private:
 #endif
 };
 
+///TODO: This class is still hanging on to the old sigma logic. Have it handle sigma as a StateCoefficient and the temperature field as well
 class ACLossFunctionalIntegratorPeakFluxSens : public mfem::LinearFormIntegrator
 {
 public:
@@ -1828,7 +1830,7 @@ private:
    ThreeStateCoefficient &CAL2_kh;
    ThreeStateCoefficient &CAL2_ke;
 
-   mfem::GridFunction &peak_flux;
+   mfem::GridFunction &peak_flux; // peak flux field
 
    mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
 

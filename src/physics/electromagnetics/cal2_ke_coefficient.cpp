@@ -527,12 +527,7 @@ PolyVarEddyCurrentLossCoeff::PolyVarEddyCurrentLossCoeff(const double &T0,
                         const std::vector<double> &ke_T1)
  : T0(T0), ke_T0(ke_T0), T1(T1), ke_T1(ke_T1)
 
-///TODO: As needed, add in more definitions of protected class members here
-{
-  
-///TODO: As needed, add in calculations of protected class members here
-
-}
+{}
 
 double PolyVarEddyCurrentLossCoeff::Eval(mfem::ElementTransformation &trans,
                            const mfem::IntegrationPoint &ip,
@@ -540,22 +535,20 @@ double PolyVarEddyCurrentLossCoeff::Eval(mfem::ElementTransformation &trans,
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
-
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    auto T = state1;
-   auto f = state2;
-   auto Bm = state3;
+   // auto f = state2;
+   auto B_m = state3;
 
    double ke_T0_f_B = 0.0;
    for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
    {
-      ke_T0_f_B += ke_T0[i]*std::pow(Bm,i);
+      ke_T0_f_B += ke_T0[i]*std::pow(B_m,i);
    }
    double ke_T1_f_B = 0.0;
    for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
    {
-      ke_T1_f_B += ke_T1[i]*std::pow(Bm,i);
+      ke_T1_f_B += ke_T1[i]*std::pow(B_m,i);
    }
    double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
    double kte = 1+(T-T0)*D_eddy;
@@ -571,13 +564,31 @@ double PolyVarEddyCurrentLossCoeff::EvalDerivS1(mfem::ElementTransformation &tra
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // First derivative with respect to temperature
+   
+   auto T = state1;
+   // auto f = state2;
+   auto B_m = state3;
 
-   ///TODO: Derived overall derivative in Overleaf. Need to modify for just the CAL2_ke, code the below, then uncomment
-   /*
-   double dCAL2_kedf = 
-   return dCAL2_kedf;
-   */
+   double ke_T0_f_B = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
+   {
+      ke_T0_f_B += ke_T0[i]*std::pow(B_m,i);
+   }
+   double ke_T1_f_B = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
+   {
+      ke_T1_f_B += ke_T1[i]*std::pow(B_m,i);
+   }
+   double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   // double kte = 1+(T-T0)*D_eddy;
+   double dktedT = D_eddy;
+
+   // double CAL2_ke = kte*ke_T0_f_B;
+   
+   double dCAL2_kedT = dktedT*ke_T0_f_B;
+   return dCAL2_kedT;
 }
 
 double PolyVarEddyCurrentLossCoeff::EvalDerivS2(mfem::ElementTransformation &trans,
@@ -586,13 +597,14 @@ double PolyVarEddyCurrentLossCoeff::EvalDerivS2(mfem::ElementTransformation &tra
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // First derivative with respect to frequency
 
-   ///TODO: Derived overall derivative in Overleaf. Need to modify for just the CAL2_ke, code the below, then uncomment
-   /*
-   double dCAL2_kedB = 
-   return dCAL2_kedB;
-   */
+   // Frequency is not explicitly used to calculate the coefficient itself.
+   // Frequency is used to explicitly calculate the specific core loss (next level up)
+   // Therefore, all CAL2 coefficient derivatives with respect to frequency are 0
+   double dCAL2_kedf = 0;
+   return dCAL2_kedf;
 }
 
 double PolyVarEddyCurrentLossCoeff::EvalDerivS3(mfem::ElementTransformation &trans,
@@ -601,13 +613,34 @@ double PolyVarEddyCurrentLossCoeff::EvalDerivS3(mfem::ElementTransformation &tra
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // First derivative with respect to max alternating flux density
 
-   ///TODO: Derived overall derivative in Overleaf. Need to modify for just the CAL2_ke, code the below, then uncomment
-   /*
-   double dCAL2_kedT = 
-   return dCAL2_kedT;
-   */
+   auto T = state1;
+   // auto f = state2;
+   auto B_m = state3;
+
+   // double ke_T0_f_B = 0.0;
+   double dke_T0_f_BdB_m = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
+   {
+      // ke_T0_f_B += ke_T0[i]*std::pow(B_m,i);
+      dke_T0_f_BdB_m += i*ke_T0[i]*std::pow(B_m,i-1);
+   }
+   // double ke_T1_f_B = 0.0;
+   double dke_T1_f_BdB_m = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
+   {
+      // ke_T1_f_B += ke_T1[i]*std::pow(B_m,i);
+      dke_T1_f_BdB_m += i*ke_T1[i]*std::pow(B_m,i-1);
+   }
+   // double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   // double kte = 1+(T-T0)*D_eddy;
+   
+   // double CAL2_ke = kte*ke_T0_f_B;
+
+   double dCAL2_kedB_m = dke_T0_f_BdB_m+((T-T0)/(T1-T0))*(dke_T1_f_BdB_m-dke_T0_f_BdB_m);
+   return dCAL2_kedB_m;
 }
 
 double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1(mfem::ElementTransformation &trans,
@@ -616,13 +649,20 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1(mfem::ElementTransformation &
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Second derivative with respect to temperature
+   
+   // double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   // double kte = 1+(T-T0)*D_eddy;
+   // double dktedT = D_eddy;
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedf2 = 
-   return d2CAL2_kedf2;
-   */
+   // double CAL2_ke = kte*ke_T0_f_B;
+   // double dCAL2_kedT = dktedT*ke_T0_f_B;
+
+   // As seen, CAL2 coefficient merely linear in temperature
+   // Thus, 2nd and higher order derivatives w/r/t temperature will be 0
+   double d2CAL2_kedT2 = 0;
+   return d2CAL2_kedT2;
 }
 
 double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS2(mfem::ElementTransformation &trans,
@@ -631,13 +671,14 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS2(mfem::ElementTransformation &
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Second derivative with respect to frequency
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedB2 = 
-   return d2CAL2_kedB2;
-   */
+   // Frequency is not explicitly used to calculate the coefficient itself.
+   // Frequency is used to explicitly calculate the specific core loss (next level up)
+   // Therefore, all CAL2 coefficient derivatives with respect to frequency are 0
+   double d2CAL2_kedf2 = 0;
+   return d2CAL2_kedf2;
 }
 
 double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3(mfem::ElementTransformation &trans,
@@ -646,13 +687,34 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3(mfem::ElementTransformation &
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Second derivative with respect to max alternating flux density
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedT2 = 
-   return d2CAL2_kedT2;
-   */
+   auto T = state1;
+   // auto f = state2;
+   auto B_m = state3;
+
+   // double dke_T0_f_BdB_m = 0.0;
+   double d2ke_T0_f_BdB_m2 = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
+   {
+      // dke_T0_f_BdB_m += i*ke_T0[i]*std::pow(B_m,i-1);
+      d2ke_T0_f_BdB_m2 += (i-1)*i*ke_T0[i]*std::pow(B_m,i-2);
+   }
+   double dke_T1_f_BdB_m = 0.0;
+   double d2ke_T1_f_BdB_m2 = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
+   {
+      // dke_T1_f_BdB_m += i*ke_T1[i]*std::pow(B_m,i-1);
+      d2ke_T1_f_BdB_m2 += (i-1)*i*ke_T1[i]*std::pow(B_m,i-2);
+   }
+   // double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   // double kte = 1+(T-T0)*D_eddy;
+   
+   // double CAL2_ke = kte*ke_T0_f_B;
+
+   double d2CAL2_kedB_m2 = d2ke_T0_f_BdB_m2+((T-T0)/(T1-T0))*(d2ke_T1_f_BdB_m2-d2ke_T0_f_BdB_m2);
+   return d2CAL2_kedB_m2;
 }
 
 double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
@@ -661,13 +723,14 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1S2(mfem::ElementTransformation
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Derivative with respect to temperature then frequency
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedfdB = 
-   return d2CAL2_kedfdB;
-   */
+   // Frequency is not explicitly used to calculate the coefficient itself.
+   // Frequency is used to explicitly calculate the specific core loss (next level up)
+   // Therefore, all CAL2 coefficient derivatives with respect to frequency are 0
+   double d2CAL2_kedTdf = 0;
+   return d2CAL2_kedTdf;
 }
 
 double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1S3(mfem::ElementTransformation &trans,
@@ -676,13 +739,36 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1S3(mfem::ElementTransformation
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Derivative with respect to temperature then max alternating flux density
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedfdT = 
-   return d2CAL2_kedfdT;
-   */
+   auto T = state1;
+   // auto f = state2;
+   auto B_m = state3;
+
+   // double ke_T0_f_B = 0.0;
+   double dke_T0_f_BdB_m = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
+   {
+      // ke_T0_f_B += ke_T0[i]*std::pow(B_m,i);
+      dke_T0_f_BdB_m += i*ke_T0[i]*std::pow(B_m,i-1);
+   }
+   // double ke_T1_f_B = 0.0;
+   double dke_T1_f_BdB_m = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
+   {
+      // ke_T1_f_B += ke_T1[i]*std::pow(B_m,i);
+      dke_T1_f_BdB_m += i*ke_T1[i]*std::pow(B_m,i-1);
+   }
+   // double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   // double kte = 1+(T-T0)*D_eddy;
+   // double dktedT = D_eddy;
+
+   // double CAL2_ke = kte*ke_T0_f_B;
+   // double dCAL2_kedT = dktedT*ke_T0_f_B = (ke_T1_f_B-ke_T0_f_B)/(T1-T0);
+
+   double d2CAL2_kedTdB_m = (dke_T1_f_BdB_m-dke_T0_f_BdB_m)/(T1-T0);
+   return d2CAL2_kedTdB_m;
 }
 
 double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
@@ -691,13 +777,14 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS2S3(mfem::ElementTransformation
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
-
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedBdT = 
-   return d2CAL2_kedBdT;
-   */
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Derivative with respect to frequency then max alternating flux density
+   
+   // Frequency is not explicitly used to calculate the coefficient itself.
+   // Frequency is used to explicitly calculate the specific core loss (next level up)
+   // Therefore, all CAL2 coefficient derivatives with respect to frequency are 0
+   double d2CAL2_kedfdB_m = 0;
+   return d2CAL2_kedfdB_m;
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S2
@@ -707,13 +794,14 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS2S1(mfem::ElementTransformation
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Derivative with respect to frequency then temperature
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedBdf = 
-   return d2CAL2_kedBdf;
-   */
+   // Frequency is not explicitly used to calculate the coefficient itself.
+   // Frequency is used to explicitly calculate the specific core loss (next level up)
+   // Therefore, all CAL2 coefficient derivatives with respect to frequency are 0
+   double d2CAL2_kedfdT = 0;
+   return d2CAL2_kedfdT;
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS1S3
@@ -723,13 +811,36 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3S1(mfem::ElementTransformation
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Derivative with respect to max alternating flux density then temperature
 
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedTdf = 
-   return d2CAL2_kedTdf;
-   */
+   auto T = state1;
+   // auto f = state2;
+   auto B_m = state3;
+
+   // double ke_T0_f_B = 0.0;
+   double dke_T0_f_BdB_m = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T0.size()); ++i)
+   {
+      // ke_T0_f_B += ke_T0[i]*std::pow(B_m,i);
+      dke_T0_f_BdB_m += i*ke_T0[i]*std::pow(B_m,i-1);
+   }
+   // double ke_T1_f_B = 0.0;
+   double dke_T1_f_BdB_m = 0.0;
+   for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
+   {
+      // ke_T1_f_B += ke_T1[i]*std::pow(B_m,i);
+      dke_T1_f_BdB_m += i*ke_T1[i]*std::pow(B_m,i-1);
+   }
+   // double D_eddy = (ke_T1_f_B-ke_T0_f_B)/((T1-T0)*ke_T0_f_B);
+   // double kte = 1+(T-T0)*D_eddy;
+   // double dktedT = D_eddy;
+
+   // double CAL2_ke = kte*ke_T0_f_B;
+   // double dCAL2_kedB_m = dke_T0_f_BdB_m+((T-T0)/(T1-T0))*(dke_T1_f_BdB_m-dke_T0_f_BdB_m);
+
+   double d2CAL2_kedB_mdT = (dke_T1_f_BdB_m-dke_T0_f_BdB_m)/(T1-T0);
+   return d2CAL2_kedB_mdT;
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS2S3
@@ -739,13 +850,14 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3S2(mfem::ElementTransformation
                            const double state2,
                            const double state3)
 {
-   ///TODO: As needed, utilize logic of protected class members to eval CAL2_ke
-
-   ///TODO: Derive and code the below, then uncomment
-   /*
-   double d2CAL2_kedTdB = 
-   return d2CAL2_kedTdB;
-   */
+   // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+   // Derivative with respect to max alternating flux density then frequency
+   
+   // Frequency is not explicitly used to calculate the coefficient itself.
+   // Frequency is used to explicitly calculate the specific core loss (next level up)
+   // Therefore, all CAL2 coefficient derivatives with respect to frequency are 0
+   double d2CAL2_kedB_mdf = 0;
+   return d2CAL2_kedB_mdf;
 }
 
 ///TODO: is there a need to code EvalRevDiff for variable eddy current coefficient method here? I'm thinking not

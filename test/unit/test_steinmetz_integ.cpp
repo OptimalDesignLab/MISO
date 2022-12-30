@@ -310,13 +310,13 @@ TEST_CASE("SteinmetzLossIntegratorMeshSens::AssembleRHSElementVect")
 }
 
 // Adding CAL2 Core Loss Integrator test here (can always make a new/separate test file)
-///TODO: Add in density of 1
+// Revise test to allow for the maximum flux value to be passed in (value only used if no peak flux field) 
 TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 {
    using namespace mfem;
    using namespace electromag_data;
 
-   const int p = 1;
+   const int p = 3;
    const int dim = 2;
    // if (dim==2)
    // {
@@ -429,11 +429,13 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
    
    auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, peak_flux, &temperature_field);
    setInputs(*integ, {
-      {"frequency", 1000.0}
+      {"frequency", 1000.0},
+      {"max_flux_magnitude", 1.7}
    });
    // auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, peak_flux);
    // setInputs(*integ, {
-   //    {"frequency", 1000.0}
+   //    {"frequency", 1000.0},
+   //    {"max_flux_magnitude", 2.2}
    // }); // for the case where the temperature_field is a null pointer (not passed in)
 
    functional.AddDomainIntegrator(integ);

@@ -479,7 +479,26 @@ double PMDemagConstraintEqCoeff::EvalDerivS1(mfem::ElementTransformation &trans,
                            const double state1,
                            const double state2)
 {
-   ///TODO: Derive and implement the EvalDerivS1 method
+   // Assuming state1=flux density and state2=temperature
+   // First derivative with respect to flux density
+
+   // auto B = state1;
+   auto T = state2;
+
+   // Compute the values of the subequations needed for the overall constraint equation
+   auto B_knee = alpha_B_knee*T+beta_B_knee; // the approximate flux density of the knee point at the given temperature
+   auto H_knee = alpha_H_knee*T+beta_H_knee; // the approximate magnetic field intensity of the knee point at the given temperature
+   auto B_r = B_r_T0*(1+(alpha_B_r/100)*(T-T0)); // the remnant flux density
+   auto H_ci = H_ci_T0*(1+(alpha_H_ci/100)*(T-T0)); // the intrinisic coercivity
+
+   // Compute the value of the constraint equation
+   // If positive -> reversible demagnetization region.
+   // If negative -> irreversible demagnetization region.
+   // auto C_BT = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee))*B
+               // -(H_ci+((B_r*H_knee)/(B_knee-B_r)));
+
+   auto dC_BTdB = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee));
+   return dC_BTdB;
 }
 
 double PMDemagConstraintEqCoeff::EvalDerivS2(mfem::ElementTransformation &trans,
@@ -487,7 +506,30 @@ double PMDemagConstraintEqCoeff::EvalDerivS2(mfem::ElementTransformation &trans,
                            const double state1,
                            const double state2)
 {
-   ///TODO: Derive and implement the EvalDerivS2 method
+   // Assuming state1=flux density and state2=temperature
+   // First derivative with respect to temperature
+
+   auto B = state1;
+   auto T = state2;
+
+   // Compute the values of the subequations needed for the overall constraint equation
+   auto B_knee = alpha_B_knee*T+beta_B_knee; // the approximate flux density of the knee point at the given temperature
+   auto H_knee = alpha_H_knee*T+beta_H_knee; // the approximate magnetic field intensity of the knee point at the given temperature
+   auto B_r = B_r_T0*(1+(alpha_B_r/100)*(T-T0)); // the remnant flux density
+   auto H_ci = H_ci_T0*(1+(alpha_H_ci/100)*(T-T0)); // the intrinisic coercivity
+   // auto C_BT = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee))*B
+               // -(H_ci+((B_r*H_knee)/(B_knee-B_r)));
+
+   // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD  
+   auto SubEq1 = alpha_B_knee - (B_r_T0*alpha_B_r)/100;
+   auto SubEq2 = B_knee - B_r;
+   auto SubEq3 = B_r/B_r_T0;
+   auto dC_BTdT = B*(    (alpha_H_knee/SubEq2)-((alpha_H_knee-(H_ci_T0*alpha_H_ci/100))/B_knee)
+                     -((SubEq1*H_knee)/std::pow(SubEq2,2))
+                     +((alpha_B_knee*(H_knee-H_ci))/std::pow(B_knee,2))   )
+                  -(H_ci_T0*alpha_H_ci)/100 -((B_r_T0*alpha_B_r*H_knee)/(100*SubEq2))
+                  -(B_r_T0*alpha_H_knee*SubEq3)/SubEq2 + (B_r_T0*SubEq3*SubEq1*H_knee)/std::pow(SubEq2,2);
+   return dC_BTdT;
 }
 
 double PMDemagConstraintEqCoeff::Eval2ndDerivS1(mfem::ElementTransformation &trans,
@@ -495,7 +537,17 @@ double PMDemagConstraintEqCoeff::Eval2ndDerivS1(mfem::ElementTransformation &tra
                            const double state1,
                            const double state2)
 {
-   ///TODO: Derive and implement the Eval2ndDerivS1 method
+   // Assuming state1=flux density and state2=temperature
+   // Second derivative with respect to flux density
+
+   // auto B = state1;
+   // auto T = state2;
+
+   // auto C_BT = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee))*B
+               // -(H_ci+((B_r*H_knee)/(B_knee-B_r)));
+   // auto dC_BTdB = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee));
+   auto d2C_BTdB2 = 0; // dC_BTdB is no longer dependent on B, so derivative w/r/t B is 0
+   return d2C_BTdB2;
 }
 
 double PMDemagConstraintEqCoeff::Eval2ndDerivS2(mfem::ElementTransformation &trans,
@@ -503,7 +555,40 @@ double PMDemagConstraintEqCoeff::Eval2ndDerivS2(mfem::ElementTransformation &tra
                            const double state1,
                            const double state2)
 {
-   ///TODO: Derive and implement the Eval2ndDerivS2 method
+   // Assuming state1=flux density and state2=temperature
+   // Second derivative with respect to temperature
+
+   auto B = state1;
+   auto T = state2;
+
+   // Compute the values of the subequations needed for the overall constraint equation
+   auto B_knee = alpha_B_knee*T+beta_B_knee; // the approximate flux density of the knee point at the given temperature
+   auto H_knee = alpha_H_knee*T+beta_H_knee; // the approximate magnetic field intensity of the knee point at the given temperature
+   auto B_r = B_r_T0*(1+(alpha_B_r/100)*(T-T0)); // the remnant flux density
+   auto H_ci = H_ci_T0*(1+(alpha_H_ci/100)*(T-T0)); // the intrinisic coercivity
+   // auto C_BT = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee))*B
+               // -(H_ci+((B_r*H_knee)/(B_knee-B_r)));
+
+   // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD  
+   auto SubEq1 = alpha_B_knee - (B_r_T0*alpha_B_r)/100;
+   auto SubEq2 = B_knee - B_r;
+   auto SubEq3 = B_r/B_r_T0;
+   // auto dC_BTdT = B*(    (alpha_H_knee/SubEq2)-((alpha_H_knee-(H_ci_T0*alpha_H_ci/100))/B_knee)
+   //                   -((SubEq1*H_knee)/std::pow(SubEq2,2))
+   //                   +((alpha_B_knee*(H_knee-H_ci))/std::pow(B_knee,2))   )
+   //                -(H_ci_T0*alpha_H_ci)/100 -((B_r_T0*alpha_B_r*H_knee)/(100*SubEq2))
+   //                -(B_r_T0*alpha_H_knee*SubEq3)/SubEq2 + (B_r_T0*SubEq3*SubEq1*H_knee)/std::pow(SubEq2,2);
+
+   // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD  
+   auto d2C_BTdT2 = (B_r_T0*alpha_H_knee*SubEq3*SubEq1*2)/std::pow(SubEq2,2)
+                  -((B_r_T0*alpha_B_r*alpha_H_knee)/(50*SubEq2))
+                  -(B_r_T0*SubEq3*std::pow(SubEq1,2)*H_knee*2)/std::pow(SubEq2,3)
+                  -B*(   (std::pow(alpha_B_knee,2)*(H_knee-H_ci)*2)/std::pow(B_knee,3)
+                        -(2*std::pow(SubEq1,2)*H_knee)/std::pow(SubEq2,3)
+                        -(alpha_B_knee*(alpha_H_knee-(H_ci_T0*alpha_H_ci)/100)*2)/std::pow(B_knee,2) 
+                        +(alpha_H_knee*SubEq1*2)/std::pow(SubEq2,2)    )
+                  +((B_r_T0*alpha_B_r*SubEq1*H_knee)/(50*std::pow(SubEq2,2)));                
+   return d2C_BTdT2;
 }
 
 double PMDemagConstraintEqCoeff::Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
@@ -511,7 +596,40 @@ double PMDemagConstraintEqCoeff::Eval2ndDerivS1S2(mfem::ElementTransformation &t
                            const double state1,
                            const double state2)
 {
-   ///TODO: Derive and implement the Eval2ndDerivS1S2 method
+   // Assuming state1=flux density and state2=temperature
+   // Derivative with respect to flux density then temperature
+
+   // auto B = state1;
+   auto T = state2;
+
+   // Compute the values of the subequations needed for the overall constraint equation
+   auto B_knee = alpha_B_knee*T+beta_B_knee; // the approximate flux density of the knee point at the given temperature
+   auto H_knee = alpha_H_knee*T+beta_H_knee; // the approximate magnetic field intensity of the knee point at the given temperature
+   auto B_r = B_r_T0*(1+(alpha_B_r/100)*(T-T0)); // the remnant flux density
+   auto H_ci = H_ci_T0*(1+(alpha_H_ci/100)*(T-T0)); // the intrinisic coercivity
+
+   // Compute the value of the constraint equation
+   // If positive -> reversible demagnetization region.
+   // If negative -> irreversible demagnetization region.
+   // auto C_BT = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee))*B
+               // -(H_ci+((B_r*H_knee)/(B_knee-B_r)));
+   // auto dC_BTdB = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee));
+   
+    // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD 
+   auto SubEq1 = alpha_B_knee - (B_r_T0*alpha_B_r)/100;
+   auto SubEq2 = B_knee - B_r;
+   // auto SubEq3 = B_r/B_r_T0;
+   // auto dC_BTdT = B*(    (alpha_H_knee/SubEq2)-((alpha_H_knee-(H_ci_T0*alpha_H_ci/100))/B_knee)
+   //                   -((SubEq1*H_knee)/std::pow(SubEq2,2))
+   //                   +((alpha_B_knee*(H_knee-H_ci))/std::pow(B_knee,2))   )
+   //                -(H_ci_T0*alpha_H_ci)/100 -((B_r_T0*alpha_B_r*H_knee)/(100*SubEq2))
+   //                -(B_r_T0*alpha_H_knee*SubEq3)/SubEq2 + (B_r_T0*SubEq3*SubEq1*H_knee)/std::pow(SubEq2,2);
+   
+   // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD
+   auto d2C_BTdBdT = (alpha_H_knee/SubEq2)-((alpha_H_knee-(H_ci_T0*alpha_H_ci/100))/B_knee)
+                     -((SubEq1*H_knee)/std::pow(SubEq2,2))
+                     +((alpha_B_knee*(H_knee-H_ci))/std::pow(B_knee,2));
+   return d2C_BTdBdT;
 }
 
 ///TODO: Likely not necessary because of Eval2ndDerivS2S1
@@ -520,7 +638,40 @@ double PMDemagConstraintEqCoeff::Eval2ndDerivS2S1(mfem::ElementTransformation &t
                            const double state1,
                            const double state2)
 {
-   ///TODO: Derive and implement the Eval2ndDerivS2S1 method
+   // Assuming state1=flux density and state2=temperature
+   // Derivative with respect to temperature then flux density
+
+   // auto B = state1;
+   auto T = state2;
+
+   // Compute the values of the subequations needed for the overall constraint equation
+   auto B_knee = alpha_B_knee*T+beta_B_knee; // the approximate flux density of the knee point at the given temperature
+   auto H_knee = alpha_H_knee*T+beta_H_knee; // the approximate magnetic field intensity of the knee point at the given temperature
+   auto B_r = B_r_T0*(1+(alpha_B_r/100)*(T-T0)); // the remnant flux density
+   auto H_ci = H_ci_T0*(1+(alpha_H_ci/100)*(T-T0)); // the intrinisic coercivity
+
+   // Compute the value of the constraint equation
+   // If positive -> reversible demagnetization region.
+   // If negative -> irreversible demagnetization region.
+   // auto C_BT = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee))*B
+               // -(H_ci+((B_r*H_knee)/(B_knee-B_r)));
+   // auto dC_BTdB = ((H_knee/(B_knee-B_r))-((H_knee-H_ci)/B_knee));
+   
+    // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD 
+   auto SubEq1 = alpha_B_knee - (B_r_T0*alpha_B_r)/100;
+   auto SubEq2 = B_knee - B_r;
+   // auto SubEq3 = B_r/B_r_T0;
+   // auto dC_BTdT = B*(    (alpha_H_knee/SubEq2)-((alpha_H_knee-(H_ci_T0*alpha_H_ci/100))/B_knee)
+   //                   -((SubEq1*H_knee)/std::pow(SubEq2,2))
+   //                   +((alpha_B_knee*(H_knee-H_ci))/std::pow(B_knee,2))   )
+   //                -(H_ci_T0*alpha_H_ci)/100 -((B_r_T0*alpha_B_r*H_knee)/(100*SubEq2))
+   //                -(B_r_T0*alpha_H_knee*SubEq3)/SubEq2 + (B_r_T0*SubEq3*SubEq1*H_knee)/std::pow(SubEq2,2);
+   
+   // Used MATLAB to symbolically solve for derivative; will verify analytical derivative in test using FD
+   auto d2C_BTdTdB = (alpha_H_knee/SubEq2)-((alpha_H_knee-(H_ci_T0*alpha_H_ci/100))/B_knee)
+                     -((SubEq1*H_knee)/std::pow(SubEq2,2))
+                     +((alpha_B_knee*(H_knee-H_ci))/std::pow(B_knee,2));
+   return d2C_BTdTdB;
 }
 
 ///TODO: is there a need to code EvalRevDiff for PM demag constraint equation coefficient here? I'm thinking not

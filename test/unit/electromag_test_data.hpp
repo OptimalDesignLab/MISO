@@ -188,6 +188,27 @@ public:
    {
       // Implementing method for the purposes of DCLossFunctionalIntegratorMeshSens test
       // Trivial implementation (MFEM just needs method to be present so it can call it)
+      ///TODO: Make an actual implementation (nonzero implementation). Currently, PointMat_bar is not being updated
+      
+      // Using the old SteinmetzCoefficient::EvalRevDiff as inspiration
+ 
+      for (int d = 0; d < PointMat_bar.Height(); ++d)
+      {
+         for (int j = 0; j < PointMat_bar.Width(); ++j)
+         {
+            PointMat_bar(d,j)+= 0;
+            
+            // (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+         }
+      }
+
+
+      // PointMat_bar(0,0)+=998;
+      // PointMat_bar(1,1)+=997;
+
+      // PointMat_bar+=0;
+      // PointMat_bar+=(-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+      
    } 
 private:
    double alpha_resistivity;
