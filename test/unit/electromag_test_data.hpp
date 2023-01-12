@@ -82,7 +82,7 @@ void vectorFunc2RevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::
    x_bar(2) = 2*sin(x(0))*x(2)*v_bar(0) - x(0)*v_bar(1) + sin(x(1))*exp(x(2))*v_bar(2);
 }
 
-/// Simple linear coefficient for testing CurlCurlNLFIntegrator
+/// Simple linear coefficient for testing CurlCurlNLFIntegrator. Also using for ACLFI, ACLFDI
 class LinearCoefficient : public mach::StateCoefficient
 {
 public:
@@ -106,11 +106,11 @@ private:
    double value;
 };
 
-/// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator
+/// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator. Also using for DCLFI, DCLFDI
 class NonLinearCoefficient : public mach::StateCoefficient
 {
 public:
-   NonLinearCoefficient() {};
+   NonLinearCoefficient(double exponent = -0.5) : exponent(exponent) {}
 
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
@@ -121,7 +121,8 @@ public:
       // double state_mag = state.Norml2();
       // return pow(state, 2.0);
       // return state;
-      return 0.5*pow(state+1, -0.5);
+      // return 0.5*pow(state+1, -0.5);
+      return 0.5*pow(state+1, exponent);
    }
 
    double EvalStateDeriv(mfem::ElementTransformation &trans,
@@ -133,7 +134,8 @@ public:
       // double state_mag = state.Norml2();
       // return 2.0*pow(state, 1.0);
       // return 1.0;
-      return -0.25*pow(state+1, -1.5);
+      // return -0.25*pow(state+1, -1.5);
+      return 0.5*(exponent)*pow(state+1, exponent-1);
    }
 
    double EvalState2ndDeriv(mfem::ElementTransformation &trans,
@@ -142,10 +144,14 @@ public:
    {
       // return 2.0;
       // return 0.0;
-      return 0.375*pow(state+1, -2.5);
+      // return 0.375*pow(state+1, -2.5);
+      return 0.5*(exponent)*(exponent-1)*pow(state+1, exponent-2);
    }
+private:
+   double exponent;
 };
 
+/*** No longer using SigmaCoefficient (unnecessary)
 /// Simple coefficient for conductivity for testing resistivity (and DCLFIMS)
 class SigmaCoefficient : public mach::StateCoefficient
 {
@@ -188,23 +194,32 @@ public:
    {
       // Implementing method for the purposes of DCLossFunctionalIntegratorMeshSens test
       // Trivial implementation (MFEM just needs method to be present so it can call it)
-      ///TODO: Make an actual implementation (nonzero implementation). Currently, PointMat_bar is not being updated
+      ///FormerTODO: Make an actual implementation (nonzero implementation). Currently, PointMat_bar is not being updated
       
       // Using the old SteinmetzCoefficient::EvalRevDiff as inspiration
- 
+
+      ///FormerTODO: Figure out how to get the element nodes so can pass them in to loop below (the below is not it)
+      // double *p;
+      // const int dim=PointMat_bar.Height();
+      // ip.Get(p, dim);
+      // std::cout << "p=[" << p[0];
+      // std::cout << "," << p[1] << ","; 
+      // std::cout << p[2] << "\n";
+
+      // Evaluate the reverse mode derivative of sigma w/r/t the mesh nodes
       for (int d = 0; d < PointMat_bar.Height(); ++d)
       {
          for (int j = 0; j < PointMat_bar.Width(); ++j)
          {
-            PointMat_bar(d,j)+= 0;
             
-            // (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+            // std::cout << "nodes(" << d << "," << j << " = " << nodes(d,j) << "\n";
+
+            ///FormerTODO: Assuming have the node locations, calculate the value for EvalRevDiff
+            // double dT_nodedx = 0;
+            // double T_node=37;
+            // PointMat_bar(d,j)+=(-sigma_T_ref*alpha_resistivity*dT_nodedx)/std::pow(1+alpha_resistivity*(T_node-T_ref),2);
          }
       }
-
-
-      // PointMat_bar(0,0)+=998;
-      // PointMat_bar(1,1)+=997;
 
       // PointMat_bar+=0;
       // PointMat_bar+=(-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
@@ -215,6 +230,7 @@ private:
    double T_ref;
    double sigma_T_ref;
 };
+*/
 
 /// Simple coefficient for CAL2 coefficients for testing CAL2CoreLossIntegrator
 // Can represent either CAL2_kh coefficients or CAL2_ke coefficients

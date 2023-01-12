@@ -2141,7 +2141,8 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          temperature_field_test.ProjectCoefficient(model);
          
          // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-         std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         std::unique_ptr<mach::StateCoefficient> sigma(new NonLinearCoefficient(-1.0)); //** no longer using SigmaCoefficient (unnecessary) 
 
          // Define the functional integrator that will be used to compute the resistivity
          auto *integ = new mach::DCLossFunctionalIntegrator(*sigma,&temperature_field_test);
@@ -2155,19 +2156,20 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
  
          // Compare the computed resistivity to the value found by integration
          double expected_resistivity;
-         double alpha_resistivity = 3.8e-3; 
-         double T_ref = 20;
-         double sigma_T_ref = 5.6497e7;
-         double state; // the average temperature over the simple 2D domain. 
-         // State from electromag_integ.cpp file, line ~3510 if temperature field is null pointer, else it analytically derived from the model function coefficient
-         state = 37; //constant temperature throughout mesh
+         // double alpha_resistivity = 3.8e-3; // only needed if using SigmaCoefficient
+         // double T_ref = 20; // only needed if using SigmaCoefficient
+         // double sigma_T_ref = 5.6497e7; // only needed if using SigmaCoefficient
+         double state; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
+         state = 37.0; //constant temperature throughout mesh
          // state = 77.0/2; // temperature linearly dependent in the x(0) direction
          // state = 63.0/2; // temperature linearly dependent in the x(1) direction
          // state = 30.0/3; // temperature quadratically dependent in the x(0) direction; fails for p=1 as expected
          // state = 77.0/2+63.0/2; // temperature linearly dependent in both x(0) and x(1) directions
          // state = 30.0/3+3.0/3; // temperature linearly dependent in both x(0) and x(1) directions; fails for p=1 as expected
 
-         expected_resistivity = (1+alpha_resistivity*(state-T_ref))/sigma_T_ref; // the inverse of equation for sigma
+         // expected_resistivity = (1+alpha_resistivity*(state-T_ref))/sigma_T_ref; // the inverse of equation for sigma (for SigmaCoefficient)
+         expected_resistivity = 2*state+2; // for NonLinearCoefficient
+
          // std::cout << "expected_resistivity = " << expected_resistivity << "\n";
          // std::cout << "diff = " << resistivity-expected_resistivity << "\n";
          REQUIRE(resistivity == Approx(expected_resistivity)); // Assert the DCLossFunctionalIntegrator is working as expected
@@ -2176,7 +2178,8 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
    }
 }
 
-///TODO: Revisit and ensure MeshRevSens is implemented for sigma
+/*** Leaving test commented out because sigma no longer directly depends on the mesh coords (1/11/23)
+//*** Sigma depends on the temperature which depends on the mesh. Thus, not worrying about this class (for now, at least).
 TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
 {
    using namespace mfem;
@@ -2255,9 +2258,10 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          temperature_field_test.ProjectCoefficient(model);
          
          // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-         std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
-         
-         // Define the primary integrator (DCLossFunctionalIntegrator, resistivity)
+         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient()); //** no longer using SigmaCoefficient (unnecessary) 
+
+         // Define the primal integrator (DCLossFunctionalIntegrator, resistivity)
          auto *integ = new mach::DCLossFunctionalIntegrator(*sigma,&temperature_field_test);
          // auto *integ = new mach::DCLossFunctionalIntegrator(*sigma); //confirms that DCLossFunctional integrator works as intended if don't pass in a temperature field
          NonlinearForm functional(&fes);
@@ -2302,6 +2306,102 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
       }
    }
+}
+*/
+
+// Added test case for DCLossFunctionalDistributionIntegrator
+///TODO: Finish test case in conjuction with implementation itself
+TEST_CASE("DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+   
+   // Not using the previous function coefficient model for sigma
+
+   //Function Coefficient model Representing the Temperature Field
+   FunctionCoefficient model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double T = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            T = 37; //constant temperature throughout mesh
+            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+         }
+         return T;
+      });
+
+   // Adapted from TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)"):
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // mesh.SetCurvature(p);
+
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         // Create the temperature_field grid function by mapping the function coefficient to a grid function
+         GridFunction temperature_field_test(&fes);
+         temperature_field_test.ProjectCoefficient(model);
+         
+         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
+         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient()); //** no longer using SigmaCoefficient (unnecessary) 
+
+         // No need for primal integrator
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&mesh_fes);
+         p.ProjectCoefficient(v_pert);
+         
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdx(&mesh_fes);
+         dJdx.AddDomainIntegrator(
+            new mach::DCLossFunctionalDistributionIntegrator(*sigma,&temperature_field_test)); // if temperature field is present
+         // dJdx.AddDomainIntegrator(
+         //    new mach::DCLossFunctionalDistributionIntegrator(*sigma)); // if no temperature field
+         std::cout << "DCLFDI before assembling dJdx\n";
+         dJdx.Assemble();
+         std::cout << "DCLFDI after assembling dJdx\n";
+         double dJdx_dot_p = dJdx * p;
+         std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
+
+         ///TODO: compute the finite-difference approximation or other value as needed to assert LinearForm
+                 
+         ///TODO: Add Assertion
+         // std::cout << "dJdx_dot_p_fd=" << dJdx_dot_p_fd << "\n";
+         // REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+      }
+   }   
 }
 
 // Added test case for ACLossFunctionalIntegrator (sigma*B^2 value)
@@ -2348,10 +2448,10 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            T = 37; //constant temperature throughout mesh
+            // T = 37; //constant temperature throughout mesh
             // T = 77*x(0); // temperature linearly dependent in the x(0) direction
             // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
+            T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
             // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
             // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
 
@@ -2382,7 +2482,10 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          flux_density_field.ProjectCoefficient(Bfield_model);
          
          // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-         std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         double state=30.0/3; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
+         // In order of temperature field, state=37.0, 77.0/2, 63.0/2, 30.0/3, 77.0/2+63.0/2, 30.0/3+3.0/3
+         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient(state)); //** no longer using SigmaCoefficient (unnecessary) 
 
          // Define the functional integrator that will be used to compute the sigma_b2
          auto *integ = new mach::ACLossFunctionalIntegrator(*sigma,&temperature_field_test);
@@ -2396,12 +2499,12 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
  
          // Compare the computed sigma_b2 to the value found by integration (analytically derived, checked with WolframAlpha)
          double expected_sigma_b2;
-         double x0=1; // the upper limit for integration in the x(0) direction
-         double x1=1; // the upper limit for integration in the x(1) direction
-         double alpha_resistivity = 3.8e-3; 
-         double T_ref = 20;
-         double sigma_T_ref = 5.6497e7;
-         expected_sigma_b2 = (sigma_T_ref/(1+alpha_resistivity*(37-T_ref)))*std::pow(1.7,2)*x0*x1; // for B = 1.7; T = 37; passes for all degrees;         
+         // double x0=1; // the upper limit for integration in the x(0) direction // only needed if using SigmaCoefficient
+         // double x1=1; // the upper limit for integration in the x(1) direction // only needed if using SigmaCoefficient
+         // double alpha_resistivity = 3.8e-3; // only needed if using SigmaCoefficient
+         // double T_ref = 20; // only needed if using SigmaCoefficient
+         // double sigma_T_ref = 5.6497e7; // only needed if using SigmaCoefficient
+         // expected_sigma_b2 = (sigma_T_ref/(1+alpha_resistivity*(37-T_ref)))*std::pow(1.7,2)*x0*x1; // for B = 1.7; T = 37; passes for all degrees;         
          // expected_sigma_b2 = (1.0189201578057486e8)*std::pow(x0,3)*x1; // for B = 2.4*x(0); T = 37; fails for degree p=1 as expected (p=1sigma_b2 = 9.76465e+07, expected_sigma_b2 = 1.01892e+08, diff=-4.2455e+06)
          // expected_sigma_b2 = 1.5351283527722308e8; // for B = 1.7; T = 77*x(0); fails for degree p=1 (sigma_b2 = 1.53349e+08, expected_sigma_b2 = 1.53513e+08, diff=-163514)
          // expected_sigma_b2 = 1.0439171176578794e8; // for B = 2.4*x(0); T = 63*x(1); fails for degree p=1 (sigma_b2 = 9.5404e+07, expected_sigma_b2 = 9.55238e+07, diff=-119773)
@@ -2411,162 +2514,174 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          // expected_sigma_b2 = 100000000*std::pow(((sigma_T_ref)/(1+alpha_resistivity*(37-T_ref))),-1)+2.4/2; // for temporarily ACLFI loss, T=37, B = 2.4*x(0); passes for all orders, including p=1
          // expected_sigma_b2 = 3.5944368727543055; // for temporarily ACLFI loss, T=77*x(0), B = 1.7; passes for all orders, including p=1
          // expected_sigma_b2 = 3.094436872754305538347; // for temporarily ACLFI loss, T=77*x(0), B = 2.4*x(0); passes for all orders, including p=1
-         // Have not tested other combinations of B and T fields
+         // Have not tested other combinations of B and T fields using SigmaCoefficient
+
+         expected_sigma_b2 = pow(1.7,2)*state; // for B=1.7 when using LinearCoefficient prescribed above
+         // expected_sigma_b2 = pow(2.4,2)*state/3; // for B=2.4*x(0) when using LinearCoefficient prescribed above
+         // expected_sigma_b2 = pow(3.0,2)*state/5; // for B=3.0*std::pow(x(0),2) when using LinearCoefficient prescribed above
 
          // std::cout << "p=" << p << "expected_sigma_b2 = " << expected_sigma_b2 << "\n";
          // std::cout << "p=" << p << "diff=" <<sigma_b2-expected_sigma_b2 << "\n";
-         REQUIRE(sigma_b2 == Approx(expected_sigma_b2)); // Assert the DCLossFunctionalIntegrator is working as expected
+         REQUIRE(sigma_b2 == Approx(expected_sigma_b2)); // Assert the ACLossFunctionalIntegrator is working as expected
 
       }
    }
 }
 
-///TODO: Come back to this. Needed for optimization
-// TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
-// {
-//    using namespace mfem;
-//    using namespace electromag_data;
+/*** 1/11/23: Leaving test commented out because sigma no longer directly depends on the mesh coords. 
+//*** Sigma depends on the temperature which depends on the mesh. Thus, not worrying about this class (for now, at least).
+TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
+{
+   using namespace mfem;
+   using namespace electromag_data;
 
-//    double delta = 1e-5;
+   double delta = 1e-5;
 
-//    // generate a 8 element mesh
-//    int num_edge = 2;
-//    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
-//                                      Element::TRIANGLE);
-//    mesh.EnsureNodes();
-//    const auto dim = mesh.SpaceDimension();
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
 
-//    // mfem::FunctionCoefficient model(
-//    //    [](const mfem::Vector &x)
-//    //    {
-//    //       double q = 0;
-//    //       for (int i = 0; i < x.Size(); ++i)
-//    //       {
-//    //          q += pow(x(i), 2);
-//    //          // q += sqrt(x(i));
-//    //          // q += pow(x(i), 5);
-//    //       }
-//    //       return q;
-//    //    },
-//    //    [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-//    //    {
-//    //       for (int i = 0; i < x.Size(); ++i)
-//    //       {
-//    //          x_bar(i) += q_bar * 2 * x(i);
-//    //          // x_bar(i) += q_bar * 0.5 / sqrt(x(i));
-//    //          // x_bar(i) += q_bar * 5 * pow(x(i), 4);
-//    //       }
-//    //    });
+   // mfem::FunctionCoefficient model(
+   //    [](const mfem::Vector &x)
+   //    {
+   //       double q = 0;
+   //       for (int i = 0; i < x.Size(); ++i)
+   //       {
+   //          q += pow(x(i), 2);
+   //          // q += sqrt(x(i));
+   //          // q += pow(x(i), 5);
+   //       }
+   //       return q;
+   //    },
+   //    [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
+   //    {
+   //       for (int i = 0; i < x.Size(); ++i)
+   //       {
+   //          x_bar(i) += q_bar * 2 * x(i);
+   //          // x_bar(i) += q_bar * 0.5 / sqrt(x(i));
+   //          // x_bar(i) += q_bar * 5 * pow(x(i), 4);
+   //       }
+   //    });
 
-//    //Function Coefficient model Representing the B Field (flux density)
-//    FunctionCoefficient Bfield_model(
-//       [](const mfem::Vector &x)
-//       {
-//          // x will be the point in space
-//          double B = 0;
-//          for (int i = 0; i < x.Size(); ++i)
-//          {
-//             B = 1.7; //constant flux density throughout mesh
-//             // B = 2.4*x(0); // flux density linearly dependent in the x(0) direction
-//             // B = 1.1*x(1); // flux density linearly dependent in the x(1) direction
-//             // B = 3.0*std::pow(x(0),2); // flux density quadratically dependent in the x(0) direction
-//             // B = 2.4*x(0)+1.1*x(1); // flux density linearly dependent in both x(0) and x(1) directions
-//             // B = 3.0*std::pow(x(0),2) + 0.3*std::pow(x(1),2); // flux density quadratically dependent in both x(0) and x(1) directions
+   //Function Coefficient model Representing the B Field (flux density)
+   FunctionCoefficient Bfield_model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double B = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            B = 1.7; //constant flux density throughout mesh
+            // B = 2.4*x(0); // flux density linearly dependent in the x(0) direction
+            // B = 1.1*x(1); // flux density linearly dependent in the x(1) direction
+            // B = 3.0*std::pow(x(0),2); // flux density quadratically dependent in the x(0) direction
+            // B = 2.4*x(0)+1.1*x(1); // flux density linearly dependent in both x(0) and x(1) directions
+            // B = 3.0*std::pow(x(0),2) + 0.3*std::pow(x(1),2); // flux density quadratically dependent in both x(0) and x(1) directions
 
-//          }
-//          return B;
-//       });
+         }
+         return B;
+      });
 
-//    //Function Coefficient model Representing the Temperature Field
-//    FunctionCoefficient Tfield_model(
-//       [](const mfem::Vector &x)
-//       {
-//          // x will be the point in space
-//          double T = 0;
-//          for (int i = 0; i < x.Size(); ++i)
-//          {
-//             // T = 37; //constant temperature throughout mesh
-//             // T = 77*x(0); // temperature linearly dependent in the x(0) direction
-//             // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-//             // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-//             // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-//             T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+   //Function Coefficient model Representing the Temperature Field
+   FunctionCoefficient Tfield_model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double T = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            T = 37; //constant temperature throughout mesh
+            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
 
-//          }
-//          return T;
-//       });
+         }
+         return T;
+      });
 
-//    for (int p = 1; p <= 4; ++p)
-//    {
-//       DYNAMIC_SECTION("...for degree p = " << p)
-//       {
-//          // mesh.SetCurvature(p);
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // mesh.SetCurvature(p);
 
-//          L2_FECollection fec(p, dim); // Keep the L2 elements or use other FEs?
-//          FiniteElementSpace fes(&mesh, &fec);
+         L2_FECollection fec(p, dim); // Keep the L2 elements or use other FEs?
+         FiniteElementSpace fes(&mesh, &fec);
 
-//          // initialize state
-//          GridFunction a(&fes);
-//          FunctionCoefficient pert(randState);
-//          a.ProjectCoefficient(pert);
+         ///NOTE: state initialization may no longer be necessary because of the flux density field
+         // initialize state 
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
 
-//          // Create the temperature_field grid function by mapping the function coefficient to a grid function
-//          GridFunction temperature_field_test(&fes);
-//          temperature_field_test.ProjectCoefficient(Tfield_model);
+         // Create the temperature_field grid function by mapping the function coefficient to a grid function
+         GridFunction temperature_field_test(&fes);
+         temperature_field_test.ProjectCoefficient(Tfield_model);
 
-//          // Create the flux density field (B) grid function by mapping the function coefficient to a grid function
-//          GridFunction flux_density_field(&fes);
-//          flux_density_field.ProjectCoefficient(Bfield_model);
+         // Create the flux density field (B) grid function by mapping the function coefficient to a grid function
+         GridFunction flux_density_field(&fes);
+         flux_density_field.ProjectCoefficient(Bfield_model);
          
-//          // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-//          std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
-         
-//          // Define the primary integrator (ACLossFunctionalIntegrator)
-//          auto *integ = new mach::ACLossFunctionalIntegrator(*sigma,&temperature_field_test);
-//          // auto *integ = new mach::ACLossFunctionalIntegrator(*sigma); //confirms that ACLossFunctional integrator works as intended if don't pass in a temperature field
-//          NonlinearForm functional(&fes);
-//          functional.AddDomainIntegrator(integ);
+         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
+         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient()); //** no longer using SigmaCoefficient (unnecessary) 
 
-//          // extract mesh nodes and get their finite-element space
-//          auto &x_nodes = *mesh.GetNodes();
-//          auto &mesh_fes = *x_nodes.FESpace();
+         // Define the primal integrator (ACLossFunctionalIntegrator)
+         auto *integ = new mach::ACLossFunctionalIntegrator(*sigma,&temperature_field_test);
+         // auto *integ = new mach::ACLossFunctionalIntegrator(*sigma); //confirms that ACLossFunctional integrator works as intended if don't pass in a temperature field
+         NonlinearForm functional(&fes);
+         functional.AddDomainIntegrator(integ);
 
-//          // create v displacement field
-//          GridFunction v(&mesh_fes);
-//          VectorFunctionCoefficient v_pert(dim, randVectorState);
-//          v.ProjectCoefficient(v_pert);
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
 
-//          // initialize the vector that dJdx multiplies
-//          GridFunction p(&mesh_fes);
-//          p.ProjectCoefficient(v_pert);
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
 
-//          // evaluate dJdx and compute its product with p
-//          LinearForm dJdx(&mesh_fes);
-//          dJdx.AddDomainIntegrator(
-//             new mach::ACLossFunctionalIntegratorMeshSens(a, *integ));
-//          dJdx.Assemble();
-//          double dJdx_dot_p = dJdx * p;
-//          // std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&mesh_fes);
+         p.ProjectCoefficient(v_pert);
 
-//          // now compute the finite-difference approximation...
-//          GridFunction x_pert(x_nodes);
-//          x_pert.Add(-delta, p);
-//          mesh.SetNodes(x_pert);
-//          fes.Update();
-//          double dJdx_dot_p_fd = -functional.GetEnergy(a);
-//          x_pert.Add(2 * delta, p);
-//          mesh.SetNodes(x_pert);
-//          fes.Update();
-//          dJdx_dot_p_fd += functional.GetEnergy(a);
-//          dJdx_dot_p_fd /= (2 * delta);
-//          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
-//          fes.Update();
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdx(&mesh_fes);
+         // dJdx.AddDomainIntegrator(
+         //    new mach::ACLossFunctionalIntegratorMeshSens(a, *integ)); // pre-peak flux
+         dJdx.AddDomainIntegrator(
+            new mach::ACLossFunctionalIntegratorMeshSens(flux_density_field, *integ)); // the state is the peak flux
+         dJdx.Assemble();
+         double dJdx_dot_p = dJdx * p;
+         std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
 
-//          // std::cout << "dJdx_dot_p_fd=" << dJdx_dot_p_fd << "\n";
-//          REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
-//       }
-//    }
-// }
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         x_pert.Add(-delta, p);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         // double dJdx_dot_p_fd = -functional.GetEnergy(a); // pre-peak flux
+         double dJdx_dot_p_fd = -functional.GetEnergy(flux_density_field); // the state is the peak flux
+         x_pert.Add(2 * delta, p);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         // dJdx_dot_p_fd += functional.GetEnergy(a); // pre-peak flux
+         dJdx_dot_p_fd += functional.GetEnergy(flux_density_field);
+         dJdx_dot_p_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         std::cout << "dJdx_dot_p_fd=" << dJdx_dot_p_fd << "\n";
+         REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+      }
+   }
+}
+*/
 
 ///TODO: Revisit test. Currently commented out because ACLossFunctionalIntegratorPeakFluxSens is hanging onto the old logic (unlike its primal integrator). And in this test sigma is a constant coefficient of 1, and it cannot convert from ConstantCoefficient to StateCoefficient
 // TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
@@ -2634,6 +2749,125 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
 //       }
 //    }
 // }
+
+// Added test case for ACLossFunctionalDistributionIntegrator
+///TODO: Finish test case in conjuction with implementation itself
+TEST_CASE("ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+      // Not using the previous function coefficient model for sigma
+
+   //Function Coefficient model Representing the B Field (flux density)
+   FunctionCoefficient Bfield_model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double B = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            B = 1.7; //constant flux density throughout mesh
+            // B = 2.4*x(0); // flux density linearly dependent in the x(0) direction
+            // B = 1.1*x(1); // flux density linearly dependent in the x(1) direction
+            // B = 3.0*std::pow(x(0),2); // flux density quadratically dependent in the x(0) direction
+            // B = 2.4*x(0)+1.1*x(1); // flux density linearly dependent in both x(0) and x(1) directions
+            // B = 3.0*std::pow(x(0),2) + 0.3*std::pow(x(1),2); // flux density quadratically dependent in both x(0) and x(1) directions
+
+         }
+         return B;
+      });
+
+   //Function Coefficient model Representing the Temperature Field
+   FunctionCoefficient Tfield_model(
+      [](const mfem::Vector &x)
+      {
+         // x will be the point in space
+         double T = 0;
+         for (int i = 0; i < x.Size(); ++i)
+         {
+            T = 37; //constant temperature throughout mesh
+            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+
+         }
+         return T;
+      });
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // mesh.SetCurvature(p);
+
+         L2_FECollection fec(p, dim); // Keep the L2 elements or use other FEs?
+         FiniteElementSpace fes(&mesh, &fec);
+
+         ///NOTE: state initialization may no longer be necessary because of the flux density field
+         // initialize state 
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         // Create the temperature_field grid function by mapping the function coefficient to a grid function
+         GridFunction temperature_field_test(&fes);
+         temperature_field_test.ProjectCoefficient(Tfield_model);
+
+         // Create the flux density field (B) grid function by mapping the function coefficient to a grid function
+         GridFunction flux_density_field(&fes);
+         flux_density_field.ProjectCoefficient(Bfield_model);
+         
+         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
+         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
+         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient()); //** no longer using SigmaCoefficient (unnecessary) 
+
+         // No need for primal integrator
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // create v displacement field
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&mesh_fes);
+         p.ProjectCoefficient(v_pert);
+
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdx(&mesh_fes);
+         dJdx.AddDomainIntegrator(
+            new mach::ACLossFunctionalDistributionIntegrator(flux_density_field, *sigma, &temperature_field_test)); // if temperature field is present
+         // dJdx.AddDomainIntegrator(
+         //    new mach::ACLossFunctionalDistributionIntegrator(flux_density_field, *sigma, &temperature_field_test)); // if no temperature field
+         std::cout << "ACLFDI before assembling dJdx\n";
+         dJdx.Assemble();
+         std::cout << "ACLFDI after assembling dJdx\n";
+         double dJdx_dot_p = dJdx * p;
+         std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
+
+         ///TODO: compute the finite-difference approximation or other value as needed to assert LinearForm
+                 
+         ///TODO: Add Assertion
+         // std::cout << "dJdx_dot_p_fd=" << dJdx_dot_p_fd << "\n";
+         // REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+      }
+   }
+}
 
 TEST_CASE("ForceIntegrator3::GetElementEnergy")
 {

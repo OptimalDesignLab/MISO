@@ -288,7 +288,6 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("temperature"),
                      std::forward_as_tuple(mesh(), temp_field_options));
 
-      /// TODO: Is the below still ok now that sigma is not a constant?
       EMHeatSourceOutput out(fields,
                              rho,
                              sigma,

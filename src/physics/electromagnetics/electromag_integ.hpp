@@ -1239,7 +1239,7 @@ private:
 
    /// class that implements mesh sensitivities for
    /// DCLossFunctionalDistributionIntegrator
-   ///TODO: Define and Implement this class
+   ///TODO: If necessary, define and implement this class
    friend class DCLossFunctionalDistributionIntegratorMeshSens;
 };
 
@@ -1445,10 +1445,11 @@ private:
 #endif
    /// class that implements mesh sensitivities for
    /// ACLossFunctionalDistributionIntegrator
+   ///TODO: If necessary, define and implement this class
    friend class ACLossFunctionalDistributionIntegratorMeshSens;
 };
 
-/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
+///NOTE: HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
 /// In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
 /// Functional integrator to compute AC copper losses based on hybrid approach
 // class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
@@ -1783,90 +1784,6 @@ private:
    friend class SteinmetzLossIntegratorMeshSens;
 };
 
-/// Functional integrator to compute core losses based on the CAL2 core loss model,
-/// a two term loss separation model consisting of a term for hysteresis losses and a term for eddy current losses 
-/// that assumes the hysteresis exponent for B to be constant and equal to 2, like for eddy currents
-class CAL2CoreLossIntegrator : public mfem::NonlinearFormIntegrator
-{
-public:
-   friend void setInputs(CAL2CoreLossIntegrator &integ,
-                         const MachInputs &inputs);
-
-   /// \brief - Compute element contribution to global force/torque
-   /// \param[in] el - the finite element
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - state vector of the element
-   /// \returns the element contribution to global force/torque
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun) override;
-
-   /// TODO: Copied over from SteimetzLossIntegrator, Adjust as needed
-   // /// \brief - Computes dJdu, for solving for the adjoint
-   // /// \param[in] el - the finite element
-   // /// \param[in] trans - defines the reference to physical element mapping
-   // /// \param[in] elfun - state vector of the element
-   // /// \param[out] elfun_bar - \partial J \partial u for this functional
-   // void AssembleElementVector(const mfem::FiniteElement &el,
-   //                            mfem::ElementTransformation &trans,
-   //                            const mfem::Vector &elfun,
-   //                            mfem::Vector &elfun_bar) override;
-
-
-   CAL2CoreLossIntegrator(mfem::Coefficient &rho,
-                           ThreeStateCoefficient &CAL2_kh,
-                           ThreeStateCoefficient &CAL2_ke,
-                           mfem::GridFunction &peak_flux,
-                           mfem::GridFunction *temperature_field=nullptr,
-                           std::string name = "")
-    : rho(rho), CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
-    temperature_field(temperature_field), name(std::move(name))
-   { }
-
-private:
-   // Density
-   mfem::Coefficient &rho;
-   /// CAL2 Coefficients
-   ThreeStateCoefficient &CAL2_kh;
-   ThreeStateCoefficient &CAL2_ke;
-
-   mfem::GridFunction &peak_flux; // peak flux field
-
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
-
-   /// Commenting out these because the material library parameters should be taken care of at the higher level definition of these 3 state coeffs
-   // /// The material library data that the coefficients require
-   // mfem::Coefficient &kh_T0;
-   // mfem::Coefficient &kh_T1;
-   // mfem::Coefficient &ke_T0;
-   // mfem::Coefficient &kh_T1;
-
-   // optional integrator name to differentiate setting inputs
-   std::string name;
-
-   /// Temperature
-   double temperature = 1.0;
-   /// Electrical excitation frequency
-   double freq = 1.0;
-   /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
-   double max_flux_mag = 1.0;
-
-   ///TODO: Figure out the best way to handle these four. Thread-safe was not working for me in this or cpp file, so had to eliminate the #ifdef MFEM_THREAD_SAFE for variables to be in scope. However, don't fully realize the repercussions
-#ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::Array<int> vdofs;
-   mfem::Vector temp_elfun;
-   mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
-#endif
-
-   /// class that implements mesh sensitivities for CAL2CoreLossIntegrator
-   ///TODO: Will this needed to be added? The equivalent for Steinmetz never was made.
-   friend class CAL2CoreLossIntegratorMeshSens;
-};
-
-///TODO: Is there a need to make a CAL2CoreLossDistributionIntegrator (mirroring SteinmetzLossDistributionIntegrator below)? SteinmetzLossDistributionIntegrator is seemingly never used outside of this hpp and cpp file.
-
 class SteinmetzLossIntegratorFreqSens : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -2022,8 +1939,136 @@ private:
 #endif
    /// class that implements mesh sensitivities for
    /// SteinmetzLossDistributionIntegrator
+   ///TODO: If necessary, define and implement this class
    friend class SteinmetzLossDistributionIntegratorMeshSens;
 };
+
+/// Functional integrator to compute core losses based on the CAL2 core loss model,
+/// a two term loss separation model consisting of a term for hysteresis losses and a term for eddy current losses 
+/// that assumes the hysteresis exponent for B to be constant and equal to 2, like for eddy currents
+class CAL2CoreLossIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setInputs(CAL2CoreLossIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \brief - Compute element contribution to global force/torque
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global force/torque
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   CAL2CoreLossIntegrator(mfem::Coefficient &rho,
+                           ThreeStateCoefficient &CAL2_kh,
+                           ThreeStateCoefficient &CAL2_ke,
+                           mfem::GridFunction &peak_flux,
+                           mfem::GridFunction *temperature_field=nullptr,
+                           std::string name = "")
+    : rho(rho), CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
+    temperature_field(temperature_field), name(std::move(name))
+   { }
+
+private:
+   // Density
+   mfem::Coefficient &rho;
+   /// CAL2 Coefficients
+   ThreeStateCoefficient &CAL2_kh;
+   ThreeStateCoefficient &CAL2_ke;
+
+   mfem::GridFunction &peak_flux; // peak flux field
+
+   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
+   /// Temperature
+   double temperature = 1.0;
+   /// Electrical excitation frequency
+   double freq = 1.0;
+   /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
+   double max_flux_mag = 1.0;
+
+   ///TODO: Figure out the best way to handle these four. Thread-safe was not working for me in this or cpp file, so had to eliminate the #ifdef MFEM_THREAD_SAFE for variables to be in scope. However, don't fully realize the repercussions
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector flux_elfun;
+#endif
+
+   /// class that implements mesh sensitivities for CAL2CoreLossIntegrator
+   ///TODO: Will this needed to be added? The equivalent for Steinmetz never was made.
+   friend class CAL2CoreLossIntegratorMeshSens;
+};
+
+/// Functional integrator to compute the spacial distribution of the heat flux for core losses based on the CAL2 core loss model,
+/// a two term loss separation model consisting of a term for hysteresis losses and a term for eddy current losses 
+/// that assumes the hysteresis exponent for B to be constant and equal to 2, like for eddy currents
+class CAL2CoreLossDistributionIntegrator : public mfem::LinearFormIntegrator
+{
+public:
+   friend void setInputs(CAL2CoreLossDistributionIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \brief - Compute element contribution to global force/torque
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[out] elvect - element local heat source distribution
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           mfem::Vector &elvect) override;
+
+   CAL2CoreLossDistributionIntegrator(mfem::Coefficient &rho,
+                           ThreeStateCoefficient &CAL2_kh,
+                           ThreeStateCoefficient &CAL2_ke,
+                           mfem::GridFunction &peak_flux,
+                           mfem::GridFunction *temperature_field=nullptr,
+                           std::string name = "")
+    : rho(rho), CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
+    temperature_field(temperature_field), name(std::move(name))
+   { }
+
+private:
+   // Density
+   mfem::Coefficient &rho;
+   /// CAL2 Coefficients
+   ThreeStateCoefficient &CAL2_kh;
+   ThreeStateCoefficient &CAL2_ke;
+
+   mfem::GridFunction &peak_flux; // peak flux field
+
+   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
+   /// Temperature
+   double temperature = 1.0;
+   /// Electrical excitation frequency
+   double freq = 1.0;
+   /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
+   double max_flux_mag = 1.0;
+
+   ///TODO: Make code thread safe
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector flux_elfun;
+#endif
+
+   /// class that implements mesh sensitivities for CAL2CoreLossDistributionIntegrator
+   ///TODO: Will this needed to be added? The equivalent for Steinmetz never was made.
+   friend class CAL2CoreLossDistributionIntegratorMeshSens;
+};
+
+///TODO: Is there a need to make a CAL2CoreLossDistributionIntegrator (mirroring SteinmetzLossDistributionIntegrator below)? SteinmetzLossDistributionIntegrator is seemingly never used outside of this hpp and cpp file.
 
 }  // namespace mach
 

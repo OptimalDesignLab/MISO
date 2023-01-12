@@ -377,8 +377,6 @@ private:
    std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
    std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
    
-   bool Test_bool = true;
-
    MachInputs inputs;
 };
 
