@@ -787,6 +787,10 @@ protected:
    std::unique_ptr<NonlinearFormType> nonlinear_mass;
    /// the mass matrix bilinear form
    std::unique_ptr<BilinearFormType> mass;
+   /// mass matrix
+   std::unique_ptr<SparseMatrix> mass_matrix;
+   std::unique_ptr<SparseMatrix> mass_matrix_gd;
+   //std::unique_ptr<HypreParMatrix> mass_matrix_gd;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
    /// the spatial residual /* only for demonstration */

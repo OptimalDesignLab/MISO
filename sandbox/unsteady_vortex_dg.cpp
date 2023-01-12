@@ -3,7 +3,7 @@
 constexpr bool entvar = false;
 #include <random>
 #include "mfem.hpp"
-#include "euler.hpp"
+#include "euler_dg.hpp"
 #include "euler_fluxes.hpp"
 #include <fstream>
 #include <iostream>
@@ -26,7 +26,7 @@ void u0_function(const Vector &x, Vector &u0);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "unsteady_vortex_options.json";
+   const char *options_file = "unsteady_vortex_dg_options.json";
 #ifdef MFEM_USE_PETSC
    const char *petscrc_file = "eulersteady.petsc";
    // Get the option file
@@ -69,22 +69,22 @@ int main(int argc, char *argv[])
    {
       // construct the solver, set the initial condition, and solve
       string opt_file_name(options_file);
-      auto solver = createSolver<EulerSolver<2, entvar>>(opt_file_name);
+      auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name);
       solver->setInitialCondition(u0_function);
-      solver->printSolution("unsteady-vortex-sbp-init");
+      solver->printSolution("unsteady-vortex-dg-init");
       solver->feedpert(pert);
-      double l2_error = (static_cast<EulerSolver<2, entvar> &>(*solver)
+      double l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(u0_function, 0));
       *out << "\n|| u_h - u ||_{L^2} = " << l2_error << '\n' << endl;
-      // *out << "\n|| u_h - u ||_{L^2} = "
-      //           << solver->calcL2Error(u0_function) << '\n' << endl;
+      //   *out << "\n|| u_h - u ||_{L^2} = "
+      //             << solver->calcL2Error(u0_function) << '\n' << endl;
       solver->solveForState();
-      l2_error = (static_cast<EulerSolver<2, entvar> &>(*solver)
+      l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(u0_function, 0));
       *out << "\n|| u_h - u ||_{L^2} = " << l2_error << '\n' << endl;
-      // *out << "\n|| u_h - u ||_{L^2} = "
-      //           << solver->calcL2Error(u0_function) << '\n' << endl;
-      solver->printSolution("unsteady-vortex-sbp-final");
+      //   *out << "\n|| u_h - u ||_{L^2} = "
+      //             << solver->calcL2Error(u0_function) << '\n' << endl;
+      solver->printSolution("unsteady-vortex-dg-final");
    }
    catch (MachException &exception)
    {

@@ -250,6 +250,7 @@ void AbstractSolver::initDerived()
    {
       addMassIntegrators(alpha);
       mass->Assemble(0);
+      *out << "mass size after Assemble(): " << mass->Height() << " x " << mass->Width() << endl;
       mass->Finalize();
    }
 
@@ -259,9 +260,12 @@ void AbstractSolver::initDerived()
       visc_coeff = options["space-dis"]["visc-coeff"].template get<double>();
       /// TODO: look at partial assembly
       addResVolumeIntegrators(alpha);
-      addResVolumeIntegrators(alpha, visc_coeff);
+      cout << "added vol integrators " << endl;
+      // addResVolumeIntegrators(alpha, visc_coeff);
       addResBoundaryIntegrators(alpha);
+      cout << "added bdr integrators " << endl;
       addResInterfaceIntegrators(alpha);
+      cout << "added face integrators " << endl;
    }
 
    if (stiff)
@@ -280,12 +284,13 @@ void AbstractSolver::initDerived()
       addLoadBoundaryIntegrators(alpha);
       addLoadInterfaceIntegrators(alpha);
    }
-
+   cout << "after load integ " << endl;
    if (ent)
    {
       addEntVolumeIntegrators();
    }
-
+   cout << "after Ent vol integ " << endl;
+   cout << "bndry_marker size " << bndry_marker.size() << endl;
    // This just lists the boundary markers for debugging purposes
    for (unsigned k = 0; k < bndry_marker.size(); ++k)
    {
@@ -297,8 +302,8 @@ void AbstractSolver::initDerived()
       *out << endl;
    }
 
-   setEssentialBoundaries();
-
+   // setEssentialBoundaries();
+   cout << "after ess bdr " << endl;
    // // add the output functional QoIs
    // auto &fun = options["outputs"];
    // using json_iter = nlohmann::json::iterator;
@@ -606,26 +611,6 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
 #endif
-      for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
-      {
-         mfem::Array<int> list;
-         list.SetSize(smesh->GetNE());
-         for (int i = 0; i < smesh->GetNE(); i++)
-         {
-            // if (cut_init.insideBoundary(i) == 0)
-            // {
-            // list.Append(i);
-            // }
-
-            list[i] = i;
-         }
-         smesh->GeneralRefinement(list, 1);
-      }
-      // smesh->UniformRefinement();
-      ofstream sol_ofs("cart_mesh_dg_cut_airfoil.vtk");
-      sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs, 0);
-      mesh.reset(new MeshType(comm, *smesh));
    }
    // native MFEM mesh
    else if (mesh_ext == "mesh")
@@ -639,6 +624,21 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    {
       constructPumiMesh();
    }
+   for (int l = 0; l < options["mesh"]["refine"].template get<int>(); l++)
+   {
+      mfem::Array<int> list;
+      list.SetSize(smesh->GetNE());
+      for (int i = 0; i < smesh->GetNE(); i++)
+      {
+         list[i] = i;
+      }
+      smesh->GeneralRefinement(list, 1);
+   }
+   // smesh->UniformRefinement();
+   ofstream sol_ofs("final_mesh_vortex.vtk");
+   sol_ofs.precision(14);
+   smesh->PrintVTK(sol_ofs, 0);
+   mesh.reset(new MeshType(comm, *smesh));
    mesh->EnsureNodes();
 
    removeInternalBoundaries();
@@ -1801,7 +1801,7 @@ void AbstractSolver::setEssentialBoundaries()
    // std::cout << "bdr_attributes: "; mesh->bdr_attributes.Print();
    ess_bdr.SetSize(mesh->bdr_attributes.Max());
    // ess_bdr.SetSize(13);
-   // *out << "ess_bdr size: " << ess_bdr.Size() << "\n";
+   *out << "ess_bdr size: " << ess_bdr.Size() << "\n";
 
    if (bcs.find("essential") != bcs.end())
    {
@@ -1954,40 +1954,53 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
         << endl;
    double reltol = 1e-04;
    double t1, t2;
-   while (visc_coeff > 1e-12)
+   int max_count = 200;
+   double mu_max = visc_coeff;
+   double mu_targ = 1e-12;
+   // while (visc_coeff > 1e-12)
+   // {
+   if (mu_max > 0.0)
    {
-      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
-      cout << "visc_coeff: " << visc_coeff << endl;
-      if (0 == rank)
+      for (int k = 0; k <= max_count; ++k)
       {
-         t1 = MPI_Wtime();
+         visc_coeff = (max_count - k) * mu_max;
+         visc_coeff += k * mu_targ;
+         visc_coeff /= max_count;
+         visc_coeff = max(0.0, visc_coeff);
+         cout << "+++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
+         cout << "visc_coeff: " << visc_coeff << endl;
+         if (0 == rank)
+         {
+            t1 = MPI_Wtime();
+         }
+         /// set diffusion coefficient here
+         // Solve the nonlinear problem with r.h.s at 0
+         mfem::Vector b;
+         HypreParVector *u_true = state.GetTrueDofs();
+         newton_solver->SetRelTol(reltol);
+         newton_solver->SetOperator(*res);
+         newton_solver->Mult(b, *u_true);
+         MFEM_VERIFY(newton_solver->GetConverged(),
+                     "Newton solver did not converge.");
+         state = *u_true;
+         if (0 == rank)
+         {
+            t2 = MPI_Wtime();
+            *out << "Time for solving nonlinear system is " << (t2 - t1)
+                 << endl;
+         }
+         fes_gd->GetProlongationMatrix()->Mult(state, *u);
+         // if (visc_coeff <= 0.1)
+         // {
+         //    visc_coeff -= 1e-04;
+         // }
+         // else
+         // {
+         //    visc_coeff -= 0.05;
+         // }
       }
-      /// set diffusion coefficient here
-      // Solve the nonlinear problem with r.h.s at 0
-      mfem::Vector b;
-      HypreParVector *u_true = state.GetTrueDofs();
-      newton_solver->SetRelTol(reltol);
-      newton_solver->SetOperator(*res);
-      newton_solver->Mult(b, *u_true);
-      MFEM_VERIFY(newton_solver->GetConverged(),
-                  "Newton solver did not converge.");
-      state = *u_true;
-      if (0 == rank)
-      {
-         t2 = MPI_Wtime();
-         *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
-      }
-      fes_gd->GetProlongationMatrix()->Mult(state, *u);
-      if (visc_coeff <= 0.1)
-      {
-         visc_coeff -= 0.0001;
-      }
-      else
-      {
-         visc_coeff -= 0.05;
-      }
-      visc_coeff = max(0.0, visc_coeff);
    }
+
    cout << "visc_coeff : " << visc_coeff << endl;
    reltol = 1e-12;
    mfem::Vector b;
@@ -2100,7 +2113,7 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
          pd->SetTime(t);
          pd->Save();
       }
-
+      std::cout << "res norm: " << calcResidualNorm(state) << "\n";
       if (iterationExit(ti, t, t_final, dt, state))
       {
          break;
@@ -2201,7 +2214,6 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
    // auto &residual = res_fields.at("residual");
    // calcResidual(state, residual);
    // printFields("init", {&residual, &state}, {"Residual", "Solution"});
-
    auto t_final = options["time-dis"]["t-final"].template get<double>();
    *out << "t_final is " << t_final << '\n';
    int ti = 0;
@@ -2540,17 +2552,45 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 void AbstractSolver::constructEvolver()
 {
    bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
-   evolver.reset(new MachEvolver(ess_bdr,
-                                 nonlinear_mass.get(),
-                                 mass.get(),
-                                 res.get(),
-                                 stiff.get(),
-                                 load.get(),
-                                 ent.get(),
-                                 *out,
-                                 0.0,
-                                 TimeDependentOperator::Type::IMPLICIT,
-                                 newton_abort));
+   // evolver.reset(new MachEvolver(ess_bdr,
+   //                               nonlinear_mass.get(),
+   //                               mass.get(),
+   //                               res.get(),
+   //                               stiff.get(),
+   //                               load.get(),
+   //                               ent.get(),
+   //                               *out,
+   //                               0.0,
+   //                               TimeDependentOperator::Type::IMPLICIT,
+   //                               newton_abort));
+   if (gd)
+   {
+      evolver.reset(new MachEvolver(ess_bdr,
+                                    nonlinear_mass.get(),
+                                    mass.get(),
+                                    res.get(),
+                                    stiff.get(),
+                                    load.get(),
+                                    ent.get(),
+                                    *out,
+                                    0.0,
+                                    TimeDependentOperator::Type::IMPLICIT,
+                                    newton_abort));
+   }
+   else
+   {
+      evolver.reset(new MachEvolver(ess_bdr,
+                                    nonlinear_mass.get(),
+                                    mass.get(),
+                                    res.get(),
+                                    stiff.get(),
+                                    load.get(),
+                                    ent.get(),
+                                    *out,
+                                    0.0,
+                                    TimeDependentOperator::Type::IMPLICIT,
+                                    newton_abort));
+   }
    evolver->SetNewtonSolver(newton_solver.get());
 }
 

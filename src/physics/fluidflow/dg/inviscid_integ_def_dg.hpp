@@ -391,11 +391,11 @@ void DGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       elfun1_mat.MultTranspose(shape1, u_face_left);
       elfun2_mat.MultTranspose(shape2, u_face_right);
 
-      trans.Face->SetIntPoint(&ip);
+      //trans.Face->SetIntPoint(&ip);
 
       // Get the normal vector and the flux on the face
-      CalcOrtho(trans.Face->Jacobian(), nrm);
-
+      // CalcOrtho(trans.Face->Jacobian(), nrm);
+      CalcOrtho(trans.Jacobian(), nrm);
       flux(nrm, u_face_left, u_face_right, fluxN);
 
       fluxN *= ip.weight;

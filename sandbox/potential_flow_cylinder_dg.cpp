@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
       out->precision(15);
       solver->setInitialCondition(uexact);
       // solver->setInitialCondition(qfar);
-      solver->printSolution("cylinder-steady-dg-potential-init", 0);
+      solver->printSolution("cylinder-steady-dg-potential-init");
       auto drag_opts = R"({ "boundaries": [1, 0]})"_json;
       auto lift_opts = R"({ "boundaries": [0, 1]})"_json;
       solver->createOutput("drag", drag_opts);
@@ -165,7 +165,7 @@ void uexact(const Vector &x, Vector &q)
    // rho = pow(rho, 1.0/euler::gami);
    double p_bern =
        1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 *rho* (ux * ux + uy * uy);
-   rho = euler::gamma * p_bern;
+   // rho = euler::gamma * p_bern;
    u(0) = rho;
    u(1) = rho * ux;
    u(2) = rho * uy;

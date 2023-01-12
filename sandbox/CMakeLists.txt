@@ -20,6 +20,7 @@ set(SANDBOX_SRCS
    steady_circle_dg
    steady_vortex_adjoint
    unsteady_vortex
+   unsteady_vortex_dg
    viscous_shock
    airfoil_steady
    airfoil_steady_dg

@@ -363,8 +363,8 @@ public:
       for (int i = 0; i < ir->GetNPoints(); i++)
       {
          const IntegrationPoint &ip = ir->IntPoint(i);
-         el.CalcShape(ip, shape);
          trans.SetIntPoint(&ip);
+         el.CalcShape(ip, shape);
          w = trans.Weight() * ip.weight;
          AddMult_a_VVt(w, shape, elmat1);
          for (int k = 0; k < num_state; k++)

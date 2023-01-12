@@ -100,6 +100,8 @@ void ParGalerkinDifference::Build_Dof_TrueDof_Matrix() const
    cout << "creating P matrix " << endl;
    P = new HypreParMatrix(
        comm, row_size, col_size, mat_row_idx, mat_col_idx, cP);
+   // P = new HypreParMatrix(
+   //     comm, mat_row_idx, mat_col_idx, cP);
    cout << "P size " << P->Height() << " x " << P->Width() << endl;
    SparseMatrix Pdiag;
    P->GetDiag(Pdiag);
@@ -244,18 +246,18 @@ void ParGalerkinDifference::SortNeighbors(int id,
    el->GetVertices(v);
    Vector center(dim), refCent(dim);
    GetElementCenter(id, center);
-   for (int i = 0; i < v.Size(); ++i)
-   {
-      double *coord = mesh->GetVertex(v[i]);
-      if (coord[0] < center(0) && coord[1] < center(1))
-      {
-         refCent(0) = 0.5 * (coord[0] + center(0));
-         refCent(1) = 0.5 * (coord[1] + center(1));
-      }
-   }
+   // for (int i = 0; i < v.Size(); ++i)
+   // {
+   //    double *coord = mesh->GetVertex(v[i]);
+   //    if (coord[0] < center(0) && coord[1] < center(1))
+   //    {
+   //       refCent(0) = 0.5 * (coord[0] + center(0));
+   //       refCent(1) = 0.5 * (coord[1] + center(1));
+   //    }
+   // }
    /// required for conforming mesh case
-   // refCent(0) = center(0);
-   // refCent(1) = center(1);
+   refCent(0) = center(0);
+   refCent(1) = center(1);
    // if (id == 3)
    // {
    //    cout << "ref center :" << endl;
@@ -404,7 +406,7 @@ void ParGalerkinDifference::BuildGDProlongation() const
    case 2:
       nreq = (degree + 1) * (degree + 2) / 2;
       nreq_init = (degree + 2) * (degree + 3) / 2;
-    //  nreq_init = nreq; /// old stencil
+      nreq_init = nreq; /// old stencil
       break;
    case 3:
       cout << "Not implemeneted yet.\n" << endl;
@@ -450,8 +452,8 @@ void ParGalerkinDifference::BuildGDProlongation() const
          // cout << " =================================================== "
          //      << endl;
          //cout << "building vandermonde for element: " << i << endl;
-         buildVandermondeMat(dim, nreq, elmt_id, stencil_elid, cent_mat, V);
-          //buildVandermondeMat(dim, nreq, nels, stencil_elid, cent_mat, V); // old stencil approach
+         //buildVandermondeMat(dim, nreq, elmt_id, stencil_elid, cent_mat, V);
+         buildVandermondeMat(dim, nreq, nels, stencil_elid, cent_mat, V); // old stencil approach
          // cout << " =================================================== "
          //      << endl;
          // cout << "#elements in stencil afterwards " << stencil_elid.Size()
@@ -565,14 +567,19 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
    // cout << "#elements in initial stencil " << elmt_id.Size() << endl;
    // elmt_id.Print(cout, elmt_id.Size());
    double cond = 1.0;
-   cond = 1e+03;
+   // cond = 1e+03;
    double vandCond = 1e+30;
    int num_el = num_basis;
    double vand_scale ;
+   cout << "elmt_id size: " << elmt_id.Size() << endl;
+   /// keep adding elements until
+   // - condition number improves 
+   // - or the stencil size becomes maximum
    while (vandCond > cond)
    {
       if (num_el <= elmt_id.Size())
       {
+         cout << "num_el " << num_el << endl;
          stencil_elid.LoseData();
          for (int k = 0; k < num_el; ++k)
          {
@@ -657,8 +664,8 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
          // V.PrintMatlab();
          // cout << "matrix of element centers is: " << endl;
          // x_center.PrintMatlab();
-         // cout << "vandermonde condition number: " << sv(0) / sv(sv.Size() - 1)
-         //      << endl;
+         cout << "vandermonde condition number: " << sv(0) / sv(sv.Size() - 1)
+              << endl;
          vandCond = sv(0) / sv(sv.Size() - 1);
          ++num_el;
       }
@@ -708,7 +715,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
 // Set the RHS for the LS problem (it's the identity matrix)
 // This will store the solution, that is, the basis coefficients, hence
 // the name `coeff`
-#if 0
+#if 1
    mfem::DenseMatrix coeff(num_elem, num_elem);
    coeff = 0.0;
    for (int i = 0; i < num_elem; ++i)
@@ -736,7 +743,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
 // -------------------------------------------------------------------------------
 
 /// use this for quad elements
-#if 1
+#if 0
    // Set the RHS for the LS problem (it's the identity matrix)
    // This will store the solution, that is, the basis coefficients, hence
    // the name `coeff`

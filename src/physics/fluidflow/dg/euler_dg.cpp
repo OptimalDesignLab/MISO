@@ -103,9 +103,9 @@ void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    // GridFunction x(fes.get());
    // ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new EulerDGIntegrator<dim>(diff_stack, alpha));
-   double area;
+   // double area;
    // area = res->GetEnergy(x);
-   // // cout << "exact area: " << (5.45*5.45 - 0.25)*M_PI << endl;
+   // cout << "exact area: " << (5.45*5.45 - 0.25)*M_PI << endl;
    // cout << "calculated area: " << area << endl;
    // cout << "airfoil area " << endl;
    // cout << abs(M_PI * 900 - area) << endl;
@@ -255,8 +255,8 @@ void EulerDGSolver<dim, entvar>::initialHook(const ParCentGridFunction &state)
       res_norm0 = calcResidualNorm(state);
    }
    // TODO: this should only be output if necessary
-   GridFunType u_state(fes.get());
-   fes_gd->GetProlongationMatrix()->Mult(state, u_state);
+   // GridFunType u_state(fes.get());
+   // fes_gd->GetProlongationMatrix()->Mult(state, u_state);
    // double entropy = ent->GetEnergy(u_state);
    // *out << "before time stepping, entropy is " << entropy << endl;
    // remove("entropylog.txt");
@@ -535,13 +535,15 @@ double EulerDGSolver<dim, entvar>::calcStepSize(
    Vector dxidx;
    DenseMatrix uk;
    DenseMatrix adjJt(dim);
+   GridFunType state_dg(fes.get());
+   fes_gd->GetProlongationMatrix()->Mult(state, state_dg);
    for (int k = 0; k < fes->GetNE(); k++)
    {
       // get the element, its transformation, and the state values on element
       const FiniteElement *fe = fes->GetFE(k);
       const IntegrationRule *ir = &(fe->GetNodes());
       ElementTransformation *trans = fes->GetElementTransformation(k);
-      state.GetVectorValues(*trans, *ir, uk);
+      state_dg.GetVectorValues(*trans, *ir, uk);
       for (int i = 0; i < fe->GetDof(); ++i)
       {
          trans->SetIntPoint(&fe->GetNodes().IntPoint(i));

@@ -1,8 +1,9 @@
 target_sources(mach
    PRIVATE
-      advection.cpp
-      advection.hpp
+      #advection.cpp
+      #advection.hpp
       euler_fluxes.hpp
+      potential_fluxes.hpp
       euler_integ_def.hpp
       euler_integ.hpp
       euler_sens_integ.hpp

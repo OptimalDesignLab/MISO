@@ -1,0 +1,49 @@
+{
+   "mesh": {
+      "file": "periodic_triangle1.mesh",
+      "refine": 5
+   },
+   "space-dis": {
+      "GD": false,
+      "degree": 1,
+      "lps-coeff": 1.0,
+      "iface-coeff": 1.0,
+      "basis-type": "csbp"
+   },
+   "nonlin-solver": {
+      "type": "newton",
+      "printlevel": 1,
+      "maxiter": 100,
+      "reltol": 1e-02,
+      "abstol": 1e-10
+   },
+   "lin-solver": {
+      "type": "hypregmres",
+      "pctype": "hypreeuclid",
+      "printlevel": 0,
+      "maxiter": 100,
+      "reltol": 1e-10,
+      "abstol": 1e-10,
+      "kdim": 100
+   },
+   "petscsolver": {
+      "ksptype": "gmres",
+      "pctype": "lu",
+      "abstol": 1e-15,
+      "reltol": 1e-15,
+      "maxiter": 100,
+      "printlevel": 2
+   },
+   "outputs": {
+      "entropy": true
+   },
+   "steady": false, 
+   "time-dis": {
+      "steady": false,
+      "ode-solver": "RK4",
+      "const-cfl": true,
+      "cfl": 1.0,
+      "dt": 0.005,
+      "t-final": 0.1
+   }
+}

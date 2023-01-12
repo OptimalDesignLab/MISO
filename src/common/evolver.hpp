@@ -8,7 +8,7 @@
 #include "mach_load.hpp"  /// should be able to remove this eventually
 #include "mach_residual.hpp"
 #include "mach_types.hpp"
-
+#include "gd.hpp"
 namespace mach
 {
 /// Wraps a MachResidual so that it can be used by MFEM's Newton solver, e.g.
@@ -184,6 +184,8 @@ public:
                         const mfem::Vector &x,
                         const mfem::Vector &k) override;
 
+   mfem::HypreParMatrix *SparseToHypre(mfem::SparseMatrix *m);
+   
    /// explicitly prohibit copy/move construction
    MachEvolver(const MachEvolver &) = delete;
    MachEvolver &operator=(const MachEvolver &) = delete;
@@ -197,6 +199,8 @@ protected:
    NonlinearFormType *nonlinear_mass;
    /// pointer to mass bilinear form (not owned)
    mfem::OperatorHandle mass;
+   mfem::HypreParMatrix *hypre_mass;
+   mfem::ParFiniteElementSpace *pfes;
    /// pointer to nonlinear form (not owned)
    NonlinearFormType *res;
    /// pointer to stiffness bilinear form (not owned)

@@ -326,7 +326,6 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double
 #if 1
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-   //double diff_coeff = options["space-dis"]["visc-coeff"].template get<double>();
    res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
        cutSquareIntRules, embeddedElements, diff_coeff, alpha));
    auto &bcs = options["bcs"];

@@ -62,17 +62,18 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       auto solver =
           createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
-      Vector qfar(4);
-      static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
-          ->getFreeStreamState(qfar);
+      // Vector qfar(4);
+      // static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
+      //     ->getFreeStreamState(qfar);
       // qfar.Print();
       out->precision(15);
       // Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the
       // solver...
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      solver->setInitialCondition(qfar);
-      solver->printSolution("airfoil-steady-dg-cut-potential-init", 0);
+      // solver->setInitialCondition(qfar);
+      solver->setInitialCondition(uexact);
+      solver->printSolution("ellipse-steady-dg-cut-potential-init", 0);
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
       solver->createOutput("drag", drag_opts);
       double drag;
@@ -81,16 +82,22 @@ int main(int argc, char *argv[])
       // get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(uexact, 0));
+      double l2_error_rho_u = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                             .calcConservativeVarsL2Error(uexact, 1));
       double res_error = solver->calcResidualNorm();
-      *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "Initial || rho_h - rho ||_{L^2} = " << l2_error << endl;
+      *out << "Initial || rho_u_h - rho_u ||_{L^2} = " << l2_error_rho_u<< endl;
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->solveForState();
-      solver->printSolution("airfoil-steady-dg-cut-potential-final", -1);
+      solver->printSolution("ellipse-steady-dg-cut-potential-final", -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
-      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
+      l2_error_rho_u = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                      .calcConservativeVarsL2Error(uexact, 1));
+      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
+      *out << "\n|| rho_u_h - rho_u ||_{L^2} = " << l2_error_rho_u<< endl;
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
    }
 
@@ -115,7 +122,7 @@ void pert(const Vector &x, Vector &p)
       p(i) = normal_rand(gen);
    }
 }
-#if 0
+#if 1
 /// use this for flow over an ellipse
 void uexact(const Vector &x, Vector &q)
 {
@@ -126,8 +133,8 @@ void uexact(const Vector &x, Vector &q)
    double rho = 1.0;
    double p = 1.0 / euler::gamma;
    /// ellipse parameters
-   double xc = 10.0;
-   double yc = 10.0;
+   double xc = 5.0;
+   double yc = 5.0;
    double a = 2.5;
    double b = sqrt(a * (a - 1.0));
    double s =
