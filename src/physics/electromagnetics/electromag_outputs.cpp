@@ -201,6 +201,50 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       return dc_loss_dot;
    }
+   // Adding in w/r/t temperature for the future. Untested.
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      std::cout << "temperature_dot = " << wrt_dot(0) << "\n";
+
+      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho is linear in T, goes away
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot = output.wire_length / (strand_area * output.strands_in_hand) * wrt_dot(0);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot = 1 / volume * loss_dot;
+      std::cout << "dc_loss_dot = " << dc_loss_dot << "\n";
+      return dc_loss_dot;
+   }
+   // Adding in w/r/t temperature field for the future. Untested.
+   else if (wrt.rfind("temperature_field", 0) == 0)
+   {
+      // double rho = calcOutput(output.resistivity, inputs);
+      ///TODO: Determine if rho_dot computes correctly
+      double rho_dot = jacobianVectorProduct(output.resistivity, wrt_dot, wrt);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot = output.wire_length / (strand_area * output.strands_in_hand) * rho_dot;
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot = 1 / volume * loss_dot;
+      std::cout << "dc_loss_dot = " << dc_loss_dot << "\n";
+      return dc_loss_dot;
+   }
    else
    {
       return 0.0;
@@ -407,6 +451,42 @@ double vectorJacobianProduct(DCLossFunctional &output,
 
       return strands_in_hand_bar;
    }
+   // Adding in w/r/t temperature for the future. Untested.
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho is linear in T, goes away
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R = output.wire_length * rho / (strand_area *
+      // output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // volume does not depend on any of the inputs except mesh coords
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar = loss_bar * 2 * output.rms_current * R *
+      // sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R = output.wire_length * rho / (strand_area *
+      /// output.strands_in_hand);
+      double wire_length_bar =
+          output.wire_length * R_bar  / (strand_area * output.strands_in_hand);
+
+      return wire_length_bar;
+   }
    else
    {
       return 0.0;
@@ -442,6 +522,57 @@ void vectorJacobianProduct(DCLossFunctional &output,
       /// double volume = calcOutput(output.volume, inputs);
       mfem::Vector vol_bar_vec(&volume_bar, 1);
       vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar =
+      //     loss_bar * 2 * output.rms_current * R * sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R =
+      ///     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      // double wire_length_bar =
+      //     R_bar * rho / (strand_area * output.strands_in_hand);
+      double rho_bar =
+          R_bar * output.wire_length / (strand_area * output.strands_in_hand);
+      // double strand_area_bar = -R_bar * output.wire_length * rho /
+      //                          (pow(strand_area, 2) *
+      //                          output.strands_in_hand);
+      // double strands_in_hand_bar =
+      //     -R_bar * output.wire_length * rho /
+      //     (strand_area * pow(output.strands_in_hand, 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double strand_radius_bar =
+      //     strand_area_bar * M_PI * 2 * output.strand_radius;
+
+      /// double rho = calcOutput(output.resistivity, inputs);
+      mfem::Vector rho_bar_vec(&rho_bar, 1);
+      vectorJacobianProduct(output.resistivity, rho_bar_vec, wrt, wrt_bar);
+   }
+   // Adding in w/r/t temperature field for the future. Untested.
+   else if (wrt.rfind("temperature_field", 0) == 0)
+   {
+      // double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // mfem::Vector vol_bar_vec(&volume_bar, 1);
+      // vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
 
       /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
       // double rms_current_bar =
@@ -714,12 +845,12 @@ double jacobianVectorProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("peak_flux", 0) == 0)
    {
-      double sigma_b2 = calcOutput(output.output, output.inputs);
+      // double sigma_b2 = calcOutput(output.output, output.inputs);
       double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
 
-      double strand_loss = sigma_b2 * output.stack_length * M_PI *
-                           pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
 
       double strand_loss_dot =
           output.stack_length * M_PI * pow(output.radius, 4) *
@@ -728,13 +859,39 @@ double jacobianVectorProduct(ACLossFunctional &output,
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
-      double loss = num_strands * strand_loss;
+      // double loss = num_strands * strand_loss;
       double loss_dot = num_strands * strand_loss_dot;
 
       double volume = calcOutput(output.volume, output.inputs);
       // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
 
       return loss_dot / volume;  // - loss / pow(volume, 2) * volume_dot;
+   }
+   // Adding in w/r/t temperature for the future. Untested.
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      // double sigma_b2 = calcOutput(output.output, output.inputs);
+      ///TODO: Determine if the sigma_b2_dot defined below computes correctly. Should equal sigma_b2/(alpha*(T-Tref)).
+      double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+
+      double strand_loss_dot =
+          output.stack_length * M_PI * pow(output.radius, 4) *
+          pow(2 * M_PI * output.freq, 2) / 32.0 * sigma_b2_dot;
+
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+      double loss_dot = num_strands * strand_loss_dot;
+
+      double volume = calcOutput(output.volume, output.inputs);
+      // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt); // volume is independent of temperature
+
+      return loss_dot / volume;  
    }
    else
    {
@@ -1164,15 +1321,15 @@ void vectorJacobianProduct(ACLossFunctional &output,
    }
    else if (wrt.rfind("peak_flux", 0) == 0)
    {
-      double sigma_b2 = calcOutput(output.output, output.inputs);
+      // double sigma_b2 = calcOutput(output.output, output.inputs);
 
-      double strand_loss = sigma_b2 * output.stack_length * M_PI *
-                           pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
-      double loss = num_strands * strand_loss;
+      // double loss = num_strands * strand_loss;
 
       double volume = calcOutput(output.volume, output.inputs);
 
@@ -1219,6 +1376,69 @@ void vectorJacobianProduct(ACLossFunctional &output,
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 32.0;
 
+      /// double sigma_b2 = calcOutput(output.output, output.inputs);
+      mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
+      vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
+   }
+   // Adding in w/r/t temperature for the future. Untested.
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      // double sigma_b2 = calcOutput(output.output, output.inputs);
+
+      // double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      //                      pow(output.radius, 4) *
+      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double num_strands =
+          2 * output.strands_in_hand * output.num_turns * output.num_slots;
+
+      // double loss = num_strands * strand_loss;
+
+      double volume = calcOutput(output.volume, output.inputs);
+
+      // double ac_loss = loss / volume;
+
+      /// Start reverse pass...
+      double ac_loss_bar = out_bar(0);
+
+      /// double ac_loss = loss / volume;
+      double loss_bar = ac_loss_bar / volume;
+      // double volume_bar = -ac_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // mfem::Vector vol_bar_vec(&volume_bar, 1);
+      // vectorJacobianProduct(output.volume, vol_bar_vec, "state", wrt_bar);
+
+      /// double loss = num_strands * strand_loss;
+      // double num_strands_bar = loss_bar * strand_loss;
+      double strand_loss_bar = loss_bar * num_strands;
+
+      /// double num_strands =
+      ///     2 * output.strands_in_hand * output.num_turns * output.num_slots;
+      // double strands_in_hand_bar =
+      //     num_strands_bar * 2 * output.num_turns * output.num_slots;
+      // double num_turns_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_slots;
+      // double num_slots_bar =
+      //     num_strands_bar * 2 * output.strands_in_hand * output.num_turns;
+
+      /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
+      ///                      pow(output.radius, 4) *
+      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
+                            pow(output.radius, 4) *
+                            pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
+      //                           pow(output.radius, 4) *
+      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double strand_radius_bar =
+      //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
+      // *
+      //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
+      //                        pow(2 * M_PI, 2) / 32.0;
+
+      ///TODO: Determine if the sigma_b2_bar defined below computes correctly. That is, is vectorJacobianProduct in functional_output.cpp correct?
       /// double sigma_b2 = calcOutput(output.output, output.inputs);
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);

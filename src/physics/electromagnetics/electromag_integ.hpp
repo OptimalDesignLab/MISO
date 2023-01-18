@@ -14,6 +14,7 @@ namespace mach
 {
 class AbstractSolver;
 class StateCoefficient;
+class TwoStateCoefficient;
 class ThreeStateCoefficient;
 
 /// Compute the integral of HdB from 0 to B
@@ -1118,7 +1119,7 @@ private:
 
    mfem::GridFunction *temperature_field; // pointer to the temperature field
 
-   ///TODO: Figure out the best way to handle these three. Thread-safe was not working for me in this or cpp file, so had to eliminate the #ifdef MFEM_THREAD_SAFE for variables to be in scope. However, don't fully realize the repercussions
+   ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::Array<int> vdofs;
@@ -1230,7 +1231,7 @@ private:
    /// RMS current
    double rms_current = 1.0;
    
-   ///TODO: Figure out the best way to handle these three. Thread-safe was not working for me in this or cpp file, so had to eliminate the #ifdef MFEM_THREAD_SAFE for variables to be in scope. However, don't fully realize the repercussions
+   ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::Array<int> vdofs;
@@ -1321,7 +1322,6 @@ private:
 #endif
 };
 
-///TODO: This class is still hanging on to the old sigma logic. Have it handle sigma as a StateCoefficient and the temperature field as well
 class ACLossFunctionalIntegratorPeakFluxSens : public mfem::LinearFormIntegrator
 {
 public:
@@ -1351,6 +1351,7 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Array<int> vdofs;
    mfem::Vector elfun;
+   mfem::Vector temp_elfun;
 #endif
 };
 
@@ -1985,14 +1986,15 @@ private:
    // optional integrator name to differentiate setting inputs
    std::string name;
 
-   /// Temperature
-   double temperature = 1.0;
    /// Electrical excitation frequency
    double freq = 1.0;
    /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
    double max_flux_mag = 1.0;
 
-   ///TODO: Figure out the best way to handle these four. Thread-safe was not working for me in this or cpp file, so had to eliminate the #ifdef MFEM_THREAD_SAFE for variables to be in scope. However, don't fully realize the repercussions
+   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+   bool UseMaxFluxValueAndNotPeakFluxField = true;
+
+   ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::Array<int> vdofs;
@@ -2001,9 +2003,157 @@ private:
    mfem::Vector flux_elfun;
 #endif
 
+   /// class that implements frequency sensitivities for CAL2CoreLossIntegrator
+   friend class CAL2CoreLossIntegratorFreqSens;
+
+   /// class that implements max flux sensitivities for CAL2CoreLossIntegrator
+   friend class CAL2CoreLossIntegratorMaxFluxSens;
+
+   /// class that implements temperature sensitivities for CAL2CoreLossIntegrator
+   friend class CAL2CoreLossIntegratorTemperatureSens;
+
    /// class that implements mesh sensitivities for CAL2CoreLossIntegrator
-   ///TODO: Will this needed to be added? The equivalent for Steinmetz never was made.
    friend class CAL2CoreLossIntegratorMeshSens;
+
+   ///TODO: Determine if need to add CAL2CoreLossTemperatureSens
+};
+
+class CAL2CoreLossIntegratorFreqSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   CAL2CoreLossIntegratorFreqSens(CAL2CoreLossIntegrator &integ)
+    : integ(integ)
+   { }
+
+   /// \brief - Compute element contribution to global sensitivity
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global s6ensitvity
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// reference to primal integrator
+   CAL2CoreLossIntegrator &integ;
+
+   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+   bool UseMaxFluxValueAndNotPeakFluxField = true;
+
+   ///TODO: Look into making code thread-safe
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector flux_elfun;
+#endif
+
+};
+
+class CAL2CoreLossIntegratorMaxFluxSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   CAL2CoreLossIntegratorMaxFluxSens(CAL2CoreLossIntegrator &integ)
+    : integ(integ)
+   { }
+
+   /// \brief - Compute element contribution to global sensitivity
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global s6ensitvity
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// reference to primal integrator
+   CAL2CoreLossIntegrator &integ;
+
+   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+   bool UseMaxFluxValueAndNotPeakFluxField = true;
+
+   ///TODO: Look into making code thread-safe
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector flux_elfun;
+#endif
+
+};
+
+class CAL2CoreLossIntegratorTemperatureSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   CAL2CoreLossIntegratorTemperatureSens(CAL2CoreLossIntegrator &integ)
+    : integ(integ)
+   { }
+
+   /// \brief - Compute element contribution to global sensitivity
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the element contribution to global s6ensitvity
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// reference to primal integrator
+   CAL2CoreLossIntegrator &integ;
+
+   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+   bool UseMaxFluxValueAndNotPeakFluxField = true;
+
+   ///TODO: Look into making code thread-safe
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector flux_elfun;
+#endif
+
+};
+
+class CAL2CoreLossIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   CAL2CoreLossIntegratorMeshSens(mfem::GridFunction &state,
+                                   CAL2CoreLossIntegrator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
+   /// space \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating loss
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   CAL2CoreLossIntegrator &integ;
+
+   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+   bool UseMaxFluxValueAndNotPeakFluxField = true;
+
+   ///TODO: Look into making code thread-safe
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector flux_elfun;
+   mfem::DenseMatrix PointMat_bar;
+#endif
 };
 
 /// Functional integrator to compute the spacial distribution of the heat flux for core losses based on the CAL2 core loss model,
@@ -2047,12 +2197,13 @@ private:
    // optional integrator name to differentiate setting inputs
    std::string name;
 
-   /// Temperature
-   double temperature = 1.0;
    /// Electrical excitation frequency
    double freq = 1.0;
    /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
    double max_flux_mag = 1.0;
+
+   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+   bool UseMaxFluxValueAndNotPeakFluxField = true;
 
    ///TODO: Make code thread safe
 #ifndef MFEM_THREAD_SAFE
@@ -2068,7 +2219,59 @@ private:
    friend class CAL2CoreLossDistributionIntegratorMeshSens;
 };
 
-///TODO: Is there a need to make a CAL2CoreLossDistributionIntegrator (mirroring SteinmetzLossDistributionIntegrator below)? SteinmetzLossDistributionIntegrator is seemingly never used outside of this hpp and cpp file.
+/// Functional integrator to determine values or distribution 
+/// of Permanent Magnet Demagnetization constraint equation
+class PMDemagIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// \brief - determine values or distribution 
+   ///         of Permanent Magnet Demagnetization constraint equation
+   /// \param[in] PMDemagConstraint - the permanent magnet demagnetization constraint equation coefficient
+   /// \param[in] temperature_field - a pointer to the temperature field (default is null)
+   /// \param[in] name - component name to differentiate setting inputs (default is blank)
+   PMDemagIntegrator(TwoStateCoefficient &PMDemagConstraint,
+                     mfem::GridFunction *temperature_field=nullptr,
+                     std::string name = "") 
+   : PMDemagConstraint(PMDemagConstraint), temperature_field(temperature_field), name(std::move(name)) { }
+
+   /// \brief - determine value 
+   ///         of Permanent Magnet Demagnetization constraint equation
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \returns the value of the Permanent Magnet Demagnetization constraint equation calculated over an element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \brief - determine distribution 
+   ///         of Permanent Magnet Demagnetization constraint equation
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   /// \param[out] elvect - element Permanent Magnet Demagnetization constraint equation distribution
+   void AssembleElementVector(const mfem::FiniteElement &el, 
+                              mfem::ElementTransformation &trans, 
+                              const mfem::Vector &elfun, 
+                              mfem::Vector &elvect) override;
+
+private:
+   TwoStateCoefficient &PMDemagConstraint; // the permanent magnet demagnetization constraint equation coefficient
+   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+
+   // optional integrator name to differentiate setting inputs
+   std::string name;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Vector temp_shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+#endif
+
+   ///TODO: Add in sens classes, and denote them as friends here
+
+};
 
 }  // namespace mach
 

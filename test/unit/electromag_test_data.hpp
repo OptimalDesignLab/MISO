@@ -232,46 +232,153 @@ private:
 };
 */
 
+/// Simple two state coefficient for testing PMDemagIntegrator
+class SimpleTwoStateCoefficient : public mach::TwoStateCoefficient
+{
+public:
+   SimpleTwoStateCoefficient() {}; 
+
+   double Eval(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      auto B = state1;
+      auto T = state2;
+
+      auto C_BT = pow(B,2)*T;
+      return C_BT;
+   }
+
+   double EvalDerivS1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      // First derivative with respect to flux density
+
+      auto B = state1;
+      auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      auto dC_BTdB = 2.0 * B * T;
+      return dC_BTdB;
+   }
+
+   double EvalDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      // First derivative with respect to temperature
+
+      auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      auto dC_BTdT = pow(B,2);
+      return dC_BTdT;
+   }
+
+   double Eval2ndDerivS1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Second derivative with respect to flux density
+
+      // auto B = state1;
+      auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdB = 2 * B * T;
+      auto d2C_BTdB2 = 2.0 * T; 
+      return d2C_BTdB2;
+   }
+
+   double Eval2ndDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Second derivative with respect to temperature
+
+      // auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdT = pow(B,2);
+      auto d2C_BTdT2 = 0.0;
+      return d2C_BTdT2;
+   }
+
+   double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Derivative with respect to flux density then temperature
+
+      auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdB = 2.0 * B * T;
+      auto d2C_BTdBdT = 2.0 * B;
+      return d2C_BTdBdT;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS2S1
+   double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2)
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Derivative with respect to temperature then flux density
+
+      auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdT = pow(B,2);      
+      auto d2C_BTdTdB = 2.0 * B;
+      return d2C_BTdTdB;
+   }
+};
+
+
+
 /// Simple coefficient for CAL2 coefficients for testing CAL2CoreLossIntegrator
 // Can represent either CAL2_kh coefficients or CAL2_ke coefficients
 class CAL2Coefficient : public mach::ThreeStateCoefficient
 {
 public:
-   CAL2Coefficient(double &T0, 
-                    std::vector<double> &k_T0,
-                    double &T1,
-                    std::vector<double> &k_T1) 
-   : T0(T0), k_T0(k_T0), T1(T1), k_T1(k_T1) {}
+   // CAL2Coefficient(double &T0, 
+   //                  std::vector<double> &k_T0,
+   //                  double &T1,
+   //                  std::vector<double> &k_T1) 
+   // : T0(T0), k_T0(k_T0), T1(T1), k_T1(k_T1) {}
+   CAL2Coefficient() {};
 
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
                double state1,
                double state2,
                double state3) override
-   {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
-      
+   {      
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       auto T = state1;
-      auto f = state2;
+      // auto f = state2;
       auto Bm = state3;
 
-      double k_T0_f_B = 0.0;
-      for (int i = 0; i < static_cast<int>(k_T0.size()); ++i)
-      {
-         k_T0_f_B += k_T0[i]*std::pow(Bm,i);
-      }
-      double k_T1_f_B = 0.0;
-      for (int i = 0; i < static_cast<int>(k_T1.size()); ++i)
-      {
-         k_T1_f_B += k_T1[i]*std::pow(Bm,i);
-      }
-      double D = (k_T1_f_B-k_T0_f_B)/((T1-T0)*k_T0_f_B);
-      double kt = 1+(T-T0)*D;
-      
-      double CAL2_k = kt*k_T0_f_B;
-
-      return CAL2_k;
+      return T*pow(Bm,-1.0);
    }
 
    double EvalDerivS1(mfem::ElementTransformation &trans,
@@ -280,10 +387,13 @@ public:
                            const double state2,
                            const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
 
-      ///TODO: Add in the derivative
-      return 0;
+      // return T*pow(Bm,-1.0);
+      return pow(Bm,-1.0);
    }
 
    double EvalDerivS2(mfem::ElementTransformation &trans,
@@ -292,9 +402,12 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
@@ -304,10 +417,13 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
 
-      ///TODO: Add in the derivative
-      return 0;
+      // return T*pow(Bm,-1.0);
+      return -T*pow(Bm,-2.0);
    }
 
    double Eval2ndDerivS1(mfem::ElementTransformation &trans,
@@ -316,9 +432,12 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
@@ -328,9 +447,12 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
@@ -340,10 +462,13 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
 
-      ///TODO: Add in the derivative
-      return 0;
+      // return T*pow(Bm,-1.0);
+      return 2.0*T*pow(Bm,-3.0);
    }
 
    double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
@@ -352,9 +477,12 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
@@ -364,10 +492,13 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
 
-      ///TODO: Add in the derivative
-      return 0;
+      // return T*pow(Bm,-1.0);
+      return -1.0*pow(Bm,-2.0);
    }
 
    double Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
@@ -376,9 +507,12 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
@@ -389,9 +523,12 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
@@ -402,10 +539,13 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
 
-      ///TODO: Add in the derivative
-      return 0;
+      // return T*pow(Bm,-1.0);
+      return -1.0*pow(Bm,-2.0);
    }
 
    ///TODO: Likely not necessary because of Eval2ndDerivS2S3
@@ -415,17 +555,20 @@ public:
                               const double state2,
                               const double state3)
    {
-      // Logic from CAL2_kh and CAL2_ke Coefficient files
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
 
-      ///TODO: Add in the derivative
+      // return T*pow(Bm,-1.0);
       return 0;
    }
 
 private:
-   double &T0;
-   std::vector<double> &k_T0;
-   double &T1;
-   std::vector<double> &k_T1;
+   // double &T0;
+   // std::vector<double> &k_T0;
+   // double &T1;
+   // std::vector<double> &k_T1;
 };
 
 nlohmann::json getBoxOptions(int order)

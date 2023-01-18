@@ -3650,6 +3650,12 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
     mfem::ElementTransformation &trans,
     mfem::Vector &elvect)
 {
+   ///TODO: Remove once finish debugging. Want to see the input values
+   // std::cout << "wire_length = " << wire_length << "\n";
+   // std::cout << "rms_current = " << rms_current << "\n";
+   // std::cout << "strand_radius = " << strand_radius << "\n";
+   // std::cout << "strands_in_hand = " << strands_in_hand << "\n";
+
    // Obtain correct element, DOFs, etc for temperature field
    // Logic from DCLossFunctionalIntegrator
    const int element = trans.ElementNo;
@@ -3673,7 +3679,7 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
    else
    {
       // In the absence of temperature field, shape and elvect need to have a size
-      const int mesh_ndof = el.GetDof();
+      int mesh_ndof = el.GetDof(); // mesh_ndof independent of element order
       shape.SetSize(mesh_ndof);
       elvect.SetSize(mesh_ndof);
    }
@@ -3693,7 +3699,9 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
             return 2 * el.GetOrder();
          }
       }();
-
+      ///TODO: Figure out why el.GetOrder() = 1 regardless of the degree p passed in from test (works fine for DCLFI, but doesn't seem to work here)
+      // std::cout << "el.GetOrder() = " << el.GetOrder() << "\n";
+      // std::cout << "order = " << order << "\n";
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
@@ -3718,6 +3726,7 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       {
          ///TODO: Change default value of 100 if needed (be consistent throughout)
          temperature = 100; 
+         el.CalcPhysShape(trans, shape); // need the values of the shape functions for distribution purposes
       }
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
@@ -3729,12 +3738,26 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       double loss = pow(rms_current, 2) * R;
       // not sure about this... but it matches MotorCAD's values
       loss *= sqrt(2);
-      std::cout << "loss =" << loss << "\n";     
+      // std::cout << "loss =" << loss << "\n";     
       std::cout << "elvect.Size()=" << elvect.Size() << "\n";
       std::cout << "shape.Size()=" << shape.Size() << "\n";
+      ///TODO: Remove comment out once done debugging
+      std::cout << "shape right before elvect.Add=np.array([";
+      for (int j = 0; j < shape.Size(); j++)
+      {
+         std::cout << shape.Elem(j) << ", ";
+      }
+      std::cout << "])\n";
       // Add/store the FE's contribution to the heat source due to DC losses in elvect
       elvect.Add(loss * w, shape);
    }
+   ///TODO: Remove comment out once done debugging
+   std::cout << "element_" << element << "_elvect=np.array([";
+   for (int j = 0; j < elvect.Size(); j++)
+   {
+      std::cout << elvect.Elem(j) << ", ";
+   }
+   std::cout << "])\n";
    ///TODO: Logic is up to date now. Need to finish the implementation and then test
 }
 
@@ -4095,6 +4118,26 @@ void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
    }
 
    auto &sigma = integ.sigma;
+   auto *temperature_field = integ.temperature_field;
+
+   // Obtain correct element, DOFs, etc for temperature field
+   // Logic from DCLossFunctionalIntegrator
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof);
+   }
 
    elfun_bar.SetSize(ndof);
    elfun_bar = 0.0;
@@ -4110,7 +4153,21 @@ void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
       el.CalcPhysShape(trans, shape);
       const auto b_mag = shape * elfun;
 
-      const auto sigma_v = sigma.Eval(trans, ip);
+      // Logic from DCLossFunctionalIntegrator to get the temperature
+      double temperature;
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
+         temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
+      }
+      else
+      {
+         ///TODO: Change default value of 100 if needed (be consistent throughout)
+         temperature = 100; 
+      }
+
+      // const auto sigma_v = sigma.Eval(trans, ip);
+      const auto sigma_v = sigma.Eval(trans, ip, temperature);
 
       // const auto loss = sigma_v * pow(b_mag, 2);
       // fun += loss * w;
@@ -4219,7 +4276,7 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
 
-      el.CalcPhysShape(trans, shape);
+      el.CalcPhysShape(trans, shape); // calculate the shape functions
 
       flux_el.CalcPhysShape(flux_trans, flux_shape);
       const auto b_mag = flux_shape * elfun;
@@ -4441,7 +4498,6 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
 
 //       if (temperature_field != nullptr)
 //       {
-//          ///TODO: Edit the logic here. Had to make temperature a vector coefficient in test_acloss_functional.bin, and CalcShape cannot work with vector, only scalar
 //          temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape, used by ACLossFunctionalIntegrator. Difference between CalcPhysShape and CalcShape?
 //          temperature = shape * temp_elfun; //Take dot product between shape and elfun to get the value at the integration point
 //       }
@@ -6462,7 +6518,6 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
 
       // Compute the magnitude of the max/peak flux density (B_m or B_pk)
       ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-      bool UseMaxFluxValueAndNotPeakFluxField = true;
       double B_m;
       if (UseMaxFluxValueAndNotPeakFluxField)
       {
@@ -6492,6 +6547,592 @@ double CAL2CoreLossIntegrator::GetElementEnergy(
       fun += rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w; // Add the eddy current loss constribution
    }
    return fun;
+}
+
+double CAL2CoreLossIntegratorFreqSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   // Get the number of degrees of freedom
+   int ndof = el.GetDof();
+
+   // Parameters stored in integrator
+   auto &rho = integ.rho;
+   auto &peak_flux = integ.peak_flux;
+   auto *temperature_field = integ.temperature_field;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   // Keeping the flux separate from the temperature. Establish element, trans, etc.
+   const int element = trans.ElementNo;
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
+   const int flux_ndof = flux_el.GetDof();
+   
+   // Transform the degrees of freedom fot the flux
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Set the size of the shape functions
+   shape.SetSize(ndof);
+   flux_shape.SetSize(flux_ndof);
+
+   // Deal with the temperature field, if it exists
+   const FiniteElement *temp_el=nullptr; // Default to a nullptr
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the size of the shape functions
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof); // shape will pertain to temperature
+      
+   }
+
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   // Loop over all integration points and evaluate the CAL2 core loss sensitivity w/r/t frequency
+   double sens = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip); 
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape); // may be unused
+
+      // Determine the temperature
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // calculate the values of the shape functions
+         temperature = shape * temp_elfun; //Take dot product to get the value at the integration point
+      }
+      else
+      {
+         temperature = 100; // default value for temperature in absence of temperature field
+      }
+
+      // Compute the magnitude of the max/peak flux density (B_m or B_pk)
+      ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+      double B_m;
+      if (UseMaxFluxValueAndNotPeakFluxField)
+      {
+         // Using the max flux value. Already was set in inputs
+         B_m = max_flux_mag;
+      }
+      else
+      {
+         // Using the peak flux field. Max/peak flux value will vary based on where you are in mesh
+         flux_el.CalcPhysShape(flux_trans, flux_shape);
+         B_m = flux_shape * flux_elfun;
+      }
+
+      // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
+      // kh(f,T,Bm) and ke(f,T,Bm)
+
+      // std::cout << "temperature = " << temperature << "; freq = " << freq << "; B_m = " << B_m << "\n";
+
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
+
+      // Evaluate the material density (constant)
+      auto rho_v = rho.Eval(trans, ip);
+
+      // Calculate the CAL2 Core Losses sens w/r/t frequency at the integration point
+      // fun += rho_v * kh_v * freq * std::pow(B_m,2) * w; // Add the hysteresis loss constribution
+      sens += rho_v * kh_v * std::pow(B_m,2) * w; // Add the hysteresis loss constribution
+      // fun += rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w; // Add the eddy current loss constribution
+      sens += rho_v * ke_v * 2 * freq * std::pow(B_m,2) * w; // Add the eddy current loss constribution
+   }
+   return sens;
+}
+
+double CAL2CoreLossIntegratorMaxFluxSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   // Get the number of degrees of freedom
+   int ndof = el.GetDof();
+
+   // Parameters stored in integrator
+   auto &rho = integ.rho;
+   auto &peak_flux = integ.peak_flux;
+   auto *temperature_field = integ.temperature_field;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   // Keeping the flux separate from the temperature. Establish element, trans, etc.
+   const int element = trans.ElementNo;
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
+   const int flux_ndof = flux_el.GetDof();
+   
+   // Transform the degrees of freedom fot the flux
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Set the size of the shape functions
+   shape.SetSize(ndof);
+   flux_shape.SetSize(flux_ndof);
+
+   // Deal with the temperature field, if it exists
+   const FiniteElement *temp_el=nullptr; // Default to a nullptr
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the size of the shape functions
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof); // shape will pertain to temperature
+      
+   }
+
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   // Loop over all integration points and evaluate the CAL2 core loss sensitivity w/r/t max flux
+   double sens = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip); 
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape); // may be unused
+
+      // Determine the temperature
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // calculate the values of the shape functions
+         temperature = shape * temp_elfun; //Take dot product to get the value at the integration point
+      }
+      else
+      {
+         temperature = 100; // default value for temperature in absence of temperature field
+      }
+
+      // Compute the magnitude of the max/peak flux density (B_m or B_pk)
+      ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+      double B_m;
+      if (UseMaxFluxValueAndNotPeakFluxField)
+      {
+         // Using the max flux value. Already was set in inputs
+         B_m = max_flux_mag;
+      }
+      else
+      {
+         // Using the peak flux field. Max/peak flux value will vary based on where you are in mesh
+         flux_el.CalcPhysShape(flux_trans, flux_shape);
+         B_m = flux_shape * flux_elfun;
+      }
+
+      // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
+      // kh(f,T,Bm) and ke(f,T,Bm)
+
+      // std::cout << "temperature = " << temperature << "; freq = " << freq << "; B_m = " << B_m << "\n";
+
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
+
+      // Evaluate the material density (constant)
+      auto rho_v = rho.Eval(trans, ip);
+
+      // Calculate the CAL2 Core Losses sens w/r/t max flux at the integration point
+      // fun += rho_v * kh_v * freq * std::pow(B_m,2) * w; // Add the hysteresis loss constribution
+      sens += rho_v * kh_v * freq * 2 * B_m * w; // Add the hysteresis loss constribution
+      // fun += rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w; // Add the eddy current loss constribution
+      sens += rho_v * ke_v * std::pow(freq,2) * 2 * B_m * w; // Add the eddy current loss constribution
+      // Add two additional terms to the sens that arise from the product rule (kh and ke are functions of B_m)
+      auto dkh_vdB_m = CAL2_kh.EvalDerivS3(trans, ip, temperature, freq, B_m);
+      sens += rho_v * dkh_vdB_m * freq * pow(B_m,2) * w;
+      auto dke_vdB_m = CAL2_ke.EvalDerivS3(trans, ip, temperature, freq, B_m);
+      sens += rho_v * dke_vdB_m * std::pow(freq,2) * std::pow(B_m,2) * w;
+   }
+   return sens;
+}
+
+double CAL2CoreLossIntegratorTemperatureSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   // Get the number of degrees of freedom
+   int ndof = el.GetDof();
+
+   // Parameters stored in integrator
+   auto &rho = integ.rho;
+   auto &peak_flux = integ.peak_flux;
+   auto *temperature_field = integ.temperature_field;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   // Keeping the flux separate from the temperature. Establish element, trans, etc.
+   const int element = trans.ElementNo;
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
+   const int flux_ndof = flux_el.GetDof();
+   
+   // Transform the degrees of freedom fot the flux
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Set the size of the shape functions
+   shape.SetSize(ndof);
+   flux_shape.SetSize(flux_ndof);
+
+   // Deal with the temperature field, if it exists
+   const FiniteElement *temp_el=nullptr; // Default to a nullptr
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the size of the shape functions
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof); // shape will pertain to temperature
+      
+   }
+
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   // Loop over all integration points and evaluate the CAL2 core loss sensitivity w/r/t temperature
+   double sens = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip); 
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape); // may be unused
+
+      // Determine the temperature
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // calculate the values of the shape functions
+         temperature = shape * temp_elfun; //Take dot product to get the value at the integration point
+      }
+      else
+      {
+         temperature = 100; // default value for temperature in absence of temperature field
+      }
+
+      // Compute the magnitude of the max/peak flux density (B_m or B_pk)
+      ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+      double B_m;
+      if (UseMaxFluxValueAndNotPeakFluxField)
+      {
+         // Using the max flux value. Already was set in inputs
+         B_m = max_flux_mag;
+      }
+      else
+      {
+         // Using the peak flux field. Max/peak flux value will vary based on where you are in mesh
+         flux_el.CalcPhysShape(flux_trans, flux_shape);
+         B_m = flux_shape * flux_elfun;
+      }
+
+      // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
+      // kh(f,T,Bm) and ke(f,T,Bm)
+
+      std::cout << "temperature = " << temperature << "; freq = " << freq << "; B_m = " << B_m << "\n";
+
+      // auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
+      // auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
+
+      // Evaluate the material density (constant)
+      auto rho_v = rho.Eval(trans, ip);
+
+      // Calculate the CAL2 Core Losses sens w/r/t temperature at the integration point
+      // fun += rho_v * kh_v * freq * std::pow(B_m,2) * w; // Add the hysteresis loss constribution
+      auto dkh_vdT = CAL2_kh.EvalDerivS1(trans, ip, temperature, freq, B_m);
+      sens += rho_v * dkh_vdT * freq * 2 * B_m * w; // Add the hysteresis loss constribution
+      // fun += rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w; // Add the eddy current loss constribution
+      auto dke_vdT = CAL2_ke.EvalDerivS1(trans, ip, temperature, freq, B_m);
+      sens += rho_v * dke_vdT * std::pow(freq,2) * 2 * B_m * w; // Add the eddy current loss constribution
+   }
+   return sens;
+}
+
+void CAL2CoreLossIntegratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   // Like SteinmetzLossIntegratorMeshSens, def. element, trans, etc.
+   const int element = mesh_trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   auto &trans = *state.FESpace()->GetElementTransformation(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = mesh_trans.GetSpaceDim();
+
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   // Get the number of degrees of freedom
+   int ndof = el.GetDof();
+
+   // Parameters stored in integrator
+   auto &rho = integ.rho;
+   auto &peak_flux = integ.peak_flux;
+   auto *temperature_field = integ.temperature_field;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto freq = integ.freq;
+   auto max_flux_mag = integ.max_flux_mag;
+
+   // Keeping the flux separate from the temperature. Establish element, trans, etc.
+   // const int element = trans.ElementNo;
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   auto &flux_trans = *peak_flux.FESpace()->GetElementTransformation(element);
+   const int flux_ndof = flux_el.GetDof();
+   
+   // Transform the degrees of freedom fot the flux
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Set the size of the shape functions
+   shape.SetSize(ndof);
+   flux_shape.SetSize(flux_ndof);
+
+   // Deal with the temperature field, if it exists
+   const FiniteElement *temp_el=nullptr; // Default to a nullptr
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the size of the shape functions
+      int ndof = temp_el->GetDof();
+      shape.SetSize(ndof); // shape will pertain to temperature
+      
+   }
+
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   // Loop over all integration points and add on the CAL2 core loss sensitivity w/r/t mesh coords
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip); 
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcPhysShape(trans, shape); // may be unused
+
+      // Determine the temperature
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, shape); // calculate the values of the shape functions
+         temperature = shape * temp_elfun; //Take dot product to get the value at the integration point
+      }
+      else
+      {
+         temperature = 100; // default value for temperature in absence of temperature field
+      }
+
+      // Compute the magnitude of the max/peak flux density (B_m or B_pk)
+      ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
+      double B_m;
+      if (UseMaxFluxValueAndNotPeakFluxField)
+      {
+         // Using the max flux value. Already was set in inputs
+         B_m = max_flux_mag;
+      }
+      else
+      {
+         // Using the peak flux field. Max/peak flux value will vary based on where you are in mesh
+         flux_el.CalcPhysShape(flux_trans, flux_shape);
+         B_m = flux_shape * flux_elfun;
+      }
+
+      // Compute the values of the variable hysteresis and eddy current loss coefficients at the integration point
+      // kh(f,T,Bm) and ke(f,T,Bm)
+
+      std::cout << "temperature = " << temperature << "; freq = " << freq << "; B_m = " << B_m << "\n";
+
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
+
+      // Evaluate the material density (constant)
+      auto rho_v = rho.Eval(trans, ip);
+
+      /// Start reverse pass...
+      // fun += rho_v * kh_v * freq * std::pow(B_m,2) * w; // Add the hysteresis loss constribution
+      // fun += rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w; // Add the eddy current loss constribution
+      double fun_bar = 1.0;
+      double rho_v_bar = fun_bar * kh_v * freq * std::pow(B_m,2) * w
+                        + fun_bar * ke_v * std::pow(freq,2) * std::pow(B_m,2) * w;
+      double kh_v_bar = fun_bar * rho_v * freq * std::pow(B_m,2) * w;
+      double ke_v_bar = fun_bar * rho_v * std::pow(freq,2) * std::pow(B_m,2) * w;
+      double w_bar = fun_bar * rho_v * kh_v * freq * std::pow(B_m,2) 
+                     + fun_bar *rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2);
+
+      // auto rho_v = rho.Eval(trans, ip);
+      PointMat_bar = 0.0;
+      rho.EvalRevDiff(rho_v_bar, trans, ip, PointMat_bar);
+
+      // auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
+      CAL2_kh.EvalRevDiff(kh_v_bar, trans, ip, PointMat_bar); // Note: method not implemented
+
+      // auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
+      CAL2_ke.EvalRevDiff(ke_v_bar, trans, ip, PointMat_bar); // Note: method not implemented
+
+      /// double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+
+      /// double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 void setInputs(CAL2CoreLossDistributionIntegrator &integ, const MachInputs &inputs)
@@ -6576,6 +7217,7 @@ void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
    }
 
    // Loop over all integration points to get element contributions to heat flux
+   elvect.SetSize(ndof);
    elvect = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
@@ -6585,7 +7227,7 @@ void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
       const double trans_weight = trans.Weight();
       const double w = ip.weight * trans_weight;
 
-      el.CalcPhysShape(trans, shape);
+      el.CalcPhysShape(trans, shape); // calculate the shape functions
 
       // Determine the temperature
       double temperature;
@@ -6602,7 +7244,6 @@ void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
 
       // Compute the magnitude of the max/peak flux density (B_m or B_pk)
       ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-      bool UseMaxFluxValueAndNotPeakFluxField = true;
       double B_m;
       if (UseMaxFluxValueAndNotPeakFluxField)
       {
@@ -6629,9 +7270,199 @@ void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
 
       // The core losses in the element are the local element heat flux contributions
       double loss = rho_v * kh_v * freq * std::pow(B_m,2) 
-                  + rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2) ;
+                  + rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2);
       elvect.Add(loss * w, shape);
    }
 }
 
+double PMDemagIntegrator::GetElementEnergy(
+   const mfem::FiniteElement &el,
+   mfem::ElementTransformation &trans,
+   const mfem::Vector &elfun)
+{
+   // Process of handling the flux and temperature is just like ACLossFunctionalIntegrator::GetElementEnergy
+   
+   int ndof = el.GetDof(); // number of degrees of freedom
+   shape.SetSize(ndof);
+
+   // Obtain correct element, DOFs, etc for temperature field
+   // Same logic as DCLossFunctionalIntegrator
+   const int element = trans.ElementNo;
+   
+   // Handle the temperature field, if there is one 
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom corresponding to the temperature field
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the shape functions for the temperature field
+      int ndof = temp_el->GetDof();
+      temp_shape.SetSize(ndof);
+      
+   }
+   
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   // Loop over all integration points and evaluate the Permanent Magnet Demagnetization constraint equation value
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      // Evalate the values of shape functions for the flux density magnitude
+      el.CalcPhysShape(trans, shape);
+      // Compute the value for the magnitude of the flux density 
+      const auto b_mag = shape * elfun; // (assuming elfun passed in is regular flux density and NOT peak flux)
+
+      // Now, handle the temperature
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         // Calculate the values of the shape functions for the temperature field
+         temp_el->CalcPhysShape(trans, temp_shape);
+         
+         temperature = temp_shape * temp_elfun; //Take dot product  to get the value at the integration point
+      }
+      else
+      {
+         ///TODO: Change default value of 100 if needed (be consistent throughout)
+         temperature = 100; 
+      }
+
+      // Calculate the value of the Permanent Magnet Demagnetization constraint equation at the integration point
+      double constraint_val = PMDemagConstraint.Eval(trans, ip, b_mag, temperature);
+      // Add the contribution to the overall Permanent Magnet Demagnetization constraint equation value
+      fun += constraint_val * w;
+   }
+   return fun;
+}
+
+///TODO: Finish implementing PMDemagIntegrator::AssembleElementVector, then test
+void PMDemagIntegrator::AssembleElementVector(
+   const mfem::FiniteElement &el, 
+   mfem::ElementTransformation &trans, 
+   const mfem::Vector &elfun, 
+   mfem::Vector &elvect)
+{
+  // Process of handling the flux and temperature is just like ACLossFunctionalIntegrator::GetElementEnergy
+   
+   int ndof = el.GetDof(); // number of degrees of freedom
+   shape.SetSize(ndof);
+   elvect.SetSize(ndof); // vector which will contain the PM Demag Constraint Eq distribution
+
+   // Obtain correct element, DOFs, etc for temperature field
+   // Same logic as DCLossFunctionalIntegrator
+   const int element = trans.ElementNo;
+   
+   // Handle the temperature field, if there is one 
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom corresponding to the temperature field
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the shape functions for the temperature field
+      int ndof = temp_el->GetDof();
+      temp_shape.SetSize(ndof);
+      
+   }
+   
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   // Loop over all integration points and add the Permanent Magnet Demagnetization constraint equation values to the overall distribution
+   
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      // Evalate the values of shape functions for the flux density magnitude
+      el.CalcPhysShape(trans, shape);
+      // Compute the value for the magnitude of the flux density 
+      const auto b_mag = shape * elfun; // (assuming elfun passed in is regular flux density and NOT peak flux)
+
+      // Now, handle the temperature
+      double temperature;
+
+      if (temperature_field != nullptr)
+      {
+         // Calculate the values of the shape functions for the temperature field
+         temp_el->CalcPhysShape(trans, temp_shape);
+         
+         temperature = temp_shape * temp_elfun; //Take dot product  to get the value at the integration point
+      }
+      else
+      {
+         ///TODO: Change default value of 100 if needed (be consistent throughout)
+         temperature = 100; 
+      }
+
+      // Calculate the value of the Permanent Magnet Demagnetization constraint equation at the integration point
+      double constraint_val = PMDemagConstraint.Eval(trans, ip, b_mag, temperature);
+      // Add the contribution to the overall Permanent Magnet Demagnetization constraint equation distribution
+      elvect.Add(constraint_val * w, shape);
+   }
+}
 }  // namespace mach

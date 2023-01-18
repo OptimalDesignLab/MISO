@@ -455,7 +455,6 @@ double PMDemagConstraintEqCoeff::Eval(mfem::ElementTransformation &trans,
                            const double state1,
                            const double state2)
 {
-   ///TODO: Determine what flux density exactly is needed (i.e. max alternating, peak, etc.)
    // Assuming state1=flux density and state2=temperature
    auto B = state1;
    auto T = state2;
