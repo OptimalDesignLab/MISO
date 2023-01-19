@@ -31,7 +31,7 @@ const nlohmann::json default_options{
          {"lps-coeff",
           1.0},  // scaling coefficient for local-proj stabilization
          {"iface-coeff", 1.0},  // scaling coefficient for interface dissipation
-         {"visc-coeff", 1.0}, // scaling coefficient for artificial viscosity        
+         {"visc-coeff", 0.0}, // scaling coefficient for artificial viscosity        
  	 {"basis-type", "csbp"}  // csbp & dsbp for continuous & discrete SBP
      }},
 

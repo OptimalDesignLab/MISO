@@ -97,12 +97,14 @@ int main(int argc, char *argv[])
       solver->printSolution("cylinder-steady-dg-cut-potential-final", -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
+
+      *out << "\n|| rho_h - rho ||_{L^2} = "
+           << (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
+                   .calcConservativeVarsL2Error(uexact, 0));
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 1));
       *out << "\n|| (rho.u)_h - (rho.u) ||_{L^2}  = " << l2_error << endl;
 
-      *out << "\n|| rho_h - rho ||_{L^2} = " << (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                      .calcConservativeVarsL2Error(uexact, 0));
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
       *out << "\ncl value = " << abs(solver->calcOutput("lift")) << endl;
    }

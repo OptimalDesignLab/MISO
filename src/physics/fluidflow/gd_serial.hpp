@@ -2,7 +2,6 @@
 #define MFEM_GD
 #include "mach_types.hpp"
 #include "mfem.hpp"
-#include "HYPRE.h"
 using namespace mfem;
 using namespace std;
 namespace mfem
@@ -58,7 +57,7 @@ public:
    void buildVandermondeMat(int dim,
                             int num_basis,
                             const Array<int> &els_id,
-                            Array<int> &stencil_elid,
+                            Array<int> &stencil_elid, 
                             DenseMatrix &x_center,
                             DenseMatrix &V) const;
    void buildLSInterpolation(int elem_id,
@@ -82,17 +81,17 @@ public:
       return Dof_TrueDof_Matrix()->GetGlobalNumCols();
    }
 
-   void Build_Dof_TrueDof_Matrix();
+   void Build_Dof_TrueDof_Matrix() const;
 
    virtual HypreParMatrix *Dof_TrueDof_Matrix() const;
 
    /// Get the prolongation matrix in GD method
    virtual const Operator *GetProlongationMatrix() const
    {
-      // if (!P)
-      // {
-      //    Build_Dof_TrueDof_Matrix();
-      // }
+      if (!P)
+      {
+         Build_Dof_TrueDof_Matrix();
+      }
       return P;
    }
 
@@ -112,7 +111,7 @@ public:
    }
 
    /// Build the prolongation matrix in GD method
-   void BuildGDProlongation();
+   void BuildGDProlongation() const;
 
    /// Assemble the local reconstruction matrix into the prolongation matrix
    /// \param[in] id - vector of element id in patch
@@ -124,8 +123,8 @@ public:
 
    virtual int GetTrueVSize() const { return nEle * vdim; }
 
-   // using ParFiniteElementSpace::GetTrueDofOffsets;
-   HYPRE_Int *GetTrueDofOffsets() const { return tdof_offsets; }
+   using ParFiniteElementSpace::GetTrueDofOffsets;
+
    /** Create and return a new HypreParVector on the true dofs, which is
    owned by (i.e. it must be destroyed by) the calling function. */
    virtual HypreParVector *NewTrueDofVector()
@@ -150,11 +149,19 @@ private:
    /// Prolongation operator
    //    mutable HypreParMatrix *P;
    //    mutable SparseMatrix *R;
-   HYPRE_IJMatrix ij_matrix ;
+
+protected:
+   /// mesh dimension
+   int dim;
+   /// number of elements in mesh
+   int nEle;
+   /// degree of lagrange interpolation
+   int degree;
+   /// communicator
+   MPI_Comm comm;
    /// col and row partition arrays
-   // mutable HYPRE_Int *mat_col_idx;
-   // mutable HYPRE_Int *mat_row_idx;
-   mutable HYPRE_Int *tdof_offsets;
+   mutable HYPRE_Int *mat_col_idx;
+   mutable HYPRE_Int *mat_row_idx;
    /// finite element collection
    const mfem::FiniteElementCollection *fec;  // not owned
    int col_start, col_end;
@@ -162,7 +169,9 @@ private:
    int row_start, row_end;
    int el_offset;
    int pr;
-   int gddofs;
+
+   HypreParMatrix *ptranspose;
+
    // Use the serial mesh to constructe prolongation matrix
    mfem::Mesh *full_mesh;
    // const mfem::FiniteElementSpace *full_fespace;
@@ -174,17 +183,7 @@ private:
    // use HYPRE_IJMATRIX interface to construct the
    /// the actual prolongation matrix
    HYPRE_ParCSRMatrix prolong;
-
-protected:
-   /// mesh dimension
-   int dim;
-   /// number of elements in mesh
-   int nEle;
-   /// degree of lagrange interpolation
-   int degree;
-   /// communicator
-   MPI_Comm comm;
-
+   HYPRE_IJMatrix ij_matrix;
    ///\Note: cut-cell stuff
    /// the vector of embedded elements
    std::vector<bool> embeddedElements;

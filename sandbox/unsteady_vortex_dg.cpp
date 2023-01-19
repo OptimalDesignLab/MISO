@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       auto solver = createSolver<EulerDGSolver<2, entvar>>(opt_file_name);
       solver->setInitialCondition(u0_function);
-      solver->printSolution("unsteady-vortex-dg-init");
+      solver->printSolution("unsteady-vortex-dg-init", -1);
       solver->feedpert(pert);
       double l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(u0_function, 0));
@@ -82,8 +82,9 @@ int main(int argc, char *argv[])
       l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(u0_function, 0));
       *out << "\n|| u_h - u ||_{L^2} = " << l2_error << '\n' << endl;
-      //   *out << "\n|| u_h - u ||_{L^2} = "
-      //             << solver->calcL2Error(u0_function) << '\n' << endl;
+      // *out << "\n|| u_h - u ||_{L^2} = " << solver->calcL2Error(u0_function)
+      //      << '\n'
+      //      << endl;
       solver->printSolution("unsteady-vortex-dg-final");
    }
    catch (MachException &exception)
@@ -104,18 +105,19 @@ int main(int argc, char *argv[])
 // Initial condition; see Crean et al. 2018 for the notation
 void u0_function(const Vector &x, Vector &q)
 {
+#if 1
    q.SetSize(4);
    Vector u0(4);
    double t = 0.0;  // this could be an input...
-   double x0 = 5.0;
+   double x0 = 0.0;
    double y0 = 0.0;
    // scale is used to reduce the size of the vortex; need to scale the
    // velocity and pressure carefully to account for this
-   double scale = 1.0;
+   double scale = 5.0;
    double xi = (x(0) - x0) * scale - t;
    double eta = (x(1) - y0) * scale;
    double M = 0.5;
-   double epsilon = 1.0;
+   double epsilon = 1.0/5.0;
    double f = 1.0 - (xi * xi + eta * eta);
    // density
    u0(0) = pow(1.0 - epsilon * epsilon * euler::gami * M * M * exp(f) /
@@ -139,6 +141,59 @@ void u0_function(const Vector &x, Vector &q)
    {
       calcEntropyVars<double, 2>(u0.GetData(), q.GetData());
    }
+#endif
+#if 0
+   q.SetSize(4);
+   Vector u0(4);
+   double radius = 0, Minf = 0, beta = 0;
+
+   // "Fast vortex"
+   radius = 0.2;
+   Minf = 0.5;
+   beta = 1. / 5.;
+
+   // "Slow vortex"
+   // radius = 0.2;
+   // Minf = 0.05;
+   // beta = 1. / 50.;
+
+   const double xc = 0.0, yc = 0.0;
+
+   // Nice units
+   const double vel_inf = 1.;
+   const double den_inf = 1.;
+
+   // Derive remainder of background state from this and Minf
+   const double pres_inf = (den_inf / euler::gamma) * (vel_inf / Minf) *
+                           (vel_inf / Minf);
+   const double temp_inf = pres_inf / (den_inf * euler::R);
+
+   double r2rad = 0.0;
+   r2rad += (x(0) - xc) * (x(0) - xc);
+   r2rad += (x(1) - yc) * (x(1) - yc);
+   r2rad /= (radius * radius);
+
+   const double shrinv1 = 1.0 / (euler::gamma - 1.);
+
+   const double velX = vel_inf * (1 - beta * (x(1) - yc) / radius * exp(
+                                     -0.5 * r2rad));
+   const double velY = vel_inf * beta * (x(0) - xc) / radius * exp(-0.5 * r2rad);
+   const double vel2 = velX * velX + velY * velY;
+
+   const double specific_heat = euler::R * euler::gamma * shrinv1;
+   const double temp = temp_inf - 0.5 * (vel_inf * beta) *
+                       (vel_inf * beta) / specific_heat * exp(-r2rad);
+
+   const double den = den_inf * pow(temp/temp_inf, shrinv1);
+   const double pres = den * euler::R * temp;
+   const double energy = shrinv1 * pres / den + 0.5 * vel2;
+
+   u0(0) = den;
+   u0(1) = den * velX;
+   u0(2) = den * velY;
+   u0(3) = den * energy;
+   q = u0;
+#endif
 }
 
 // perturbation function used to check the jacobian in each iteration

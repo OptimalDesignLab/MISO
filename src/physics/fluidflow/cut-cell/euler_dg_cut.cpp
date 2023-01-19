@@ -326,8 +326,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double
 #if 1
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-   res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
-       cutSquareIntRules, embeddedElements, diff_coeff, alpha));
+   // res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
+   //     cutSquareIntRules, embeddedElements, diff_coeff, alpha));
    auto &bcs = options["bcs"];
    if (bcs.find("vortex") != bcs.end())
    {  // isentropic vortex BC

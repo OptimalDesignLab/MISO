@@ -140,7 +140,6 @@ public:
       {
          mass_local_jac = &mass->SpMat();
       }
-      cout << "mass_local_jac size " << mass_local_jac->Size() << endl;
       if (nonlinear_mass != nullptr)
       {
          add(*x, dt_stage, k, x_work);
@@ -149,7 +148,6 @@ public:
 
       add(1.0, *x, dt, k, x_work);
       const auto &res_local_jac = res->GetLocalGradient(x_work);
-
       std::unique_ptr<SparseMatrix> local_jac;
 
       if (mass_local_jac != nullptr)
@@ -160,7 +158,6 @@ public:
       {
          local_jac.reset(new SparseMatrix(res_local_jac, false));
       }
-
       /// TODO: this is taken from ParNonlinearForm::GetGradient
       {
          OperatorHandle dA(jac.Type());
@@ -175,7 +172,6 @@ public:
          // TODO - construct Dof_TrueDof_Matrix directly in the pGrad format
          Ph.ConvertFrom(pfes->Dof_TrueDof_Matrix());
          jac.MakePtAP(dA, Ph);
-
          // Impose b.c. on jac
          OperatorHandle jac_e;
          jac_e.EliminateRowsCols(jac, ess_tdof_list);

@@ -44,6 +44,57 @@ inline xdouble pressureBernoulli(const xdouble *q)
    return euler::gami *
           (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
+// Check that the state is physical - enabled in debug mode
+/// \param[in] q - the conservative variables
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+template <typename xdouble, int dim>
+bool StateIsPhysical(const xdouble *q)
+{
+   using namespace std;
+   xdouble rho = q[0];
+   xdouble u[dim];
+   for (int i = 0; i < dim; ++i)
+   {
+      u[i] = q[i + 1] / q[0];
+   }
+   xdouble energy = q[dim + 1];
+
+   if (rho < 0)
+   {
+      cout << "Negative density: ";
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         cout << q[i] << " ";
+      }
+      cout << endl;
+      return false;
+   }
+   if (energy <= 0)
+   {
+      cout << "Negative energy: ";
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         cout << q[i] << " ";
+      }
+      cout << endl;
+      return false;
+   }
+
+   auto press = pressure<xdouble, dim>(q);
+
+   if (press <= 0)
+   {
+      cout << "Negative pressure: " << press << ", state: ";
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         cout << q[i] << " ";
+      }
+      cout << endl;
+      return false;
+   }
+   return true;
+}
 /// Convert conservative variables `q` to entropy variables `w`
 /// \param[in] q - conservative variables that we want to convert from
 /// \param[out] w - entropy variables we want to convert to
@@ -126,6 +177,10 @@ inline xdouble entropy(const xdouble *q)
 template <typename xdouble, int dim>
 void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
 {
+   if (!StateIsPhysical<xdouble, dim>(q))
+   {
+      throw MachException("State is not physical!\n");
+   }
    auto press = pressure<xdouble, dim>(q);
    auto U = dot<xdouble, dim>(q + 1, dir);
    flux[0] = U;
@@ -574,8 +629,11 @@ xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
    xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
    xdouble U = dot<xdouble, dim>(q + 1, dir) / q[0];
+   //xdouble U = dot<xdouble, dim>(q + 1, q + 1) / q[0];
+   //xdouble vel = sqrt(U/q[0]);
    xdouble dir_norm = sqrt(dot<xdouble, dim>(dir, dir));
    return fabs(U) + sndsp * dir_norm;
+  // return vel + sndsp;
 }
 
 // TODO: How should we return matrices, particularly when they will be
@@ -664,6 +722,14 @@ void calcLaxFriedrichsFlux(const xdouble *dir,
    xdouble fluxR[dim + 2];
    xdouble q_ave[dim + 2];
    xdouble q_diff[dim + 2];
+   if (!StateIsPhysical<xdouble, dim>(qL))
+   {
+      throw MachException("qL is not physical in LF!\n");
+   }
+   if (!StateIsPhysical<xdouble, dim>(qR))
+   {
+      throw MachException("qR is not physical in LF!\n");
+   }
    calcEulerFlux<xdouble, dim>(dir, qL, fluxL);
    calcEulerFlux<xdouble, dim>(dir, qR, fluxR);
    for (int i = 0; i < dim + 2; i++)
@@ -672,6 +738,7 @@ void calcLaxFriedrichsFlux(const xdouble *dir,
       q_diff[i] = -qR[i] + qL[i];
    }
    xdouble lambda = diss_coeff * calcSpectralRadius<xdouble, dim>(dir, q_ave);
+
    for (int k = 0; k < dim + 2; ++k)
    {
       flux[k] = fluxL[k] + fluxR[k] + (lambda * q_diff[k]);

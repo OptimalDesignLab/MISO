@@ -250,8 +250,20 @@ void AbstractSolver::initDerived()
    {
       addMassIntegrators(alpha);
       mass->Assemble(0);
-      *out << "mass size after Assemble(): " << mass->Height() << " x " << mass->Width() << endl;
+      *out << "mass size after Assemble(): " << mass->Height() << " x "
+           << mass->Width() << endl;
       mass->Finalize();
+      mass_matrix.reset(new SparseMatrix(mass->SpMat()));
+      // if (gd)
+      // {
+      //    //SparseMatrix *cp = dynamic_cast<GDSpaceType *>(fes_gd.get())->GetCP();
+      //    SparseMatrix *cp = fes_gd->GetCP();
+      //    cout << "cp done: " << endl;
+      //    SparseMatrix *p = RAP(*cp, *mass_matrix, *cp);
+      //    cout << "p done: " << endl;
+      //    mass_matrix_gd.reset(new SparseMatrix(*p));
+      //    mass_matrix_gd->Finalize();
+      // }
    }
 
    if (res)
@@ -259,9 +271,10 @@ void AbstractSolver::initDerived()
       cout << "inside if res" << endl;
       visc_coeff = options["space-dis"]["visc-coeff"].template get<double>();
       /// TODO: look at partial assembly
-      addResVolumeIntegrators(alpha);
+      // addResVolumeIntegrators(alpha);
+
+      addResVolumeIntegrators(alpha, visc_coeff);
       cout << "added vol integrators " << endl;
-      // addResVolumeIntegrators(alpha, visc_coeff);
       addResBoundaryIntegrators(alpha);
       cout << "added bdr integrators " << endl;
       addResInterfaceIntegrators(alpha);
@@ -635,7 +648,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       smesh->GeneralRefinement(list, 1);
    }
    // smesh->UniformRefinement();
-   ofstream sol_ofs("final_mesh_vortex.vtk");
+   ofstream sol_ofs("final_mesh.vtk");
    sol_ofs.precision(14);
    smesh->PrintVTK(sol_ofs, 0);
    mesh.reset(new MeshType(comm, *smesh));
@@ -1455,10 +1468,10 @@ void AbstractSolver::printSolution(const std::string &file_name, int refine)
    // TODO: These mfem functions do not appear to be parallelized
    ofstream sol_ofs(file_name + ".vtk");
    sol_ofs.precision(14);
-   if (refine == -1)
-   {
-      refine = options["space-dis"]["degree"].get<int>() + 1;
-   }
+   // if (refine == -1)
+   // {
+   //    refine = options["space-dis"]["degree"].get<int>() + 1;
+   // }
    mesh->PrintVTK(sol_ofs, refine);
    u->SaveVTK(sol_ofs, "Solution", refine);
    sol_ofs.close();
@@ -1957,8 +1970,7 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
    int max_count = 200;
    double mu_max = visc_coeff;
    double mu_targ = 1e-12;
-   // while (visc_coeff > 1e-12)
-   // {
+   #if 0
    if (mu_max > 0.0)
    {
       for (int k = 0; k <= max_count; ++k)
@@ -2000,6 +2012,7 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
          // }
       }
    }
+   #endif
 
    cout << "visc_coeff : " << visc_coeff << endl;
    reltol = 1e-12;
@@ -2021,6 +2034,7 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
    // fes_gd->GetProlongationMatrix()->Mult(*u_gd, *u);
    // std::cout << "res norm: " << calcResidualNorm(state) << "\n";
 }
+
 void AbstractSolver::solveSteady(ParGridFunction &state)
 {
    *out << "AbstractSolver::solveSteady() is not deprecated!!!!!!!!!!!!!!"
@@ -2092,16 +2106,17 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
    *out << "t_final is " << t_final << '\n';
    int ti = 0;
    double dt = 0.0;
+   int vis_steps = 50;
+   int max_iter = options["time-dis"]["max-iter"].get<int>();
    initialHook(state);
-   for (ti = 0; ti < options["time-dis"]["max-iter"].get<int>(); ++ti)
+   for (ti = 0; ti < max_iter; ++ti)
    {
       dt = calcStepSize(ti, t, t_final, dt, state);
-      *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
-      if (!options["time-dis"]["steady"].get<bool>())
-      {
-         *out << " (" << round(100 * t / t_final) << "% complete)";
-      }
-      *out << endl;
+      *out << "----------------------------------------------------------------"
+              "----------------------  "
+           << endl;
+      *out << "iter " << ti << ": time = " << t << ": dt = " << dt << endl;
+
       // iterationHook(ti, t, dt, state);
       auto &u_true = state.GetTrueVector();
       ode_solver->Step(u_true, t, dt);
@@ -2113,12 +2128,24 @@ void AbstractSolver::solveUnsteady(ParGridFunction &state)
          pd->SetTime(t);
          pd->Save();
       }
+
+      if (!options["time-dis"]["steady"].get<bool>())
+      {
+         bool done = (t >= t_final - 1e-8 * dt);
+         if (done || ti % vis_steps == 0)
+         {
+            *out << "iter " << ti << ": time = " << t << ": dt = " << dt;
+            *out << " (" << round(100 * t / t_final) << "% complete)" << endl;
+            std::cout << "res norm: " << calcResidualNorm(state) << "\n";
+         }
+      }
       std::cout << "res norm: " << calcResidualNorm(state) << "\n";
       if (iterationExit(ti, t, t_final, dt, state))
       {
          break;
       }
    }
+
    {
       ofstream osol("final_before_TH.gf");
       osol.precision(std::numeric_limits<long double>::digits10 + 1);

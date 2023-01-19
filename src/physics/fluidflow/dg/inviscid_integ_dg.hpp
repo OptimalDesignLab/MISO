@@ -417,9 +417,9 @@ class EulerDiffusionIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// Construct an integrator for MMS sources
    /// \param[in] a - factor, usually used to move terms to rhs
-   EulerDiffusionIntegrator(Coefficient &visc_coeff , double a = 1.0)
+   EulerDiffusionIntegrator(double &visc_coeff , double a = 1.0)
     : num_states(dim + 2), 
-    diff_coeff(&visc_coeff),
+    diff_coeff(visc_coeff),
     alpha(a)
    { }
    // cutSquareIntRules(_cutSquareIntRules),
@@ -470,12 +470,8 @@ public:
             trans.SetIntPoint(&ip);
             CalcAdjugate(trans.Jacobian(), Jinv);
             double w = ip.weight / trans.Weight();
-            if (diff_coeff)
-            {
-               cout << "w before: " << w << endl;
-               w *= diff_coeff->Eval(trans, ip);
-               cout << "w after: " << w <<endl;
-            }
+            w *= diff_coeff;
+
             MultAAt(Jinv, gshape);
             gshape *= w;
 
@@ -521,10 +517,7 @@ public:
          trans.SetIntPoint(&ip);
          CalcAdjugate(trans.Jacobian(), Jinv);
          double w = ip.weight / trans.Weight();
-         if (diff_coeff)
-         {
-            w *= diff_coeff->Eval(trans, ip);
-         }
+         w *= diff_coeff;
          MultAAt(Jinv, gshape);
          gshape *= w;
          el.CalcDShape(ip, dshape);
@@ -542,8 +535,8 @@ protected:
    int num_states;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
-     /// viscosity coefficient
-   Coefficient *diff_coeff;
+   /// viscosity coefficient
+   double &diff_coeff;
 private:
    DenseMatrix dshape, dshapedxt, pelmat, pelmat2;
    DenseMatrix Jinv, gshape, elmat1;

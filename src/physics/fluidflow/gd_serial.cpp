@@ -78,80 +78,43 @@ ParGalerkinDifference::ParGalerkinDifference(
    fec = f;
    comm = _comm;
    embeddedElements = _embeddedElements;
-
-   el_offset = GetParMesh()->GetGlobalElementNum(0);
-   cout << "el_offset " << el_offset << endl;
-   // re-cal necessary members from base classses
-   gddofs = GetParMesh()->GetNE();
-   cout << "gddofs " << gddofs << endl;
-   tdof_offsets = new HYPRE_Int[2];
-   tdof_offsets[0] = vdim * el_offset;
-   tdof_offsets[1] = vdim * (el_offset + gddofs);
-   cout << "tdof_offsets done" << endl;
-   // determine the the local prolongation matrix size
-
-   col_start = vdim * el_offset;
-   col_end = col_start + vdim * gddofs - 1;
-   cout << "b4 GetDofOffsets()" << endl;
-   HYPRE_BigInt *offsets = GetDofOffsets();
-   cout << "offsets done" << endl;
-   row_start = offsets[0];
-   row_end = offsets[1] - 1;
-
-   local_tdof = vdim * GetParMesh()->GetNE();
-
-   cout << "Constructing the parallel prolongation matrix:\n";
-   cout << "vdim is " << vdim << endl;
-   cout << "dof offsets are " << offsets[0] << ", " << offsets[1] << endl;
-   cout << "tdof_offset is " << tdof_offsets[0] << ", " << tdof_offsets[1]
-        << endl;
-   cout << "row start and end are " << row_start << ", " << row_end << endl;
-   cout << "col start and end are " << col_start << ", " << col_end << endl;
-   MPI_Barrier(GetComm());
-
    BuildGDProlongation();
-
-   HYPRE_BigInt ssize = GlobalTrueVSize();
-
-   cout << "Global true Vsize is " << ssize << endl;
-   cout << "HypreProlongation matrix size are " << P->Height() << " x "
-        << P->Width() << endl;
+   Build_Dof_TrueDof_Matrix();
 }
-void ParGalerkinDifference::Build_Dof_TrueDof_Matrix()
+
+void ParGalerkinDifference::Build_Dof_TrueDof_Matrix() const
 {
-   if (!P)
+   if (!cP)
    {
       BuildGDProlongation();
    }
-#if 0
-      HYPRE_Int row_size = cP->Height();
-      HYPRE_Int col_size = cP->Width();
-      cout << " row_size " << row_size << endl;
-      mat_row_idx = new HYPRE_Int[2];
-      mat_col_idx = new HYPRE_Int[2];
-      mat_row_idx[0] = 0;
-      mat_row_idx[1] = cP->Height();
-      mat_col_idx[0] = 0;
-      mat_col_idx[1] = cP->Width();
-      cout << "creating P matrix " << endl;
-      P = new HypreParMatrix(
-          comm, row_size, col_size, mat_row_idx, mat_col_idx, cP);
-      // P = new HypreParMatrix(
-      //     comm, mat_row_idx, mat_col_idx, cP);
-      cout << "P size " << P->Height() << " x " << P->Width() << endl;
-      SparseMatrix Pdiag;
-      P->GetDiag(Pdiag);
-      R = Transpose(Pdiag);
-#endif
+   HYPRE_Int row_size = cP->Height();
+   HYPRE_Int col_size = cP->Width();
+   cout << " row_size " << row_size << endl;
+   mat_row_idx = new HYPRE_Int[2];
+   mat_col_idx = new HYPRE_Int[2];
+   mat_row_idx[0] = 0;
+   mat_row_idx[1] = cP->Height();
+   mat_col_idx[0] = 0;
+   mat_col_idx[1] = cP->Width();
+   cout << "creating P matrix " << endl;
+   P = new HypreParMatrix(
+       comm, row_size, col_size, mat_row_idx, mat_col_idx, cP);
+   // P = new HypreParMatrix(
+   //     comm, mat_row_idx, mat_col_idx, cP);
+   cout << "P size " << P->Height() << " x " << P->Width() << endl;
+   SparseMatrix Pdiag;
+   P->GetDiag(Pdiag);
+   R = Transpose(Pdiag);
 }
 
 HypreParMatrix *ParGalerkinDifference::Dof_TrueDof_Matrix() const
 {
-   // if (!P)
-   // {
-   //    cout << "P not there " << endl;
-   //    Build_Dof_TrueDof_Matrix();
-   // }
+   if (!P)
+   {
+      cout << "P not there " << endl;
+      Build_Dof_TrueDof_Matrix();
+   }
    return P;
 }
 
@@ -283,8 +246,6 @@ void ParGalerkinDifference::SortNeighbors(int id,
    el->GetVertices(v);
    Vector center(dim), refCent(dim);
    GetElementCenter(id, center);
-   // cout << "element center: " << endl;
-   // center.Print();
    ElementTransformation *eltransf = mesh->GetElementTransformation(id);
    cout << "element size: " << mesh->GetElementSize(id) << endl;
    double el_size = mesh->GetElementSize(id);
@@ -292,7 +253,7 @@ void ParGalerkinDifference::SortNeighbors(int id,
    // for (int i = 0; i < v.Size(); ++i)
    // {
    //    double *coord = mesh->GetVertex(v[i]);
-   //    // cout << coord[0] << " , " << coord[1] << endl;
+   //    cout << coord[0] << " , " << coord[1] << endl;
    //    if (coord[0] < center(0) && coord[1] < center(1))
    //    {
    //       refCent(0) = 0.5 * (coord[0] + center(0));
@@ -307,8 +268,8 @@ void ParGalerkinDifference::SortNeighbors(int id,
    refCent(1) = center(1);
    // if (id == 3)
    // {
-   // cout << "ref center :" << endl;
-   // refCent.Print();
+      // cout << "ref center :" << endl;
+      // refCent.Print();
    // }
    vector<double> elementBasisDist;
    elementBasisDist.clear();
@@ -331,7 +292,7 @@ void ParGalerkinDifference::SortNeighbors(int id,
       int sid = els_id[bid];
       nels.Append(sid);
    }
-
+ 
    // check if the stencil selection is valid
    // for (i = 0; i < numBasis; i++)
    // {
@@ -431,10 +392,10 @@ void ParGalerkinDifference::GetElementCenter(int id, mfem::Vector &cent) const
    eltransf->Transform(Geometries.GetCenter(geom), cent);
 }
 
-void ParGalerkinDifference::BuildGDProlongation()
+void ParGalerkinDifference::BuildGDProlongation() const
 {
    HYPRE_IJMatrixCreate(
-       comm, row_start, row_end, col_start, col_end, &ij_matrix);
+       GetComm(), row_start, row_end, col_start, col_end, &ij_matrix);
    // HYPRE_IJMatrixCreate(GetComm(),);
    HYPRE_IJMatrixSetObjectType(ij_matrix, HYPRE_PARCSR);
    HYPRE_IJMatrixInitialize(ij_matrix);
@@ -447,7 +408,7 @@ void ParGalerkinDifference::BuildGDProlongation()
    // this step should be done in the constructor (probably)
    // should it be GetTrueVSize() ? or GetVSize()?
    // need a new method that directly construct a CSR format sparsematrix ？
-   // cP = new mfem::SparseMatrix(GetVSize(), vdim * nEle);
+   cP = new mfem::SparseMatrix(GetVSize(), vdim * nEle);
    // determine the minimum # of element in each patch
    int nreq, nreq_init;
    switch (dim)
@@ -458,8 +419,7 @@ void ParGalerkinDifference::BuildGDProlongation()
    case 2:
       nreq = (degree + 1) * (degree + 2) / 2;
       nreq_init = (degree + 2) * (degree + 3) / 2;
-      // nreq = nreq + 1; // experimenting
-      // nreq_init = nreq;  /// old stencil
+      nreq_init = nreq; /// old stencil
       break;
    case 3:
       cout << "Not implemeneted yet.\n" << endl;
@@ -476,8 +436,8 @@ void ParGalerkinDifference::BuildGDProlongation()
    // vector that contains element id (resize to zero )
    mfem::Array<int> elmt_id, nels, stencil_elid;
    mfem::DenseMatrix cent_mat, quad_mat, local_mat, V;
-   // cout << "The size of the prolongation matrix is " << cP->Height() << " x "
-   //      << cP->Width() << '\n';
+   cout << "The size of the prolongation matrix is " << cP->Height() << " x "
+        << cP->Width() << '\n';
    // int degree_actual;
    for (int i = 0; i < nEle; i++)
    {
@@ -500,19 +460,14 @@ void ParGalerkinDifference::BuildGDProlongation()
       {
          ConstructStencil(i, nreq_init, nels);
          SortNeighbors(i, nreq, nels, elmt_id);
-         cout << "#elements in stencil first " << nels.Size() << endl;
-         cout << "Elements id(s) in initial patch " << i << ": " << endl;
-         nels.Print(cout, nels.Size());
+         cout << "#elements in stencil first " << elmt_id.Size() << endl;
+         cout << "Elements id(s) in patch " << i << ": " << endl;
+         elmt_id.Print(cout, elmt_id.Size());
          cout << " =================================================== "
               << endl;
-         // cout << "building vandermonde for element: " << i << endl;
+         //cout << "building vandermonde for element: " << i << endl;
          //buildVandermondeMat(dim, nreq, elmt_id, stencil_elid, cent_mat, V);
-         buildVandermondeMat(dim,
-                             nreq,
-                             nels,
-                             stencil_elid,
-                             cent_mat,
-                             V);  // old stencil approach
+         buildVandermondeMat(dim, nreq, nels, stencil_elid, cent_mat, V); // old stencil approach
          cout << " =================================================== "
               << endl;
          cout << "#elements in stencil afterwards " << stencil_elid.Size()
@@ -524,13 +479,13 @@ void ParGalerkinDifference::BuildGDProlongation()
 
          // 2. build the quadrature and barycenter coordinate matrices
          BuildNeighbourMat(stencil_elid, quad_mat);
-         // cout << "neighbour mat is done " << endl;
-         //  3. buil the loacl reconstruction matrix
+         //cout << "neighbour mat is done " << endl;
+         // 3. buil the loacl reconstruction matrix
          buildLSInterpolation(i, dim, degree, V, cent_mat, quad_mat, local_mat);
          // cout << "build LS interpolation " << endl;
          //  4. assemble them back to prolongation matrix
          AssembleProlongationMatrix(stencil_elid, local_mat);
-         cout << "assemble prolongation done " << endl;
+         // cout << "assemble prolongation done " << endl;
       }
    }
    HYPRE_IJMatrixAssemble(ij_matrix);
@@ -544,8 +499,8 @@ void ParGalerkinDifference::BuildGDProlongation()
    {
       cout << "R size is " << R->Height() << " x " << R->Width() << endl;
    }
-/// serial case
-#if 0
+   /// serial case
+   #if 0
    cP->Finalize();
    cP_is_set = true;
    cout << "Check cP size: " << cP->Height() << " x " << cP->Width() << '\n';
@@ -556,7 +511,7 @@ void ParGalerkinDifference::BuildGDProlongation()
    // ofstream cp_save("cP.txt");
    // cP->PrintMatlab(cp_save);
    // cp_save.close();
-#endif
+   #endif
 }
 
 void ParGalerkinDifference::AssembleProlongationMatrix(
@@ -569,13 +524,12 @@ void ParGalerkinDifference::AssembleProlongationMatrix(
    // assume the mesh only contains only 1 type of element
    int nel = id.Size();
    const int main_id_global = id[0];
-   const int main_id_local = GetParMesh()->GetLocalElementNum(main_id_global);
+   const int main_id_local  = GetParMesh()->GetLocalElementNum(main_id_global); 
    const Element *el = mesh->GetElement(0);
    const FiniteElement *fe =
        fec->FiniteElementForGeometry(el->GetGeometryType());
    const int num_dofs = fe->GetDof();
-   MFEM_VERIFY(num_dofs == local_mat.Height(),
-               "matrix height doesn't match # of dof");
+   MFEM_VERIFY(num_dofs == local_mat.Height(),"matrix height doesn't match # of dof");
    Array<int> el_dofs;
    int dof_offset = GetMyDofOffset();
    GetElementVDofs(main_id_local, el_dofs);
@@ -599,17 +553,13 @@ void ParGalerkinDifference::AssembleProlongationMatrix(
       for (j = 0; j < num_dofs; j++)
       {
          local_mat.GetRow(j, single_row);
-         row_index = el_dofs[v * num_dofs + j];
-         HYPRE_IJMatrixSetValues(ij_matrix,
-                                 1,
-                                 &nel,
-                                 &row_index,
-                                 col_index.GetData(),
+         row_index = el_dofs[v*num_dofs+j];
+         HYPRE_IJMatrixSetValues(ij_matrix,1,&nel, &row_index, col_index.GetData(),
                                  single_row.GetData());
       }
    }
-/// serial
-#if 0
+   /// serial
+   #if 0
    int nel = id.Size();
    Array<int> el_dofs;
    Array<int> col_index;
@@ -644,7 +594,7 @@ void ParGalerkinDifference::AssembleProlongationMatrix(
          col_index[e]++;
       }
    }
-#endif
+   #endif
 }
 
 double ParGalerkinDifference::calcVandScale(int el_id,
@@ -679,32 +629,24 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
    // cout << "#elements in initial stencil " << elmt_id.Size() << endl;
    // elmt_id.Print(cout, elmt_id.Size());
    double cond = 1.0;
-   cond = 10.0;
+   //cond = 1e+01;
    double vandCond = 1e+30;
    int num_el = num_basis;
-   double vand_scale;
+   double vand_scale ;
    cout << "elmt_id size: " << elmt_id.Size() << endl;
    /// keep adding elements until
-   // - condition number improves
+   // - condition number improves 
    // - or the stencil size becomes maximum
-   stencil_elid.LoseData();
    while (vandCond > cond)
    {
       if (num_el <= elmt_id.Size())
       {
          cout << "num_el " << num_el << endl;
-         if (num_el == num_basis)
+         stencil_elid.LoseData();
+         for (int k = 0; k < num_el; ++k)
          {
-            for (int k = 0; k < num_el; ++k)
-            {
-               stencil_elid.Append(elmt_id[k]);
-            }
+            stencil_elid.Append(elmt_id[k]);
          }
-         else
-         {
-            stencil_elid.Append(elmt_id[num_el - 1]);
-         }
-
          // resize the DenseMatrices and clean the data
          x_center.Clear();
          x_center.SetSize(dim, num_el);
@@ -719,7 +661,7 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
             }
          }
          vand_scale = calcVandScale(elmt_id[0], dim, x_center);
-         // vand_scale = 1.0;
+         //vand_scale = 1.0;
          int num_elem = x_center.Width();
          // Construct the generalized Vandermonde matrix
          V.SetSize(num_elem, num_basis);
@@ -794,7 +736,7 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
          break;
       }
    }
-   // cout << "vand_scale final " << vand_scale << endl;
+   //cout << "vand_scale final " << vand_scale << endl;
 }
 
 void ParGalerkinDifference::buildLSInterpolation(int elem_id,
@@ -809,9 +751,8 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
    int num_quad = x_quad.Width();
    int num_elem = x_center.Width();
    double vand_scale = calcVandScale(elem_id, dim, x_center);
-   // cout << "vand_scale for elem_id " << elem_id << " is " << vand_scale <<
-   // endl;
-   // vand_scale = 1.0;
+  // cout << "vand_scale for elem_id " << elem_id << " is " << vand_scale << endl;
+   //vand_scale = 1.0;
    // number of total polynomial basis functions
    int num_basis = -1;
    if (1 == dim)
@@ -836,7 +777,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
 // Set the RHS for the LS problem (it's the identity matrix)
 // This will store the solution, that is, the basis coefficients, hence
 // the name `coeff`
-#if 0
+#if 1
    mfem::DenseMatrix coeff(num_elem, num_elem);
    coeff = 0.0;
    for (int i = 0; i < num_elem; ++i)
@@ -864,12 +805,12 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
 // -------------------------------------------------------------------------------
 
 /// use this for quad elements
-#if 1
+#if 0
    // Set the RHS for the LS problem (it's the identity matrix)
    // This will store the solution, that is, the basis coefficients, hence
    // the name `coeff`
    int LDB = max(num_elem, num_basis);
-   // cout << "LDB: " << LDB << endl;
+   //cout << "LDB: " << LDB << endl;
    mfem::DenseMatrix coeff(LDB, LDB);
    coeff = 0.0;
    for (int i = 0; i < LDB; ++i)
@@ -972,7 +913,7 @@ void ParGalerkinDifference::buildLSInterpolation(int elem_id,
                                    << fabs(exact - poly_at_quad) << " : "
                                    << "Interpolation operator does not "
                                       "interpolate exactly!\n");
-               // }
+              // }
             }
          }
       }

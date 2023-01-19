@@ -364,13 +364,14 @@ public:
       {
          const IntegrationPoint &ip = ir->IntPoint(i);
          trans.SetIntPoint(&ip);
-         el.CalcShape(ip, shape);
+         // el.CalcShape(ip, shape);
+         el.CalcPhysShape(trans, shape);
          w = trans.Weight() * ip.weight;
          AddMult_a_VVt(w, shape, elmat1);
-         for (int k = 0; k < num_state; k++)
-         {
-            elmat.AddMatrix(elmat1, num_nodes * k, num_nodes * k);
-         }
+      }
+      for (int k = 0; k < num_state; k++)
+      {
+         elmat.AddMatrix(elmat1, num_nodes * k, num_nodes * k);
       }
    }
 
