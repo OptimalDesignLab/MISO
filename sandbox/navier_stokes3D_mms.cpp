@@ -13,14 +13,14 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-// Provide the options explicitly for regression tests
+// // Provide the options explicitly for regression tests
 auto options = R"(
 {
    "print-options": false,
    "flow-param": {
       "viscous": true,
       "mu": 1.0,
-      "Re": 10.0,
+      "Re": 1.0,
       "Pr": 0.75,
       "viscous-mms": true
    },
@@ -34,15 +34,15 @@ auto options = R"(
       "steady-abstol": 1e-12,
       "steady-restol": 1e-10,
       "type": "PTC",
-      "dt": 1,
-      "cfl": 1.0,
-      "res-exp": 2.5
+      "dt": 0.01,
+      "cfl": 0.1,
+      "res-exp": 1.0
    },
    "nonlin-solver": {
       "printlevel": 1,
       "maxiter": 50,
-      "reltol": 1e-1,
-      "abstol": 1e-12
+      "reltol": 1e-6,
+      "abstol": 1e-8
    },
    "lin-solver": {
       "type": "hyprefgmres",
@@ -81,10 +81,11 @@ void uexact(const Vector &x, Vector& u);
 
 int main(int argc, char *argv[])
 {
-   const char *options_file = "navier_stokes3D_mms_options.json";
+   // const char *options_file = "navier_stokes3D_mms_options.json";
 
    // Initialize MPI
    int num_procs, rank;
+
    MPI_Init(&argc, &argv);
    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -94,10 +95,10 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
 
-   int degree = 2.0;
-   int nx = 1;
-   int ny = 1;
-   int nz = 1;
+   int degree = 0;
+   int nx = 20;
+   int ny = 20;
+   int nz = 20;
    //args.AddOption(&options_file, "-o", "--options",
    //               "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
@@ -114,7 +115,7 @@ int main(int argc, char *argv[])
    try
    {
       // construct the mesh
-      //string opt_file_name(options_file);
+      // string opt_file_name(options_file);
       auto smesh = buildCurvilinearMesh(degree, nx, ny, nz);
       *out << "Number of elements " << smesh->GetNE() <<'\n';
       ofstream sol_ofs("navier_stokes_mms_mesh.vtk");
@@ -122,29 +123,35 @@ int main(int argc, char *argv[])
       smesh->PrintVTK(sol_ofs, 3);
 
       // construct the solver and set the initial condition
-      // auto solver = createSolver<FlowSolver<3,false>>(MPI_COMM_WORLD, options,
-      //                                                   move(smesh));
       FlowSolver<3,false> solver(MPI_COMM_WORLD, options, std::move(smesh));
+      
+      // solver.getStateSize() returns the size of space-discretized state variables
+      // use that to assign initial conditions for state_timeVarying variables state_tv
       mfem::Vector state_tv(solver.getStateSize());
-      solver.setState(uexact, state_tv);
-      // solver->setInitialCondition(uexact);
-      // solver->printSolution("init", degree+1);
-      // solver->printResidual("init-res", degree+1);
-      // get the initial entropy 
-      solver.createOutput("entropy", options["outputs"].at("entropy"));
-      MachInputs inputs({{"state", state_tv}});
-      double entropy0 = solver.calcOutput("entropy", inputs);
-      cout << "before time stepping, entropy is " << entropy0 << endl;
 
-      // *out << "\n|| rho_h - rho ||_{L^2} = " 
-      //           << solver->calcL2Error(uexact, 0) << '\n' << endl;
-      // *out << "\ninitial residual norm = " << solver->calcResidualNorm() << endl;
+      // setting initial condition 
+      solver.setState(uexact, state_tv);
+
+      // print residual to see that its non-zero
+      // create a _json variable state and assigns it the list of state_variables 
+      // which can be used in computing residual
+      MachInputs inputs({ {"state", state_tv} });
+      *out << "Overall initial residual norm is: " << solver.calcResidualNorm(inputs) << "\n";
+
+      // get the initial drag before time stepping
+      solver.createOutput("drag", options["outputs"].at("drag"));
+      // find values of state_tv that are at the boundaries mentioned in "drag", to compute output
+      double init_drag = solver.calcOutput("drag", inputs);
+      *out << "before time stepping, drag is " << init_drag << std::endl;
+
+      // do time stepping and solve for the state_variables to get residual to 0
       inputs = MachInputs({});
       solver.solveForState(inputs, state_tv);
+      // save final state 
       auto &state = solver.getState();
       state.distributeSharedDofs(state_tv);
       double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
-      std::cout << "l2 error = " << l2_error << std::endl;
+      *out << "l2 error = " << l2_error << std::endl;
 
       // solver->solveForState();
       // solver->printSolution("final", degree+1);
@@ -180,29 +187,6 @@ unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y, int num_
 {
    Mesh mesh = Mesh::MakeCartesian3D(num_x, num_y, num_z, 
                                      Element::TETRAHEDRON, 1.0, 1.0, 1.0, Ordering::byVDIM);
-   
-   // Loop through the boundary elements and compute the normals at the centers of those elements
-   // for (int it = 0; it < mesh.GetNBE(); ++it)
-   // {  
-   //    mesh.SetBdrAttribute(it, 1);
-   //    Vector normal(3);
-   //    ElementTransformation *Trans = mesh.GetBdrElementTransformation(it);
-   //    Trans->SetIntPoint(&Geometries.GetCenter(Trans->GetGeometryType()));
-   //    CalcOrtho(Trans->Jacobian(), normal);
-   //    std::cout << normal(0) << " " << normal(1) << " " << normal(2) << "\n";
-
-   //    if ((abs(normal(0)) < 1e-14) && (abs(normal(1)) < 1e-14) && (abs(normal(2)) > 1e-14))
-   //    { mesh.SetBdrAttribute(it, 2); }
-
-   //    if ((abs(normal(0)) < 1e-14) && (abs(normal(1)) > 1e-14) && (abs(normal(2)) < 1e-14))
-   //    { mesh.SetBdrAttribute(it, 3); }
-   // }
-
-   for (int i = 0; i < mesh.GetNBE(); ++i)
-   {
-      std::cout << mesh.GetBdrAttribute(i) << "\n";
-   }
-
    return make_unique<Mesh>(mesh);
 }
 

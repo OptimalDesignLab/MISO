@@ -1,6 +1,7 @@
 /// Solve the Navier-Stokes MMS verification problem
 #include <fstream>
 #include <iostream>
+#include <mpi.h>
 
 #include "adept.h"
 #include "catch.hpp"
@@ -86,6 +87,14 @@ TEST_CASE( "Navier-Stokes MMS regression test 3D", "[NS-MMS]")
 {
    int nx = 1;
 
+   MPI_Init(NULL, NULL);
+   
+   int world_size;
+   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+   int world_rank;
+   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
    // const double target_error[4] = {
    //     0.0211824987, // p = 1
    //     0.0125304167, // p = 2
@@ -145,6 +154,7 @@ TEST_CASE( "Navier-Stokes MMS regression test 3D", "[NS-MMS]")
          // REQUIRE(drag_error == Approx(target_drag_error[p-1]).margin(1e-10));
       }
    }
+   MPI_Finalize();
 }
 
 TEST_CASE( "Navier-Stokes MMS exact solution 3D", "[NS-MMS-exact]")
@@ -180,29 +190,6 @@ unique_ptr<Mesh> buildCurvilinearMesh(int degree, int num_x, int num_y, int num_
    Mesh mesh = Mesh::MakeCartesian3D(num_x, num_y, num_z, 
                                      Element::TETRAHEDRON, 1.0, 1.0, 1.0, Ordering::byVDIM);
    
-   // Loop through the boundary elements and compute the normals at the centers of those elements
-   // for (int it = 0; it < mesh.GetNBE(); ++it)
-   // {  
-   //    mesh.SetBdrAttribute(it, 1);
-   //    Vector normal(3);
-   //    ElementTransformation *Trans = mesh.GetBdrElementTransformation(it);
-   //    Trans->SetIntPoint(&Geometries.GetCenter(Trans->GetGeometryType()));
-   //    CalcOrtho(Trans->Jacobian(), normal);
-   //    std::cout << normal(0) << " " << normal(1) << " " << normal(2) << "\n";
-
-   //    if ((abs(normal(0)) < 1e-14) && (abs(normal(1)) < 1e-14) && (abs(normal(2)) > 1e-14))
-   //    { 
-   //       mesh.SetBdrAttribute(it, 2);
-   //       // std::cout << "normal-z: " << mesh.GetBdrAttribute(it) << "\n";
-   //    }
-
-   //    if ((abs(normal(0)) < 1e-14) && (abs(normal(1)) > 1e-14) && (abs(normal(2)) < 1e-14))
-   //    { 
-   //       mesh.SetBdrAttribute(it, 3); 
-   //       // std::cout << "normal-y: " << mesh.GetBdrAttribute(it) << "\n"; 
-   //    }
-   // }
-
    for (int i = 0; i < mesh.GetNBE(); ++i)
    {
       std::cout << mesh.GetBdrAttribute(i) << "\n";
