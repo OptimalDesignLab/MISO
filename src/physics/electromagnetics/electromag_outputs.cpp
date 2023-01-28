@@ -530,7 +530,8 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
    double sigma_b2 = calcOutput(output.output, output.inputs);
 
    double strand_loss = sigma_b2 * output.stack_length * M_PI *
-                        pow(output.radius, 4) * pow(2 * M_PI * output.freq, 2) / 8.0;
+                        pow(output.radius, 4) * pow(2 * M_PI * output.freq, 2) /
+                        8.0;
 
    double num_strands =
        2 * output.strands_in_hand * output.num_turns * output.num_slots;
