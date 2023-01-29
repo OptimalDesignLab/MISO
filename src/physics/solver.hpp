@@ -345,13 +345,16 @@ public:
    /// \note the `refine` argument is useful for high-order meshes and
    /// solutions; it divides the elements up so it is possible to visualize.
    virtual void printSolution(const std::string &file_name, int refine = -1);
-
+   virtual void printAbsError(
+       const std::string &file_name,
+       const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init,
+       int refine = -1);
    /// Write the mesh and adjoint to a vtk file
    /// \param[in] file_name - prefix file name **without** .vtk extension
-   /// \param[in] refine - if >=0, indicates the number of refinements to make
-   /// \todo make this work for parallel!
-   /// \note the `refine` argument is useful for high-order meshes and
-   /// solutions; it divides the elements up so it is possible to visualize.
+   /// \param[in] refine - if >=0, indicates the number of refinements to
+   /// make \todo make this work for parallel! \note the `refine` argument
+   /// is useful for high-order meshes and solutions; it divides the
+   /// elements up so it is possible to visualize.
    void printAdjoint(const std::string &file_name, int refine = -1);
 
    /// Write the mesh and residual to a vtk file

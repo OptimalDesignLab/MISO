@@ -244,8 +244,8 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
       // get the normal vector, and then add contribution to function
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
-      //fun += face_ip.weight * trans.Weight();
-      //  cout << "face_ip.weight " << face_ip.weight << endl;
+      // fun += face_ip.weight * trans.Weight();
+      //   cout << "face_ip.weight " << face_ip.weight << endl;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;
@@ -445,10 +445,10 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       /// this is used for area test
-      // double area = sqrt(trans.Weight());
-      // area += face_ip.weight * alpha * area;
+      double area = sqrt(trans.Weight());
       //fun += face_ip.weight * alpha * area;
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *alpha;
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight())
+      *alpha;
    }
    return fun;
 }
@@ -663,6 +663,21 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
        elvect.GetData() + dof1 * num_states, dof2, num_states);
    const IntegrationRule *ir;
    ir = cutInteriorFaceIntRules[trans.Face->ElementNo];
+   #if 0
+   if (ir != NULL)
+   {
+      cout << "face elements are " << trans.Elem1No << " , " << trans.Elem2No
+           << endl;
+      double face_length = 0.0;
+      for (int i = 0; i < ir->GetNPoints(); i++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(i);
+         trans.Face->SetIntPoint(&ip);
+         face_length += ip.weight * trans.Weight();
+      }
+      cout << "face length: " << face_length << endl;
+   }
+   #endif
    if (ir == NULL)
    {
       // Integration order calculation from DGTraceIntegrator
@@ -681,8 +696,6 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       ir = &IntRules.Get(trans.GetGeometryType(), intorder);
    }
 
-   // cout << "face elements are " << trans.Elem1No << " , " << trans.Elem2No <<
-   // endl;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);

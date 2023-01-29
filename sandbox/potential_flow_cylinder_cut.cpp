@@ -76,6 +76,7 @@ int main(int argc, char *argv[])
       // solver->setInitialCondition(qfar);
       solver->setInitialCondition(uexact);
       solver->printSolution("cylinder-steady-dg-cut-potential-init", 0);
+      solver->printAbsError("cylinder-steady-dg-cut-potential-sol-error-init", uexact, -1);
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
       auto lift_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
@@ -95,6 +96,7 @@ int main(int argc, char *argv[])
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->solveForState();
       solver->printSolution("cylinder-steady-dg-cut-potential-final", -1);
+      solver->printAbsError("cylinder-steady-dg-cut-potential-sol-error-final", uexact, -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
 
@@ -184,10 +186,11 @@ void uexact(const Vector &x, Vector &q)
    double Ma = 0.2;
    double rho = 1.0;
    double p = 1.0 / euler::gamma;
+   double s = 1.0;
    /// circle parameters
-   double xc = 5.00;
-   double yc = 5.00;
-   double rad = 0.5;
+   double xc = 5.00 / s;
+   double yc = 5.00 / s;
+   double rad = 0.5 / s;
    double circ = 0.0;
    theta = atan2(x(1) - yc, x(0) - xc);
    double r = sqrt(((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)));
@@ -202,7 +205,7 @@ void uexact(const Vector &x, Vector &q)
    //    u(2) = -rho * Ma*rinv * rinv * sin(2.0*theta);
    // u(3) = p / euler::gami + 0.5 * Ma * Ma;
    double p_bern =
-       1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 *rho* (ux * ux + uy * uy);
+       1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
    u(1) = rho * ux;
    u(2) = rho * uy;

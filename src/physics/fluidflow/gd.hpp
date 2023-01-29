@@ -150,7 +150,7 @@ private:
    /// Prolongation operator
    //    mutable HypreParMatrix *P;
    //    mutable SparseMatrix *R;
-   HYPRE_IJMatrix ij_matrix ;
+   HYPRE_IJMatrix ij_matrix;
    /// col and row partition arrays
    // mutable HYPRE_Int *mat_col_idx;
    // mutable HYPRE_Int *mat_row_idx;
@@ -184,7 +184,6 @@ protected:
    int degree;
    /// communicator
    MPI_Comm comm;
-
    ///\Note: cut-cell stuff
    /// the vector of embedded elements
    std::vector<bool> embeddedElements;

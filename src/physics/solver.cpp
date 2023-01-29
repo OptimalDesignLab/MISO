@@ -256,13 +256,11 @@ void AbstractSolver::initDerived()
       mass_matrix.reset(new SparseMatrix(mass->SpMat()));
       // if (gd)
       // {
-      //    //SparseMatrix *cp = dynamic_cast<GDSpaceType *>(fes_gd.get())->GetCP();
-      //    SparseMatrix *cp = fes_gd->GetCP();
-      //    cout << "cp done: " << endl;
-      //    SparseMatrix *p = RAP(*cp, *mass_matrix, *cp);
-      //    cout << "p done: " << endl;
-      //    mass_matrix_gd.reset(new SparseMatrix(*p));
-      //    mass_matrix_gd->Finalize();
+      //    //SparseMatrix *cp = dynamic_cast<GDSpaceType
+      //    *>(fes_gd.get())->GetCP(); SparseMatrix *cp = fes_gd->GetCP(); cout
+      //    << "cp done: " << endl; SparseMatrix *p = RAP(*cp, *mass_matrix,
+      //    *cp); cout << "p done: " << endl; mass_matrix_gd.reset(new
+      //    SparseMatrix(*p)); mass_matrix_gd->Finalize();
       // }
    }
 
@@ -1477,6 +1475,47 @@ void AbstractSolver::printSolution(const std::string &file_name, int refine)
    sol_ofs.close();
 }
 
+void AbstractSolver::printAbsError(
+    const std::string &file_name,
+    const std::function<void(const mfem::Vector &, mfem::Vector &)> &u_init,
+    int refine)
+{
+   /// create the state vector
+   ParGridFunction state(fes.get());
+   VectorFunctionCoefficient u0(num_state, u_init);
+   /// use exact solution
+   state.ProjectCoefficient(u0);
+   /// initialize the error with exact sol
+   ParGridFunction absSolerr(state);
+   /// subtract the final solution
+   absSolerr.Add(-1.0, *u);
+   /// find the log of absolute solution error
+   for (int i = 0; i < absSolerr.Size(); ++i)
+   {
+      absSolerr(i) = std::log(abs(absSolerr(i)));
+   }
+   CutCell<2, 1> cut_init(mesh.get());
+   /*Algoim::LevelSet<2>*/ circle<2> phi_init = cut_init.constructLevelSet();
+   for (int i = 0; i < fes->GetNE(); i++)
+   {
+      if (cut_init.insideBoundary(i) == true)
+      {
+         mfem::Array<int> vdofs;
+         fes->GetElementVDofs(i, vdofs);
+         for (int k = 0; k < vdofs.Size(); ++k)
+         {
+            absSolerr(vdofs[k]) = 0.0;
+         }
+      }
+   }
+   // TODO: These mfem functions do not appear to be parallelized
+   ofstream sol_ofs(file_name + ".vtk");
+   sol_ofs.precision(14);
+   mesh->PrintVTK(sol_ofs, refine);
+   absSolerr.SaveVTK(sol_ofs, "Solution", refine);
+   sol_ofs.close();
+}
+
 void AbstractSolver::printAdjoint(const std::string &file_name, int refine)
 {
    // TODO: These mfem functions do not appear to be parallelized
@@ -1970,7 +2009,11 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
    int max_count = 200;
    double mu_max = visc_coeff;
    double mu_targ = 1e-12;
-   #if 0
+   if (0 == rank)
+   {
+      t1 = MPI_Wtime();
+   }
+#if 0
    if (mu_max > 0.0)
    {
       for (int k = 0; k <= max_count; ++k)
@@ -2012,7 +2055,7 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
          // }
       }
    }
-   #endif
+#endif
 
    cout << "visc_coeff : " << visc_coeff << endl;
    reltol = 1e-12;
