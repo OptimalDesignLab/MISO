@@ -23,6 +23,7 @@ set(SANDBOX_SRCS
    airfoil_flow_control
    forced_box
    navier_stokes3D_mms
+   mpi_cci
    # magnetostatic_box
    # magnetostatic_motor
    # magnetostatic_wire
