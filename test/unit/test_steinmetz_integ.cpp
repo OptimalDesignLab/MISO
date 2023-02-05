@@ -309,6 +309,8 @@ TEST_CASE("SteinmetzLossIntegratorMeshSens::AssembleRHSElementVect")
    }
 }
 
+///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
+/*
 // Added test case for SteinmetzLossDistributionIntegrator
 ///TODO: Finish test case in conjunction with implementation itself
 TEST_CASE("SteinmetzLossDistributionIntegrator::AssembleRHSElementVect")
@@ -383,6 +385,7 @@ TEST_CASE("SteinmetzLossDistributionIntegrator::AssembleRHSElementVect")
       }
    }   
 }
+*/
 
 // Adding CAL2 Core Loss Integrator test here (can always make a new/separate test file)
 // Revise test to allow for the maximum flux value to be passed in (value only used if no peak flux field) 
@@ -853,6 +856,8 @@ TEST_CASE("CAL2CoreLossIntegratorTemperatureSens::GetElementEnergy")
    }
 }
 
+///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
+/*
 // Added test case for CAL2CoreLossDistributionIntegrator
 ///TODO: Finish test case in conjunction with implementation itself
 TEST_CASE("CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect")
@@ -927,6 +932,7 @@ TEST_CASE("CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect")
       }
    }   
 }
+*/
 
 /** not maintaining anymore
 TEST_CASE("DomainResIntegrator::AssembleElementVector",

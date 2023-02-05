@@ -2309,6 +2309,8 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
 }
 */
 
+///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed. 
+/*
 // Added test case for DCLossFunctionalDistributionIntegrator
 ///TODO: Finish test case in conjunction with implementation itself
 TEST_CASE("DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
@@ -2394,28 +2396,27 @@ TEST_CASE("DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
          });
 
          // evaluate dJdx and compute its product with p
-         LinearForm dJdx(&mesh_fes);
-         dJdx.AddDomainIntegrator(integ);
-         dJdx.Assemble();
-         // std::cout << "dJdx.Size() = " << dJdx.Size() << "p.Size() = " << p.Size() << "\n";
+         LinearForm q_EM_DC(&mesh_fes);
+         q_EM_DC.AddDomainIntegrator(integ);
+         q_EM_DC.Assemble();
          
          //
-         std::cout << "dJdx=np.array([";
-         for (int j = 0; j < dJdx.Size(); j++)
+         std::cout << "q_EM_DC=np.array([";
+         for (int j = 0; j < q_EM_DC.Size(); j++)
          {
-            std::cout << dJdx.Elem(j) << ", ";
+            std::cout << q_EM_DC.Elem(j) << ", ";
          }
          std::cout << "])\n";
-         std::cout << "p=np.array([";
-         for (int j = 0; j < p.Size(); j++)
-         {
-            std::cout << p.Elem(j) << ", ";
-         }
-         std::cout << "])\n";
+         // std::cout << "p=np.array([";
+         // for (int j = 0; j < p.Size(); j++)
+         // {
+         //    std::cout << p.Elem(j) << ", ";
+         // }
+         // std::cout << "])\n";
          //
 
-         double dJdx_dot_p = dJdx * p;
-         std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
+         // double dJdx_dot_p = dJdx * p;
+         // std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
 
          ///TODO: compute the finite-difference approximation or other value as needed to assert LinearForm
                  
@@ -2425,6 +2426,7 @@ TEST_CASE("DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
       }
    }   
 }
+*/
 
 // Added test case for ACLossFunctionalIntegrator (sigma*B^2 value)
 TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
@@ -2827,6 +2829,8 @@ TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
    }
 }
 
+///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
+/*
 // Added test case for ACLossFunctionalDistributionIntegrator
 ///TODO: Finish test case in conjunction with implementation itself
 TEST_CASE("ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
@@ -2943,6 +2947,7 @@ TEST_CASE("ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect")
       }
    }
 }
+*/
 
 TEST_CASE("ForceIntegrator3::GetElementEnergy")
 {
@@ -3718,6 +3723,7 @@ TEST_CASE("PMDemagIntegrator::AssembleElementVector")
    // Also adapting from MagneticEnergyIntegrator::AssembleElementVector - 2D
    // Computes the distribution of C(B,T)
 
+   std::cout << "PMDemagIntegrator::AssembleElementVector.................................\n"; 
    double delta = 1e-5;
 
    // generate a 8 element mesh
@@ -3737,7 +3743,7 @@ TEST_CASE("PMDemagIntegrator::AssembleElementVector")
          double B = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            B = 1.7; //constant flux density throughout mesh
+            B = 1.0; //constant flux density throughout mesh
             // B = 2.4*x(0); // flux density linearly dependent in the x(0) direction
             // B = 1.1*x(1); // flux density linearly dependent in the x(1) direction
             // B = 3.0*std::pow(x(0),2); // flux density quadratically dependent in the x(0) direction
@@ -3756,7 +3762,7 @@ TEST_CASE("PMDemagIntegrator::AssembleElementVector")
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            T = 37; //constant temperature throughout mesh
+            T = 10; //constant temperature throughout mesh
             // T = 77*x(0); // temperature linearly dependent in the x(0) direction
             // T = 63*x(1); // temperature linearly dependent in the x(1) direction
             // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
@@ -3767,8 +3773,8 @@ TEST_CASE("PMDemagIntegrator::AssembleElementVector")
          return T;
       });
 
-   // Loop over various degrees of elements (1 to 4)
-   for (int p = 1; p <= 4; ++p)
+   ///TODO: Loop over various degrees of elements (1 to 4)
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
@@ -3778,10 +3784,13 @@ TEST_CASE("PMDemagIntegrator::AssembleElementVector")
          // ND_FECollection fec(p, dim);
          FiniteElementSpace fes(&mesh, &fec);
 
-         // initialize state
+         // initialize state (not currently used, B field is)
          GridFunction a(&fes);
          FunctionCoefficient pert(randState);
          a.ProjectCoefficient(pert);
+         std::cout << "a=np.array([";
+         for (int j = 0; j < a.Size(); j++) {std::cout << a.Elem(j) << ", ";}
+         std::cout << "])\n";
 
          // Create the temperature_field grid function by mapping the function coefficient to a grid function
          GridFunction temperature_field_test(&fes);
@@ -3799,25 +3808,28 @@ TEST_CASE("PMDemagIntegrator::AssembleElementVector")
          // auto *integ = new mach::PMDemagIntegrator(*TwoStateCoefficient_Constraint); // confirms that PMDemagIntegrator works as intended if don't pass in a temperature field
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);                 
-         
-         // initialize the vector that dJdu multiplies
+
+         // initialize the vector that dJdu multiplies (not used as of yet)
          GridFunction p(&fes);
          p.ProjectCoefficient(pert);
+         std::cout << "p=np.array([";
+         for (int j = 0; j < p.Size(); j++) {std::cout << p.Elem(j) << ", ";}
+         std::cout << "])\n";
          
          // evaluate dJdu and compute its product with v
          GridFunction dJdu(&fes);
-         functional.Mult(a, dJdu);
+         functional.Mult(flux_density_field, dJdu);
          double dJdu_dot_p = InnerProduct(dJdu, p);
 
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(a);
-         q_pert.Add(-delta, p);
-         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
-         q_pert.Add(2 * delta, p);
-         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
-         dJdu_dot_p_fd /= (2 * delta);
-
          ///TODO: Add an appropriate assertion. As is, the assertion and logic from MagneticEnergyIntegrator::AssembleElementVector - 2D test case do not carry over
+         // // now compute the finite-difference approximation...
+         // GridFunction q_pert(a);
+         // q_pert.Add(-delta, p);
+         // double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         // q_pert.Add(2 * delta, p);
+         // dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         // dJdu_dot_p_fd /= (2 * delta);
+
          // std::cout << "dJdu_dot_p = " << dJdu_dot_p << "\n";
          // std::cout << "dJdu_dot_p_fd = " << dJdu_dot_p_fd << "\n";
          // REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));

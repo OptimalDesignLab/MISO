@@ -3517,7 +3517,9 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       fun += w / sigma_v;
    
    }
-   return fun;
+   ///TODO: Reinstate return fun once done with conservation of energy tests
+   // return fun;
+   return 0;
 }
 
 void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
@@ -3645,6 +3647,9 @@ void setInputs(DCLossFunctionalDistributionIntegrator &integ,
    setValueFromInputs(inputs, "strands_in_hand", integ.strands_in_hand);
 }
 
+///TODO: Compute the spatial distribution of the heat flux due to DC losses. 
+/// Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each node of element, then add to element vector
+/// By derivation, dP_DC/dVolume = sigma^-1 * J_src^2
 void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -3692,7 +3697,8 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 1;
+            // return 2 * el.GetOrder() - 1;
+            return 2 * el.GetOrder() - 2;
          }
          else
          {
@@ -3726,21 +3732,23 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       {
          ///TODO: Change default value of 100 if needed (be consistent throughout)
          temperature = 100; 
-         el.CalcPhysShape(trans, shape); // need the values of the shape functions for distribution purposes
+         temp_el->CalcPhysShape(trans, shape); // need the values of the shape functions for distribution purposes
       }
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
       // const double sigma_v = sigma.Eval(trans, ip);
 
       double strand_area = M_PI * pow(strand_radius, 2);
+      ///TODO: Need to find a way to modify the stack length part of wire length (unscale it) so that energy is conserved
       double R = wire_length / (strand_area * strands_in_hand * sigma_v);
 
       double loss = pow(rms_current, 2) * R;
       // not sure about this... but it matches MotorCAD's values
+      ///TODO: Ensure that the loss (the integrand) is consistent with conservation of energy
       loss *= sqrt(2);
       // std::cout << "loss =" << loss << "\n";     
-      std::cout << "elvect.Size()=" << elvect.Size() << "\n";
-      std::cout << "shape.Size()=" << shape.Size() << "\n";
+      // std::cout << "elvect.Size()=" << elvect.Size() << "\n";
+      // std::cout << "shape.Size()=" << shape.Size() << "\n";
       ///TODO: Remove comment out once done debugging
       std::cout << "shape right before elvect.Add=np.array([";
       for (int j = 0; j < shape.Size(); j++)
@@ -3749,6 +3757,7 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       }
       std::cout << "])\n";
       // Add/store the FE's contribution to the heat source due to DC losses in elvect
+      ///TODO: Need to determine a suitable test function in the domain. Currently, it is the vector of shape functions
       elvect.Add(loss * w, shape);
    }
    ///TODO: Remove comment out once done debugging
@@ -3853,7 +3862,9 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       const auto loss = sigma_val * pow(b_mag, 2);
       fun += loss * w;
    }
-   return fun;
+   ///TODO: Reinstate return fun once done with conservation of energy tests
+   // return fun;
+   return 0;
 }
 
 // void ACLossFunctionalIntegrator::AssembleElementVector(const FiniteElement
@@ -4197,6 +4208,9 @@ void setInputs(ACLossFunctionalDistributionIntegrator &integ,
    setValueFromInputs(inputs, "num_slots", integ.num_slots);
 }
 
+///TODO: Compute the spatial distribution of the heat flux due to AC losses. 
+/// Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each node of element, then add to element vector
+/// By derivation, dP_AC/dVolume = \frac{l r_{\text{s}}^2 \sigma \left(\omega B_{\text{pk}}\right)^2}{16}
 void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -4300,10 +4314,12 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       const double sigma_v = sigma.Eval(trans, ip, temperature);
       // const double sigma_v = sigma.Eval(trans, ip);
 
+      ///TODO: Need to find a way to modify the stack length part of wire length (unscale it) so that energy is conserved
+      ///TODO: Ensure that the loss (the integrand) is consistent with conservation of energy
       double loss = stack_length * M_PI * pow(radius, 4) *
-                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 32.0;
+                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
-
+      ///TODO: Need to determine a suitable test function in the domain. Currently, it is the vector of shape functions
       elvect.Add(loss * w, shape);
    }
    ///TODO: Logic is up to date now. Need to finish the implementation and then test
@@ -6356,6 +6372,9 @@ void setInputs(SteinmetzLossDistributionIntegrator &integ,
    }
 }
 
+///TODO: Compute the spatial distribution of the heat flux due to Steinmetz losses. 
+/// Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each node of element, then add to element vector
+/// By derivation, dP_SteinmetzCore/dVolume = rho*Ws
 void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -6403,9 +6422,11 @@ void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
       double alpha_v = alpha.Eval(trans, ip);
       double beta_v = beta.Eval(trans, ip);
 
+      ///TODO: Need to ensure energy is conserved w/r/t scaling by the stack length
+      ///TODO: Ensure that the loss (the integrand) is consistent with conservation of energy
       double loss =
           rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v);
-
+      ///TODO: Need to determine a suitable test function in the domain. Currently, it is the vector of shape functions
       elvect.Add(loss * w, shape);
    }
 }
@@ -7151,6 +7172,9 @@ void setInputs(CAL2CoreLossDistributionIntegrator &integ, const MachInputs &inpu
    }
 }
 
+///TODO: Compute the spatial distribution of the heat flux due to CAL2 core losses. 
+/// Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each node of element, then add to element vector
+/// By derivation, dP_CAL2Core/dVolume = \rho k_h\left(T,f,B_{\text{pk}}\right) f B_{pk}^2 + \rho k_e\left(T,f,B_{\text{pk}}\right) f^2 B_{pk}^2
 void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -7268,9 +7292,12 @@ void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
       // Evaluate the material density (constant)
       auto rho_v = rho.Eval(trans, ip);
 
+      ///TODO: Need to ensure that energy is conserved w/r/t scaling by the stack length
+      ///TODO: Ensure that the loss (the integrand) is consistent with conservation of energy
       // The core losses in the element are the local element heat flux contributions
       double loss = rho_v * kh_v * freq * std::pow(B_m,2) 
                   + rho_v * ke_v * std::pow(freq,2) * std::pow(B_m,2);
+      ///TODO: Need to determine a suitable test function in the domain. Currently, it is the vector of shape functions
       elvect.Add(loss * w, shape);
    }
 }
@@ -7335,7 +7362,14 @@ double PMDemagIntegrator::GetElementEnergy(
       // Set the current integration point and quadrature weight
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-
+      
+      ///TODO: Remove once done debugging
+      mfem::Vector IP_real_coords;
+      trans.Transform(ip,IP_real_coords);
+      // std::cout << "IP_real_coords=np.array([";
+      // for (int j = 0; j < IP_real_coords.Size(); j++) {std::cout << IP_real_coords.Elem(j) << ", ";}
+      // std::cout << "])\n";
+      
       /// holds quadrature weight
       double trans_weight = trans.Weight();
       const double w = ip.weight * trans_weight;
@@ -7353,6 +7387,14 @@ double PMDemagIntegrator::GetElementEnergy(
          // Calculate the values of the shape functions for the temperature field
          temp_el->CalcPhysShape(trans, temp_shape);
          
+         ///TODO: Remove once done debugging
+         // std::cout << "temp_shape=np.array([";
+         // for (int j = 0; j < temp_shape.Size(); j++) {std::cout << temp_shape.Elem(j) << ", ";}
+         // std::cout << "])\n";
+         // std::cout << "temp_elfun=np.array([";
+         // for (int j = 0; j < temp_elfun.Size(); j++) {std::cout << temp_elfun.Elem(j) << ", ";}
+         // std::cout << "])\n";
+
          temperature = temp_shape * temp_elfun; //Take dot product  to get the value at the integration point
       }
       else
@@ -7363,19 +7405,23 @@ double PMDemagIntegrator::GetElementEnergy(
 
       // Calculate the value of the Permanent Magnet Demagnetization constraint equation at the integration point
       double constraint_val = PMDemagConstraint.Eval(trans, ip, b_mag, temperature);
+      // std::cout << "X=" << IP_real_coords.Elem(0) << ", Y=" << IP_real_coords.Elem(1) << ", B=" << b_mag << ", T=" << temperature << ", C(B,T)=" << constraint_val << "\n";
       // Add the contribution to the overall Permanent Magnet Demagnetization constraint equation value
       fun += constraint_val * w;
+
+      ///TODO: Negating PMDM constraint for IE constraint agg purposes (so becomes a max rather than a min). Decide if want to move this logic to the coefficient level
+      fun *= -1; 
    }
    return fun;
 }
 
-///TODO: Finish implementing PMDemagIntegrator::AssembleElementVector, then test
 void PMDemagIntegrator::AssembleElementVector(
    const mfem::FiniteElement &el, 
    mfem::ElementTransformation &trans, 
    const mfem::Vector &elfun, 
    mfem::Vector &elvect)
 {
+  std::cout << "Call to PMDemagIntegrator::AssembleElementVector\n";
   // Process of handling the flux and temperature is just like ACLossFunctionalIntegrator::GetElementEnergy
    
    int ndof = el.GetDof(); // number of degrees of freedom
@@ -7461,8 +7507,13 @@ void PMDemagIntegrator::AssembleElementVector(
 
       // Calculate the value of the Permanent Magnet Demagnetization constraint equation at the integration point
       double constraint_val = PMDemagConstraint.Eval(trans, ip, b_mag, temperature);
+      std::cout << "constraint_val =" << std::pow(b_mag,2) << "*" << temperature << "= " << constraint_val << "\n"; 
       // Add the contribution to the overall Permanent Magnet Demagnetization constraint equation distribution
       elvect.Add(constraint_val * w, shape);
+      ///TODO: Remove comment out when done debugging
+      std::cout << "PMDM elvect=np.array([";
+      for (int j = 0; j < elvect.Size(); j++) {std::cout << elvect.Elem(j) << ", ";}
+      std::cout << "])\n";
    }
 }
 }  // namespace mach

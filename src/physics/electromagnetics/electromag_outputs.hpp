@@ -14,8 +14,10 @@
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
 
+// Needed for CoreLossFunctional or PMDemagOutput
 #include "cal2_kh_coefficient.hpp"
 #include "cal2_ke_coefficient.hpp"
+#include "pm_demag_constraint_coeff.hpp"
 
 namespace mach
 {
@@ -413,10 +415,54 @@ public:
 
 private:
    MachLinearForm lf;
+   
+   /// Density
+   std::unique_ptr<mfem::Coefficient> rho;
+   
    /// Steinmetz coefficients
    std::unique_ptr<mfem::Coefficient> k_s;
    std::unique_ptr<mfem::Coefficient> alpha;
    std::unique_ptr<mfem::Coefficient> beta;
+
+   /// CAL2 Coefficients   
+   std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
+   std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
+};
+
+// Adding an output for the permanent magnet demagnetization constraint equation
+class PMDemagOutput final
+{
+public:
+   friend inline int getSize(const PMDemagOutput &output)
+   {
+      // return getSize(output.lf);
+      return getSize(output.output);
+   }
+   
+   friend void setOptions(PMDemagOutput &output,
+                          const nlohmann::json &options);
+
+   friend void setInputs(PMDemagOutput &output, const MachInputs &inputs);
+
+   friend double calcOutput(PMDemagOutput &output, const MachInputs &inputs);
+
+   ///TODO: Implement this method for the AssembleElementVector (or distribution case) for demag rather than singular value
+   // friend void calcOutput(PMDemagOutput &output,
+   //                        const MachInputs &inputs,
+   //                        mfem::Vector &out_vec);
+
+   PMDemagOutput(std::map<std::string, FiniteElementState> &fields,
+                  const nlohmann::json &components,
+                  const nlohmann::json &materials,
+                  const nlohmann::json &options);
+
+private:
+   MachInputs inputs;
+   FunctionalOutput output;
+
+   // MachLinearForm lf;
+
+   std::unique_ptr<TwoStateCoefficient> PMDemagConstraint;
 };
 
 }  // namespace mach

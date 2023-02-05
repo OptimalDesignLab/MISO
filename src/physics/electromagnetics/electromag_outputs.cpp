@@ -663,6 +663,11 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
 
    // mfem::Vector flux_state;
    // setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
+   ///TODO: Remove once done debugging
+      // std::cout << "flux_state.Size() = " << flux_state.Size() << "\n";
+      // std::cout << "flux_state=np.array([";
+      // for (int j = 0; j < flux_state.Size(); j++) {std::cout << flux_state.Elem(j) << ", ";}
+      // std::cout << "])\n";   
    // auto &flux_mag = output.fields.at("peak_flux");
    // flux_mag.distributeSharedDofs(flux_state);
    // mfem::ParaViewDataCollection pv("FluxMag", &flux_mag.mesh());
@@ -677,7 +682,7 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
 
    double strand_loss = sigma_b2 * output.stack_length * M_PI *
                         pow(output.radius, 4) * pow(2 * M_PI * output.freq, 2) /
-                        32.0;
+                        8.0;
 
    double num_strands =
        2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -699,10 +704,10 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double strand_loss_dot =
           4 * sigma_b2 * output.stack_length * M_PI * pow(output.radius, 3) *
-          pow(2 * M_PI * output.freq, 2) / 32.0 * wrt_dot(0);
+          pow(2 * M_PI * output.freq, 2) / 8.0 * wrt_dot(0);
 
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -720,10 +725,10 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double strand_loss_dot = 2 * sigma_b2 * output.stack_length * M_PI *
                                pow(output.radius, 3) * output.freq *
-                               pow(2 * M_PI, 2) / 32.0 * wrt_dot(0);
+                               pow(2 * M_PI, 2) / 8.0 * wrt_dot(0);
 
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -741,9 +746,9 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double strand_loss_dot = sigma_b2 * M_PI * pow(output.radius, 4) *
-                               pow(2 * M_PI * output.freq, 2) / 32.0 *
+                               pow(2 * M_PI * output.freq, 2) / 8.0 *
                                wrt_dot(0);
 
       double num_strands =
@@ -762,7 +767,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
 
       // double num_strands =
       //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -783,7 +788,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
 
       // double num_strands =
       //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -804,7 +809,7 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
 
       // double num_strands =
       //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -826,11 +831,11 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
 
       double strand_loss_dot =
           output.stack_length * M_PI * pow(output.radius, 4) *
-          pow(2 * M_PI * output.freq, 2) / 32.0 * sigma_b2_dot;
+          pow(2 * M_PI * output.freq, 2) / 8.0 * sigma_b2_dot;
 
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -850,11 +855,11 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
 
       double strand_loss_dot =
           output.stack_length * M_PI * pow(output.radius, 4) *
-          pow(2 * M_PI * output.freq, 2) / 32.0 * sigma_b2_dot;
+          pow(2 * M_PI * output.freq, 2) / 8.0 * sigma_b2_dot;
 
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -876,11 +881,11 @@ double jacobianVectorProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
 
       double strand_loss_dot =
           output.stack_length * M_PI * pow(output.radius, 4) *
-          pow(2 * M_PI * output.freq, 2) / 32.0 * sigma_b2_dot;
+          pow(2 * M_PI * output.freq, 2) / 8.0 * sigma_b2_dot;
 
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
@@ -909,7 +914,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -944,20 +949,20 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
       //                       pow(output.radius, 4) *
-      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                       pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       double strand_radius_bar =
           strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-          pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+          pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
 
       return strand_radius_bar;
    }
@@ -967,7 +972,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1002,19 +1007,19 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
       //                       pow(output.radius, 4) *
-      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                       pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length *
                              M_PI * pow(output.radius, 4) * 2 * output.freq *
-                             pow(2 * M_PI, 2) / 32.0;
+                             pow(2 * M_PI, 2) / 8.0;
 
       return frequency_bar;
    }
@@ -1024,7 +1029,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1059,20 +1064,20 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
       //                       pow(output.radius, 4) *
-      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                       pow(2 * M_PI * output.freq, 2) / 8.0;
       double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
                                 pow(output.radius, 4) *
-                                pow(2 * M_PI * output.freq, 2) / 32.0;
+                                pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
 
       return stack_length_bar;
    }
@@ -1082,7 +1087,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double num_strands =
       //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1117,20 +1122,20 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
       //                       pow(output.radius, 4) *
-      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                       pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
       return strands_in_hand_bar;
    }
    else if (wrt.rfind("num_turns", 0) == 0)
@@ -1139,7 +1144,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double num_strands =
       //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1174,20 +1179,20 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
       //                       pow(output.radius, 4) *
-      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                       pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
       return num_turns_bar;
    }
    else if (wrt.rfind("num_slots", 0) == 0)
@@ -1196,7 +1201,7 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double num_strands =
       //     2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1231,20 +1236,20 @@ double vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       // double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
       //                       pow(output.radius, 4) *
-      //                       pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                       pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
       return num_slots_bar;
    }
    else
@@ -1264,7 +1269,7 @@ void vectorJacobianProduct(ACLossFunctional &output,
 
       double strand_loss = sigma_b2 * output.stack_length * M_PI *
                            pow(output.radius, 4) *
-                           pow(2 * M_PI * output.freq, 2) / 32.0;
+                           pow(2 * M_PI * output.freq, 2) / 8.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1300,20 +1305,20 @@ void vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
                             pow(output.radius, 4) *
-                            pow(2 * M_PI * output.freq, 2) / 32.0;
+                            pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
 
       /// double sigma_b2 = calcOutput(output.output, output.inputs);
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
@@ -1325,7 +1330,7 @@ void vectorJacobianProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1361,20 +1366,20 @@ void vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
                             pow(output.radius, 4) *
-                            pow(2 * M_PI * output.freq, 2) / 32.0;
+                            pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
 
       /// double sigma_b2 = calcOutput(output.output, output.inputs);
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
@@ -1387,7 +1392,7 @@ void vectorJacobianProduct(ACLossFunctional &output,
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
       //                      pow(output.radius, 4) *
-      //                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double num_strands =
           2 * output.strands_in_hand * output.num_turns * output.num_slots;
 
@@ -1423,20 +1428,20 @@ void vectorJacobianProduct(ACLossFunctional &output,
 
       /// double strand_loss = sigma_b2 * output.stack_length * M_PI *
       ///                      pow(output.radius, 4) *
-      ///                      pow(2 * M_PI * output.freq, 2) / 32.0;
+      ///                      pow(2 * M_PI * output.freq, 2) / 8.0;
       double sigma_b2_bar = strand_loss_bar * output.stack_length * M_PI *
                             pow(output.radius, 4) *
-                            pow(2 * M_PI * output.freq, 2) / 32.0;
+                            pow(2 * M_PI * output.freq, 2) / 8.0;
       // double stack_length_bar = strand_loss_bar * sigma_b2 * M_PI *
       //                           pow(output.radius, 4) *
-      //                           pow(2 * M_PI * output.freq, 2) / 32.0;
+      //                           pow(2 * M_PI * output.freq, 2) / 8.0;
       // double strand_radius_bar =
       //     strand_loss_bar * sigma_b2 * output.stack_length * M_PI * 4 *
-      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 32.0;
+      //     pow(output.radius, 3) * pow(2 * M_PI * output.freq, 2) / 8.0;
       // double frequency_bar = strand_loss_bar * sigma_b2 * output.stack_length
       // *
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
-      //                        pow(2 * M_PI, 2) / 32.0;
+      //                        pow(2 * M_PI, 2) / 8.0;
 
       ///TODO: Determine if the sigma_b2_bar defined below computes correctly. That is, is vectorJacobianProduct in functional_output.cpp correct?
       /// double sigma_b2 = calcOutput(output.output, output.inputs);
@@ -1601,6 +1606,7 @@ void calcOutput(EMHeatSourceOutput &output,
    addLoad(output.lf, out_vec);
 }
 
+///TODO: Implementation is not complete nor correct....
 // Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
@@ -1610,21 +1616,125 @@ EMHeatSourceOutput::EMHeatSourceOutput(
     const nlohmann::json &materials,
     const nlohmann::json &options)
  : lf(fields.at("temperature").space(), fields),
+   rho(constructMaterialCoefficient("rho", components, materials)),
    k_s(constructMaterialCoefficient("ks", components, materials)),
    alpha(constructMaterialCoefficient("alpha", components, materials)),
-   beta(constructMaterialCoefficient("beta", components, materials))
+   beta(constructMaterialCoefficient("beta", components, materials)),
+   CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
+   CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {
-   // auto stator_attrs = components["stator"]["attrs"].get<std::vector<int>>();
-   // lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
-   //                            rho, *k_s, *alpha, *beta, "stator"),
-   //                        stator_attrs);
+   // Making the integrator see the peak flux field
+   const auto &peak_flux_iter = fields.find("peak_flux"); // find where peak flux field is
+   mfem::GridFunction *peak_flux=nullptr; // default peak flux field to null pointer
+   if (peak_flux_iter != fields.end())
+   {
+      // If peak flux field exists, turn it into a grid function
+      ///TODO: Ultimately handle the case where there is no peak flux field
+      auto &flux_field = peak_flux_iter->second;
+      peak_flux = &flux_field.gridFunc();
+   }
 
+   // Making the integrator see the temperature field
+   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
+   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   if (temp_field_iter != fields.end())
+   {
+      // If temperature field exists, turn it into a grid function
+      auto &temp_field = temp_field_iter->second;
+      temperature_field = &temp_field.gridFunc();
+   }
+
+   auto stator_attrs = components["stator"]["attrs"].get<std::vector<int>>();
+   if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
+   {
+      lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
+                                 rho, *k_s, *alpha, *beta, "stator"),
+                           stator_attrs);
+   }
+   else
+   {
+      lf.addDomainIntegrator(new CAL2CoreLossDistributionIntegrator(
+                                 rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
+                           stator_attrs);                           
+   }
+   
    auto winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
    lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma),
                           winding_attrs);
-   // lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
-   //                            fields.at("peak_flux").gridFunc(), sigma),
-   //                        winding_attrs);
+   lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
+                              fields.at("peak_flux").gridFunc(), sigma),
+                          winding_attrs);
+}
+
+void setOptions(PMDemagOutput &output, const nlohmann::json &options)
+{
+   // setOptions(output.lf, options);
+   setOptions(output.output, options);
+}
+
+void setInputs(PMDemagOutput &output, const MachInputs &inputs)
+{
+   // setInputs(output.lf, inputs);
+   
+   output.inputs = inputs;
+   output.inputs["state"] = inputs.at("peak_flux");
+   // output.inputs["state"] = inputs.at("pm_demag_field"); // causes temperature to be 1 exclusively
+
+   setInputs(output.output, inputs);
+}
+
+double calcOutput(PMDemagOutput &output, const MachInputs &inputs)
+{
+   setInputs(output, inputs);
+
+   return calcOutput(output.output, output.inputs);
+}
+
+///TODO: Implement this method for the AssembleElementVector (or distribution case) for demag rather than singular value
+// void calcOutput(PMDemagOutput &output,
+//                 const MachInputs &inputs,
+//                 mfem::Vector &out_vec)
+// {
+//    setInputs(output, inputs);
+
+//    out_vec = 0.0;
+//    addLoad(output.lf, out_vec);
+// }
+
+PMDemagOutput::PMDemagOutput(
+    std::map<std::string, FiniteElementState> &fields,
+    const nlohmann::json &components,
+    const nlohmann::json &materials,
+    const nlohmann::json &options)
+ : output(fields.at("peak_flux").space(), fields),
+   PMDemagConstraint(std::make_unique<PMDemagConstraintCoefficient>(components, materials))
+{
+   // /*
+   // Making the integrator see the temperature field
+   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
+   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   if (temp_field_iter != fields.end())
+   {
+      // If temperature field exists, turn it into a grid function
+      auto &temp_field = temp_field_iter->second;
+      temperature_field = &temp_field.gridFunc();
+
+      // std::cout << "PMDemagOutput, electromag_outputs.cpp, temperature field seen\n";
+   }
+
+   // Assign the integrator used to compute the singular value for the PMDM constraint coefficient
+   if (options.contains("attributes"))
+   {
+      auto attributes = options["attributes"].get<std::vector<int>>();
+      output.addOutputDomainIntegrator(
+          new PMDemagIntegrator(*PMDemagConstraint, temperature_field), attributes);
+   }
+   else
+   {
+      output.addOutputDomainIntegrator(
+          new PMDemagIntegrator(*PMDemagConstraint, temperature_field));
+   }
+   // */
 }
 
 }  // namespace mach

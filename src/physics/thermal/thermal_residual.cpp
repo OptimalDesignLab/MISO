@@ -135,7 +135,9 @@ ThermalResidual::ThermalResidual(
    {
       const auto &bcs = options["bcs"];
 
-      // convection heat transfer boundary condition
+      ///TODO: Ulimately uncomment. Commented out because was causing an error in early stages of coupling
+       
+      //convection heat transfer boundary condition
       if (bcs.contains("convection"))
       {
          const auto &bdr_attr_marker =
