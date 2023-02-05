@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
 
    int degree = 0;
-   int nx = 20;
-   int ny = 20;
+   int nx = 200;
+   int ny = 200;
    int nz = 20;
    //args.AddOption(&options_file, "-o", "--options",
    //               "Options file to use.");
