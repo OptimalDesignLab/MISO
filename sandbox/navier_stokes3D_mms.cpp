@@ -95,10 +95,10 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
 
-   int degree = 0;
-   int nx = 200;
-   int ny = 200;
-   int nz = 20;
+   int degree = 1;
+   int nx = 50;
+   int ny = 50;
+   int nz = 50;
    //args.AddOption(&options_file, "-o", "--options",
    //               "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
