@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
       *out << "Number of elements " << smesh->GetNE() << '\n';
       ofstream sol_ofs("circle_mesh_dg_init.vtk");
       sol_ofs.precision(14);
-      smesh->PrintVTK(sol_ofs, 0);
+      smesh->PrintVTK(sol_ofs);
       string opt_file_name(options_file);
       auto solver =
           createSolver<EulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
@@ -86,14 +86,14 @@ int main(int argc, char *argv[])
       // solver->createOutput("lift", lift_opts);
       // *out << "\nInitial cl value (far-field) = "
       //      << abs(solver->calcOutput("lift")) << endl;
-      double drag;
+      double drag, l2_err_xmom;
       *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
            << endl;
       *out << "\nexact cl value = " << (circ / M) << endl;
 
       // get the initial density error
       double l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 1));
+                             .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
       *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
@@ -102,9 +102,15 @@ int main(int argc, char *argv[])
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
       l2_error = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
+                      .calcConservativeVarsL2Error(uexact, 0));
+      l2_err_xmom = (static_cast<EulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 1));
       *out << "============================================================" << endl;
       *out << "|| rho_h - rho ||_{L^2} = " << l2_error<< endl;
+      *out << "============================================================" << endl;
+
+      *out << "============================================================" << endl;
+      *out << "|| rho.u_h - rho.u ||_{L^2} = " << l2_err_xmom<< endl;
       *out << "============================================================" << endl;
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
       *out << " **** "
@@ -150,6 +156,10 @@ void uexact(const Vector &x, Vector &q)
    double rad = 0.5;
    double circ = 0.0;
    theta = atan2(x(1) - yc, x(0) - xc);
+   if (abs(x(0) - xc) < 1e-14)
+   {
+      theta = 0.5 * M_PI;
+   }
    double r = sqrt(((x(0) - xc) * (x(0) - xc)) + ((x(1) - yc) * (x(1) - yc)));
    double rinv = rad / r;
    double rtilde = 1.0 / rinv;
@@ -165,7 +175,7 @@ void uexact(const Vector &x, Vector &q)
    // rho = pow(rho, 1.0/euler::gami);
    double p_bern =
        1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 *rho* (ux * ux + uy * uy);
-   rho = euler::gamma * p_bern;
+   // rho = euler::gamma * p_bern;
    u(0) = rho;
    u(1) = rho * ux;
    u(2) = rho * uy;
@@ -194,9 +204,13 @@ Mesh buildMesh(int N)
 
 unique_ptr<Mesh> buildCircleMesh(int degree, int ref_levels)
 {
-   const char *mesh_file = "periodic_rectangle.mesh";
+   //const char *mesh_file = "periodic_rectangle_uniform_test.mesh";
+   const char *mesh_file = "periodic_triangle_circle.mesh";
+   //const char *mesh_file = "periodic_rectangle.mesh";
    auto mesh_ptr = unique_ptr<Mesh>(new Mesh(mesh_file, 1, 1));
-
+   ofstream sol_ofs("initial_mesh_for_circle.vtk");
+   sol_ofs.precision(14);
+   mesh_ptr->PrintVTK(sol_ofs, 0);
    for (int l = 0; l < ref_levels; l++)
    {
       mesh_ptr->UniformRefinement();

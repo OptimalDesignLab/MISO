@@ -139,9 +139,7 @@ TEST_CASE("EulerDiffusionIntegrator::AssembleElementGrad",
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         ConstantCoefficient diff_coeff(2.0);
-         cout << "diff_ceoff: " << &diff_coeff << endl;
-         res.AddDomainIntegrator(new mach::EulerDiffusionIntegrator<2>(diff_coeff));
+         res.AddDomainIntegrator(new mach::EulerDiffusionIntegrator<2>(1.0));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());

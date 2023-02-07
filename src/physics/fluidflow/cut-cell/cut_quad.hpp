@@ -151,19 +151,19 @@ public:
       phi_ls.yscale = 1.0;
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
-      phi_ls.xc = 5.0;
-      phi_ls.yc = 5.0;
+      phi_ls.xc = 0.0;
+      phi_ls.yc = 0.0;
       if (ls == 1)
       {
          phi_ls.lsign = -1.0;
-         phi_ls.a = 0.5;
-         phi_ls.b = 0.5;
+         phi_ls.a = 1.0;
+         phi_ls.b = 1.0;
       }
       else
       {
          phi_ls.lsign = 1.0;
-         phi_ls.a = 4.0;
-         phi_ls.b = 4.0;
+         phi_ls.a = 3.0;
+         phi_ls.b = 3.0;
       }
       return phi_ls;
    }
@@ -398,7 +398,7 @@ public:
       xv1(1) = v1coord[1];
       xv2(0) = v2coord[0];
       xv2(1) = v2coord[1];
-      if (phi(xv1) > 0.0 && phi(xv2) > 0.0)
+      if (phi(xv1) >= 0.0 && phi(xv2) >= 0.0)
       {
          return true;
       }
@@ -532,8 +532,8 @@ public:
       }
       std::ofstream f("element_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
-      std::cout << "  scheme.vtp file written for cut cells, containing " << qp.nodes.size()
-                << " quadrature points\n";
+      std::cout << "  scheme.vtp file written for cut cells, containing "
+                << qp.nodes.size() << " quadrature points\n";
    }
    /// get integration rule for cut segments
    void GetCutSegmentIntRule(
@@ -753,8 +753,8 @@ public:
       }  /// loop over cut elements
       std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
-      std::cout << "  scheme.vtp file written for cut segments, containing " << qp.nodes.size()
-                << " quadrature points\n";
+      std::cout << "  scheme.vtp file written for cut segments, containing "
+                << qp.nodes.size() << " quadrature points\n";
       /// quad rule for faces
       std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qface, face);
@@ -938,16 +938,16 @@ public:
          }
       }
       /// quad rule for faces
-      std::ofstream face("cut_face_quad_rule_ls_bnds_fbdr_outer.vtp");
+      std::ofstream face("bdr_cut_face_quad_rule_outer.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qbdrface, face);
-      std::cout << "  scheme.vtp file written, containing "
+      std::cout << "  scheme.vtp file written for boundary faces, containing "
                 << qbdrface.nodes.size() << " quadrature points\n";
    }
 
 protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
-   //Algoim::LevelSet<N> phi;
+   // Algoim::LevelSet<N> phi;
    circle<N> phi;
 };
 }  // namespace mach

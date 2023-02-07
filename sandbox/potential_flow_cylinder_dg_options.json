@@ -4,7 +4,8 @@
        "aoa": 0.0,
        "roll-axis": 0,
        "pitch-axis": 1,
-       "inviscid-mms": false
+       "inviscid-mms": false,
+       "potential-mms": true
     },
     "space-dis": {
        "GD": true,
@@ -12,6 +13,7 @@
        "degree": 1,
        "lps-coeff": 0.0,
        "iface-coeff": 1.0,
+       "visc-coeff": 0.0,
        "basis-type": "dg"
     },
     "steady": true,
@@ -33,8 +35,8 @@
        "ncr2": -1
     },
     "bcs": {
-       "slip-wall": [0, 0, 0, 0],
-       "potential-flow": [1, 1, 1, 1]
+       "slip-wall": [1, 0],
+       "potential-flow": [0, 1]
     },
     "nonlin-solver": {
        "type": "linesearchnewton",

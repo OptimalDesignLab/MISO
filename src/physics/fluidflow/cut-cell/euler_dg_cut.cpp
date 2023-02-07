@@ -85,7 +85,6 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       {
          if (cutcell2.cutByGeom(i) == true)
          {
-            // cutelems.push_back(i);
             cutelems_outer.push_back(i);
             cout << "cut element outer id " << i << endl;
          }
@@ -95,18 +94,18 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
             embeddedElements.push_back(true); /*original*/
             solid_elements.push_back(i);
          }
-      }
-      if ((cutcell.insideBoundary(i) == true))
-      {
-         embeddedElements.push_back(true); /*original*/
-         solid_elements.push_back(i);
-      }
-      else
-      {
-         embeddedElements.push_back(false);
+         else
+         {
+            embeddedElements.push_back(false);
+         }
       }
    }
    cout << "#embedded elements " << solid_elements.size() << endl;
+   for (int i = 0; i < mesh->GetNE(); ++i)
+   {
+      cout << "element " << i << " embedded ?: " << embeddedElements.at(i)
+           << endl;
+   }
    /// find if given face is cut, or immersed
 
    /// find faces cut by inner circle
@@ -144,17 +143,16 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
          }
       }
 /// ignore this for airfoil case
-#if 0
+#if 1
       if (tr->Elem2No < 0)
       {
          if (find(cutelems.begin(), cutelems.end(), tr->Elem1No) !=
              cutelems.end())
          {
-            // cout << "is there any boundary  face cut by inner circle? " << endl;
-            // cout << "element is " << tr->Elem1No << endl;
+            cout << "is there any boundary  face cut by inner circle? " << endl; 
+            cout << "element is " << tr->Elem1No << endl;
             cutBdrFaces.push_back(tr->Face->ElementNo);
-            // cout << "boundary face is " << tr->Face->ElementNo << endl;
-            // cout << tr->Elem1No << endl;
+            cout << "boundary face is " << tr->Face->ElementNo << endl;
          }
          if (vortex)
          {
@@ -164,12 +162,11 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
             {
                if (!cutcell2.findImmersedFace(tr->Face->ElementNo))
                {
-                  // cout << "is there any boundary  face cut by outer circle ? "
-                  //      << endl;
-                  // cout << "element is " << tr->Elem1No << endl;
+                  cout << "is there any boundary  face cut by outer circle ? "
+                       << endl;
+                  cout << "element is " << tr->Elem1No << endl;
                   cutBdrFaces_outer.push_back(tr->Face->ElementNo);
-                  // cout << "boundary face is " << tr->Face->ElementNo << endl;
-                  //cout << tr->Elem1No << endl;
+                  cout << "boundary face is " << tr->Face->ElementNo << endl;
                }
             }
          }
@@ -321,14 +318,19 @@ void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double &diff_coeff)
+void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
+                                                            double &diff_coeff)
 {
 #if 1
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-   //double diff_coeff = options["space-dis"]["visc-coeff"].template get<double>();
-   res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
-       cutSquareIntRules, embeddedElements, diff_coeff, alpha));
+
+   if (!vortex)
+   {
+      res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
+          cutSquareIntRules, embeddedElements, diff_coeff, alpha));
+   }
+
    auto &bcs = options["bcs"];
    if (bcs.find("vortex") != bcs.end())
    {  // isentropic vortex BC
@@ -378,8 +380,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double
 #endif
 /// use this for testing purposes
 #if 0
-   GridFunction x(fes.get());
-   //ParCentGridFunction x(fes_gd.get());
+   //GridFunction x(fes.get());
+   ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
@@ -387,8 +389,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double
    area = res->GetEnergy(x);
    // cout << "after GetEnergy() " << endl;
    //  double exact_area = 400 - 0.0817073;  // airfoil
-   double exact_area = 100.0 - M_PI * 0.25;
-   //double exact_area = 2 * M_PI;
+   //double exact_area = 9.0 - M_PI * 0.25;
+   double exact_area = 2 * M_PI;
    cout << "correct area: " << (exact_area) << endl;
    cout << "calculated area: " << area << endl;
    cout << "area err = " << abs(area - exact_area) << endl;
@@ -416,8 +418,8 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
    }
-   double eip = 2.0*M_PI*0.5;
-   eip_c = res->GetEnergy(x)  - area;
+   double eip = M_PI*0.5;
+   eip_c = res->GetEnergy(x)  - area - eop_c;
    cout << "exact inner perimeter: " << eip << endl;
    cout << "calcualted bdr perimeter: " << eip_c << endl;
    cout << "bdr peri error:  "  << abs(eip-eip_c) << endl;

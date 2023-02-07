@@ -55,6 +55,12 @@ public:
    void GetElementCenter(int id, mfem::Vector &cent) const;
 
    double calcVandScale(int el_id, int dim, const DenseMatrix &x_center) const;
+   void checkVandermondeCond(int dim,
+                             int num_basis,
+                             double &vandCond,
+                             Array<int> &stencil_elid,
+                             DenseMatrix &x_center,
+                             DenseMatrix &V) const;
    void buildVandermondeMat(int dim,
                             int num_basis,
                             const Array<int> &els_id,

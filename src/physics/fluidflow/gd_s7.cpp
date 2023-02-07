@@ -457,9 +457,9 @@ void ParGalerkinDifference::BuildGDProlongation()
       break;
    case 2:
       nreq = (degree + 1) * (degree + 2) / 2;
-      nreq_init = (degree + 2) * (degree + 3) / 2;
-      // nreq = nreq + 1; // experimenting
-      // nreq_init = nreq;  /// old stencil
+      // nreq_init = (degree + 2) * (degree + 3) / 2;
+      //  nreq = nreq + 1; // experimenting
+      //  nreq_init = nreq;  /// old stencil
       break;
    case 3:
       cout << "Not implemeneted yet.\n" << endl;
@@ -498,8 +498,8 @@ void ParGalerkinDifference::BuildGDProlongation()
       }
       else
       {
-         ConstructStencil(i, nreq_init, nels);
-         SortNeighbors(i, nreq, nels, elmt_id);
+         ConstructStencil(i, nreq, nels);
+         //  SortNeighbors(i, nreq, nels, elmt_id);
          // cout << "#elements in stencil first " << nels.Size() << endl;
          // cout << "Elements id(s) in initial patch " << i << ": " << endl;
          // nels.Print(cout, nels.Size());
@@ -669,6 +669,85 @@ double ParGalerkinDifference::calcVandScale(int el_id,
    }
    return dist;
 }
+void ParGalerkinDifference::checkVandermondeCond(int dim,
+                                                 int num_basis,
+                                                 double &vandCond,
+                                                 Array<int> &stencil_elid,
+                                                 DenseMatrix &x_center,
+                                                 DenseMatrix &V) const
+{
+   int el_id = stencil_elid[0];
+   // resize the DenseMatrices and clean the data
+   x_center.Clear();
+   x_center.SetSize(dim, stencil_elid.Size());
+   for (int j = 0; j < stencil_elid.Size(); j++)
+   {
+      // Get and store the element center
+      mfem::Vector cent_coord(dim);
+      GetElementCenter(stencil_elid[j], cent_coord);
+      for (int i = 0; i < dim; i++)
+      {
+         x_center(i, j) = cent_coord(i);
+      }
+   }
+   double vand_scale = calcVandScale(el_id, dim, x_center);
+   int num_elem = x_center.Width();
+   // Construct the generalized Vandermonde matrix
+   V.SetSize(num_elem, num_basis);
+   if (1 == dim)
+   {
+      for (int i = 0; i < num_elem; ++i)
+      {
+         double dx = x_center(0, i) - x_center(0, 0);
+         for (int p = 0; p <= degree; ++p)
+         {
+            V(i, p) = pow(dx, p);
+         }
+      }
+   }
+   else if (2 == dim)
+   {
+      for (int i = 0; i < num_elem; ++i)
+      {
+         double dx = (x_center(0, i) - x_center(0, 0)) / vand_scale;
+         double dy = (x_center(1, i) - x_center(1, 0)) / vand_scale;
+         int col = 0;
+         for (int p = 0; p <= degree; ++p)
+         {
+            for (int q = 0; q <= p; ++q)
+            {
+               V(i, col) = pow(dx, p - q) * pow(dy, q);
+               ++col;
+            }
+         }
+      }
+   }
+   else if (3 == dim)
+   {
+      for (int i = 0; i < num_elem; ++i)
+      {
+         double dx = x_center(0, i) - x_center(0, 0);
+         double dy = x_center(1, i) - x_center(1, 0);
+         double dz = x_center(2, i) - x_center(2, 0);
+         int col = 0;
+         for (int p = 0; p <= degree; ++p)
+         {
+            for (int q = 0; q <= p; ++q)
+            {
+               for (int r = 0; r <= p - q; ++r)
+               {
+                  V(i, col) = pow(dx, p - q - r) * pow(dy, r) * pow(dz, q);
+                  ++col;
+               }
+            }
+         }
+      }
+   }
+   Vector sv;
+   V.SingularValues(sv);
+   vandCond = sv(0) / sv(sv.Size() - 1);
+}
+
 void ParGalerkinDifference::buildVandermondeMat(int dim,
                                                 int num_basis,
                                                 const Array<int> &elmt_id,
@@ -681,10 +760,9 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
    cond_file.open("vand_cond_cut.txt",
                   std::ios_base::app);  // append instead of overwrite
    double cond = 1.0;
-   cond = 10000.0;  // 10- p1, 100- p2, 1000- p3, 10000- p4
+   cond = 10000.0;  // 10-p1, 100- p2, 1000- p3, 10000- p4
    double vandCond = 1e+30;
    double vand_scale;
-   // cout << "elmt_id size: " << elmt_id.Size() << endl;
    /// keep popping off elements until
    // - condition number remains good
    // - or the stencil size becomes minimum required
@@ -695,42 +773,35 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
    Array<int> adj, cand, cand_adj, cand_next;
    mesh->ElementToElementTable().GetRow(el_id, adj);
    cand.Append(adj);
-   int n_ind = 1;
-   int nk = stencil_elid.Size();
-   while ((vandCond > cond) || (nk < num_basis))
+   int n_ind = 2;
+   for (int i = 0; i < adj.Size(); i++)
    {
-      cout << "adding level: " << n_ind << " neighbors " << endl;
-      if (n_ind >= 3)
+      if (-1 == stencil_elid.Find(adj[i]))
       {
-         cout << "reached level: " << n_ind << " !!!!" << endl;
-      }
-      for (int i = 0; i < adj.Size(); i++)
-      {
-         if (-1 == stencil_elid.Find(adj[i]))
+         if (embeddedElements.at(adj[i]) == false)
          {
-            if (embeddedElements.at(adj[i]) == false)
-            {
-               stencil_elid.Append(adj[i]);
-            }
+            stencil_elid.Append(adj[i]);
          }
       }
-      cout << "List now is: " << endl;
-      stencil_elid.Print(cout, stencil_elid.Size());
-      adj.LoseData();
+   }
+   cout << "Initial elements are: " << endl;
+   stencil_elid.Print(cout, stencil_elid.Size());
+   checkVandermondeCond(dim, num_basis, vandCond, stencil_elid, x_center, V);
+   cout << " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ " << endl;
+   cout << " vandCond Initial " << vandCond << endl;
+   cout << " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ " << endl;
+   while ((vandCond > cond) || (stencil_elid.Size() < num_basis))
+   {
+      /// find neighbors of stencil elements
       for (int i = 0; i < cand.Size(); i++)
       {
          if (embeddedElements.at(cand[i]) == false)
          {
-            // cout << "deal with cand " << cand[i];
             mesh->ElementToElementTable().GetRow(cand[i], cand_adj);
-            // cout << "'s adj are ";
-            // cand_adj.Print(cout, cand_adj.Size());
             for (int j = 0; j < cand_adj.Size(); j++)
             {
                if (-1 == stencil_elid.Find(cand_adj[j]))
                {
-                  // cout << cand_adj[j] << " is not found in nels. add to adj
-                  // and cand_next.\n";
                   adj.Append(cand_adj[j]);
                   cand_next.Append(cand_adj[j]);
                }
@@ -740,79 +811,31 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
       }
       cand.LoseData();
       cand = cand_next;
-      // cout << "cand copy from next: ";
-      // cand.Print(cout, cand.Size());
       cand_next.LoseData();
-      // resize the DenseMatrices and clean the data
-      x_center.Clear();
-      x_center.SetSize(dim, stencil_elid.Size());
-      for (int j = 0; j < stencil_elid.Size(); j++)
+      cout << "adding level: " << n_ind << " neighbors " << endl;
+      if (n_ind >= 3)
       {
-         // Get and store the element center
-         mfem::Vector cent_coord(dim);
-         GetElementCenter(stencil_elid[j], cent_coord);
-         for (int i = 0; i < dim; i++)
-         {
-            x_center(i, j) = cent_coord(i);
-         }
+         cout << "reached level: " << n_ind << " !!!!" << endl;
       }
-      vand_scale = calcVandScale(elmt_id[0], dim, x_center);
-      int num_elem = x_center.Width();
-      // Construct the generalized Vandermonde matrix
-      V.SetSize(num_elem, num_basis);
-      if (1 == dim)
+      for (int i = 0; i < adj.Size(); i++)
       {
-         for (int i = 0; i < num_elem; ++i)
+         if ((vandCond > cond) || (stencil_elid.Size() < num_basis))
          {
-            double dx = x_center(0, i) - x_center(0, 0);
-            for (int p = 0; p <= degree; ++p)
+            if (-1 == stencil_elid.Find(adj[i]))
             {
-               V(i, p) = pow(dx, p);
-            }
-         }
-      }
-      else if (2 == dim)
-      {
-         for (int i = 0; i < num_elem; ++i)
-         {
-            double dx = (x_center(0, i) - x_center(0, 0)) / vand_scale;
-            double dy = (x_center(1, i) - x_center(1, 0)) / vand_scale;
-            int col = 0;
-            for (int p = 0; p <= degree; ++p)
-            {
-               for (int q = 0; q <= p; ++q)
+               if (embeddedElements.at(adj[i]) == false)
                {
-                  V(i, col) = pow(dx, p - q) * pow(dy, q);
-                  ++col;
+                  stencil_elid.Append(adj[i]);
+                  checkVandermondeCond(
+                      dim, num_basis, vandCond, stencil_elid, x_center, V);
+                  cout << "vandCond  " << vandCond << endl;
                }
             }
          }
       }
-      else if (3 == dim)
-      {
-         for (int i = 0; i < num_elem; ++i)
-         {
-            double dx = x_center(0, i) - x_center(0, 0);
-            double dy = x_center(1, i) - x_center(1, 0);
-            double dz = x_center(2, i) - x_center(2, 0);
-            int col = 0;
-            for (int p = 0; p <= degree; ++p)
-            {
-               for (int q = 0; q <= p; ++q)
-               {
-                  for (int r = 0; r <= p - q; ++r)
-                  {
-                     V(i, col) = pow(dx, p - q - r) * pow(dy, r) * pow(dz, q);
-                     ++col;
-                  }
-               }
-            }
-         }
-      }
-      Vector sv;
-      V.SingularValues(sv);
-      vandCond = sv(0) / sv(sv.Size() - 1);
-      nk = stencil_elid.Size();
+      cout << "List now is: " << endl;
+      stencil_elid.Print(cout, stencil_elid.Size());
+      adj.LoseData();
       ++n_ind;
    }
    cout << " num_el " << stencil_elid.Size() << endl;

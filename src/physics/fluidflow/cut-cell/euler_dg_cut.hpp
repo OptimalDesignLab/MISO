@@ -134,7 +134,7 @@ protected:
    // Algoim::LevelSet<2> phi_e;
    circle<2> phi;
    circle<2> phi_outer;
-   bool vortex = false;
+   bool vortex = true;
    // Algoim::LevelSet<2> phi;
    // Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)

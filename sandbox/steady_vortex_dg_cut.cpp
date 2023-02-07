@@ -63,15 +63,16 @@ int main(int argc, char *argv[])
       auto solver =
           createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
-      solver->printSolution("vortex-steady-dg-cut-init");
+      solver->printSolution("vortex-steady-dg-cut-init", 0);
       // get the initial density error
       double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(uexact, 0));
       double res_error = solver->calcResidualNorm();
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
+      solver->checkJacobian(pert);
       solver->solveForState();
-      solver->printSolution("vortex-dg-cut-final", 0);
+      solver->printSolution("vortex-dg-cut-final", -1);
       // get the final density error
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 0));
@@ -80,14 +81,12 @@ int main(int argc, char *argv[])
       *out << "\nfinal residual norm = " << res_error << endl;
       auto drag_opts = R"({ "boundaries": [1, 0, 0, 1]})"_json;
       solver->createOutput("drag", drag_opts);
-      double drag = abs(solver->calcOutput("drag") - (-1 /
-      mach::euler::gamma)); cout <<
-      "================================================================"
+      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      cout << "================================================================"
            << endl;
       *out << "    || rho_h - rho ||_{L^2} = " << l2_error << endl;
       *out << "    Drag error = " << drag << endl;
-      cout <<
-      "================================================================"
+      cout << "================================================================"
            << endl;
    }
    catch (MachException &exception)

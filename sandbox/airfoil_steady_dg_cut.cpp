@@ -115,7 +115,7 @@ void pert(const Vector &x, Vector &p)
       p(i) = normal_rand(gen);
    }
 }
-#if 0
+#if 1
 /// use this for flow over an ellipse
 void uexact(const Vector &x, Vector &q)
 {

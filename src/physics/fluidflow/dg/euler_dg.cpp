@@ -97,15 +97,16 @@ void EulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
+void EulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha, double &diff_coeff)
 {
    // TODO: should decide between one-point and two-point fluxes using options
    // GridFunction x(fes.get());
    // ParCentGridFunction x(fes_gd.get());
    res->AddDomainIntegrator(new EulerDGIntegrator<dim>(diff_stack, alpha));
-   double area;
+   res->AddDomainIntegrator(new EulerDiffusionIntegrator<dim>(diff_coeff, alpha));
+   //double area;
    // area = res->GetEnergy(x);
-   // // cout << "exact area: " << (5.45*5.45 - 0.25)*M_PI << endl;
+   //  cout << "exact area: " << (5.45*5.45 - 0.25)*M_PI << endl;
    // cout << "calculated area: " << area << endl;
    // cout << "airfoil area " << endl;
    // cout << abs(M_PI * 900 - area) << endl;

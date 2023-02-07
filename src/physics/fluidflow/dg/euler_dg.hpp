@@ -113,8 +113,11 @@ protected:
 
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
-   void addResVolumeIntegrators(double alpha) override;
+   void addResVolumeIntegrators(double alpha) {;}
 
+   /// Add volume integrators to `res` based on `options`
+   /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
+   void addResVolumeIntegrators(double alpha, double &diff_coeff) override;
    /// Add boundary-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    void addResBoundaryIntegrators(double alpha) override;

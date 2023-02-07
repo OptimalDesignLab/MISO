@@ -258,7 +258,7 @@ void AbstractSolver::initDerived()
       cout << "inside if res" << endl;
       visc_coeff = options["space-dis"]["visc-coeff"].template get<double>();
       /// TODO: look at partial assembly
-      addResVolumeIntegrators(alpha);
+      // addResVolumeIntegrators(alpha);
       addResVolumeIntegrators(alpha, visc_coeff);
       addResBoundaryIntegrators(alpha);
       addResInterfaceIntegrators(alpha);
@@ -1965,6 +1965,7 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
       /// set diffusion coefficient here
       // Solve the nonlinear problem with r.h.s at 0
       mfem::Vector b;
+      b = 0.0;
       HypreParVector *u_true = state.GetTrueDofs();
       newton_solver->SetRelTol(reltol);
       newton_solver->SetOperator(*res);
@@ -1978,14 +1979,14 @@ void AbstractSolver::solveSteady(ParCentGridFunction &state)
          *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
       }
       fes_gd->GetProlongationMatrix()->Mult(state, *u);
-      if (visc_coeff <= 0.1)
-      {
-         visc_coeff -= 0.0001;
-      }
-      else
-      {
-         visc_coeff -= 0.05;
-      }
+      // if (visc_coeff <= 0.1)
+      // {
+      //    visc_coeff -= 0.0001;
+      // }
+      // else
+      // {
+      visc_coeff -= 0.1;
+      //}
       visc_coeff = max(0.0, visc_coeff);
    }
    cout << "visc_coeff : " << visc_coeff << endl;
@@ -2012,21 +2013,52 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
 {
    *out << "AbstractSolver::solveSteady() is not deprecated!!!!!!!!!!!!!!"
         << endl;
+   double reltol = 1e-04;
    double t1, t2;
-   if (0 == rank)
+   while (visc_coeff > 1e-12)
    {
-      t1 = MPI_Wtime();
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++ " << endl;
+      cout << "visc_coeff: " << visc_coeff << endl;
+      if (0 == rank)
+      {
+         t1 = MPI_Wtime();
+      }
+      // Solve the nonlinear problem with r.h.s at 0
+      HypreParVector *u_true = state.GetTrueDofs();
+      HypreParVector b;
+      HypreParVector r;
+      // res->Mult(*u_true, r);
+      newton_solver->SetRelTol(reltol);
+      newton_solver->SetOperator(*res);
+      newton_solver->Mult(b, *u_true);
+      cout << "after mult " << endl;
+      MFEM_VERIFY(newton_solver->GetConverged(),
+                  "Newton solver did not converge.");
+      u->SetFromTrueDofs(*u_true);
+      if (0 == rank)
+      {
+         t2 = MPI_Wtime();
+         *out << "Time for solving nonlinear system is " << (t2 - t1) << endl;
+      }
+      // if (visc_coeff <= 0.1)
+      // {
+      //    visc_coeff -= 1e-04;
+      // }
+      // else
+      // {
+         visc_coeff -= 1e-01;
+     // }
+      
+      visc_coeff = max(0.0, visc_coeff);
    }
+   cout << "visc_coeff : " << visc_coeff << endl;
+   reltol = 1e-12;
    // Solve the nonlinear problem with r.h.s at 0
    HypreParVector *u_true = state.GetTrueDofs();
    HypreParVector b;
-   HypreParVector r;
-   // res->Mult(*u_true, r);
-   // u->GetTrueDofs(u_true);
-   cout << "b4 mult " << endl;
+   newton_solver->SetRelTol(reltol);
    newton_solver->SetOperator(*res);
    newton_solver->Mult(b, *u_true);
-   cout << "after mult " << endl;
    MFEM_VERIFY(newton_solver->GetConverged(),
                "Newton solver did not converge.");
    u->SetFromTrueDofs(*u_true);
@@ -2474,10 +2506,10 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    }
    else if (prec_type == "blockilu")
    {
-      precond.reset(new BlockILU(getNumState()));
-      // int block_size = fes->GetFE(0)->GetDof();
-      // precond.reset(new BlockILU(block_size,
-      //                            BlockILU::Reordering::MINIMUM_DISCARDED_FILL));
+      // precond.reset(new BlockILU(getNumState()));
+      // // int block_size = fes->GetFE(0)->GetDof();
+      precond.reset(new BlockILU(getNumState() * fes->GetFE(0)->GetDof(),
+                                 BlockILU::Reordering::MINIMUM_DISCARDED_FILL, 0));
    }
    else
    {
@@ -2830,7 +2862,7 @@ void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
       GDGridFunType pert_vec(fes_gd.get());
       VectorFunctionCoefficient up(num_state, pert_fun);
       pert_vec.ProjectCoefficient(up);
-
+#if 0
       // perturb in the positive and negative pert_vec directions
       u_plus.Add(delta, pert_vec);
       u_minus.Add(-delta, pert_vec);
@@ -2853,20 +2885,23 @@ void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
 
       // res_plus = 1/(2*delta)*(res_plus - res_minus)
       subtract(1 / (2 * delta), res_plus, res_minus, res_plus);
-
+#endif
       // Get the product directly using Jacobian from GetGradient
       GDGridFunType jac_v(fes_gd.get());
       HypreParVector *u_true = u_gd->GetTrueDofs();
       HypreParVector *pert = pert_vec.GetTrueDofs();
       HypreParVector *prod = jac_v.GetTrueDofs();
       mfem::Operator &jac = res->GetGradient(*u_true);
-      jac.Mult(*pert, *prod);
-      jac_v.SetFromTrueDofs(*prod);
-      // check the difference norm
-      jac_v -= res_plus;
-      double error = calcInnerProduct(jac_v, jac_v);
-      cout << "after calcInnerProduct() " << endl;
-      *out << "The Jacobian product error norm is " << sqrt(error) << endl;
+      cout << "jac size: " << jac.Width() << " , " << jac.Height() << endl;
+      ofstream write("jac_mat_vortex.txt");
+      jac.PrintMatlab(write, jac.Width(), jac.Height());
+      // jac.Mult(*pert, *prod);
+      // jac_v.SetFromTrueDofs(*prod);
+      // // check the difference norm
+      // jac_v -= res_plus;
+      // double error = calcInnerProduct(jac_v, jac_v);
+      // cout << "after calcInnerProduct() " << endl;
+      // *out << "The Jacobian product error norm is " << sqrt(error) << endl;
    }
    else
    {

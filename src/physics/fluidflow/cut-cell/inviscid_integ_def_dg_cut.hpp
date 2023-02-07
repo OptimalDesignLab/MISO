@@ -245,7 +245,7 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
       //fun += face_ip.weight * trans.Weight();
-      //  cout << "face_ip.weight " << face_ip.weight << endl;
+       //cout << "face_ip.weight " << face_ip.weight << endl;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;
@@ -445,8 +445,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       /// this is used for area test
-      // double area = sqrt(trans.Weight());
-      // area += face_ip.weight * alpha * area;
+      double area = sqrt(trans.Weight());
       //fun += face_ip.weight * alpha * area;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *alpha;
    }
