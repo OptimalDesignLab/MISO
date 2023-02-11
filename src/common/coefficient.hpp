@@ -935,6 +935,124 @@ protected:
    std::map<const int, std::unique_ptr<mfem::VectorCoefficient>> material_map;
 };
 
+/// Abstract class VectorStateCoefficient
+/// Defines new signature for Eval() and new method EvalStateDeriv() that
+/// subclasses must implement.
+///NOTE: Started from State Coefficient declaration and adjusted as needed for vector coefficient
+class VectorStateCoefficient : public mfem::VectorCoefficient
+{
+public:
+   void Eval(mfem::Vector &vec, mfem::ElementTransformation &trans,
+                     const mfem::IntegrationPoint &ip) override
+   {
+      Eval(vec, trans, ip, 0);
+   }
+
+   virtual void Eval(mfem::Vector &vec, mfem::ElementTransformation &trans,
+                     const mfem::IntegrationPoint &ip, double state) = 0;
+
+   ///TODO: Implement EvalStateDeriv and EvalState2ndDeriv here and in coefficient cpp if needed
+   // virtual void EvalStateDeriv(mfem::Vector &vec, mfem::ElementTransformation &trans,
+   //                              const mfem::IntegrationPoint &ip,
+   //                               double state, mfem::Vector &dV_dstate) = 0;
+
+   // virtual void EvalState2ndDeriv(mfem::Vector &vec, mfem::ElementTransformation &trans,
+   //                                  const mfem::IntegrationPoint &ip,
+   //                                  const double state, mfem::Vector &d2V_dstate2) = 0;
+
+   virtual void EvalRevDiff(const mfem::Vector &vec, mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            mfem::DenseMatrix &PointMat_bar) = 0;
+
+   VectorStateCoefficient(int dim)
+   : mfem::VectorCoefficient(dim)
+   {}
+
+};
+
+/// VectorMeshDependentStateCoefficient
+/// A class that contains a map of material attributes and vector state coefficients to
+/// evaluate on for each attribute.
+/// Adapted from MeshDependentVectorCoefficient
+class VectorMeshDependentStateCoefficient : public VectorStateCoefficient
+{
+public:
+   VectorMeshDependentStateCoefficient(
+       const int dim = 3,
+       std::unique_ptr<VectorStateCoefficient> dflt = nullptr)
+    : VectorStateCoefficient(dim), default_coeff(move(dflt))
+   {}
+
+   // addCoefficient should be same for MeshDependentVectorStateCoefficient as it is for MeshDependentVectorCoefficient
+   /// Adds <int, std::unique_ptr<VectorStateCoefficient> pair to material_map
+   /// \param[in] attr - attribute integer indicating which elements coeff
+   ///					    should be evaluated on
+   /// \param[in] coeff - the coefficient the to evaluate on elements
+   ///						  identified by the attribute
+   virtual void addCoefficient(const int attr,
+                               std::unique_ptr<VectorCoefficient> coeff)
+   {
+      auto status = material_map.insert(std::make_pair(attr, std::move(coeff)));
+      // if the pair failed to insert
+      if (!status.second)
+      {
+         mfem::mfem_error("Key already present in map!");
+      }
+   }
+
+   /// \brief Search the map of coefficients and evaluate the one whose key is
+   /// 		  the same as the element's `Attribute` at the point defined by
+   ///		  `ip`.
+   /// \param[out] vec - output vector storing the result of the evaluation
+   /// \param[in] trans - element transformation relating real element to
+   ///					 	  reference element
+   /// \param[in] ip - the integration point to evalaute the coefficient at
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   void Eval(mfem::Vector &vec,
+             mfem::ElementTransformation &trans,
+             const mfem::IntegrationPoint &ip) override;
+
+   /// \brief Search the map of coefficients and evaluate the one whose key is
+   /// 		  the same as the element's `Attribute` at the point defined by
+   ///		  `ip`.
+   /// \param[out] vec - output vector storing the result of the evaluation
+   /// \param[in] trans - element transformation relating real element to
+   ///					 	  reference element
+   /// \param[in] ip - the integration point to evalaute the coefficient at
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   /// \param[in] state - the state at which to evaluate the coefficient
+   void Eval(mfem::Vector &vec,
+             mfem::ElementTransformation &trans,
+             const mfem::IntegrationPoint &ip,
+               double state) override;
+
+   /// \brief Search the map of coefficients and evaluate the one whose key is
+   ///        the same as the element's `Attribute` at the point defined by
+   ///        `ip`.
+   /// \param[in] V_bar - derivative of functional with respect to `V`
+   /// \param[in] trans - element transformation relating real element to
+   ///                    reference element
+   /// \param[in] ip - defines location in reference space
+   /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override;
+
+protected:
+   std::unique_ptr<VectorStateCoefficient> default_coeff;
+   std::map<const int, std::unique_ptr<VectorCoefficient>> material_map;
+};
+
+///TODO: If needed, add constructMaterialVectorStateCoefficient
+
 ///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // class SteinmetzCoefficient : public mfem::Coefficient
 // {

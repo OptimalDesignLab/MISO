@@ -1602,8 +1602,12 @@ void calcOutput(EMHeatSourceOutput &output,
 {
    setInputs(output, inputs);
 
+   std::cout << "calcOutput in EMHeatSourceOutput\n";
+
    out_vec = 0.0;
    addLoad(output.lf, out_vec);
+
+   std::cout << "Load has been added to out_vec in calcOutput in EMHeatSourceOutput\n";
 }
 
 ///TODO: Implementation is not complete nor correct....
@@ -1632,6 +1636,13 @@ EMHeatSourceOutput::EMHeatSourceOutput(
       ///TODO: Ultimately handle the case where there is no peak flux field
       auto &flux_field = peak_flux_iter->second;
       peak_flux = &flux_field.gridFunc();
+      ///TODO: Remove once done debugging
+      std::cout << "peak_flux seen in EMHSO, and is =np.array([";
+      for (int j = 0; j < peak_flux->Size(); j++)
+      {
+         std::cout << peak_flux->Elem(j) << ", ";
+      }
+      std::cout << "])\n";
    }
 
    // Making the integrator see the temperature field
@@ -1642,28 +1653,34 @@ EMHeatSourceOutput::EMHeatSourceOutput(
       // If temperature field exists, turn it into a grid function
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
+      
+      std::cout << "Temperature field seen by EMHeatSourceOutput\n";
    }
 
-   auto stator_attrs = components["stator"]["attrs"].get<std::vector<int>>();
+   std::vector<int> stator_attrs = components["stator"]["attrs"].get<std::vector<int>>();
    if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
-   {
-      lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
-                                 rho, *k_s, *alpha, *beta, "stator"),
-                           stator_attrs);
-   }
-   else
    {
       lf.addDomainIntegrator(new CAL2CoreLossDistributionIntegrator(
                                  rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
-                           stator_attrs);                           
+                           stator_attrs);
+      std::cout << "(options.contains(\"UseCAL2forCoreLoss\") && options[\"UseCAL2forCoreLoss\"].get<bool>()) = TRUE\n";
+   }
+   else
+   {     
+      lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
+                                 rho, *k_s, *alpha, *beta, "stator"),
+                           stator_attrs);
+      std::cout << "False, using Steinmetz\n";
    }
    
-   auto winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
-   lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma),
-                          winding_attrs);
-   lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
-                              fields.at("peak_flux").gridFunc(), sigma),
-                          winding_attrs);
+   // std::vector<int> winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
+   // lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma, temperature_field),
+   //                        winding_attrs); // DCLFI WITH a temperature field
+   // lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
+   //                            *peak_flux, sigma, temperature_field),
+   //                        winding_attrs); // ACLFI WITH a temperature field
+
+   std::cout << "EMHeatSourceOutput::EMHeatSourceOutput has been constructed\n";
 }
 
 void setOptions(PMDemagOutput &output, const nlohmann::json &options)
@@ -1686,6 +1703,25 @@ void setInputs(PMDemagOutput &output, const MachInputs &inputs)
 double calcOutput(PMDemagOutput &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);
+
+   mfem::Vector flux_state;
+   setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
+   ///TODO: Remove once done debugging
+   std::cout << "flux_state.Size() = " << flux_state.Size() << "\n";
+   std::cout << "flux_state.Min() = " << flux_state.Min() << "\n";
+   std::cout << "flux_state.Max() = " << flux_state.Max() << "\n";
+   std::cout << "flux_state.Sum() = " << flux_state.Sum() << "\n";
+   // std::cout << "flux_state=np.array([";
+   // for (int j = 0; j < flux_state.Size(); j++) {std::cout << flux_state.Elem(j) << ", ";}
+   // std::cout << "])\n";   
+
+   // mfem::Vector temperature_vector;
+   // setVectorFromInputs(inputs, "temperature", temperature_vector, false, true);
+   // ///TODO: Remove once done debugging
+   // std::cout << "temperature_vector.Size() = " << temperature_vector.Size() << "\n";
+   // std::cout << "temperature_vector.Min() = " << temperature_vector.Min() << "\n";
+   // std::cout << "temperature_vector.Max() = " << temperature_vector.Max() << "\n";
+   // std::cout << "temperature_vector.Sum() = " << temperature_vector.Sum() << "\n";
 
    return calcOutput(output.output, output.inputs);
 }
@@ -1718,6 +1754,11 @@ PMDemagOutput::PMDemagOutput(
       // If temperature field exists, turn it into a grid function
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
+
+      std::cout << "temperature_field.Size() = " << temperature_field->Size() << "\n";
+      std::cout << "temperature_field.Min() = " << temperature_field->Min() << "\n";
+      std::cout << "temperature_field.Max() = " << temperature_field->Max() << "\n";
+      std::cout << "temperature_field.Sum() = " << temperature_field->Sum() << "\n";
 
       // std::cout << "PMDemagOutput, electromag_outputs.cpp, temperature field seen\n";
    }

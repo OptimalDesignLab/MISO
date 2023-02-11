@@ -83,6 +83,7 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 {
    options["time-dis"]["type"] = "steady";
 
+   ///TODO: Add temperature field as optional last argument to magnetostatic residual (also edit magnetostatic_residual.hpp and .cpp to reflect this)
    spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
        diff_stack, fes(), fields, options, materials, nu));
    mach::setOptions(*spatial_res, options);

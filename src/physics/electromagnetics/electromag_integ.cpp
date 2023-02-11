@@ -3517,9 +3517,7 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       fun += w / sigma_v;
    
    }
-   ///TODO: Reinstate return fun once done with conservation of energy tests
-   // return fun;
-   return 0;
+   return fun;
 }
 
 void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
@@ -3732,21 +3730,25 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       {
          ///TODO: Change default value of 100 if needed (be consistent throughout)
          temperature = 100; 
-         temp_el->CalcPhysShape(trans, shape); // need the values of the shape functions for distribution purposes
+         el.CalcPhysShape(trans, shape); // need the values of the shape functions for distribution purposes
       }
 
+      std::cout << "Temperature at current ip in DCLFDI = " << temperature << "\n";
       const double sigma_v = sigma.Eval(trans, ip, temperature);
       // const double sigma_v = sigma.Eval(trans, ip);
-
+      
       double strand_area = M_PI * pow(strand_radius, 2);
+      std::cout << "strand_area = M_PI * pow(strand_radius, 2) = PI * " << strand_radius << "^2\n";
       ///TODO: Need to find a way to modify the stack length part of wire length (unscale it) so that energy is conserved
       double R = wire_length / (strand_area * strands_in_hand * sigma_v);
+      std::cout << "R = wire_length / (strand_area * strands_in_hand * sigma_v) = " << wire_length << "/ (" << strand_area << "*" << strands_in_hand << "*" << sigma_v << ")\n";
 
       double loss = pow(rms_current, 2) * R;
+      std::cout << "loss = pow(rms_current, 2) * R = " << rms_current << "^2 * " << R << "\n";
       // not sure about this... but it matches MotorCAD's values
       ///TODO: Ensure that the loss (the integrand) is consistent with conservation of energy
       loss *= sqrt(2);
-      // std::cout << "loss =" << loss << "\n";     
+      std::cout << "loss =" << loss << "\n";     
       // std::cout << "elvect.Size()=" << elvect.Size() << "\n";
       // std::cout << "shape.Size()=" << shape.Size() << "\n";
       ///TODO: Remove comment out once done debugging
@@ -3862,9 +3864,7 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       const auto loss = sigma_val * pow(b_mag, 2);
       fun += loss * w;
    }
-   ///TODO: Reinstate return fun once done with conservation of energy tests
-   // return fun;
-   return 0;
+   return fun;
 }
 
 // void ACLossFunctionalIntegrator::AssembleElementVector(const FiniteElement
@@ -4311,6 +4311,7 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
          temperature = 100; 
       }
 
+      std::cout << "Temperature at current ip in ACLFDI = " << temperature << "\n";
       const double sigma_v = sigma.Eval(trans, ip, temperature);
       // const double sigma_v = sigma.Eval(trans, ip);
 
@@ -4322,6 +4323,13 @@ void ACLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       ///TODO: Need to determine a suitable test function in the domain. Currently, it is the vector of shape functions
       elvect.Add(loss * w, shape);
    }
+   ///TODO: Remove comment out once done debugging
+   std::cout << "element_" << element << "_elvect=np.array([";
+   for (int j = 0; j < elvect.Size(); j++)
+   {
+      std::cout << elvect.Elem(j) << ", ";
+   }
+   std::cout << "])\n";
    ///TODO: Logic is up to date now. Need to finish the implementation and then test
 }
 
@@ -6381,6 +6389,7 @@ void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
     mfem::Vector &elvect)
 {
    int ndof = el.GetDof();
+   const int element = trans.ElementNo;
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape;
@@ -6422,13 +6431,22 @@ void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
       double alpha_v = alpha.Eval(trans, ip);
       double beta_v = beta.Eval(trans, ip);
 
+      std::cout << "No temperature for SteinmetzLFDI\n";
       ///TODO: Need to ensure energy is conserved w/r/t scaling by the stack length
       ///TODO: Ensure that the loss (the integrand) is consistent with conservation of energy
       double loss =
-          rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v);
+          rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v); 
+      std::cout << "loss = rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) = " << rho_v << "*" << k_s_v << "*" << freq << "^" << alpha_v << "*" << max_flux_mag << "^" << beta_v << "=" << loss << "\n";
       ///TODO: Need to determine a suitable test function in the domain. Currently, it is the vector of shape functions
       elvect.Add(loss * w, shape);
    }
+   ///TODO: Remove comment out once done debugging
+   std::cout << "element_" << element << "_elvect=np.array([";
+   for (int j = 0; j < elvect.Size(); j++)
+   {
+      std::cout << elvect.Elem(j) << ", ";
+   }
+   std::cout << "])\n";
 }
 
 void setInputs(CAL2CoreLossIntegrator &integ, const MachInputs &inputs)

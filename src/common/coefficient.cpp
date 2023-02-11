@@ -1535,6 +1535,101 @@ void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
+// Adaped from VectorMeshDependentCoefficient
+void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
+                                          ElementTransformation &trans,
+                                          const IntegrationPoint &ip)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   VectorCoefficient *coeff = nullptr;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      // std::cout << "attr found\n";
+      coeff = it->second.get();
+      coeff->Eval(vec, trans, ip);
+      // std::cout << "mag_vec in eval: ";
+      // vec.Print();
+   }
+   else if (default_coeff)
+   {
+      default_coeff->Eval(vec, trans, ip);
+   }
+   else  // if attribute not found and no default set, set the output to be zero
+   {
+      vec = 0.0;
+   }
+   // std::cout << "mag_vec in eval: ";
+   // vec.Print();
+}
+
+// Adaped from VectorMeshDependentCoefficient. Added in state as argument as well as dynamic cast for coeff
+void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
+                                          ElementTransformation &trans,
+                                          const IntegrationPoint &ip,
+                                          double state)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   VectorCoefficient *coeff = nullptr;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      std::cout << "VMDSC attr found\n";
+      coeff = it->second.get();
+      auto *vector_state_coeff = dynamic_cast<VectorStateCoefficient *>(coeff);
+      if (vector_state_coeff != nullptr)
+      {
+         vector_state_coeff->Eval(vec, trans, ip, state);
+      }
+      else
+      {
+         vec = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *vector_state_coeff = dynamic_cast<VectorStateCoefficient *>(default_coeff.get());
+      if (vector_state_coeff != nullptr)
+      {
+         vector_state_coeff->Eval(vec, trans, ip, state);
+      }
+      else
+      {
+         vec = 0.0;
+      }
+   }
+   else  // if attribute not found and no default set, set the output to be zero
+   {
+      vec = 0.0;
+   }
+   std::cout << "mag_vec in eval: ";
+   vec.Print();
+}
+
+// Adaped from VectorMeshDependentCoefficient. No changes needed
+void VectorMeshDependentStateCoefficient::EvalRevDiff(const Vector &V_bar,
+                                                 ElementTransformation &trans,
+                                                 const IntegrationPoint &ip,
+                                                 DenseMatrix &PointMat_bar)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   VectorCoefficient *coeff = nullptr;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      coeff = it->second.get();
+      coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   }
+   else if (default_coeff)
+   {
+      default_coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   }
+   // if attribute not found and no default set, don't change PointMat_bar
+}
+
 ///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // double SteinmetzCoefficient::Eval(ElementTransformation &trans,
 //                                   const IntegrationPoint &ip)

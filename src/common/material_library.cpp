@@ -186,6 +186,8 @@ const auto Nd2Fe14B = R"(
 {
    "mu_r": 1.04,
    "B_r": 1.390,
+   "alpha_B_r": -0.12,
+   "T_ref": 20.0,
    "rho": 7500,
    "cv": 502.08,
    "kappa": 9,
