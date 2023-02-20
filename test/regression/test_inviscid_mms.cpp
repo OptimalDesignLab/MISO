@@ -1,4 +1,4 @@
-/// Solve the Navier-Stokes MMS verification problem
+/// Solve the Inviscid MMS verification problem
 #include <fstream>
 #include <iostream>
 #include <mpi.h>
@@ -7,9 +7,9 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "navier_stokes.hpp"
-// #include "euler_fluxes.hpp"
-// #include "euler_integ.hpp"
+//#include "navier_stokes.hpp"
+#include "euler_fluxes.hpp"
+#include "euler_integ.hpp"
 #include "flow_solver.hpp"
 
 using namespace std;
@@ -21,15 +21,16 @@ auto options = R"(
 {
    "print-options": false,
    "flow-param": {
-      "viscous": true,
+      "viscous": false,
       "mu": 1.0,
       "Re": 1000000.0,
       "Pr": 0.75,
-      "viscous-mms": true
+      "inviscid-mms": true
    },
    "space-dis": {
       "degree": 0,
       "lps-coeff": 1.0,
+      "flux-fun": "euler",
       "basis-type": "csbp"
    },
    "time-dis": {
@@ -60,7 +61,7 @@ auto options = R"(
       "lev-fill": 4
    },
    "bcs": {
-      "no-slip-adiabatic": [1, 2, 3, 4, 5, 6]
+      "far-field": [1, 2, 3, 4, 5, 6]
    },
    "outputs":
    {
@@ -82,12 +83,12 @@ unique_ptr<Mesh> buildCurvilinearMesh(int num_x, int num_y, int num_z);
 /// \param[out] u - state variables stored as a 4-vector
 void uexact(const Vector &x, Vector& u);
 
-TEST_CASE( "Navier-Stokes 3D MMS inital norm convergance test", "[NS-MMS]")
+TEST_CASE( "Inviscid 3D MMS inital norm convergance test", "[Inviscid-MMS]")
 {
    int nx;
    // Just test p=1 and p=2 to keep test time limited
    for (int p = 0; p <= 1; ++p)
-   {  nx = 10;
+   {  nx = 5;
       double res_norm[3];
       for (int r = 0; r <= 2; ++r)
       {
@@ -116,33 +117,22 @@ TEST_CASE( "Navier-Stokes 3D MMS inital norm convergance test", "[NS-MMS]")
 
 }
 
-// TEST_CASE( "Navier-Stokes MMS exact solution 3D", "[NS-MMS-exact]")
-// {  
-//    int dim = 3;
-//    int num_state = dim + 2;
-//    Mesh mesh = Mesh::MakeCartesian3D(1, 1, 1, 
-//                                      Element::TETRAHEDRON, 1.0, 1.0, 1.0, Ordering::byVDIM);
-//    for (int p = 0; p <=1 ; ++p)
-//    {
-//       std::unique_ptr<FiniteElementCollection> fec(new SBPCollection(p, dim));
-//       std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(&mesh, fec.get(), dim, Ordering::byVDIM));
-//       GridFunction nodes(fes.get());
-//       mesh.GetNodes(nodes); 
-//       const int nNodes = nodes.Size() / dim;
-//       std::cout << "num nodes: " << nodes.Size() << std::endl;
-//       mfem::Vector x; x.SetSize(3); 
-//       mfem::Vector u; u.SetSize(num_state);
-//       for (int i = 0; i < nNodes; ++i)
-//       {
-//          for (int j = 0; j < dim; ++j)
-//          {
-//             x(j) = nodes(j * nNodes + i);
-//          }
-//          uexact(x,u);
-//          std::cout << u(0) << " " << u(1) << " " << u(2) << " " << u(3) << " " << u(4) << "\n";
-//       }
-//    }
-// }
+TEST_CASE("Inviscid 3D MMS solve", "[Inviscid-MMS]")
+{
+    int nx = 5;
+    
+    // Build mesh and print num of elements
+    auto mesh = buildCurvilinearMesh(nx,nx,nx);
+    std::cout << "Number of elements " << mesh->GetNE() << '\n';
+
+    // Create solver and set initial guess to exact
+    FlowSolver<3,false> solver(MPI_COMM_WORLD, options, std::move(mesh));
+    mfem::Vector state_var(solver.getStateSize());
+    solver.setState(uexact, state_var);
+
+    // set Mach inputs and compute initial residual norm and print it
+
+}
 
 unique_ptr<Mesh> buildCurvilinearMesh(int num_x, int num_y, int num_z)
 {
@@ -154,21 +144,26 @@ unique_ptr<Mesh> buildCurvilinearMesh(int num_x, int num_y, int num_z)
 
 void uexact(const Vector &x, Vector& q)
 {
-   const double r_0 = 1.0;
-   const double r_xyz = 1.0;
-   const double u_0 = 0.5;
-   const double v_0 = 0.5;
-   const double w_0 = 0.5;
-   const double T_0 = 1.0;
+   const double rhop  = 0.1;
+   const double rho0  = 1.0;
+   const double up    = 0.1;
+   const double u0    = 0.1;
+   const double trans = 0.0;
+   const double scale = 1.0;
+   const double T0    = 1.0;
+   const double Tp    = 0.1;
 
-   q[0] = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x[0])*sin(2*r_xyz*M_PI*x[1])*sin(2*r_xyz*M_PI*x[3]);
-   q[1] = u_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
-   q[2] = v_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
-   q[3] = w_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
-   double T = T_0;
-   double p = q[0] * T;
-   q[4] = p/euler::gami + 0.5 * q[0] * (q[1]*q[1] + q[2]*q[2] + q[3]*q[3]); 
-   q[1] *= q[0];
-   q[2] *= q[0];
-   q[3] *= q[0];
+   q(0) = rho0 + rhop*(sin(M_PI*pow((x(0) + trans)/scale,2.0)))*sin(M_PI*(x(1)+trans)/scale);
+   q(1) = 4*u0*((x(1)+trans)/scale)*(1 - ((x(1) +trans)/scale)) + 
+          up*sin(2*M_PI*(x(1)+trans)/scale)*(sin(M_PI*pow((x(0)+trans)/scale,2.0)));
+   q(2) = -up*(sin(2*M_PI*pow((x(0)+trans)/scale,2.0)))*sin(M_PI*(x(1)+trans)/scale);
+   q(3) = 0.0;
+   double Tem  = T0 + Tp*(pow(((x(0)+trans)/scale),4.0) - 2.0*pow(((x(0)+trans)/scale),3.0) 
+                 + pow(((x(0)+trans)/scale),2.0) + pow(((x(1)+trans)/scale),4.0) 
+                 - 2.0*pow(((x(1)+trans)/scale),3.0) + pow(((x(1)+trans)/scale),2.0));
+   double p    = q(0)*Tem;
+   q(4) = (p/euler::gami) + q(0)*(q(1)*q(1) + q(2)*q(2) + q(3)*q(3))*0.5;
+   q(1) *= q(0);
+   q(2) *= q(0);
+   q(3) *= q(0);
 }

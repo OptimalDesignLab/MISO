@@ -11,7 +11,8 @@ int main(int argc, char *argv[]){
     MPI_Comm_rank(MPI_COMM_WORLD, &local_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
-    cout << "Hello world, I'm processor rank " << local_rank + 1 << " out of world size " << world_size << endl; 
-
+    cout << "Hello world, I'm processor rank " << local_rank + 1 << " out of world size " << world_size << endl
+    ; 
+    MPI_Finalize();
     return 0;
 }

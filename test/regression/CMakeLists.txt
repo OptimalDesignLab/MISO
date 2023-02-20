@@ -17,6 +17,7 @@ set(REGRESSION_TEST_SRCS
    test_steady_vortex
    test_navier_stokes_mms
    test_navier_stokes_3Dmms
+   test_inviscid_mms
    test_FarField3D_exact
    test_thermal_cube
    test_steady_thermal_cube

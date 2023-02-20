@@ -1224,6 +1224,156 @@ void calcFarFieldFlux2(const xdouble *dir,
    }
 }
 
+// calculate InviscidMMSExact solution
+/// \param[in] dim - dimension of the problem
+/// \param[in] x - location at which to evaluate the exact solution
+/// \param[out] u - the exact solution
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void InviscidMMSExact(int dim, const xdouble *x, xdouble *u)
+{
+   switch(dim)
+   {
+      case 3:
+      {
+         const double rhop  = 0.1;
+         const double rho0  = 1.0;
+         const double up    = 0.1;
+         const double u0    = 0.1;
+         const double trans = 0.0;
+         const double scale = 1.0;
+         const double T0    = 1.0;
+         const double Tp    = 0.1;
+         u[0] = rho0 + rhop*(sin(M_PI*pow((x[0] + trans)/scale,2.0)))*sin(M_PI*(x[1]+trans)/scale);
+         u[1] = 4*u0*((x[1]+trans)/scale)*(1 - ((x[1]+trans)/scale)) + up*sin(2*M_PI*(x[1]+trans)/scale)*(sin(M_PI*pow((x[0]+trans)/scale,2.0)));
+         u[2] = -up*(sin(2*M_PI*pow((x[0]+trans)/scale,2.0)))*sin(M_PI*(x[1]+trans)/scale);
+         u[3] = 0.0;
+         double Tem  = T0 + Tp*(pow(((x[0]+trans)/scale),4.0) - 2.0*pow(((x[0]+trans)/scale),3.0) + pow(((x[0]+trans)/scale),2.0) 
+                     + pow(((x[1]+trans)/scale),4.0) - 2.0*pow(((x[1]+trans)/scale),3.0) + pow(((x[1]+trans)/scale),2.0));
+         double p    = u[0]*Tem;
+         u[4] = (p/euler::gami) + u[0]*(u[1]*u[1] + u[2]*u[2] + u[3]*u[3])*0.5;
+         u[1] *= u[0];
+         u[2] *= u[0];
+         u[3] *= u[0];
+         break;
+      }
+      default:
+      {  
+         u[0] = 0.0; u[1] = 0.0; u[2] = 0.0; u[3] = 0.0; u[4] = 0.0;
+         break;
+      }
+   }
+
+}
+
+/// MMS source term for a particular Inviscid 2D/3D verification
+/// \param[in] dim - dimension of the problem
+/// \param[in] x - location at which to evaluate the source
+/// \param[out] src - the source value
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcInviscidMMS(int dim, const xdouble *x, xdouble *src)
+{
+
+   switch(dim)
+   {
+      case 3:
+      {
+         const double rhop  = 0.1;
+         const double rho0  = 1.0;
+         const double up    = 0.1;
+         const double u0    = 0.1;
+         const double trans = 0.0;
+         const double scale = 1.0;
+         const double T0    = 1.0;
+         const double Tp    = 0.1;
+         const double gamma = euler::gamma;
+
+         src[0] = -M_PI*rhop*up*pow(sin(M_PI*(trans + x[0])/scale), 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[1])/scale)/scale 
+                  + 2*M_PI*rhop*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans 
+                  + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans 
+                  + x[1])/scale))*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + 
+                  x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale;
+
+         src[1] = Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[0])/pow(scale, 2) - 6*pow(trans + x[0], 2)/pow(scale, 3) + 
+                  4*pow(trans + x[0], 3)/pow(scale, 4)) - M_PI*rhop*up*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)
+                  *(trans + x[1])/scale)*pow(sin(M_PI*(trans + x[0])/scale), 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[1])/scale)
+                  /scale + 2*M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + 
+                  x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*
+                  cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*rhop*pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)
+                  *(trans + x[1])/scale, 2)*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - up*(rho0 + rhop*pow(sin(M_PI*(trans 
+                  + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(4*u0*(1 - (trans + x[1])/scale)/scale + 2*M_PI*up*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(2*M_PI*(trans + 
+                  x[1])/scale)/scale - 4*u0*(trans + x[1])/pow(scale, 2))*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale) + 4*M_PI*up*(rho0 + 
+                  rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 
+                  4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - 
+                  M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + 
+                  x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale;
+
+         src[2] = Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[1])/pow(scale, 2) - 6*pow(trans + x[1], 2)/pow(scale, 3) + 
+                  4*pow(trans + x[1], 3)/pow(scale, 4)) + M_PI*rhop*pow(up, 2)*pow(sin(M_PI*(trans + x[0])/scale), 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*pow(sin(M_PI*(trans + 
+                  x[1])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale - 2*M_PI*rhop*up*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - 
+                  (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans + x[0])/scale)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*pow(sin(M_PI*(trans + x[1])/scale), 2)*
+                  cos(M_PI*(trans + x[0])/scale)/scale + M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) 
+                  - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*pow(sin(M_PI*(trans + x[0])/scale), 2)*
+                  cos(M_PI*(trans + x[1])/scale)/scale - 2*M_PI*pow(up, 2)*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*sin(M_PI*(trans + x[0])/scale)
+                  *pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*pow(up, 2)*
+                  (rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*sin(M_PI*(trans + x[1])/scale)*
+                  cos(M_PI*(trans + x[1])/scale)/scale - 4*M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)
+                  *sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(2*M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*
+                  cos(2*M_PI*(trans + x[0])/scale)/scale;
+
+         src[3] = 0.0;
+
+         src[4] = -up*(Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[1])/pow(scale, 2) - 6*pow(trans + x[1], 2)/pow(scale, 3) 
+                  + 4*pow(trans + x[1], 3)/pow(scale, 4)) + Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[1])/pow(scale, 2) 
+                  - 6*pow(trans + x[1], 2)/pow(scale, 3) + 4*pow(trans + x[1], 3)/pow(scale, 4))/(gamma - 1) + M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + 
+                  x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/
+                  pow(scale, 4)))*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale + M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + 
+                  x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*
+                  pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/(scale*(gamma - 1)) + (1.0/2.0)*M_PI*rhop*(pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*
+                  pow(sin(M_PI*(trans + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + 
+                  x[1])/scale, 2))*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale + ((1.0/2.0)*rho0 + (1.0/2.0)*rhop*pow(sin(M_PI*(trans + x[0])/scale), 
+                  2)*sin(M_PI*(trans + x[1])/scale))*((up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*
+                  (8*u0*(1 - (trans + x[1])/scale)/scale + 4*M_PI*up*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(2*M_PI*(trans + x[1])/scale)/scale - 8*u0*(trans + x[1])/pow(scale, 2)) 
+                  + 2*M_PI*pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[1])/scale)/scale))*pow(sin(2*M_PI*(trans + x[0])/scale), 
+                  2)*sin(M_PI*(trans + x[1])/scale) + (up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)
+                  *(Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[0])/pow(scale, 2) - 6*pow(trans + x[0], 2)/pow(scale, 3) + 
+                  4*pow(trans + x[0], 3)/pow(scale, 4)) + Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[0])/pow(scale, 2) - 
+                  6*pow(trans + x[0], 2)/pow(scale, 3) + 4*pow(trans + x[0], 3)/pow(scale, 4))/(gamma - 1) + 2*M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 
+                  2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))
+                  *sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + 
+                  pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 
+                  4)/pow(scale, 4)))*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/(scale*(gamma - 1)) + M_PI*rhop*(pow(up, 2)*
+                  pow(sin(2*M_PI*(trans + x[0])/scale), 4)*pow(sin(M_PI*(trans + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) 
+                  + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale, 2))*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale 
+                  + ((1.0/2.0)*rho0 + (1.0/2.0)*rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(8*M_PI*pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 
+                  3)*pow(sin(M_PI*(trans + x[1])/scale), 2)*cos(2*M_PI*(trans + x[0])/scale)/scale + 4*M_PI*up*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) 
+                  + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale)) + 
+                  2*M_PI*up*((T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) 
+                  + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)) 
+                  + (T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) 
+                  + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))/(gamma - 1) 
+                  + (1.0/2.0)*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*
+                  pow(sin(M_PI*(trans + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + 
+                  x[1])/scale, 2)))*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - M_PI*up*((T0 + Tp*(pow(trans + 
+                  x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 
+                  4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)) + (T0 + 
+                  Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + 
+                  pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))/(gamma - 1) 
+                  + (1.0/2.0)*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*pow(sin(M_PI*(trans 
+                  + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale, 2)))*
+                  pow(sin(2*M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale;
+
+         break;
+      }
+      default:
+      {  
+         src[0] = 0.0; src[1] = 0.0; src[2] = 0.0; src[3] = 0.0; src[4] = 0.0;
+         break;
+      }
+   }
+}
+
 }  // namespace mach
 
 #endif

@@ -6,6 +6,7 @@
 #include "flow_residual.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
+#include "euler_integ_mms.hpp"
 #include "navier_stokes_integ.hpp"
 #include "utils.hpp"
 
@@ -153,17 +154,21 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
              " state!\n");
       }
       res.addDomainIntegrator(new EulerIntegrator<dim>(stack));
+      if (flow["inviscid-mms"])
+      {  
+         res.addDomainIntegrator(new InviscidMMSIntegrator(-1.0,dim));
+      }
    }
    // add the LPS stabilization, if necessary
    auto lps_coeff = space_dis["lps-coeff"];
    if (lps_coeff > 0.0)
-   {
+   {  
       res.addDomainIntegrator(
           new EntStableLPSIntegrator<dim, entvar>(stack, lps_coeff));
    }
    // add viscous volume integrators, if necessary
    if (flow["viscous"])
-   {
+   {  
       res.addDomainIntegrator(
           new ESViscousIntegrator<dim>(stack, re_fs, pr_fs, mu));
       if (flow["viscous-mms"])
@@ -287,6 +292,14 @@ void FlowResidual<dim, entvar>::addInviscidBoundaryIntegrators(
           new ControlBC<dim, entvar>(stack, fes.FEColl(), scale, xc, len),
           bdr_attr_marker);
    }
+   // if (bcs.contains("inviscid-mms"))
+   // {
+   //    auto exactbc = [](const Vector &x, Vector &u)
+   //    { InviscidMMSExact<double>(dim, x.GetData(), u.GetData()); };
+   //       vector<int> bdr_attr_marker = bcs["inviscid-mms"].get<vector<int>>();
+   //       res.addBdrFaceIntegrator(new InviscidExactBC<dim>(stack, fes.FEColl(),exactbc), 
+   //       bdr_attr_marker);
+   // }
 }
 
 template <int dim, bool entvar>

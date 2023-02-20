@@ -20,7 +20,7 @@ auto options = R"(
    "flow-param": {
       "viscous": true,
       "mu": 1.0,
-      "Re": 1.0,
+      "Re": 1000000.0,
       "Pr": 0.75,
       "viscous-mms": true
    },
@@ -46,7 +46,7 @@ auto options = R"(
    },
    "lin-solver": {
       "type": "hyprefgmres",
-      "printlevel": 0,
+      "printlevel": 1,
       "filllevel": 3,
       "maxiter": 100,
       "reltol": 1e-2,
@@ -54,7 +54,7 @@ auto options = R"(
    },
    "lin-prec": {
       "type": "hypreilu",
-      "lev-fill": 4
+      "lev-fill": 1
    },
    "bcs": {
       "no-slip-adiabatic": [1, 2, 3, 4, 5, 6]
@@ -95,10 +95,10 @@ int main(int argc, char *argv[])
    // Parse command-line options
    OptionsParser args(argc, argv);
 
-   int degree = 1;
-   int nx = 50;
-   int ny = 50;
-   int nz = 50;
+   int degree = 0;
+   int nx = 2;
+   int ny = 2;
+   int nz = 2;
    //args.AddOption(&options_file, "-o", "--options",
    //               "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
@@ -194,9 +194,9 @@ void uexact(const Vector &x, Vector& q)
 {
    const double r_0 = 1.0;
    const double r_xyz = 1.0;
-   const double u_0 = 0.0;
-   const double v_0 = 0.0;
-   const double w_0 = 0.0;
+   const double u_0 = 0.5;
+   const double v_0 = 0.5;
+   const double w_0 = 0.5;
    const double T_0 = 1.0;
             
    q(0) = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x(0))*sin(2*r_xyz*M_PI*x(1))*sin(2*r_xyz*M_PI*x(2));
@@ -206,4 +206,7 @@ void uexact(const Vector &x, Vector& q)
    double T = T_0;
    double p = q(0) * T;
    q(4) = p/euler::gami + 0.5 * q(0) * (q(1)*q(1) + q(2)*q(2) + q(3)*q(3)); 
+   q(1) *= q(0);
+   q(2) *= q(0);
+   q(3) *= q(0);
 }

@@ -367,10 +367,10 @@ void viscousMMSExact(int dim, const xdouble *x, xdouble *u)
         {
             const double r_0 = 1.0;
             const double r_xyz = 1.0;
-            const double u_0 = 1.0;
-            const double v_0 = 1.0;
-            const double w_0 = 1.0;
-            const double T_0 = 10.0;
+            const double u_0 = 0.5;
+            const double v_0 = 0.5;
+            const double w_0 = 0.5;
+            const double T_0 = 1.0;
 
             u[0] = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x[0])*sin(2*r_xyz*M_PI*x[1])*sin(2*r_xyz*M_PI*x[3]);
             u[1] = u_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
@@ -379,6 +379,9 @@ void viscousMMSExact(int dim, const xdouble *x, xdouble *u)
             double T = T_0;
             double p = u[0] * T;
             u[4] = p/euler::gami + 0.5 * u[0] * (u[1]*u[1] + u[2]*u[2] + u[3]*u[3]); 
+            u[1] *= u[0];
+            u[2] *= u[0];
+            u[3] *= u[0];
             break;
         }
 
@@ -420,213 +423,106 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
    case 3:
     {   
         double gamma = euler::gamma;
-        // double kappa = mu * gamma / (Pr * euler::gami);
+        double kappa = mu * gamma / (Pr * euler::gami);
         const double r_0 = 1.0;
         const double r_xyz = 1.0; 
-        const double u_0 = 1.0;
-        const double v_0 = .5;
-        const double w_0 = .2;
+        const double u_0 = 0.5;
+        const double v_0 = 0.5;
+        const double w_0 = 0.5;
         const double T_0 = 1.0;
 
-        src[0] = (double)(r_0*(0.033333333333333333*M_PI*r_xyz*u_0*(2*pow(x[0], 3) 
-                     - 3*pow(x[0], 2) + 2*pow(x[1], 3)
-                     - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[1])*
-                     sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
-                     + 0.033333333333333333*M_PI*r_xyz*v_0*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                     + 2*pow(x[1], 3) - 3*pow(x[1], 2)
-                     + 2*pow(x[2], 3) - 3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*
-                     sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1])
-                     + 0.033333333333333333*M_PI*r_xyz*w_0*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                     + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                     + 2*pow(x[2], 3) - 3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*
-                     sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                     + u_0*x[0]*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                     sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
-                     + v_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                     sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
-                     + w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                     sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1))); 
-        src[1] = (double)(0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) -
-                 1.3333333333333333*mu*u_0*(2*x[0] - 1) - mu*u_0*(2*x[2] - 1) 
-                 - mu*(u_0 + v_0)*(2*x[1] - 1) + 
-                 0.005555555555555554*M_PI*r_0*r_xyz*pow(u_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[1])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*v_0*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*w_0*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 + (1.0/3.0)*r_0*pow(u_0, 2)*x[0]*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 + (1.0/3.0)*r_0*u_0*v_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 + (1.0/3.0)*r_0*u_0*w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))); 
-        src[2] = (double)(0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 - 1.3333333333333333*mu*v_0*(2*x[1] - 1) - mu*v_0*(2*x[2] - 1) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*v_0*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*
-                 cos(2*M_PI*r_xyz*x[0]) + 0.005555555555555554*M_PI*r_0*r_xyz*pow(v_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*v_0*w_0*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
-                 - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 + (1.0/3.0)*r_0*u_0*v_0*x[0]*(x[0] 
-                 - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 + (1.0/3.0)*r_0*pow(v_0, 2)*x[1]*(x[1] 
-                 - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*
-                 sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
-                 - 3*pow(x[2], 2)) + (1.0/3.0)*r_0*v_0*w_0*x[2]*(x[2] 
-                 - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)));
-        src[3] = (double)(0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 - mu*w_0*(2*x[0] - 1) - mu*w_0*(2*x[1] - 1) - 1.3333333333333333*mu*w_0*(2*x[2] - 1) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*w_0*
-                 pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*v_0*w_0*
-                 pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*
-                 sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 + 0.005555555555555554*M_PI*r_0*r_xyz*pow(w_0, 2)*
-                 pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*
-                 sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 + (1.0/3.0)*r_0*u_0*w_0*x[0]*(x[0] - 1)*(0.10000000000000001*
-                 sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 + (1.0/3.0)*r_0*v_0*w_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 + (1.0/3.0)*r_0*pow(w_0, 2)*x[2]*(x[2] - 1)*(0.10000000000000001*
-                 sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))); 
-        src[4] = (double)((1.0/72.0)*(12*mu*(gamma - 1)*(-1.3333333333333333*pow(u_0, 2)*
-                 (2*x[0] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
-                 - 3*pow(x[2], 2)) - pow(u_0, 2)*(2*x[2] - 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 4.0*u_0*x[0]*(x[0] 
-                 - 1)*(-2*u_0*x[0]*(x[0] - 1) + v_0*x[1]*(x[1] - 1) 
-                 + w_0*x[2]*(x[2] - 1)) - 6*u_0*pow(x[1], 2)*(u_0 + v_0)*pow(x[1] - 1, 2) 
-                 - 6*u_0*x[2]*(x[2] - 1)*(u_0*x[2]*(x[2] - 1) 
-                 + w_0*x[0]*(x[0] - 1)) - u_0*(u_0 + v_0)*(2*x[1] - 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 - 1.3333333333333333*pow(v_0, 2)*(2*x[1] - 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2)) - pow(v_0, 2)*(2*x[2] 
-                 - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 - 6*v_0*x[0]*x[1]*(u_0 + v_0)*(x[0] - 1)*(x[1] - 1) 
-                 + 4.0*v_0*x[1]*(x[1] - 1)*(u_0*x[0]*(x[0] - 1) 
-                 - 2*v_0*x[1]*(x[1] - 1) + w_0*x[2]*(x[2] - 1)) 
-                 - 6*v_0*x[2]*(x[2] - 1)*(v_0*x[2]*(x[2] - 1) 
-                 + w_0*x[1]*(x[1] - 1)) - pow(w_0, 2)*(2*x[0] - 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2)) - pow(w_0, 2)*(2*x[1] 
-                 - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 - 1.3333333333333333*pow(w_0, 2)*(2*x[2] - 1)*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2)) - 6*w_0*x[0]*(x[0] 
-                 - 1)*(u_0*x[2]*(x[2] - 1) + w_0*x[0]*(x[0] - 1)) 
-                 - 6*w_0*x[1]*(x[1] - 1)*(v_0*x[2]*(x[2] - 1) + w_0*x[1]*(x[1] 
-                 - 1)) + 4.0*w_0*x[2]*(x[2] - 1)*(u_0*x[0]*(x[0] - 1) 
-                 + v_0*x[1]*(x[1] - 1) - 2*w_0*x[2]*(x[2] - 1))) 
-                 + r_0*u_0*x[0]*(72*T_0 + (gamma - 1)*(72*T_0 
-                 + pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
-                 + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
-                 + 36*pow(x[2], 2)))*(x[0] - 1)*
-                 (0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1) + r_0*u_0*(2.4000000000000004*M_PI*T_0*r_xyz*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
-                 + (gamma - 1)*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
-                 + 0.033333333333333333*M_PI*r_xyz*(pow(u_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + 36*pow(x[2], 2))*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
-                 + 2*x[0]*(pow(u_0, 2) + pow(v_0, 2))*(x[0] - 1)*(0.10000000000000001*
-                 sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2))))*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
-                 + r_0*v_0*x[1]*(72*T_0 + (gamma - 1)*(72*T_0 
-                 + pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
-                 + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
-                 + 36*pow(x[2], 2)))*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
-                 + r_0*v_0*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 + (gamma - 1)*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 + 0.033333333333333333*M_PI*r_xyz*(pow(u_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + 36*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
-                 + 2*x[1]*(pow(u_0, 2) + pow(v_0, 2))*(x[1] - 1)*
-                 (0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))))*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + r_0*w_0*x[2]*(72*T_0 
-                 + (gamma - 1)*(72*T_0 + pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
-                 - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
-                 + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
-                 - 3*pow(x[2], 2), 2) + 36*pow(x[2], 2)))*(x[2] - 1)*
-                 (0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) 
-                 + 1) + r_0*w_0*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 + (gamma - 1)*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 + 0.033333333333333333*M_PI*r_xyz*(pow(u_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
-                 + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + 36*pow(x[2], 2))*
-                 sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
-                 + 2*x[2]*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*
-                 sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(pow(u_0, 2)*(x[2] 
-                 - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + pow(v_0, 2)*(x[2] 
-                 - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
-                 - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 6)))*(2*pow(x[0], 3) 
-                 - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)))/(gamma - 1));
-        // std::cout << src[0] << " " << src[1] << " " << src[2] << " " << src[3] << " " << src[4] << "\n";
+        src[0] =r_0*(0.033333333333333333*M_PI*r_xyz*u_0*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
+                + 2*pow(x[2], 3) - 3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) + 
+                0.033333333333333333*M_PI*r_xyz*v_0*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 
+                3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) + 0.033333333333333333*M_PI*r_xyz*w_0*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + u_0*x[0]*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
+                + v_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
+                + w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1));
+        src[1] =0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) - 1.3333333333333333*mu*u_0*(2*x[0] - 1) 
+                - mu*u_0*(2*x[1] - 1) - mu*u_0*(2*x[2] - 1) + 0.005555555555555554*M_PI*r_0*r_xyz*pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
+                + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*v_0*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*w_0*pow(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + (1.0/3.0)*r_0*pow(u_0, 2)*x[0]*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 
+                (1.0/3.0)*r_0*u_0*v_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 
+                (1.0/3.0)*r_0*u_0*w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2));
+        src[2] =0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) - mu*v_0*(2*x[0] - 1) 
+                - 1.3333333333333333*mu*v_0*(2*x[1] - 1) - mu*v_0*(2*x[2] - 1) + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*v_0*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
+                + 0.005555555555555554*M_PI*r_0*r_xyz*pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) + 0.005555555555555554*M_PI*r_0*r_xyz*v_0*w_0*pow(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + (1.0/3.0)*r_0*u_0*v_0*x[0]*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 
+                (1.0/3.0)*r_0*pow(v_0, 2)*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 
+                3*pow(x[2], 2)) + (1.0/3.0)*r_0*v_0*w_0*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2));
+        src[3] =0.20000000000000001*M_PI*T_0*r_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) - mu*w_0*(2*x[0] - 1) - mu*w_0*(2*x[1] - 1) 
+                - 1.3333333333333333*mu*w_0*(2*x[2] - 1) + 0.005555555555555554*M_PI*r_0*r_xyz*u_0*w_0*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
+                + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) + 0.005555555555555554*M_PI*r_0*r_xyz*v_0*w_0*pow(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
+                + 0.005555555555555554*M_PI*r_0*r_xyz*pow(w_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2)*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + (1.0/3.0)*r_0*u_0*w_0*x[0]*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 
+                (1.0/3.0)*r_0*v_0*w_0*x[1]*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 
+                (1.0/3.0)*r_0*pow(w_0, 2)*x[2]*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2));
+        src[4] =(1.0/72.0)*(12*mu*(gamma - 1)*(-1.3333333333333333*pow(u_0, 2)*(2*x[0] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2)) - pow(u_0, 2)*(2*x[1] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2)) - pow(u_0, 2)*(2*x[2] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2)) + 4.0*u_0*x[0]*(x[0] - 1)*(-2*u_0*x[0]*(x[0] - 1) + v_0*x[1]*(x[1] - 1) + w_0*x[2]*(x[2] - 1)) - 6*u_0*x[1]*(x[1] - 1)*(u_0*x[1]*(x[1] - 1) 
+                + v_0*x[0]*(x[0] - 1)) - 6*u_0*x[2]*(x[2] - 1)*(u_0*x[2]*(x[2] - 1) + w_0*x[0]*(x[0] - 1)) - pow(v_0, 2)*(2*x[0] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
+                - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) - 1.3333333333333333*pow(v_0, 2)*(2*x[1] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
+                + 2*pow(x[2], 3) - 3*pow(x[2], 2)) - pow(v_0, 2)*(2*x[2] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
+                - 6*v_0*x[0]*(x[0] - 1)*(u_0*x[1]*(x[1] - 1) + v_0*x[0]*(x[0] - 1)) + 4.0*v_0*x[1]*(x[1] - 1)*(u_0*x[0]*(x[0] - 1) - 2*v_0*x[1]*(x[1] - 1) + w_0*x[2]*(x[2] - 1)) 
+                - 6*v_0*x[2]*(x[2] - 1)*(v_0*x[2]*(x[2] - 1) + w_0*x[1]*(x[1] - 1)) - pow(w_0, 2)*(2*x[0] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
+                + 2*pow(x[2], 3) - 3*pow(x[2], 2)) - pow(w_0, 2)*(2*x[1] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
+                - 1.3333333333333333*pow(w_0, 2)*(2*x[2] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) 
+                - 6*w_0*x[0]*(x[0] - 1)*(u_0*x[2]*(x[2] - 1) + w_0*x[0]*(x[0] - 1)) - 6*w_0*x[1]*(x[1] - 1)*(v_0*x[2]*(x[2] - 1) + w_0*x[1]*(x[1] - 1)) 
+                + 4.0*w_0*x[2]*(x[2] - 1)*(u_0*x[0]*(x[0] - 1) + v_0*x[1]*(x[1] - 1) - 2*w_0*x[2]*(x[2] - 1))) + r_0*u_0*x[0]*(72*T_0 + (gamma - 1)*(72*T_0 + pow(u_0, 2)*pow(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
+                + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + 36*pow(x[2], 2)))*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
+                + r_0*u_0*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
+                + (gamma - 1)*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) 
+                + 0.033333333333333333*M_PI*r_xyz*(pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
+                + 36*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[0]) + 2*x[0]*(pow(u_0, 2) 
+                + pow(v_0, 2))*(x[0] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))))*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2)) + r_0*v_0*x[1]*(72*T_0 + (gamma - 1)*(72*T_0 + pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
+                + 36*pow(x[2], 2)))*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
+                + r_0*v_0*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
+                + (gamma - 1)*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) 
+                + 0.033333333333333333*M_PI*r_xyz*(pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
+                + 36*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[2])*cos(2*M_PI*r_xyz*x[1]) + 2*x[1]*(pow(u_0, 2) 
+                + pow(v_0, 2))*(x[1] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) 
+                + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2))))*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2)) + r_0*w_0*x[2]*(72*T_0 + (gamma - 1)*(72*T_0 + pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) 
+                - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
+                + 36*pow(x[2], 2)))*(x[2] - 1)*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1) 
+                + r_0*w_0*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + (gamma - 1)*(2.4000000000000004*M_PI*T_0*r_xyz*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + 0.033333333333333333*M_PI*r_xyz*(pow(u_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) 
+                + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) + pow(v_0, 2)*pow(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2), 2) 
+                + 36*pow(x[2], 2))*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*cos(2*M_PI*r_xyz*x[2]) 
+                + 2*x[2]*(0.10000000000000001*sin(2*M_PI*r_xyz*x[0])*sin(2*M_PI*r_xyz*x[1])*sin(2*M_PI*r_xyz*x[2]) + 1)*(pow(u_0, 2)*(x[2] - 1)*(2*pow(x[0], 3) 
+                - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + pow(v_0, 2)*(x[2] - 1)*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) 
+                - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)) + 6)))*(2*pow(x[0], 3) - 3*pow(x[0], 2) + 2*pow(x[1], 3) - 3*pow(x[1], 2) + 2*pow(x[2], 3) - 3*pow(x[2], 2)))/(gamma - 1);    
+            // src[0] = 10.0;
+            // src[1] = 11.0;
+            // src[2] = 12.0;
+            // src[3] = 13.0;
+            // src[4] = 14.0;
         break;   
     }
    default:
