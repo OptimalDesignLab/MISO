@@ -20,7 +20,7 @@ auto options = R"(
    "flow-param": {
       "viscous": true,
       "mu": 1.0,
-      "Re": 1000000.0,
+      "Re": 1.0,
       "Pr": 0.75,
       "viscous-mms": true
    },
@@ -34,8 +34,8 @@ auto options = R"(
       "steady-abstol": 1e-12,
       "steady-restol": 1e-10,
       "type": "PTC",
-      "dt": 0.01,
-      "cfl": 0.1,
+      "dt": 0.1,
+      "cfl": 0.5,
       "res-exp": 1.0
    },
    "nonlin-solver": {
@@ -54,10 +54,10 @@ auto options = R"(
    },
    "lin-prec": {
       "type": "hypreilu",
-      "lev-fill": 1
+      "lev-fill": 2
    },
    "bcs": {
-      "no-slip-adiabatic": [1, 2, 3, 4, 5, 6]
+      "viscous-mms": [1, 2, 3, 4, 5, 6]
    },
    "outputs":
    {
@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
 
    int degree = 0;
-   int nx = 2;
-   int ny = 2;
+   int nx = 50;
+   int ny = 50;
    int nz = 2;
    //args.AddOption(&options_file, "-o", "--options",
    //               "Options file to use.");
