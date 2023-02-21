@@ -31,8 +31,8 @@ auto options = R"(
    },
    "time-dis": {
       "steady": true,
-      "steady-abstol": 1e-12,
-      "steady-restol": 1e-10,
+      "steady-abstol": 1e-08,
+      "steady-restol": 1e-06,
       "type": "PTC",
       "dt": 0.1,
       "cfl": 0.5,
