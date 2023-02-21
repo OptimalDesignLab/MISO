@@ -26,6 +26,65 @@ void funcRevDiff(const Vector &x, const double Q_bar, Vector &x_bar)
 
 } // namespace
 
+TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
+{
+   using namespace mfem;
+
+   //Adapted from TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy") in test_electromag_integ
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   double x_length = 1.0;
+   double y_length = 1.0;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE, 
+                                     false, x_length, y_length);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   //Function Coefficient model Representing the Temperature Field (elfun)
+   FunctionCoefficient Tfield_model(
+      [](const mfem::Vector &x)
+      {
+         // T(x)=x(0)^2
+         return std::pow(x(0),2);
+      });
+   
+   ///TODO: Loop over various degrees of elements (1 to 4)
+   for (int p = 1; p <= 1; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // Create the finite element collection and finite element space for the current order
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // Create the temperature_field grid function by mapping the function coefficient to a grid function
+         GridFunction temperature_field_test(&fes);
+         temperature_field_test.ProjectCoefficient(Tfield_model);
+
+         // Set the conductivity kappa to be a constant 1
+         ConstantCoefficient kappa(1.0);
+
+         // Define the functional integrator that will be used to compute the BoundaryFlux
+         NonlinearForm functional(&fes);
+         functional.AddBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa));
+
+         // Compute the value of the boundary flux
+         double BoundaryFlux = functional.GetEnergy(temperature_field_test);
+         std::cout << "BoundaryFlux = " << BoundaryFlux << "\n";
+
+         /// TODO: Assert the computed boundary flux is correct
+         // double expected_BoundaryFlux = 2.0*(x_length*y_length); //2*the area for T(x)=x(0)^2
+         // REQUIRE(BoundaryFlux == Approx(expected_BoundaryFlux)); // Assert the BoundaryNormalIntegrator is working as expected
+      }
+   }
+}
+
 TEST_CASE("VolumeIntegrator::GetElementEnergy (2D)")
 {
    using namespace mfem;

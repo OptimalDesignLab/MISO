@@ -11,6 +11,25 @@
 
 namespace mach
 {
+
+class BoundaryNormalIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Constructs a boundary integrator with a given Coefficient QG
+   BoundaryNormalIntegrator(mfem::Coefficient &kappa)
+   : kappa(kappa) 
+   { }
+
+   double GetFaceEnergy(const mfem::FiniteElement &el1,
+                                const mfem::FiniteElement &el2,
+                                mfem::FaceElementTransformations &trans,
+                                const mfem::Vector &elfun);
+  
+private:
+   mfem::Coefficient &kappa;
+};
+
+
 class VolumeIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
