@@ -91,6 +91,8 @@ mfem::Operator &getJacobian(MachNonlinearForm &form,
 
    mfem::Vector state;
    setVectorFromInputs(inputs, "state", state, false, true);
+   // std::cout << "mach_nonlinearform.cpp, state=\n";
+   // state.Print(mfem::out,25);
 
    mfem::Array<int> ess_tdof_list(form.nf.GetEssentialTrueDofs());
    mfem::Array<int> zeros;

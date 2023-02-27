@@ -16,6 +16,8 @@ class AbstractSolver;
 class StateCoefficient;
 class TwoStateCoefficient;
 class ThreeStateCoefficient;
+class VectorStateCoefficient;
+class ScalarVectorProductCoefficient;
 
 /// Compute the integral of HdB from 0 to B
 /// \param[in] trans - element transformation for where to evaluate `nu`
@@ -150,9 +152,11 @@ inline void addSensitivityIntegrator(
 class MagnetizationSource2DIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-   MagnetizationSource2DIntegrator(mfem::VectorCoefficient &M,
-                                   double alpha = 1.0)
-    : M(M), alpha(alpha)
+   ///TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M (mach)
+   MagnetizationSource2DIntegrator(ScalarVectorProductCoefficient &M, // will need to be formerly a mfem::VectorCoefficient &M
+                                   double alpha = 1.0,
+                                   mfem::GridFunction *temperature_field=nullptr)
+    : M(M), alpha(alpha), temperature_field(temperature_field)
    { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -161,13 +165,21 @@ public:
 
 private:
    /// vector coefficient from linear form
-   mfem::VectorCoefficient &M;
+   ///TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M (mach)
+   // mfem::VectorCoefficient &M;
+   ScalarVectorProductCoefficient &M;
+
    /// scaling term if the linear form has a negative sign in the residual
    const double alpha;
+
+   mfem::GridFunction *temperature_field; // pointer to the temperature field
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, dshapedxt;
    mfem::Vector scratch;
+   mfem::Vector temp_shape;
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
 #endif
    friend class MagnetizationSource2DIntegratorMeshRevSens;
 };
@@ -1230,7 +1242,9 @@ private:
    double strands_in_hand = 1.0;
    /// RMS current
    double rms_current = 1.0;
-   
+   /// Stack length
+   double stack_length = 1.0;
+
    ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
@@ -1935,6 +1949,8 @@ private:
    double freq = 1.0;
    /// Maximum flux density magnitude
    double max_flux_mag = 1.0;
+   /// Stack length
+   double stack_length = 1.0;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
@@ -1992,7 +2008,7 @@ private:
    double max_flux_mag = 1.0;
 
    ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = true;
+   bool UseMaxFluxValueAndNotPeakFluxField = false;
 
    ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
@@ -2039,7 +2055,7 @@ private:
    CAL2CoreLossIntegrator &integ;
 
    ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = true;
+   bool UseMaxFluxValueAndNotPeakFluxField = false;
 
    ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
@@ -2073,7 +2089,7 @@ private:
    CAL2CoreLossIntegrator &integ;
 
    ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = true;
+   bool UseMaxFluxValueAndNotPeakFluxField = false;
 
    ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
@@ -2107,7 +2123,7 @@ private:
    CAL2CoreLossIntegrator &integ;
 
    ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = true;
+   bool UseMaxFluxValueAndNotPeakFluxField = false;
 
    ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
@@ -2143,7 +2159,7 @@ private:
    CAL2CoreLossIntegrator &integ;
 
    ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = true;
+   bool UseMaxFluxValueAndNotPeakFluxField = false;
 
    ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
@@ -2201,9 +2217,11 @@ private:
    double freq = 1.0;
    /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
    double max_flux_mag = 1.0;
+   /// Stack length
+   double stack_length = 1.0;
 
    ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = true;
+   bool UseMaxFluxValueAndNotPeakFluxField = false;
 
    ///TODO: Make code thread safe
 #ifndef MFEM_THREAD_SAFE

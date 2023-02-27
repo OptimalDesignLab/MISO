@@ -21,6 +21,10 @@ void setInputs(ThermalResidual &residual, const mach::MachInputs &inputs)
    setVectorFromInputs(inputs, "thermal_load", residual.load);
    if (residual.load.Size() != 0)
    {
+      // std::cout << "residual.load.Size() != 0 and is:\n";
+      // residual.load.Print(mfem::out, 25);
+      // std::cout << "That has been the thermal load vector\n";
+
       residual.load.SetSubVector(residual.res.getEssentialDofs(), 0.0);
    }
 }
@@ -134,8 +138,6 @@ ThermalResidual::ThermalResidual(
    if (options.contains("bcs"))
    {
       const auto &bcs = options["bcs"];
-
-      ///TODO: Ulimately uncomment. Commented out because was causing an error in early stages of coupling
        
       //convection heat transfer boundary condition
       if (bcs.contains("convection"))

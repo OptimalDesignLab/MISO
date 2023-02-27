@@ -1053,6 +1053,73 @@ protected:
 
 ///TODO: If needed, add constructMaterialVectorStateCoefficient
 
+// Adding new class to allow for evaluate scalarvectorproductcoefficient with temperature state passed in for magnetization
+/// Vector coefficient defined as a product of scalar and vector coefficients.
+// mach::ScalarVectorProductCoefficient instead of mfem (though most of mfem's code is below, unchanged)
+///TODO: Figure out how to properly define the ScalarVectorProductCoefficient constructor and which terms should be mfem::VectorCoefficient's and which terms should be VectorStateCoefficient's
+
+class ScalarVectorProductCoefficient : public VectorStateCoefficient // inherits from VectorStateCoefficient instead of mfem::VectorStateCoefficient
+{
+private:
+   double aConst;
+   mfem::Coefficient * a;
+   StateCoefficient * State_a;
+   mfem::VectorCoefficient * b;
+   VectorStateCoefficient * State_b;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector W, W_bar;
+#endif
+
+public:
+   /// Constructor with constant and vector coefficient.  Result is A * B.
+   // ScalarVectorProductCoefficient(double A, mfem::VectorCoefficient &B); // this constructor apparently is fine
+
+   /// Constructor with two coefficients.  Result is A * B.
+   ScalarVectorProductCoefficient(StateCoefficient &A, mfem::VectorCoefficient &B) // this constructor needs to be defined
+   : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
+   { }
+   ///TODO: The below was working
+   // ScalarVectorProductCoefficient(StateCoefficient &A, mfem::VectorCoefficient &B) // this constructor needs to be defined
+   // : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
+   // { }
+
+   /// Set the time for internally stored coefficients
+   // void SetTime(double t);
+
+   /// Reset the scalar factor as a constant
+   // void SetAConst(double A) { a = NULL; aConst = A; }
+   // /// Return the scalar factor
+   // double GetAConst() const { return aConst; }
+
+   /// Reset the scalar factor
+   // void SetACoef(mfem::Coefficient &A) { a = &A; }
+   // /// Return the scalar factor
+   // mfem::Coefficient * GetACoef() const { return a; }
+
+   // /// Reset the vector factor
+   // void SetBCoef(mfem::VectorCoefficient &B) { b = &B; }
+   // /// Return the vector factor
+   // mfem::VectorCoefficient * GetBCoef() const { return b; }
+
+   ///TODO: Debug remaining errors
+
+   /// Evaluate the vector coefficient at @a ip.
+   void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
+                     const mfem::IntegrationPoint &ip) override;
+   // using VectorStateCoefficient::Eval;
+
+   /// Evaluate the vector coefficient at @a ip. WITH THE STATE
+   void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
+                     const mfem::IntegrationPoint &ip, double state) override;
+   // using VectorStateCoefficient::Eval; // I believe this is right....
+
+   void EvalRevDiff(const mfem::Vector &V_bar, mfem::ElementTransformation &T,
+                            const mfem::IntegrationPoint &ip,
+                            mfem::DenseMatrix &PointMat_bar);
+
+};
+
+
 ///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // class SteinmetzCoefficient : public mfem::Coefficient
 // {

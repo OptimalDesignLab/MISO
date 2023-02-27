@@ -16,7 +16,7 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
                                 mfem::FaceElementTransformations &trans,
                                 const mfem::Vector &elfun)
 {
-   std::cout << "TODO: Ultimately remove these comments from mfem_common_integ.cpp\n";
+   // std::cout << "TODO: Ultimately remove these comments from mfem_common_integ.cpp\n";
 
    std::cout << "elfun=np.array([";
    for (int j = 0; j < elfun.Size(); j++) {std::cout << elfun.Elem(j) << ", ";}
@@ -32,15 +32,16 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
    mfem::DenseMatrix dshape1(ndof1,dim);
    mfem::Vector dshape1dn(ndof1);
    mfem::DenseMatrix adjJ(dim, dim);
-   // mfem::DenseMatrix dshapedxt(ndof, dim);
-   // mfem::DenseMatrix JinvT(dim, dim);
-   std::cout << "ndof=" << ndof1 << ", dim=" << dim << "\n";
+
+   // std::cout << "ndof=" << ndof1 << ", dim=" << dim << "\n";
 
    const auto *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = el1.GetOrder() + el2.GetOrder() + trans.OrderW();
-      ir = &mfem::IntRules.Get(el1.GetGeomType(), order);
+      // int order = el1.GetOrder() + el2.GetOrder() + trans.OrderW();
+      int order = el1.GetOrder() + trans.OrderW();
+      // ir = &mfem::IntRules.Get(el1.GetGeomType(), order);
+      ir = &IntRules.Get(trans.GetGeometryType(), order);
    }
 
    double heat_flux = 0.0;
@@ -105,7 +106,7 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
    */
    for (int p = 0; p < ir->GetNPoints(); p++)
    {
-      std::cout << "heat_flux = " << heat_flux << "\n";
+      // std::cout << "heat_flux contribution before this next ip = " << heat_flux << "\n";
 
       const IntegrationPoint &ip = ir->IntPoint(p);
 
@@ -132,25 +133,27 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
       el1.CalcDShape(eip1, dshape1);
       double w = ip.weight/trans.Elem1->Weight();
 
-      w *= kappa.Eval(*trans.Elem1, eip1);
+      std::cout << "kappa @ ip = " << kappa.Eval(*trans.Elem1, eip1);
+
+      // Negative sign because -k grad(T)
+      w *= -kappa.Eval(*trans.Elem1, eip1);
       ni.Set(w, nor);
     
       CalcAdjugate(trans.Elem1->Jacobian(), adjJ);
       adjJ.Mult(ni, nh);
       
       dshape1.Mult(nh, dshape1dn);
-      std::cout << "dshape1dn=";
-      dshape1dn.Print();
-      std::cout << "elfun=";
-      elfun.Print();
-      for (int i = 0; i < ndof1; i++)
-         for (int j = 0; j < ndof1; j++)
-         {
-            heat_flux += dshape1dn(j) * elfun(j);  // elfun(j) is the value of the temperature at node j of the element state vector
-            std::cout << "heat_flux = " << heat_flux << "\n";
-         }
+      // std::cout << "dshape1dn=";
+      // dshape1dn.Print();
+      // std::cout << "elfun=";
+      // elfun.Print();
+      for (int j = 0; j < ndof1; j++)
+      {
+         heat_flux += dshape1dn(j) * elfun(j);  // elfun(j) is the value of the temperature at node j of the element state vector
+         // std::cout << "heat_flux = " << heat_flux << "\n";
+      }
    }
-   std::cout << "heat_flux = " << heat_flux << "\n";
+   std::cout << "heat_flux for this edge = " << heat_flux << "\n";
    return heat_flux;
 }
 

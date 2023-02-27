@@ -264,11 +264,24 @@ MagnetostaticResidual::MagnetostaticResidual(
       {
          mag_coeff = std::make_unique<MagnetizationCoefficient>(
              diff_stack, options["magnets"], materials, 2);
-         nuM = std::make_unique<mfem::ScalarVectorProductCoefficient>(
-             nu, *mag_coeff);
+
+         // nuM = std::make_unique<mfem::ScalarVectorProductCoefficient>(
+         //     nu, *mag_coeff); // No. Needs to be a mach::ScalarVectorProductCoefficient rather than an mfem::ScalarVectorProductCoefficient now
+         nuM = std::make_unique<mach::ScalarVectorProductCoefficient>(
+             nu, *mag_coeff); // Yes. Needs to be a mach::ScalarVectorProductCoefficient rather than an mfem::ScalarVectorProductCoefficient now
+
+         // Making the MagnetizationSource2DIntegrator integrator see the temperature field
+         const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
+         mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+         if (temp_field_iter != fields.end())
+         {
+            // If temperature field exists, turn it into a grid function
+            auto &temp_field = temp_field_iter->second;
+            temperature_field = &temp_field.gridFunc();
+         }
 
          linear_form.addDomainIntegrator(
-             new MagnetizationSource2DIntegrator(*nuM, 1.0));
+             new MagnetizationSource2DIntegrator(*nuM, 1.0,temperature_field));
       }
 
       load = std::make_unique<MachLoad>(std::move(linear_form));

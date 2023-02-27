@@ -16,9 +16,8 @@
 ///TODO: Make the below absolute paths relative/shorter
 #include "../../src/physics/electromagnetics/cal2_kh_coefficient.hpp"
 #include "../../src/physics/electromagnetics/cal2_ke_coefficient.hpp"
-///TODO: Make the below absolute path relative/shorter
 #include "../../src/physics/electromagnetics/pm_demag_constraint_coeff.hpp"
-
+#include "../../src/physics/electromagnetics/remnant_flux_coefficient.hpp"
 
 namespace
 {
@@ -632,7 +631,7 @@ TEST_CASE("ConductivityCoefficient: Models vs. Desired")
                   "conductivity": {
                      "model": "linear",
                      "sigma_T_ref": 5.6497e7,
-                     "T_ref": 20,
+                     "T_ref": 293.15,
                      "alpha_resistivity": 3.8e-3
                   }
                }
@@ -865,10 +864,10 @@ TEST_CASE("CAL2 Coefficient: Models vs. Desired")
                   "name": "hiperco50",
                   "core_loss": {
                      "model": "CAL2",
-                     "T0": 20,
+                     "T0": 293.15,
                      "kh_T0": [1.0e-02, 2.0e-02, 3.0e-02, 4.0e-02],
                      "ke_T0": [1.0e-07, 1.0e-06, 1.0e-05, 1.0e-04],
-                     "T1": 200,
+                     "T1": 473.15,
                      "kh_T1": [3.5e-02, 2.5e-02, 1.5e-02, 0.5e-02],
                      "ke_T1": [1.0e-04, 1.0e-05, 1.0e-06, 1.0e-07]
                   }
@@ -1123,7 +1122,7 @@ TEST_CASE("PMDemagConstraint Coefficient")
                "material": {
                   "name": "Nd2Fe14B",
                   "Demag": {
-                     "T0": 20,
+                     "T0": 293.15,
                      "alpha_B_r": -0.12,
                      "B_r_T0": 1.39,
                      "alpha_H_ci": -0.57,
@@ -1224,6 +1223,107 @@ TEST_CASE("PMDemagConstraint Coefficient")
             // std::cout << "d2C_BTdTdB = np.array([";
             // printVector(d2C_BTdTdB);
             // std::cout << "])\n";
+         }
+      }
+   }
+}
+
+TEST_CASE("Remnant Flux Coefficient")
+{
+   using namespace mfem;
+   using namespace mach;
+
+   std::stringstream meshStr;
+   meshStr << two_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   const int dim = mesh.SpaceDimension();
+
+
+   /// Construct coefficient
+   for (int p = 1; p <= 1; p++)
+   {
+      /// construct elements
+      ND_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+      // Set the options in JSON format for the CAL2 coefficients
+      const auto materials_material = R"(
+      {
+         "mu_r": 1.04,
+         "B_r": 1.390,
+         "alpha_B_r": -0.12,
+         "T_ref": 293.15,
+         "rho": 7500,
+         "cv": 502.08,
+         "kappa": 9,
+         "max-temp": 583.15,
+         "ks": 500,
+         "beta": 0.0,
+         "alpha": 0.0,
+         "Demag": {
+            "T0": 293.15,
+            "alpha_B_r": -0.12,
+            "B_r_T0": 1.39,
+            "alpha_H_ci": -0.57,
+            "H_ci_T0": -1273.0,
+            "alpha_B_knee": 0.005522656,
+            "beta_B_knee": 0.064272862,
+            "alpha_H_knee": 5.548346445,
+            "beta_H_knee": -1055.87196
+         }
+      }
+      )"_json;
+
+      auto B_r_coeff = RemnantFluxCoefficient(materials_material);
+
+      int npts = 50;
+      std::vector<double> temperatures(npts);
+      // Temperature spans between 0 and about 200 degrees
+      for (int i = 0; i < npts; ++i)
+      {
+         temperatures[i] = double(i)*(200/double(npts));
+      }
+
+      std::vector<double> B_r(npts);
+
+      // for (int j = 0; j < fes.GetNE(); j++)
+      for (int j = 0; j < 1; j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         // for (int i = 0; i < ir->GetNPoints(); i++)
+         for (int i = 0; i < 1; i++)
+         {
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+
+            for (int k = 0; k < npts; ++k)
+            {
+               auto temperature = temperatures[k];
+
+               B_r[k] = B_r_coeff.Eval(trans, ip, temperature);
+               
+            }
+
+            std::cout << "temperatures = np.array([";
+            printVector(temperatures);
+            std::cout << "])\n";
+
+            std::cout << "B_r = np.array([";
+            printVector(B_r);
+            std::cout << "])\n";
          }
       }
    }

@@ -113,6 +113,8 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
    // // Adding a field for the pm demag constraint field
    // paraview.registerField("pm_demag_field", fields.at("pm_demag_field").gridFunc());
 
+   std::cout << "Magnetostatic solver constructed\n";
+
    addLogger(std::move(paraview), {});
 }
 
@@ -212,6 +214,14 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("max_state", 0) == 0)
    {
+      auto state_degree =
+         AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                    {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple("peak_flux"),
+                     std::forward_as_tuple(mesh(), dg_field_options));
+      
       mfem::ParFiniteElementSpace *fes = nullptr;
       if (options.contains("state"))
       {
@@ -285,7 +295,6 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
 
-      ///NOTE: The below lines will likely error out for prescribed temperature field
       auto temp_degree = options["space-dis"]["degree"].get<int>();
       auto temp_basis = options["space-dis"]["basis-type"].get<std::string>();
       nlohmann::json temp_field_options{{"degree", temp_degree},

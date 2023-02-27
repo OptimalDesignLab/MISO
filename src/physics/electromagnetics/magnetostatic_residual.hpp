@@ -92,7 +92,8 @@ private:
    std::unique_ptr<MachLoad> load;
    std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
    std::unique_ptr<MagnetizationCoefficient> mag_coeff;
-   std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM;
+   // std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM; // No. Needs to be a mach::ScalarVectorProductCoefficient rather than an mfem::ScalarVectorProductCoefficient now
+   std::unique_ptr<mach::ScalarVectorProductCoefficient> nuM; // Yes. Needs to be a mach::ScalarVectorProductCoefficient rather than an mfem::ScalarVectorProductCoefficient now
 
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;

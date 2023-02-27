@@ -34,8 +34,8 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
 
    // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
    int num_edge = 2;
-   double x_length = 1.0;
-   double y_length = 1.0;
+   double x_length = 1.5;
+   double y_length = 2.0;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                      Element::TRIANGLE, 
                                      false, x_length, y_length);
@@ -50,8 +50,7 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
          return std::pow(x(0),2);
       });
    
-   ///TODO: Loop over various degrees of elements (1 to 4)
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
@@ -79,8 +78,8 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
          std::cout << "BoundaryFlux = " << BoundaryFlux << "\n";
 
          /// TODO: Assert the computed boundary flux is correct
-         // double expected_BoundaryFlux = 2.0*(x_length*y_length); //2*the area for T(x)=x(0)^2
-         // REQUIRE(BoundaryFlux == Approx(expected_BoundaryFlux)); // Assert the BoundaryNormalIntegrator is working as expected
+         double expected_BoundaryFlux = 2.0*(x_length*y_length); //2*the area for T(x)=x(0)^2
+         REQUIRE(BoundaryFlux == Approx(expected_BoundaryFlux)); // Assert the BoundaryNormalIntegrator is working as expected
       }
    }
 }

@@ -44,6 +44,8 @@ void ConvectionBCIntegrator::AssembleFaceVector(
       const double val = h * ((elfun * shape) - theta_f);
 
       add(elvect, w * val, shape, elvect);
+
+      // std::cout << "ConvectionBCIntegrator::AssembleFaceVector elvect.Norml2() = " << elvect.Norml2() << "\n";
    }
 }
 
@@ -83,6 +85,8 @@ void ConvectionBCIntegrator::AssembleFaceGrad(
       el1.CalcShape(eip, shape);
 
       AddMult_a_VVt(w * h, shape, elmat);
+
+      // std::cout << "ConvectionBCIntegrator::AssembleFaceGrad called, but cannot take elvect.Norml2 because it is a dense matrix not a vector \n";
    }
 }
 

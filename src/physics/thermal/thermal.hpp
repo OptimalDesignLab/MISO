@@ -6,6 +6,8 @@
 
 #include "pde_solver.hpp"
 
+#include "coefficient.hpp"
+
 namespace mach
 {
 /// Solver for steady thermal problems
@@ -20,6 +22,9 @@ private:
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,
                   const nlohmann::json &options) override;
+
+   // Material dependent coefficient representing thermal conductivity
+   MeshDependentCoefficient kappa; // Making a member of ThermalSolver instead so can be used to compute outputs
 };
 
 }  // namespace mach

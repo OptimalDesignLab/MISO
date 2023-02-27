@@ -2111,12 +2111,12 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            T = 37; //constant temperature throughout mesh
-            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+            T = 37+273.15; //constant temperature throughout mesh
+            // T = 77*x(0)+273.15; // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1)+273.15; // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2)+273.15; // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1)+273.15; // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2)+273.15; // temperature quadratically dependent in both x(0) and x(1) directions
 
          }
          return T;
@@ -2157,15 +2157,15 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          // Compare the computed resistivity to the value found by integration
          double expected_resistivity;
          // double alpha_resistivity = 3.8e-3; // only needed if using SigmaCoefficient
-         // double T_ref = 20; // only needed if using SigmaCoefficient
+         // double T_ref = 293.15; // only needed if using SigmaCoefficient
          // double sigma_T_ref = 5.6497e7; // only needed if using SigmaCoefficient
          double state; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
-         state = 37.0; //constant temperature throughout mesh
-         // state = 77.0/2; // temperature linearly dependent in the x(0) direction
-         // state = 63.0/2; // temperature linearly dependent in the x(1) direction
-         // state = 30.0/3; // temperature quadratically dependent in the x(0) direction; fails for p=1 as expected
-         // state = 77.0/2+63.0/2; // temperature linearly dependent in both x(0) and x(1) directions
-         // state = 30.0/3+3.0/3; // temperature linearly dependent in both x(0) and x(1) directions; fails for p=1 as expected
+         state = 37.0+273.15; //constant temperature throughout mesh
+         // state = 77.0/2+273.15; // temperature linearly dependent in the x(0) direction
+         // state = 63.0/2+273.15; // temperature linearly dependent in the x(1) direction
+         // state = 30.0/3+273.15; // temperature quadratically dependent in the x(0) direction; fails for p=1 as expected
+         // state = 77.0/2+63.0/2+273.15; // temperature linearly dependent in both x(0) and x(1) directions
+         // state = 30.0/3+3.0/3+273.15; // temperature linearly dependent in both x(0) and x(1) directions; fails for p=1 as expected
 
          // expected_resistivity = (1+alpha_resistivity*(state-T_ref))/sigma_T_ref; // the inverse of equation for sigma (for SigmaCoefficient)
          expected_resistivity = 2*state+2; // for NonLinearCoefficient
@@ -2228,12 +2228,12 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
             T += 18.5; //constant temperature throughout mesh (equal to 18.5*space_dims deg C)
 
 
-            // T = 37; //constant temperature throughout mesh
-            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+            // T = 37+273.15; //constant temperature throughout mesh
+            // T = 77*x(0)+273.15; // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1)+273.15; // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2)+273.15; // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1)+273.15; // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2) +273.15; // temperature quadratically dependent in both x(0) and x(1) directions
 
          }
          return T;
@@ -2472,12 +2472,12 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            // T = 37; //constant temperature throughout mesh
-            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+            // T = 37+273.15; //constant temperature throughout mesh
+            // T = 77*x(0)+273.15; // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1)+273.15; // temperature linearly dependent in the x(1) direction
+            T = 30*std::pow(x(0),2)+273.15; // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1)+273.15; // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2) +273.15; // temperature quadratically dependent in both x(0) and x(1) directions
 
          }
          return T;
@@ -2507,8 +2507,8 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          
          // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
          // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
-         double state=30.0/3; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
-         // In order of temperature field, state=37.0, 77.0/2, 63.0/2, 30.0/3, 77.0/2+63.0/2, 30.0/3+3.0/3
+         double state=30.0/3+273.15; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
+         // In order of temperature field, state=37.0+273.15, 77.0/2+273.15, 63.0/2+273.15, 30.0/3+273.15, 77.0/2+63.0/2+273.15, 30.0/3+3.0/3+273.15
          std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient(state)); //** no longer using SigmaCoefficient (unnecessary) 
 
          // Define the functional integrator that will be used to compute the sigma_b2
@@ -2526,9 +2526,9 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          // double x0=1; // the upper limit for integration in the x(0) direction // only needed if using SigmaCoefficient
          // double x1=1; // the upper limit for integration in the x(1) direction // only needed if using SigmaCoefficient
          // double alpha_resistivity = 3.8e-3; // only needed if using SigmaCoefficient
-         // double T_ref = 20; // only needed if using SigmaCoefficient
+         // double T_ref = 20+273.15; // only needed if using SigmaCoefficient
          // double sigma_T_ref = 5.6497e7; // only needed if using SigmaCoefficient
-         // expected_sigma_b2 = (sigma_T_ref/(1+alpha_resistivity*(37-T_ref)))*std::pow(1.7,2)*x0*x1; // for B = 1.7; T = 37; passes for all degrees;         
+         // expected_sigma_b2 = (sigma_T_ref/(1+alpha_resistivity*(37+273.15-T_ref)))*std::pow(1.7,2)*x0*x1; // for B = 1.7; T = 37; passes for all degrees;         
          // expected_sigma_b2 = (1.0189201578057486e8)*std::pow(x0,3)*x1; // for B = 2.4*x(0); T = 37; fails for degree p=1 as expected (p=1sigma_b2 = 9.76465e+07, expected_sigma_b2 = 1.01892e+08, diff=-4.2455e+06)
          // expected_sigma_b2 = 1.5351283527722308e8; // for B = 1.7; T = 77*x(0); fails for degree p=1 (sigma_b2 = 1.53349e+08, expected_sigma_b2 = 1.53513e+08, diff=-163514)
          // expected_sigma_b2 = 1.0439171176578794e8; // for B = 2.4*x(0); T = 63*x(1); fails for degree p=1 (sigma_b2 = 9.5404e+07, expected_sigma_b2 = 9.55238e+07, diff=-119773)
@@ -2752,12 +2752,12 @@ TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
          double T = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            // T = 37; //constant temperature throughout mesh
-            T = 77*x(0); // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
+            // T = 37+273.15; //constant temperature throughout mesh
+            T = 77*x(0)+273.15; // temperature linearly dependent in the x(0) direction
+            // T = 63*x(1)+273.15; // temperature linearly dependent in the x(1) direction
+            // T = 30*std::pow(x(0),2)+273.15; // temperature quadratically dependent in the x(0) direction
+            // T = 77*x(0)+63*x(1)+273.15; // temperature linearly dependent in both x(0) and x(1) directions
+            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2) +273.15; // temperature quadratically dependent in both x(0) and x(1) directions
 
          }
          return T;

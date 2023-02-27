@@ -9,12 +9,15 @@
 
 #include "thermal.hpp"
 
+// #include "thermal_outputs.hpp"
+
 namespace mach
 {
 ThermalSolver::ThermalSolver(MPI_Comm comm,
                              const nlohmann::json &solver_options,
                              std::unique_ptr<mfem::Mesh> smesh)
- : PDESolver(comm, solver_options, 1, std::move(smesh))
+ : PDESolver(comm, solver_options, 1, std::move(smesh)),
+   kappa(constructMaterialCoefficient("kappa", options["components"], materials))
 {
    options["time-dis"]["type"] = "steady";
 
@@ -41,7 +44,94 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
 
 void ThermalSolver::addOutput(const std::string &fun,
                               const nlohmann::json &options)
-{ }
+{ 
+
+    if (fun.rfind("thermal_flux", 0) == 0)
+    {
+    FunctionalOutput out(fes(), fields);
+    if (options.contains("attributes"))
+    {
+        auto attributes = options["attributes"].get<std::vector<int>>();
+        out.addOutputBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa),
+                                        attributes);
+    }
+    else
+    {
+        std::cout << "thermal_flux output sees no attributes\n";
+        out.addOutputBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa));
+    }
+    outputs.emplace(fun, std::move(out));
+    }
+
+    /// TODO: Remove this former implementation
+    // if (fun.rfind("thermal_flux", 0) == 0)
+    // {
+    //     ///TODO: Add options as needed
+    //     std::cout << "Thermal flux output!\n";
+
+    //     // Need to add the temperature field. The thermal solver has a field named "state" that stores the temperature field
+    //     // auto state_degree =
+    //     //   AbstractSolver2::options["space-dis"]["degree"].get<int>();
+    //     // nlohmann::json dg_field_options{{"degree", state_degree},
+    //     //                               {"basis-type", "DG"}};
+    //     // fields.emplace(std::piecewise_construct,
+    //     //              std::forward_as_tuple("state"),
+    //     //              std::forward_as_tuple(mesh(), dg_field_options));
+
+    //     ///TODO: construct ThermalFluxFunctional appropriately
+    //     ThermalFluxFunctional out(fields, kappa, AbstractSolver2::options["components"], materials, options);
+
+    //     ///NOTE: This should be the end of it
+    //     outputs.emplace(fun, std::move(out));
+    // }
+   ///TODO: Remove the EM loss functions from this, the thermal outputs. Only here for reference.
+   /*
+   else if (fun.rfind("dc_loss", 0) == 0)
+   {
+      auto dc_loss_options = options;
+      dc_loss_options["attributes"] =
+          getCurrentAttributes(AbstractSolver2::options);
+      DCLossFunctional out(fields, sigma, dc_loss_options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("ac_loss", 0) == 0)
+   {
+      auto state_degree =
+          AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                      {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple("peak_flux"),
+                     std::forward_as_tuple(mesh(), dg_field_options));
+
+      auto ac_loss_options = options;
+      ac_loss_options["attributes"] =
+          getCurrentAttributes(AbstractSolver2::options);
+      ACLossFunctional out(fields, sigma, ac_loss_options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("core_loss", 0) == 0)
+   {
+      auto state_degree =
+          AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      nlohmann::json dg_field_options{{"degree", state_degree},
+                                      {"basis-type", "DG"}};
+      fields.emplace(std::piecewise_construct,
+                     std::forward_as_tuple("peak_flux"),
+                     std::forward_as_tuple(mesh(), dg_field_options));
+                     
+      CoreLossFunctional out(
+          fields, AbstractSolver2::options["components"], materials, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   */
+   else
+   {
+      throw MachException("Output with name " + fun +
+                          " not supported by "
+                          "ThermalSolver!\n");
+   }
+}
 
 }  // namespace mach
 

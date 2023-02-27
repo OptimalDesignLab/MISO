@@ -157,7 +157,7 @@ class SigmaCoefficient : public mach::StateCoefficient
 {
 public:
    SigmaCoefficient(double alpha_resistivity = 3.8e-3, 
-                    double T_ref = 20,
+                    double T_ref = 293.15,
                     double sigma_T_ref = 5.6497e7) 
    : alpha_resistivity(alpha_resistivity), T_ref(T_ref), sigma_T_ref(sigma_T_ref) {}
 

@@ -16,6 +16,9 @@
 
 namespace mach
 {
+
+double EOutputsGlobalVariableCounter=0;
+
 void setOptions(ForceFunctional &output, const nlohmann::json &options)
 {
    auto &&attrs = options["attributes"].get<std::unordered_set<int>>();
@@ -88,6 +91,17 @@ double calcOutput(DCLossFunctional &output, const MachInputs &inputs)
    double loss = pow(output.rms_current, 2) * R * sqrt(2);
 
    double volume = calcOutput(output.volume, inputs);
+   if (EOutputsGlobalVariableCounter<10)
+   {
+      std::cout << "Ultimately remove EOutputsGlobalVariableCounter from electromag_outputs.cpp\n";
+      // std::cout << "rho = calcOutput(output.resistivity, inputs) = " << rho << "\n";
+      // std::cout << "strand_area = M_PI * pow(output.strand_radius, 2) = PI * " << output.strand_radius << "^2 = " << strand_area << "\n";
+      // std::cout << "R = output.wire_length * rho / (strand_area * output.strands_in_hand) = " << output.wire_length << " * " << rho << "/ (" << strand_area << "*" << output.strands_in_hand << ") = " << R << "\n";
+      // std::cout << "loss = sqrt(2) * pow(output.rms_current, 2) * R = sqrt(2) *" << output.rms_current << "^2 * " << R << " = " << loss << "\n";
+      // std::cout << "volume = calcOutput(output.volume, inputs) = " << volume << "\n";
+      // std::cout << "loss/volume = " << loss/volume << "\n";
+      EOutputsGlobalVariableCounter++;
+   }
    return loss / volume;
 }
 
@@ -628,11 +642,18 @@ DCLossFunctional::DCLossFunctional(
       auto attributes = options["attributes"].get<std::vector<int>>();
       resistivity.addOutputDomainIntegrator(
           new DCLossFunctionalIntegrator(sigma,temperature_field), attributes);
+      // std::cout << "TODO: Ultimately remove from DCLF in Eoutputs cpp. attributes=\n";
+      // for (const auto &attribute : attributes)
+      // {
+      //    std::cout << attribute << ", ";
+      // }
+      // std::cout << "])\n";
    }
    else
    {
       resistivity.addOutputDomainIntegrator(
           new DCLossFunctionalIntegrator(sigma, temperature_field));
+      std::cout << "In the else\n";
    }
 }
 
@@ -1562,6 +1583,7 @@ CoreLossFunctional::CoreLossFunctional(
          output.addOutputDomainIntegrator(
           new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
           attributes);
+         std::cout << "CoreLossFunctional using CAL2\n";
       }
       else
       {
@@ -1569,6 +1591,7 @@ CoreLossFunctional::CoreLossFunctional(
          output.addOutputDomainIntegrator(
           new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, "stator"),
           attributes);
+         std::cout << "CoreLossFunctional using Steinmetz\n";
       }
    }
    else
@@ -1577,11 +1600,13 @@ CoreLossFunctional::CoreLossFunctional(
       {
          output.addOutputDomainIntegrator(
             new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field));
+         std::cout << "CoreLossFunctional using CAL2\n";
       }
       else
       {
          output.addOutputDomainIntegrator(
              new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
+         std::cout << "CoreLossFunctional using Steinmetz\n";
       }
    }
 }
@@ -1610,7 +1635,7 @@ void calcOutput(EMHeatSourceOutput &output,
    std::cout << "Load has been added to out_vec in calcOutput in EMHeatSourceOutput\n";
 }
 
-///TODO: Implementation is not complete nor correct....
+///TODO: Ensure implementation is complete and correct
 // Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
@@ -1637,12 +1662,11 @@ EMHeatSourceOutput::EMHeatSourceOutput(
       auto &flux_field = peak_flux_iter->second;
       peak_flux = &flux_field.gridFunc();
       ///TODO: Remove once done debugging
-      std::cout << "peak_flux seen in EMHSO, and is =np.array([";
-      for (int j = 0; j < peak_flux->Size(); j++)
-      {
-         std::cout << peak_flux->Elem(j) << ", ";
-      }
-      std::cout << "])\n";
+      // std::cout << "peak_flux seen by EMHeatSourceOutput\n";
+      // std::cout << "peak_flux->Size() = " << peak_flux->Size() << "\n";
+      // std::cout << "peak_flux->Min() = " << peak_flux->Min() << "\n";
+      // std::cout << "peak_flux->Max() = " << peak_flux->Max() << "\n";
+      // std::cout << "peak_flux->Sum() = " << peak_flux->Sum() << "\n";
    }
 
    // Making the integrator see the temperature field
@@ -1654,7 +1678,12 @@ EMHeatSourceOutput::EMHeatSourceOutput(
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
       
-      std::cout << "Temperature field seen by EMHeatSourceOutput\n";
+      ///TODO: Remove once done debugging
+      // std::cout << "Temperature field seen by EMHeatSourceOutput\n";
+      // std::cout << "temperature_field->Size() = " << temperature_field->Size() << "\n";
+      // std::cout << "temperature_field->Min() = " << temperature_field->Min() << "\n";
+      // std::cout << "temperature_field->Max() = " << temperature_field->Max() << "\n";
+      // std::cout << "temperature_field->Sum() = " << temperature_field->Sum() << "\n";
    }
 
    std::vector<int> stator_attrs = components["stator"]["attrs"].get<std::vector<int>>();
@@ -1673,14 +1702,14 @@ EMHeatSourceOutput::EMHeatSourceOutput(
       std::cout << "False, using Steinmetz\n";
    }
    
-   // std::vector<int> winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
-   // lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma, temperature_field),
-   //                        winding_attrs); // DCLFI WITH a temperature field
-   // lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
-   //                            *peak_flux, sigma, temperature_field),
-   //                        winding_attrs); // ACLFI WITH a temperature field
+   std::vector<int> winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
+   lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma, temperature_field),
+                          winding_attrs); // DCLFI WITH a temperature field
+   lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
+                              *peak_flux, sigma, temperature_field),
+                          winding_attrs); // ACLFI WITH a temperature field
 
-   std::cout << "EMHeatSourceOutput::EMHeatSourceOutput has been constructed\n";
+   // std::cout << "EMHeatSourceOutput::EMHeatSourceOutput has been constructed\n";
 }
 
 void setOptions(PMDemagOutput &output, const nlohmann::json &options)

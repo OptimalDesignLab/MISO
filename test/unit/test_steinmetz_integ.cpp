@@ -481,8 +481,8 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
       mfem::ConstantCoefficient rho(1.0);
 
       // ** Made CAL2Coefficient simpler to avoid the parameters. Define CAL2_kh (similar methodology to SigmaCoefficient from test_electromag_integ)
-      // double T0 = 20;
-      // double T1 = 200;
+      // double T0 = 293.15;
+      // double T1 = 473.15;
       // std::vector<double> kh_T0 = {0.0997091541786544,
       //          -0.129193571991623,
       //          0.0900090637806644,
@@ -494,7 +494,7 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
       std::unique_ptr<mach::ThreeStateCoefficient> CAL2_kh(new CAL2Coefficient());
 
       // ** Made CAL2Coefficient simpler to avoid the parameters. Define CAL2_ke (similar methodology to SigmaCoefficient from test_electromag_integ)
-      // T0=20 and T1=200 once again
+      // T0=293.15 and T1=473.15 once again
       // std::vector<double> ke_T0 = {-5.93693970727006e-06,
       //          0.000117138629373709,
       //          -0.000130355460369590,

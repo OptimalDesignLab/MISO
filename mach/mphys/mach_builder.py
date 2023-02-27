@@ -53,7 +53,7 @@ class MachPrecouplingGroup(om.Group):
     """
     def initialize(self):
         self.options.declare("solver", types=PDESolver, recordable=False)
-        self.options.declare("warper", types=MeshWarper, recordable=False)
+        self.options.declare("warper", recordable=False) # formerly types=MeshWarper
         self.options.declare("scenario_name", default=None)
 
     def setup(self):
@@ -64,10 +64,13 @@ class MachPrecouplingGroup(om.Group):
         solver_options = self.solver.getOptions()
         mesh_input = "x_" + _getPhysicsAbbreviation(solver_options)
         mesh_output = "x_" + _getPhysicsAbbreviation(solver_options) + "_vol"
-        self.add_subsystem("mesh_warper",
-                           MachMeshWarper(warper=self.warper),
-                           promotes_inputs=[("surf_mesh_coords", mesh_input)],
-                           promotes_outputs=[("vol_mesh_coords", mesh_output)])
+        # NOTE: Added conditional logic to allow for turning off mesh warper
+        # TODO: Determine if this OK
+        if isinstance(self.warper, MeshWarper):
+            self.add_subsystem("mesh_warper",
+                            MachMeshWarper(warper=self.warper),
+                            promotes_inputs=[("surf_mesh_coords", mesh_input)],
+                            promotes_outputs=[("vol_mesh_coords", mesh_output)])
 
 class MachOutputsGroup(om.Group):
     """
@@ -88,7 +91,10 @@ class MachOutputsGroup(om.Group):
         solver_options = self.solver.getOptions()
         mesh_input = "x_" + _getPhysicsAbbreviation(solver_options) + "_vol"
         state_input = _getPhysicsAbbreviation(solver_options) + "_state"
-        promoted_inputs = [("mesh_coords", mesh_input), ("state", state_input)]
+        promoted_inputs = {
+            "mesh_coords": ("mesh_coords", mesh_input),
+            "state": ("state", state_input)
+        }
 
         for output in self.outputs:
             if "options" in self.outputs[output]:
@@ -101,12 +107,13 @@ class MachOutputsGroup(om.Group):
             else:
                 depends = []
 
+            depends = [promoted_inputs[input] if input in promoted_inputs else input for input in depends]
             self.add_subsystem(output,
                                MachFunctional(solver=self.solver,
                                              func=output,
                                              func_options=output_opts,
                                              depends=depends),
-                               promotes_inputs=[*depends, *promoted_inputs],
+                               promotes_inputs=[*depends],
                                promotes_outputs=[output])
 
 
@@ -173,7 +180,11 @@ class MachBuilder(Builder):
         self.solver = PDESolver(type=self.solver_type,
                                 solver_options=self.solver_options,
                                 comm=comm)
-        if (self.warper_type != "idwarp"):
+        # NOTE: Adding conditional logic to allow for turning off mesh warper
+        # TODO: Determine if this is OK
+        if (self.warper_type == None):
+            self.warper = None
+        elif (self.warper_type != "idwarp"):
             self.warper = MeshWarper(warper_options=self.warper_options,
                                      comm=comm)
 

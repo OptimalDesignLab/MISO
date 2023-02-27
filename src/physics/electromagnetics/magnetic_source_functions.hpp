@@ -12,9 +12,11 @@
 
 #include "remnant_flux_coefficient.hpp"
 
+/// TODO: Uncomment this declaration for M(T)
+// /*
 namespace mach
 { 
-class MagnetizationCoefficient : public VectorStateCoefficient // formerly an mfem::VectorCoefficient
+class MagnetizationCoefficient : public VectorStateCoefficient //formely a mfem::VectorCoefficient 
 {
 public:
    friend void setInputs(MagnetizationCoefficient &mag_coeff,
@@ -30,7 +32,7 @@ public:
              const mfem::IntegrationPoint &ip, 
              double state) override;
 
-   ///TODO: If needed, and once implemented at coefficient level, bring in EvalStateDeriv and EvalState2ndDeriv 
+   ///TODO: If needed, and once implemented at coefficient level, declare EvalStateDeriv and EvalState2ndDeriv
 
    void EvalRevDiff(const mfem::Vector &V_bar,
                     mfem::ElementTransformation &trans,
@@ -44,18 +46,50 @@ public:
 
 private:
    /// The underlying coefficient that does all the heavy lifting
-   VectorMeshDependentStateCoefficient mag_coeff; // formerly an mfem::VectorCoefficient
+   VectorMeshDependentStateCoefficient mag_coeff; // formerly a VectorMeshDependentCoefficient
    /// Map that holds the remnant flux for each magnet material group
    // std::map<std::string, double> remnant_flux_map;
-   std::map<std::string, mfem::ConstantCoefficient> remnant_flux_map;
-   /// The UNSCALED BY REMNANT FLUX underlying magnetization coefficient
-   std::map<int, mfem::VectorFunctionCoefficient> no_B_r_mag_coeffs;
-   /// Map that holds the remanent flux temperature coefficient for each magnet material group
-   std::map<std::string, double> alpha_B_r_map;
-   /// Map that holds the remanent flux reference temperature for each magnet material group
-   std::map<std::string, double> T_ref_map;
+   std::map<std::string, RemnantFluxCoefficient> remnant_flux_coeffs;
+   /// Map that owns all of the underlying magnetization direction coefficients
+   std::map<int, mfem::VectorFunctionCoefficient> mag_direction_coeffs;   
 };
 
 }  // namespace mach
+// */
+
+/// TODO: Uncomment this declaration for M (temperature independent)
+/*
+namespace mach
+{
+class MagnetizationCoefficient : public mfem::VectorCoefficient
+{
+public:
+   friend void setInputs(MagnetizationCoefficient &mag_coeff,
+                         const MachInputs &inputs)
+   { }
+
+   void Eval(mfem::Vector &V,
+             mfem::ElementTransformation &trans,
+             const mfem::IntegrationPoint &ip) override;
+
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override;
+
+   MagnetizationCoefficient(adept::Stack &diff_stack,
+                            const nlohmann::json &magnet_options,
+                            const nlohmann::json &materials,
+                            int vdim = 3);
+
+private:
+   /// The underlying coefficient that does all the heavy lifting
+   VectorMeshDependentCoefficient mag_coeff;
+   /// Map that holds the remnant flux for each magnet material group
+   std::map<std::string, double> remnant_flux_map;
+};
+
+}  // namespace mach
+*/
 
 #endif

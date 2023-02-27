@@ -40,8 +40,7 @@ public:
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
 
-   RemnantFluxCoefficient(const nlohmann::json &b_r_options,
-                          const nlohmann::json &materials);
+   RemnantFluxCoefficient(const nlohmann::json &material);
 
 private:
    /// The underlying coefficient that does all the heavy lifting
