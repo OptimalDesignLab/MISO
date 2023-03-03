@@ -17,6 +17,12 @@ using namespace mach;
 auto options = R"(
 {
    "print-options": false,
+   "paraview": {
+      "each-timestep": false,
+      "initial-state": true,
+      "final-state": true,
+      "directory": "ns_3D_solution"
+   },
    "flow-param": {
       "viscous": true,
       "mu": 1.0,
@@ -39,7 +45,7 @@ auto options = R"(
       "res-exp": 1.0
    },
    "nonlin-solver": {
-      "printlevel": 1,
+      "printlevel": 2,
       "maxiter": 50,
       "reltol": 1e-6,
       "abstol": 1e-8
@@ -96,9 +102,9 @@ int main(int argc, char *argv[])
    OptionsParser args(argc, argv);
 
    int degree = 0;
-   int nx = 50;
-   int ny = 50;
-   int nz = 2;
+   int nx = 24;
+   int ny = 24;
+   int nz = 24;
    //args.AddOption(&options_file, "-o", "--options",
    //               "Options file to use.");
    args.AddOption(&degree, "-d", "--degree", "poly. degree of mesh mapping");
@@ -152,6 +158,8 @@ int main(int argc, char *argv[])
       state.distributeSharedDofs(state_tv);
       double l2_error = solver.calcConservativeVarsL2Error(uexact, 0);
       *out << "l2 error = " << l2_error << std::endl;
+
+      
 
       // solver->solveForState();
       // solver->printSolution("final", degree+1);

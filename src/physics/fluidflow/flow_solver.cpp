@@ -72,11 +72,16 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
    ode = make_unique<FirstOrderODE>(
        *space_time_res, ode_opts, *nonlinear_solver, out);
 
-   if (options["paraview"].at("each-timestep"))
+   auto log_inital_state  = options["paraview"].value("intial-state",false);
+   auto log_final_state   = options["paraview"].value("final-state",false);
+   auto log_each_timestep = options["paraview"].value("each-timestep",false);
+
+   if (options["paraview"].at("each-timestep") || log_inital_state || log_final_state)
    {
       ParaViewLogger paraview(options["paraview"]["directory"], &mesh());
       paraview.registerField("state", fields.at("state").gridFunc());
-      addLogger(std::move(paraview), {.each_timestep = true});
+      addLogger(std::move(paraview), {.initial_state = log_inital_state, 
+                              .each_timestep = log_each_timestep, .final_state = log_final_state});
    }
 }
 
