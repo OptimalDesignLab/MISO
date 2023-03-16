@@ -64,6 +64,7 @@ void calcPotentialMMS(const xdouble *x, xdouble *src)
         - 1.0*pow(x[1] - yc, 2)) - pow(x[1] - yc, 2)*(pow(rad, 2) + 1.0*pow(x[0] - xc, 2) + 1.0*pow(x[1] - yc, 2)) 
         - (pow(x[0] - xc, 2) + pow(x[1] - yc, 2))*(pow(rad, 2) - 1.0*pow(x[0] - xc, 2) - 1.0*pow(x[1] - yc, 2))))/(gami*gamma*pow(pow(x[0] - xc, 2)
          + pow(x[1] - yc, 2), 7)) ;
+    std::cout << "energy source term: " << src[3] << std::endl;
 }
 #endif
 #if 0

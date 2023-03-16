@@ -446,9 +446,9 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       u.MultTranspose(shape, u_face);
       /// this is used for area test
       double area = sqrt(trans.Weight());
-      //fun += face_ip.weight * alpha * area;
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight())
-      *alpha;
+      // fun += face_ip.weight * alpha * area;
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
+             alpha;
    }
    return fun;
 }
@@ -663,7 +663,7 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
        elvect.GetData() + dof1 * num_states, dof2, num_states);
    const IntegrationRule *ir;
    ir = cutInteriorFaceIntRules[trans.Face->ElementNo];
-   #if 0
+#if 0
    if (ir != NULL)
    {
       cout << "face elements are " << trans.Elem1No << " , " << trans.Elem2No
@@ -677,7 +677,7 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       }
       cout << "face length: " << face_length << endl;
    }
-   #endif
+#endif
    if (ir == NULL)
    {
       // Integration order calculation from DGTraceIntegrator
@@ -771,106 +771,109 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceGrad(
    elmat = 0.0;
    if (immersedFaces[trans.Face->ElementNo] == true)
    {
-      return;
+      elmat = 0.0;
    }
-   DenseMatrix elfun1_mat(elfun.GetData(), dof1, num_states);
-   DenseMatrix elfun2_mat(
-       elfun.GetData() + dof1 * num_states, dof2, num_states);
-
-   // Integration order calculation from DGTraceIntegrator
-   const IntegrationRule *ir;
-   ir = cutInteriorFaceIntRules[trans.Face->ElementNo];
-   if (ir == NULL)
+   else
    {
-      int intorder;
-      if (trans.Elem2No >= 0)
-         intorder = (min(trans.Elem1->OrderW(), trans.Elem2->OrderW()) +
-                     2 * max(el_left.GetOrder(), el_right.GetOrder()));
-      else
+      DenseMatrix elfun1_mat(elfun.GetData(), dof1, num_states);
+      DenseMatrix elfun2_mat(
+          elfun.GetData() + dof1 * num_states, dof2, num_states);
+
+      // Integration order calculation from DGTraceIntegrator
+      const IntegrationRule *ir;
+      ir = cutInteriorFaceIntRules[trans.Face->ElementNo];
+      if (ir == NULL)
       {
-         intorder = trans.Elem1->OrderW() + 2 * el_left.GetOrder();
-      }
-
-      ir = &IntRules.Get(trans.FaceGeom, intorder);
-   }
-   // cout << "face elements are " << trans.Elem1No << " , " << trans.Elem2No <<
-   // endl;
-   for (int i = 0; i < ir->GetNPoints(); i++)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(i);
-      IntegrationPoint eip1;
-      IntegrationPoint eip2;
-      trans.Loc1.Transform(ip, eip1);
-      trans.Loc2.Transform(ip, eip2);
-
-      // Calculate basis functions on both elements at the face
-      el_left.CalcShape(eip1, shape1);
-      el_right.CalcShape(eip2, shape2);
-
-      // Interpolate elfun at the point
-      elfun1_mat.MultTranspose(shape1, u_face_left);
-      elfun2_mat.MultTranspose(shape2, u_face_right);
-
-      trans.Face->SetIntPoint(&ip);
-
-      // Get the normal vector and the flux on the face
-      CalcOrtho(trans.Face->Jacobian(), nrm);
-
-      fluxJacStates(
-          nrm, u_face_left, u_face_right, flux_jac_left, flux_jac_right);
-      // insert flux Jacobians into element stiffness matrices
-      const int offset = num_states * dof1;
-      double Q;
-      for (int k = 0; k < dof1; ++k)
-      {
-         for (int j = 0; j < dof2; ++j)
+         int intorder;
+         if (trans.Elem2No >= 0)
+            intorder = (min(trans.Elem1->OrderW(), trans.Elem2->OrderW()) +
+                        2 * max(el_left.GetOrder(), el_right.GetOrder()));
+         else
          {
-            Q = shape1(k) * shape2(j);
-            // multiply by test function
-            for (int n = 0; n < num_states; ++n)
-            {
-               for (int m = 0; m < num_states; ++m)
-               {
-                  // res_left(i_left, n) += alpha*flux_face(n);
-                  elmat(n * dof1 + k, offset + m * dof2 + j) +=
-                      ip.weight * Q * flux_jac_right(n, m);
-                  // res_right(i_right, n) -= alpha*flux_face(n);
-                  elmat(offset + n * dof2 + j, m * dof1 + k) -=
-                      ip.weight * Q * flux_jac_left(n, m);
-               }
-            }
+            intorder = trans.Elem1->OrderW() + 2 * el_left.GetOrder();
          }
+
+         ir = &IntRules.Get(trans.FaceGeom, intorder);
       }
-      for (int j = 0; j < dof1; ++j)
+      // cout << "face elements are " << trans.Elem1No << " , " << trans.Elem2No
+      // << endl;
+      for (int i = 0; i < ir->GetNPoints(); i++)
       {
+         const IntegrationPoint &ip = ir->IntPoint(i);
+         IntegrationPoint eip1;
+         IntegrationPoint eip2;
+         trans.Loc1.Transform(ip, eip1);
+         trans.Loc2.Transform(ip, eip2);
+
+         // Calculate basis functions on both elements at the face
+         el_left.CalcShape(eip1, shape1);
+         el_right.CalcShape(eip2, shape2);
+
+         // Interpolate elfun at the point
+         elfun1_mat.MultTranspose(shape1, u_face_left);
+         elfun2_mat.MultTranspose(shape2, u_face_right);
+
+         trans.Face->SetIntPoint(&ip);
+
+         // Get the normal vector and the flux on the face
+         CalcOrtho(trans.Face->Jacobian(), nrm);
+
+         fluxJacStates(
+             nrm, u_face_left, u_face_right, flux_jac_left, flux_jac_right);
+         // insert flux Jacobians into element stiffness matrices
+         const int offset = num_states * dof1;
+         double Q;
          for (int k = 0; k < dof1; ++k)
          {
-            Q = shape1(j) * shape1(k);
-            // multiply by test function
-            for (int n = 0; n < num_states; ++n)
+            for (int j = 0; j < dof2; ++j)
             {
-               for (int m = 0; m < num_states; ++m)
+               Q = shape1(k) * shape2(j);
+               // multiply by test function
+               for (int n = 0; n < num_states; ++n)
                {
-                  // res(j, n) += flux_face(n) * shape1(j);
-                  elmat(m * dof1 + k, n * dof1 + j) +=
-                      ip.weight * Q * alpha * flux_jac_left(m, n);
+                  for (int m = 0; m < num_states; ++m)
+                  {
+                     // res_left(i_left, n) += alpha*flux_face(n);
+                     elmat(n * dof1 + k, offset + m * dof2 + j) +=
+                         ip.weight * Q * flux_jac_right(n, m);
+                     // res_right(i_right, n) -= alpha*flux_face(n);
+                     elmat(offset + n * dof2 + j, m * dof1 + k) -=
+                         ip.weight * Q * flux_jac_left(n, m);
+                  }
                }
             }
          }
-      }
-      for (int j = 0; j < dof2; ++j)
-      {
-         for (int k = 0; k < dof2; ++k)
+         for (int j = 0; j < dof1; ++j)
          {
-            Q = shape2(j) * shape2(k);
-            // multiply by test function
-            for (int n = 0; n < num_states; ++n)
+            for (int k = 0; k < dof1; ++k)
             {
-               for (int m = 0; m < num_states; ++m)
+               Q = shape1(j) * shape1(k);
+               // multiply by test function
+               for (int n = 0; n < num_states; ++n)
                {
-                  // res(j, n) -= flux_face(n) * shape2(j);
-                  elmat(offset + m * dof2 + k, offset + n * dof2 + j) -=
-                      ip.weight * Q * alpha * flux_jac_right(m, n);
+                  for (int m = 0; m < num_states; ++m)
+                  {
+                     // res(j, n) += flux_face(n) * shape1(j);
+                     elmat(m * dof1 + k, n * dof1 + j) +=
+                         ip.weight * Q * alpha * flux_jac_left(m, n);
+                  }
+               }
+            }
+         }
+         for (int j = 0; j < dof2; ++j)
+         {
+            for (int k = 0; k < dof2; ++k)
+            {
+               Q = shape2(j) * shape2(k);
+               // multiply by test function
+               for (int n = 0; n < num_states; ++n)
+               {
+                  for (int m = 0; m < num_states; ++m)
+                  {
+                     // res(j, n) -= flux_face(n) * shape2(j);
+                     elmat(offset + m * dof2 + k, offset + n * dof2 + j) -=
+                         ip.weight * Q * alpha * flux_jac_right(m, n);
+                  }
                }
             }
          }

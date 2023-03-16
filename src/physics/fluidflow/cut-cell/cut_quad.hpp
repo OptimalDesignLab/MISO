@@ -177,17 +177,17 @@ public:
       std::vector<TinyVector<double, N - 1>> kappa;
       int nel = mesh->GetNE();
       int nbnd;
-      // nbnd =  sqrt(nel) ; //128;
+      nbnd =  sqrt(nel) ; //128;
       /// parameters
       double delta = 1e-10;
-      double xc = 0.0;
-      double yc = 0.0;
+      double xc = 5.0;
+      double yc = 5.0;
       /// radius
       double a, b;
       if (ls == 1)
       {
-         a = 4.0;
-         b = 1.0;
+         a = 0.5;
+         b = 0.5;
       }
       else
       {
@@ -195,7 +195,7 @@ public:
          b = 3.0;
       }
 /// use this if reading from file
-#if 1
+#if 0
       const char *geometry_file = "NACA_0012_200pts.dat";
       ifstream file;
       file.open(geometry_file);
@@ -221,7 +221,7 @@ public:
 #endif
       double rho = 10 * nbnd;
 /// use this if not reading from file
-#if 0
+#if 1
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
@@ -260,8 +260,8 @@ public:
       }
       /// translate ellipse/airfoil
       TinyVector<double, N> xcent;
-      xcent(0) = 10.0;
-      xcent(1) = 10.0;
+      xcent(0) = 5.0;
+      xcent(1) = 5.0;
       std::vector<TinyVector<double, N>> Xcoord;
       for (int k = 0; k < nbnd; ++k)
       {
@@ -279,14 +279,14 @@ public:
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
       TinyVector<double, 2> xle, xte;
-      xle(0) = 19.5;
-      xle(1) = 20.0;
-      xte(0) = 19.997592;
-      xte(1) = 20.0;
-      // xle(0) = 6.0;
-      // xle(1) = 10.0;
-      // xte(0) = 14.0;
-      // xte(1) = 10.0;
+      // xle(0) = 19.5;
+      // xle(1) = 20.0;
+      // xte(0) = 19.997592;
+      // xte(1) = 20.0;
+      xle(0) = 4.5;
+      xle(1) = 5.0;
+      xte(0) = 5.5;
+      xte(1) = 5.0;
       // xle(0) = 1.5;
       // xle(1) = 2.0;
       // xte(0) = 2.5;
@@ -947,7 +947,7 @@ public:
 protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
-   // Algoim::LevelSet<N> phi;
+   //Algoim::LevelSet<N> phi;
    circle<N> phi;
 };
 }  // namespace mach

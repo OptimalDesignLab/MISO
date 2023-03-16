@@ -254,14 +254,6 @@ void AbstractSolver::initDerived()
            << mass->Width() << endl;
       mass->Finalize();
       mass_matrix.reset(new SparseMatrix(mass->SpMat()));
-      // if (gd)
-      // {
-      //    //SparseMatrix *cp = dynamic_cast<GDSpaceType
-      //    *>(fes_gd.get())->GetCP(); SparseMatrix *cp = fes_gd->GetCP(); cout
-      //    << "cp done: " << endl; SparseMatrix *p = RAP(*cp, *mass_matrix,
-      //    *cp); cout << "p done: " << endl; mass_matrix_gd.reset(new
-      //    SparseMatrix(*p)); mass_matrix_gd->Finalize();
-      // }
    }
 
    if (res)
@@ -327,7 +319,7 @@ void AbstractSolver::initDerived()
    prec = constructPreconditioner(options["lin-prec"]);
    solver = constructLinearSolver(options["lin-solver"], *prec);
    newton_solver = constructNonlinearSolver(options["nonlin-solver"], *solver);
-   constructEvolver();
+   // constructEvolver();
 }
 
 AbstractSolver::~AbstractSolver()
@@ -390,7 +382,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       /// let us see if this works
       /// find the elements to refine
       CutCell<2, 1> cut_init(smesh.get());
-      /*Algoim::LevelSet<2>*/ circle<2> phi_init = cut_init.constructLevelSet();
+      /*Algoim::LevelSet<2> */  circle<2> phi_init = cut_init.constructLevelSet();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
       int ncr = options["mesh"]["ncr"].template get<int>();
@@ -1495,7 +1487,7 @@ void AbstractSolver::printAbsError(
       absSolerr(i) = std::log(abs(absSolerr(i)));
    }
    CutCell<2, 1> cut_init(mesh.get());
-   /*Algoim::LevelSet<2>*/ circle<2> phi_init = cut_init.constructLevelSet();
+   /*Algoim::LevelSet<2> */  circle<2> phi_init = cut_init.constructLevelSet();
    for (int i = 0; i < fes->GetNE(); i++)
    {
       if (cut_init.insideBoundary(i) == true)
