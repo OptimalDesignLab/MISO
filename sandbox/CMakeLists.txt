@@ -34,14 +34,14 @@ set(SANDBOX_SRCS
    potential_flow_cylinder_cut
    potential_flow_cylinder_dg
    # magnetostatic_box
-   magnetostatic_motor
-   magnetostatic_wire
+   # magnetostatic_motor
+   # magnetostatic_wire
    navier_stokes_mms
-   thermal_square
+   # thermal_square
    # joule_wire
    # joule_box
    # mesh_move
-   surface_distance
+   # surface_distance
    # joule_wire
 )
 

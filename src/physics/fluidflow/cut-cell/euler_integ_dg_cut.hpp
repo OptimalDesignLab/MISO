@@ -3,7 +3,6 @@
 
 #include "adept.h"
 #include "mfem.hpp"
-
 #include "inviscid_integ_dg_cut.hpp"
 #include "euler_fluxes.hpp"
 #include "mms_integ_dg_cut.hpp"

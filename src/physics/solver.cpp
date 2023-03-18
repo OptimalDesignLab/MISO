@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cmath>
 #include <utility>
-#include "cut_quad.hpp"
+#include "cut_quad_poly.hpp"
 #ifdef MFEM_USE_PUMI
 
 #include "apfMDS.h"
@@ -376,7 +376,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
-      TinyVector<double, 2> airfoil_cent;
+      uvector<double, 2> airfoil_cent;
       airfoil_cent(0) = 5.0;
       airfoil_cent(1) = 5.0;
       /// let us see if this works
@@ -410,13 +410,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -434,13 +434,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -457,13 +457,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (abs(dist) < 3.5 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -479,13 +479,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist =  norm(x_diff);
             if (abs(dist) < 2.0 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -501,13 +501,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (abs(dist) < 1.0 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -524,13 +524,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (abs(dist) < 0.8 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -545,13 +545,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (abs(dist) < 0.4 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
@@ -568,13 +568,13 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
             double lsv = phi_init(x_c);
-            TinyVector<double, 2> x_diff;
+            uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
-            double dist = sqrt(Algoim::magsqr(x_diff));
+            double dist = norm(x_diff);
             if (cut_init.cutByGeom(i))
             {
                marked_elements1.Append(i);
@@ -587,7 +587,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       for (int k = 0; k < ncr_bdr; ++k)
       {
          double s = 1.1;
-         TinyVector<double, 2> lec, tec;
+         uvector<double, 2> lec, tec;
          lec(0) = airfoil_cent(0) - 4;
          lec(1) = airfoil_cent(1);
          tec(0) = airfoil_cent(0) + 4;
@@ -597,14 +597,14 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          {
             Vector cent;
             cut_init.GetElementCenter(i, cent);
-            TinyVector<double, 2> x_c;
+            uvector<double, 2> x_c;
             x_c(0) = cent(0);
             x_c(1) = cent(1);
-            TinyVector<double, 2> x_diff_le, x_diff_te;
+            uvector<double, 2> x_diff_le, x_diff_te;
             x_diff_le = x_c - lec;
             x_diff_te = x_c - tec;
-            double dist_le = sqrt(Algoim::magsqr(x_diff_le));
-            double dist_te = sqrt(Algoim::magsqr(x_diff_te));
+            double dist_le = norm(x_diff_le);;
+            double dist_te = norm(x_diff_te);;
             if ((abs(dist_le) < 1.1 || abs(dist_te) < 1.1) &&
                 cut_init.insideBoundary(i) == 0)
             {

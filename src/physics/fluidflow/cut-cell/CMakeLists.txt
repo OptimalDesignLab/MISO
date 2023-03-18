@@ -7,6 +7,7 @@ target_sources(mach
       inviscid_integ_def_dg_cut.hpp
       inviscid_integ_dg_cut.hpp
       cut_quad.hpp
+      cut_quad_poly.hpp
       cut_quad_indicator.hpp
       mms_integ_dg_cut.hpp
       mms_integ_def_dg_cut.hpp

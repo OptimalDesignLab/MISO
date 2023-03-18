@@ -3,7 +3,7 @@
 
 #include "adept.h"
 #include "mfem.hpp"
-#include "cut_quad.hpp"
+#include "cut_quad_poly.hpp"
 using namespace mfem;
 namespace mach
 {

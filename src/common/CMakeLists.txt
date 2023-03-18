@@ -23,8 +23,8 @@ target_sources(mach
       orthopoly.hpp
       sbp_fe.cpp
       sbp_fe.hpp
-      surface.hpp
-      surface_def.hpp
+      # surface.hpp
+      # surface_def.hpp
 )
 
 target_include_directories(mach

@@ -4,10 +4,16 @@
 //#include <fstream>
 
 #include "mfem.hpp"
-#include "cut_quad.hpp"
 #include "solver.hpp"
 #include "euler_integ_dg.hpp"
 #include "euler_integ_dg_cut.hpp"
+#include "diag_mass_integ.hpp"
+#include "euler_integ.hpp"
+#include "functional_output.hpp"
+#include "sbp_fe.hpp"
+#include "utils.hpp"
+#include "euler_dg.hpp"
+#include <chrono>
 // using adept::adouble;
 
 namespace mach

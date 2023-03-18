@@ -684,7 +684,7 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
    cond_file.open("vand_cond_cut.txt",
                   std::ios_base::app);  // append instead of overwrite
    double cond = 1.0;
-   cond = 100.0;  // 100- p2, 1000- p3, 10000- p4
+   cond = pow(10, degree);  // 100- p2, 1000- p3, 10000- p4
    double vandCond = 1e+30;
    double vand_scale;
    // cout << "elmt_id size: " << elmt_id.Size() << endl;

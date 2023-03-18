@@ -120,6 +120,7 @@ target_link_libraries(mach
       # "${PUMI_LIBRARIES}" # shouldn't need to link since MFEM handles it
       tinysplinecxx
       nlohmann_json::nlohmann_json
+      lapacke
 )
 
 target_include_directories(mach
@@ -143,7 +144,7 @@ endif (MFEM_USE_EGADS)
 
 target_compile_features(mach
    PUBLIC
-      cxx_std_11
+      cxx_std_17
 )
 
 set_target_properties(mach

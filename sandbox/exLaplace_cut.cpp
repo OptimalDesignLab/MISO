@@ -1,6 +1,5 @@
 #include "poisson_dg_cut.hpp"
 #include "gd.hpp"
-#include "cut_quad.hpp"
 #include "pcentgridfunc.hpp"
 #include "mach_types.hpp"
 #include <chrono>

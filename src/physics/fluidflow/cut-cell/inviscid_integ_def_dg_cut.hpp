@@ -20,6 +20,7 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
       return 0.0;
    }
    // int dof = el.GetDof();
+   // cout << "Inside domain GetElementEnergy" << endl;
    double energy;
    const IntegrationRule *ir;
    ir = cutSquareIntRules[trans.ElementNo];
@@ -431,13 +432,13 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // ds = sqrt((nx * nx) + (ny * ny));
       // nrm(0) = phi.sign_phi * nx / ds;
       // nrm(1) = phi.sign_phi * ny / ds;
-
+      // cout << "Inside GetElementEnergy " << endl;
       /// n_hat = grad_phi/|\grad_phi|
-      TinyVector<double, 2> beta, xs;
+      uvector<double, 2> beta, xs;
       xs(0) = x(0);
       xs(1) = x(1);
       beta = phi.grad(xs);
-      ds = mag(beta);
+      ds = algoim::norm(beta);
       nx = beta(0);
       ny = beta(1);
       nrm(0) = nx / ds;
@@ -445,7 +446,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       /// this is used for area test
-      double area = sqrt(trans.Weight());
+      // double area = sqrt(trans.Weight());
       // fun += face_ip.weight * alpha * area;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
              alpha;
@@ -500,11 +501,11 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
          // ds = sqrt((nx * nx) + (ny * ny));
          // nrm(0) = phi.sign_phi * nx / ds;
          // nrm(1) = phi.sign_phi * ny / ds;
-         TinyVector<double, 2> beta, xs;
+         uvector<double, 2> beta, xs;
          xs(0) = x(0);
          xs(1) = x(1);
          beta = phi.grad(xs);
-         ds = mag(beta);
+         ds = algoim::norm(beta);
          nx = beta(0);
          ny = beta(1);
          nrm(0) = nx / ds;
@@ -578,11 +579,11 @@ void CutDGInviscidBoundaryIntegrator<Derived>::AssembleElementGrad(
          // ds = sqrt((nx * nx) + (ny * ny));
          // nrm(0) = phi.sign_phi * nx / ds;
          // nrm(1) = phi.sign_phi * ny / ds;
-         TinyVector<double, 2> beta, xs;
+         uvector<double, 2> beta, xs;
          xs(0) = x(0);
          xs(1) = x(1);
          beta = phi.grad(xs);
-         ds = mag(beta);
+         ds = algoim::norm(beta);
          nx = beta(0);
          ny = beta(1);
          nrm(0) = nx / ds;
@@ -674,6 +675,8 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
          const IntegrationPoint &ip = ir->IntPoint(i);
          trans.Face->SetIntPoint(&ip);
          face_length += ip.weight * trans.Weight();
+         cout << "ip.x, ip.y : " << ip.x << " , " << ip.y << endl;
+         cout << "ip.weight " << ip.weight << endl;
       }
       cout << "face length: " << face_length << endl;
    }
@@ -709,7 +712,6 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       el_left.CalcShape(eip1, shape1);
       el_right.CalcShape(eip2, shape2);
 #endif
-
       trans.SetAllIntPoints(&ip);  // set face and element int. points
       // Calculate basis functions on both elements at the face
       el_left.CalcShape(trans.GetElement1IntPoint(), shape1);
@@ -719,10 +721,8 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       elfun2_mat.MultTranspose(shape2, u_face_right);
 
       trans.Face->SetIntPoint(&ip);
-
       // Get the normal vector and the flux on the face
       CalcOrtho(trans.Face->Jacobian(), nrm);
-
       flux(nrm, u_face_left, u_face_right, fluxN);
 
       fluxN *= ip.weight;

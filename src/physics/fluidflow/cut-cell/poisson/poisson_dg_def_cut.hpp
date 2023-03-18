@@ -1,7 +1,6 @@
 #ifndef MACH_POISSON_DG_DEF_CUT
 #define MACH_POISSON_DG_DEF_CUT
 #include "poisson_dg_cut.hpp"
-#include "cut_quad.hpp"
 using namespace blitz;
 namespace mach
 {

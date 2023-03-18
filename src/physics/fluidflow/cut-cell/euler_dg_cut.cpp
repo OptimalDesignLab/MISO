@@ -1,17 +1,7 @@
 #include <cmath>
 #include <memory>
-
-#include "diag_mass_integ.hpp"
-#include "euler_integ_dg.hpp"
-#include "euler_integ.hpp"
-#include "euler_integ_dg_cut.hpp"
-#include "inviscid_integ_dg_cut.hpp"
-#include "functional_output.hpp"
-#include "sbp_fe.hpp"
-#include "utils.hpp"
 #include "euler_dg_cut.hpp"
-#include "euler_dg.hpp"
-#include <chrono>
+#include "cut_quad_poly.hpp"
 using namespace std::chrono;
 using namespace mfem;
 using namespace std;
@@ -209,7 +199,8 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    double radius = 0.3;
    /// int rule for cut elements
    auto elint_start = high_resolution_clock::now();
-   cutcell.GetCutElementIntRule(cutelems, deg_vol, radius, cutSquareIntRules);
+   cutcell.GetCutElementIntRule(cutelems, deg_vol, cutSquareIntRules, cutSegmentIntRules);
+   cutcell.GetCutInterfaceIntRule(cutelems, cutInteriorFaces, deg_vol, cutInteriorFaceIntRules);
    auto elint_stop = high_resolution_clock::now();
    auto elint_duration = duration_cast<seconds>(elint_stop - elint_start);
    cout << " ---- Time taken to get cut elements int rules  ---- " << endl;
@@ -218,41 +209,35 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    // get interior face int rule that is cut by the embedded geometry
    auto segint_start = high_resolution_clock::now();
    cout << "#interior faces " << cutInteriorFaces.size() << endl;
-   cutcell.GetCutSegmentIntRule(cutelems,
-                                cutInteriorFaces,
-                                deg_surf,
-                                radius,
-                                cutSegmentIntRules,
-                                cutInteriorFaceIntRules);
 
    if (cutBdrFaces.size() > 0)
    {
       cout << "boundary faces are cut " << endl;
-      cutcell.GetCutBdrSegmentIntRule(
-          cutelems, cutBdrFaces, deg_surf, radius, cutBdrFaceIntRules);
+      // cutcell.GetCutBdrSegmentIntRule(
+      //     cutelems, cutBdrFaces, deg_surf, radius, cutBdrFaceIntRules);
    }
-   if (vortex)
-   {
-      cutcell2.GetCutElementIntRule(
-          cutelems_outer, deg_vol, radius, cutSquareIntRules_outer);
-      cutSquareIntRules.insert(cutSquareIntRules_outer.begin(),
-                               cutSquareIntRules_outer.end());
-      cutcell2.GetCutSegmentIntRule(cutelems_outer,
-                                    cutInteriorFaces_outer,
-                                    deg_surf,
-                                    radius,
-                                    cutSegmentIntRules_outer,
-                                    cutInteriorFaceIntRules_outer);
-      cutcell2.GetCutBdrSegmentIntRule(cutelems_outer,
-                                       cutBdrFaces_outer,
-                                       deg_surf,
-                                       radius,
-                                       cutBdrFaceIntRules_outer);
-      cutInteriorFaceIntRules.insert(cutInteriorFaceIntRules_outer.begin(),
-                                     cutInteriorFaceIntRules_outer.end());
-      cutBdrFaceIntRules.insert(cutBdrFaceIntRules_outer.begin(),
-                                cutBdrFaceIntRules_outer.end());
-   }
+   // if (vortex)
+   // {
+   //    cutcell2.GetCutElementIntRule(
+   //        cutelems_outer, deg_vol, radius, cutSquareIntRules_outer);
+   //    cutSquareIntRules.insert(cutSquareIntRules_outer.begin(),
+   //                             cutSquareIntRules_outer.end());
+   //    cutcell2.GetCutSegmentIntRule(cutelems_outer,
+   //                                  cutInteriorFaces_outer,
+   //                                  deg_surf,
+   //                                  radius,
+   //                                  cutSegmentIntRules_outer,
+   //                                  cutInteriorFaceIntRules_outer);
+   //    cutcell2.GetCutBdrSegmentIntRule(cutelems_outer,
+   //                                     cutBdrFaces_outer,
+   //                                     deg_surf,
+   //                                     radius,
+   //                                     cutBdrFaceIntRules_outer);
+   //    cutInteriorFaceIntRules.insert(cutInteriorFaceIntRules_outer.begin(),
+   //                                   cutInteriorFaceIntRules_outer.end());
+   //    cutBdrFaceIntRules.insert(cutBdrFaceIntRules_outer.begin(),
+   //                              cutBdrFaceIntRules_outer.end());
+   // }
    auto segint_stop = high_resolution_clock::now();
    auto segint_duration = duration_cast<seconds>(segint_stop - segint_start);
    cout << " ---- Time taken to get cut segments and faces int rules  ---- "
@@ -383,9 +368,9 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
    double area;
-   // cout << "before GetEnergy() " << endl;
+   cout << "before GetEnergy() " << endl;
    area = res->GetEnergy(x);
-   // cout << "after GetEnergy() " << endl;
+   cout << "after GetEnergy() " << endl;
    //  double exact_area = 400 - 0.0817073;  // airfoil
    double exact_area = 100.0 - M_PI * 0.25;
    //double exact_area = 2 * M_PI;
