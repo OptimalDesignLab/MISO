@@ -138,8 +138,8 @@ protected:
    vector<int> cutBdrFaces_outer;
    /// levelset to calculate normal vectors
    // Algoim::LevelSet<2> phi_e;
-   circle<2> phi;
-   circle<2> phi_outer;
+   LevelSetF<2> phi;
+   LevelSetF<2> phi_outer;
    bool vortex = false;
    // Algoim::LevelSet<2> phi;
    // Algoim::LevelSet<2> phi_outer;

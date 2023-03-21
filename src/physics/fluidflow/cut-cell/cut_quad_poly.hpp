@@ -11,8 +11,9 @@ using namespace std;
 using namespace algoim;
 namespace mach
 {
+#if 0
 template <int N>
-struct circle
+struct LevelSetF
 {
    double xscale;
    double yscale;
@@ -22,7 +23,7 @@ struct circle
    double b;  // semi-minor
    double xc;
    double yc;
-   double lsign;
+   int lsign;
 
    double operator()(const uvector<double, 2> &x) const
    {
@@ -43,6 +44,161 @@ struct circle
       phi_x(1) =
           lsign * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)) / (b * b);
       return phi_x;
+   }
+};
+#endif
+template <int N>
+struct LevelSetF
+{
+   double xscale;
+   double yscale;
+   double min_x;
+   double min_y;
+   /// Vector of boundary coordinates
+   vector<uvector<double, N>> xbnd;
+   /// Vector of boundary normal vectors
+   vector<uvector<double, N>> norm;
+   /// curvature at every point
+   vector<uvector<double, N - 1>> kappa;
+   /// penalty parameter
+   double rho;
+   /// sign of lsf
+   double lsign;
+   /// parameter that smooths distance near zero
+   double delta;
+   double operator()(const uvector<double, 2> &xs) const
+   {
+      using std::exp;
+      using std::sqrt;
+      uvector<double, N> x;
+      x(0) = xs(0) * xscale + min_x;
+      x(1) = xs(1) * yscale + min_y;
+      int nbnd = xbnd.size();
+      /// find minimum distance
+      double min_dist = 1e+100;
+      for (int i = 0; i < nbnd; ++i)
+      {
+         uvector<double, N> x_diff;
+         x_diff = x - xbnd.at(i);
+         double deli_x = sqrt(sqrnorm(x_diff) + delta);
+         min_dist = min(min_dist, deli_x);
+      }
+      double denom = 0.0;
+      double phi = 0.0;
+      /// evaluate the level-set
+      for (int i = 0; i < nbnd; ++i)
+      {
+         uvector<double, N> x_diff;
+         uvector<double, N> norvx, norvy;
+         uvector<double, N> proj;
+         x_diff = x - xbnd.at(i);
+         double dist1 = dot(x_diff, norm.at(i));
+         double nx = norm.at(i)(0);
+         double ny = norm.at(i)(1);
+         norvx(0) = 1.0 - (nx * nx);
+         norvx(1) = -nx * ny;
+         norvy(0) = -nx * ny;
+         norvy(1) = 1.0 - (ny * ny);
+         proj(0) = dot(norvx, x_diff);
+         proj(1) = dot(norvy, x_diff);
+         double dist2 = 0.5 * kappa.at(i)(0) * dot(x_diff, proj);
+         double dist = dist1 + dist2;
+         double delx = sqrt(sqrnorm(x_diff) + delta);
+         double expc = exp(-rho * (delx - min_dist));
+         denom += expc;
+         phi += dist * expc;
+      }
+      phi = phi / denom;
+      return lsign * phi;
+   }
+   /// calculate the gradient of level-set function
+   /// \param[in] x - uvector of point where gradphi(x) needs to be
+   /// calculated \param[out] phi_bar - level-set function gradient value
+   uvector<double, N> grad(const uvector<double, N> &xs) const
+   {
+      using std::exp;
+      using std::sqrt;
+      uvector<double, N> x;
+      x(0) = xs(0) * xscale + min_x;
+      x(1) = xs(1) * yscale + min_y;
+      int nbnd = xbnd.size();
+      /// find minimum distance
+      double min_dist = 1e+100;
+      for (int i = 0; i < nbnd; ++i)
+      {
+         uvector<double, N> x_diff;
+         x_diff = x - xbnd.at(i);
+         double deli_x = sqrt(sqrnorm(x_diff) + delta);
+         min_dist = min(min_dist, deli_x);
+      }
+      double numer = 0.0;
+      double denom = 0.0;
+      for (int i = 0; i < nbnd; ++i)
+      {
+         uvector<double, N> x_diff;
+         x_diff = x - xbnd.at(i);
+         uvector<double, N> norvx, norvy;
+         uvector<double, N> proj;
+         double perp1 = dot(x_diff, norm.at(i));
+         double nx = norm.at(i)(0);
+         double ny = norm.at(i)(1);
+         norvx(0) = 1.0 - (nx * nx);
+         norvx(1) = -nx * ny;
+         norvy(0) = -nx * ny;
+         norvy(1) = 1.0 - (ny * ny);
+         proj(0) = dot(norvx, x_diff);
+         proj(1) = dot(norvy, x_diff);
+         double perp2 = 0.5 * kappa.at(i)(0) * dot(x_diff, proj);
+         double perp = perp1 + perp2;
+         double delx = sqrt(sqrnorm(x_diff) + delta);
+         double expc = exp(-rho * (delx - min_dist));
+         denom += expc;
+         numer += perp * expc;
+      }
+      double ls = numer / denom;
+      // start reverse sweep
+      // return ls
+      double ls_bar = 1.0;
+      // ls = numer / denom
+      double numer_bar = ls_bar / denom;
+      double denom_bar = -(ls_bar * ls) / denom;
+      uvector<double, N> phi_bar;
+      phi_bar = 0.0;
+      for (int i = 0; i < nbnd; ++i)
+      {
+         uvector<double, N> x_diff;
+         x_diff = x - xbnd.at(i);
+         double dist = sqrt(sqrnorm(x_diff) + delta);
+         uvector<double, N> norvx, norvy;
+         uvector<double, N> proj;
+         double perp1 = dot(x_diff, norm.at(i));
+         double nx = norm.at(i)(0);
+         double ny = norm.at(i)(1);
+         norvx(0) = 1.0 - (nx * nx);
+         norvx(1) = -nx * ny;
+         norvy(0) = -nx * ny;
+         norvy(1) = 1.0 - (ny * ny);
+         proj(0) = dot(norvx, x_diff);
+         proj(1) = dot(norvy, x_diff);
+         double perp2 = 0.5 * kappa.at(i)(0) * dot(x_diff, proj);
+         double perp = perp1 + perp2;
+         double expfac = exp(-rho * (dist - min_dist));
+         // denom += expfac
+         double expfac_bar = denom_bar;
+         expfac_bar += numer_bar * perp;
+         // numer += perp*expfac
+         double perp_bar = numer_bar * expfac;
+         // expfac = exp(-rho*dist)
+         double dist_bar = -expfac_bar * expfac * rho;
+         // perp = dot(levset.normal[:,i], x - xc)
+         phi_bar += perp_bar * norm.at(i);
+         // add curvature correction
+         phi_bar += perp_bar * kappa.at(i)(0) * proj;
+         // dist = sqrt(dot(x - xc, x - xc) + levset.delta)
+         phi_bar += (dist_bar / dist) * x_diff;
+      }
+      // cout << "phi_bar " << phi_bar << endl;
+      return lsign * phi_bar;
    }
 };
 
@@ -85,11 +241,12 @@ public:
       }
       return nor;
    }
+
    /// this function constructs the curvature at given boundary points of
    /// level-set geometry
    template <bool cte = false>
    std::vector<uvector<double, N - 1>> getCurvature(
-       std::vector<uvector<double, N>> Xc)
+       std::vector<uvector<double, N>> Xc) const
    {
       std::vector<uvector<double, N - 1>> kappa;
       int nbnd = Xc.size();
@@ -109,17 +266,17 @@ public:
       {
          double xc = Xc.at(i)(0);
          double yt = tc *
-                     ((a0 * sqrt(xc)) + (a1 * xc) + (a2 * (pow(xc, 2))) +
-                      (a3 * (pow(xc, 3))) + (a4 * (pow(xc, 4)))) /
-                     (0.2);
+                   ((a0 * sqrt(xc)) + (a1 * xc) + (a2 * (pow(xc, 2))) +
+                    (a3 * (pow(xc, 3))) + (a4 * (pow(xc, 4)))) /
+                   (0.2);
          double dytdx = tc *
-                        ((0.5 * a0 / sqrt(xc)) + a1 + (2.0 * a2 * xc) +
-                         (3.0 * a3 * pow(xc, 2)) + (4.0 * a4 * pow(xc, 3))) /
-                        (0.2);
+                      ((0.5 * a0 / sqrt(xc)) + a1 + (2.0 * a2 * xc) +
+                       (3.0 * a3 * pow(xc, 2)) + (4.0 * a4 * pow(xc, 3))) /
+                      (0.2);
          double d2ytdx = tc *
-                         ((-0.25 * a0 / pow(xc, 1.5)) + (2.0 * a2) +
-                          (6.0 * a3 * xc) + (12.0 * a4 * pow(xc, 2))) /
-                         0.2;
+                       ((-0.25 * a0 / pow(xc, 1.5)) + (2.0 * a2) +
+                        (6.0 * a3 * xc) + (12.0 * a4 * pow(xc, 2))) /
+                       0.2;
          double ysu = yt * cos(theta);
          double dydx = dytdx * cos(theta);
          double d2ydx = d2ytdx * cos(theta);
@@ -142,11 +299,11 @@ public:
       }
       return kappa;
    }
-#if 1
+#if 0
    /// construct exact levelset
-   circle<2> constructLevelSet() const
+   LevelSetF<2> constructLevelSet() const
    {
-      circle<2> phi_ls;
+      LevelSetF<2> phi_ls;
       phi_ls.xscale = 1.0;
       phi_ls.yscale = 1.0;
       phi_ls.min_x = 0.0;
@@ -168,86 +325,61 @@ public:
       return phi_ls;
    }
 #endif
-#if 0
-   /// construct levelset using given geometry points
-   Algoim::LevelSet<2> constructLevelSet() const
-   {
-      std::vector<TinyVector<double, N>> Xc;
-      std::vector<TinyVector<double, N>> nor;
-      std::vector<TinyVector<double, N - 1>> kappa;
-      int nel = mesh->GetNE();
-      int nbnd;
-      nbnd =  sqrt(nel) ; //128;
-      /// parameters
-      double delta = 1e-10;
-      double xc = 5.0;
-      double yc = 5.0;
-      /// radius
-      double a, b;
-      if (ls == 1)
-      {
-         a = 0.5;
-         b = 0.5;
-      }
-      else
-      {
-         a = 3.0;
-         b = 3.0;
-      }
-/// use this if reading from file
-#if 0
-      const char *geometry_file = "NACA_0012_200pts.dat";
-      ifstream file;
-      file.open(geometry_file);
-      /// read the boundary coordinates from user-provided file
-      while (1)
-      {
-         if (file.eof()) break;
-         TinyVector<double, N> x;
-         for (int j = 0; j < N; ++j)
-         {
-            file >> x(j);
-         }
-         Xc.push_back(x);
-      }
-      file.close();
-      /// construct the normal vector for all boundary points
-      nor = constructNormal(Xc);
-      /// get the curvature vector for all boundary points
-      kappa = getCurvature(Xc);
-      /// get the number of boundary points
-      nbnd = Xc.size();
-      cout << "nbnd " << nbnd << endl;
-#endif
-      double rho = 10 * nbnd;
-/// use this if not reading from file
 #if 1
-      for (int k = 0; k < nbnd; ++k)
+   /// construct approximate levelset for an airfoil
+   LevelSetF<2> constructLevelSet() const
+   {
+      std::vector<uvector<double, N>> Xc;
+      std::vector<uvector<double, N>> xbnd;
+      std::vector<uvector<double, N>> nor;
+      std::vector<uvector<double, N - 1>> kappa;
+      const int npts = 200;
+      const int nbnd = 2 * npts - 3;
+      double tc = 0.12;
+      uvector<double, npts - 1> beta;
+      double beta_max = M_PI / 1.02;
+      double dbeta = beta_max / (npts - 2);
+      beta(0) = beta_max;
+      for (int i = 1; i < npts - 1; ++i)
       {
-         double theta = k * 2.0 * M_PI / nbnd;
-         TinyVector<double, N> x, nrm;
-         x(0) = a * cos(theta);
-         x(1) = b * sin(theta);
-         nrm(0) = 2.0 * (x(0)) / (a * a);
-         nrm(1) = 2.0 * (x(1)) / (b * b);
-         double ds = mag(nrm);
-         TinyVector<double, N> ni;
-         ni = nrm / ds;
-         Xc.push_back(x);
-         nor.push_back(ni);
-         /// curvature correction
-         TinyVector<double, N> dx, d2x;
-         dx = {-a * sin(theta), b * cos(theta)};
-         d2x = {-a * cos(theta), -b * sin(theta)};
-         double num = (dx(0) * d2x(1) - dx(1) * d2x(0));
-         double mag_dx = mag(dx);
-         double den = mag_dx * mag_dx * mag_dx;
-         TinyVector<double, N - 1> curv;
-         curv(0) = num / den;
-         kappa.push_back(curv);
-         // kappa.push_back(0.0);
+         beta(i) = beta(i - 1) - dbeta;
       }
-#endif
+      constexpr bool cte = true;
+      uvector<double, nbnd> xb;
+      uvector<double, nbnd> yb;
+      double a0 = 0.2969;
+      double a1 = -0.126;
+      double a2 = -0.3516;
+      double a3 = 0.2843;
+      double a4 = -0.1015;
+      if (cte)
+      {
+         a4 = -0.1036;
+      }
+      /// upper boundary
+      /// upper boundary
+      for (int i = 0; i < npts; ++i)
+      {
+         xb(i) = (1.0 - cos(beta(i))) / 2.0;
+         double term1 =
+             (a0 * pow(xb(i), 0.5)) + (a1 * xb(i)) + (a2 * (pow(xb(i), 2)));
+         double term2 = (a3 * (pow(xb(i), 3))) + (a4 * (pow(xb(i), 4)));
+         yb(i) = 5.0 * tc * (term1 + term2);
+      }
+      /// lower boundary
+      for (int i = 0; i < npts - 2; ++i)
+      {
+         xb(i + npts - 1) = xb(npts - 3 - i);
+         yb(i + npts - 1) = -yb(npts - 3 - i);
+      }
+      for (int i = 0; i < nbnd; ++i)
+      {
+         uvector<double, N> x;
+         x(0) = xb(i);
+         x(1) = yb(i);
+         Xc.push_back(x);
+      }
+      /// use this if not reading from file
       double lsign;
       /// initialize levelset
       if (ls == 1)
@@ -258,39 +390,42 @@ public:
       {
          lsign = 1.0;
       }
-      /// translate ellipse/airfoil
-      TinyVector<double, N> xcent;
-      xcent(0) = 5.0;
-      xcent(1) = 5.0;
-      std::vector<TinyVector<double, N>> Xcoord;
+      /// construct the normal vector for all boundary points
+      nor = constructNormal(Xc);
+      kappa = getCurvature<cte>(Xc);
+      uvector<double, N> xcent;
+      xcent(0) = 19.5;
+      xcent(1) = 20.0;
       for (int k = 0; k < nbnd; ++k)
       {
-         TinyVector<double, N> xs;
+         uvector<double, N> xs;
          for (int d = 0; d < N; ++d)
          {
             xs(d) = Xc.at(k)(d) + xcent(d);
          }
-         Xcoord.push_back(xs);
+         xbnd.push_back(xs);
       }
-      Algoim::LevelSet<2> phi_ls;
-      phi_ls.initializeLevelSet(Xcoord, nor, kappa, rho, lsign, delta);
+      /// parameters
+      double delta = 1e-10;
+      int ratio = 10;
+      double rho = ratio * nbnd;
+      /// construct levelset
+      LevelSetF<2> phi_ls;
+      phi_ls.xbnd = xbnd;
+      phi_ls.norm = nor;
+      phi_ls.kappa = kappa;
+      phi_ls.lsign = lsign;
+      phi_ls.rho = rho;
       phi_ls.xscale = 1.0;
       phi_ls.yscale = 1.0;
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
-      TinyVector<double, 2> xle, xte;
-      // xle(0) = 19.5;
-      // xle(1) = 20.0;
-      // xte(0) = 19.997592;
-      // xte(1) = 20.0;
-      xle(0) = 4.5;
-      xle(1) = 5.0;
-      xte(0) = 5.5;
-      xte(1) = 5.0;
-      // xle(0) = 1.5;
-      // xle(1) = 2.0;
-      // xte(0) = 2.5;
-      // xte(1) = 2.0;
+      phi_ls.delta = delta;
+      uvector<double, 2> xle, xte;
+      xle(0) = 19.5;
+      xle(1) = 20.0;
+      xte(0) = 20.5;
+      xte(1) = 20.0;
       std::cout << std::setprecision(10) << std::endl;
       cout << "phi , gradphi at leading edge: " << endl;
       cout << phi_ls(xle) << " , " << phi_ls.grad(xle) << endl;
@@ -593,16 +728,7 @@ public:
        std::map<int, IntegrationRule *> &cutSquareIntRules,
        std::map<int, IntegrationRule *> &cutSegmentIntRules) const
    {
-      auto LSF = [&](const uvector<double, 2> &x)
-      {
-         return phi.lsign * (((((x(0) * phi.xscale) + phi.min_x - phi.xc) *
-                               ((x(0) * phi.xscale) + phi.min_x - phi.xc)) /
-                              (phi.a * phi.a)) +
-                             ((((x(1) * phi.yscale) + phi.min_y - phi.yc) *
-                               ((x(1) * phi.yscale) + phi.min_y - phi.yc)) /
-                              (phi.b * phi.b)) -
-                             (1.0));
-      };
+      auto LSF = [&](const uvector<double, 2> &x) { return phi(x); };
       cout << "#cut elements " << cutelems.size() << endl;
       double tol = 1e-14;
       std::vector<uvector<double, N + 1>> qVol, qSurf;
@@ -628,7 +754,7 @@ public:
          xupper(1) = xmax(1);
          std::vector<uvector<double, N + 1>> surf;
          std::vector<uvector<double, N + 1>> vol;
-         GetCutElementQuadScheme(LSF, xmin, xmax, 15, order, surf, vol);
+         GetCutElementQuadScheme(LSF, xmin, xmax, 13, order, surf, vol);
          int i = 0;
          if (vol.size() > 0)
          {
@@ -696,11 +822,11 @@ public:
             cutSegmentIntRules[elemid] = irSurf;
          }
       }
-      std::string fvol = "element_quad_rule_ls_bnds_outer.vtp";
+      std::string fvol = "cut-element-quadrature.vtp";
       outputQuadratureRuleAsVtp(qVol, fvol);
       std::cout << "  scheme.vtp file written for cut cells, containing "
                 << qVol.size() << " quadrature points\n";
-      std::string fsurf = "cut_segment_quad_rule_ls_bnds_outer.vtp";
+      std::string fsurf = "cut-segment-quadrature.vtp";
       outputQuadratureRuleAsVtp(qSurf, fsurf);
       std::cout << "  scheme.vtp file written for cut segments, containing "
                 << qSurf.size() << " quadrature points\n";
@@ -770,17 +896,13 @@ public:
                      }
                      auto LSF = [&](const uvector<double, 1> &x)
                      {
-                        return phi.lsign *
-                               (((((xlim * phi.xscale) + phi.min_x - phi.xc) *
-                                  ((xlim * phi.xscale) + phi.min_x - phi.xc)) /
-                                 (phi.a * phi.a)) +
-                                ((((x(0) * phi.yscale) + phi.min_y - phi.yc) *
-                                  ((x(0) * phi.yscale) + phi.min_y - phi.yc)) /
-                                 (phi.b * phi.b)) -
-                                (1.0));
+                        uvector<double, N> xs;
+                        xs(0) = xlim;
+                        xs(1) = x(0);
+                        return phi(xs);
                      };
                      GetCutInterfaceQuadScheme(
-                         LSF, xmin(1), xmax(1), 15, order, qface);
+                         LSF, xmin(1), xmax(1), 13, order, qface);
                   }
                   else
                   {
@@ -797,14 +919,10 @@ public:
                      }
                      auto LSF = [&](const uvector<double, 1> &x)
                      {
-                        return phi.lsign *
-                               (((((x(0) * phi.xscale) + phi.min_x - phi.xc) *
-                                  ((x(0) * phi.xscale) + phi.min_x - phi.xc)) /
-                                 (phi.a * phi.a)) +
-                                ((((ylim * phi.yscale) + phi.min_y - phi.yc) *
-                                  ((ylim * phi.yscale) + phi.min_y - phi.yc)) /
-                                 (phi.b * phi.b)) -
-                                (1.0));
+                        uvector<double, N> xs;
+                        xs(0) = x(0);
+                        xs(1) = ylim;
+                        return phi(xs);
                      };
                      GetCutInterfaceQuadScheme(
                          LSF, xmin(0), xmax(0), 15, order, qface);
@@ -913,426 +1031,16 @@ public:
          }
       }  /// loop over cut elements
       /// quad rule for faces
-      std::string face = "cut_face_quad_rule.vtp";
+      std::string face = "cut-interface-quadrature.vtp";
       outputQuadratureRuleAsVtp(qface_all, face);
       std::cout << "  scheme.vtp file written for interior faces, containing "
                 << qface_all.size() << " quadrature points\n";
    }
-#if 0
-   /// get integration rule for cut segments
-   void GetCutSegmentIntRule(
-       vector<int> cutelems,
-       vector<int> cutinteriorFaces,
-       int order,
-       double radius,
-       std::map<int, IntegrationRule *> &cutSegmentIntRules,
-       std::map<int, IntegrationRule *> &cutInteriorFaceIntRules)
-   {
-      QuadratureRule<N> qp, qface;
-      for (int k = 0; k < cutelems.size(); ++k)
-      {
-         IntegrationRule *ir = NULL;
-         blitz::TinyVector<double, N> xmin;
-         blitz::TinyVector<double, N> xmax;
-         blitz::TinyVector<double, N> xupper;
-         blitz::TinyVector<double, N> xlower;
-         int side;
-         int dir;
-         double tol = 1e-14;
-         // standard reference element
-         // xlower = {0, 0};
-         // xupper = {1, 1};
-         int elemid = cutelems.at(k);
-         ElementTransformation *trans = mesh->GetElementTransformation(elemid);
-         findBoundingBox(elemid, xmin, xmax);
-         double xscale = xmax[0] - xmin[0];
-         double yscale = xmax[1] - xmin[1];
-         xlower = {xmin[0], xmin[1]};
-         xupper = {xmax[0], xmax[1]};
-         // phi.radius = radius;
-         dir = N;
-         side = -1;
-         auto q =
-             Algoim::quadGen<N>(phi,
-                                Algoim::BoundingBox<double, N>(xlower, xupper),
-                                dir,
-                                side,
-                                order);
-         int i = 0;
-         ir = new IntegrationRule(q.nodes.size());
-         for (const auto &pt : q.nodes)
-         {
-            IntegrationPoint &ip = ir->IntPoint(i);
-            ip.x = (pt.x[0] - xmin[0]) / xscale;
-            ip.y = (pt.x[1] - xmin[1]) / yscale;
-            trans->SetIntPoint(&ip);
-            ip.weight = pt.w / sqrt(trans->Weight());
-            TinyVector<double, N> xp;
-            xp[0] = (pt.x[0]);  //* phi.xscale) + phi.min_x;
-            xp[1] = (pt.x[1]);  //* phi.yscale) + phi.min_y;
-            qp.evalIntegrand(xp, pt.w);
-            i = i + 1;
-            // cout << "elem " << elemid << " , " << ip.weight << endl;
-            // double xqp = (pt.x[0]);// * phi.xscale) + phi.min_x;
-            // double yqp = (pt.x[1]);// * phi.yscale) + phi.min_y;
-            MFEM_ASSERT(
-                ip.weight > 0,
-                "integration point weight is negative in curved surface "
-                "int rule from Saye's method");
-         }
-         cutSegmentIntRules[elemid] = ir;
-         mfem::Array<int> orient;
-         mfem::Array<int> fids;
-         mesh->GetElementEdges(elemid, fids, orient);
-         int fid;
-         for (int c = 0; c < fids.Size(); ++c)
-         {
-            fid = fids[c];
-            if (find(cutinteriorFaces.begin(), cutinteriorFaces.end(), fid) !=
-                cutinteriorFaces.end())
-            {
-               if (cutInteriorFaceIntRules[fid] == NULL)
-               {
-                  // cout << "fid " << fid  << endl;
-                  FaceElementTransformations *trans;
-                  trans = mesh->GetInteriorFaceTransformations(fid);
-                  // cout << "trans  " << trans->Face->ElementNo << endl;
-                  // cout << "face elements " << trans->Elem1No <<  "  , " <<
-                  // trans->Elem2No << endl;
-                  mfem::Array<int> v;
-                  mesh->GetEdgeVertices(fid, v);
-                  double *v1coord, *v2coord;
-                  v1coord = mesh->GetVertex(v[0]);
-                  v2coord = mesh->GetVertex(v[1]);
-                  if (abs(v1coord[0] - v2coord[0]) < 1e-15)
-                  {
-                     dir = 0;
-                     // if (v1coord[0] > v2coord[1])
-                     if (abs(v1coord[0] - xmax[0]) > 1e-15)
-                     {
-                        side = 0;
-                     }
-                     else
-                     {
-                        side = 1;
-                     }
-                  }
-                  else
-                  {
-                     dir = 1;
-                     if (abs(v1coord[1] - xmax[1]) > 1e-15)
-                     {
-                        side = 0;
-                     }
-                     else
-                     {
-                        side = 1;
-                     }
-                  }
-                  auto q = Algoim::quadGen<N>(
-                      phi,
-                      Algoim::BoundingBox<double, N>(xlower, xupper),
-                      dir,
-                      side,
-                      order);
-                  int i = 0;
-                  ir = new IntegrationRule(q.nodes.size());
-                  for (const auto &pt : q.nodes)
-                  {
-                     IntegrationPoint &ip = ir->IntPoint(i);
-                     ip.y = 0.0;
-                     if (dir == 0)
-                     {
-                        if (v1coord[1] < v2coord[1])
-                        {
-                           if (-1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                              // cout << "pt.x[1] " << pt.x[1] << endl;
-                              // cout << "ip.x " << ip.x << endl;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[1] - xmin[1]) / yscale;
-                              // cout << "pt.x[1] " << pt.x[1] << endl;
-                              // cout << "ip.x " << ip.x << endl;
-                           }
-                        }
-                        else
-                        {
-                           if (1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[1] - xmin[1]) / yscale;
-                           }
-                        }
-                     }
-                     else if (dir == 1)
-                     {
-                        if (v1coord[0] < v2coord[0])
-                        {
-                           if (-1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
-                              // cout << "pt.x[0] " << pt.x[0] << endl;
-                              // cout << "ip.x " << ip.x << endl;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[0] - xmin[0]) / xscale;
-                           }
-                        }
 
-                        else
-                        {
-                           if (1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[0] - xmin[0]) / xscale;
-                           }
-
-                           // cout << "pt.x[0] " << pt.x[0] << endl;
-                           // cout << "ip.x " << ip.x << endl;
-                        }
-                     }
-                     TinyVector<double, N> xp;
-                     xp[0] = pt.x[0];
-                     xp[1] = pt.x[1];
-                     qface.evalIntegrand(xp, pt.w);
-                     trans->SetIntPoint(&ip);
-                     ip.weight = pt.w / trans->Weight();
-                     i = i + 1;
-                     // scaled to original element space
-                     double xq = (pt.x[0]);  //* phi.xscale) + phi.min_x;
-                     double yq = (pt.x[1]);  //* phi.yscale) + phi.min_y;
-                     MFEM_ASSERT(ip.weight > 0,
-                                 "integration point weight is negative from "
-                                 "Saye's method");
-                     MFEM_ASSERT(
-                         (phi(pt.x) < tol),
-                         " phi = " << phi(pt.x) << " : "
-                                   << "levelset function positive at the "
-                                      "quadrature point (Saye's method)");
-                     MFEM_ASSERT(
-                         (xq <= (max(v1coord[0], v2coord[0]))) &&
-                             (xq >= (min(v1coord[0], v2coord[0]))),
-                         "integration point (xcoord) not on element face "
-                         "(Saye's rule)");
-                     MFEM_ASSERT(
-                         (yq <= (max(v1coord[1], v2coord[1]))) &&
-                             (yq >= (min(v1coord[1], v2coord[1]))),
-                         "integration point (ycoord) not on element face "
-                         "(Saye's rule)");
-                  }
-                  cutInteriorFaceIntRules[fid] = ir;
-               }
-            }
-         }
-      }  /// loop over cut elements
-      std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
-      Algoim::outputQuadratureRuleAsVtpXML(qp, f);
-      std::cout << "  scheme.vtp file written for cut segments, containing "
-                << qp.nodes.size() << " quadrature points\n";
-      /// quad rule for faces
-      std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
-      Algoim::outputQuadratureRuleAsVtpXML(qface, face);
-      std::cout << "  scheme.vtp file written for interior faces, containing "
-                << qface.nodes.size() << " quadrature points\n";
-   }
-   /// get integration rule for cut segments
-   void GetCutBdrSegmentIntRule(
-       vector<int> cutelems,
-       vector<int> cutBdrFaces,
-       int order,
-       double radius,
-       std::map<int, IntegrationRule *> &cutBdrFaceIntRules)
-   {
-      QuadratureRule<N> qbdrface;
-      for (int k = 0; k < cutelems.size(); ++k)
-      {
-         IntegrationRule *ir;
-         blitz::TinyVector<double, N> xmin;
-         blitz::TinyVector<double, N> xmax;
-         blitz::TinyVector<double, N> xupper;
-         blitz::TinyVector<double, N> xlower;
-         int side;
-         int dir;
-         double tol = 1e-16;
-         // standard reference element
-         // xlower = {0, 0};
-         // xupper = {1, 1};
-         int elemid = cutelems.at(k);
-         findBoundingBox(elemid, xmin, xmax);
-         double xscale = xmax[0] - xmin[0];
-         double yscale = xmax[1] - xmin[1];
-         mfem::Array<int> orient;
-         mfem::Array<int> fids;
-         xlower = {xmin[0], xmin[1]};
-         xupper = {xmax[0], xmax[1]};
-         mesh->GetElementEdges(elemid, fids, orient);
-         int fid;
-         for (int c = 0; c < fids.Size(); ++c)
-         {
-            fid = fids[c];
-            if (find(cutBdrFaces.begin(), cutBdrFaces.end(), fid) !=
-                cutBdrFaces.end())
-            {
-               if (cutBdrFaceIntRules[elemid] == NULL)
-               {
-                  FaceElementTransformations *trans;
-                  trans = mesh->GetFaceElementTransformations(fid);
-                  mfem::Array<int> v;
-                  mesh->GetEdgeVertices(fid, v);
-                  double *v1coord, *v2coord;
-                  v1coord = mesh->GetVertex(v[0]);
-                  v2coord = mesh->GetVertex(v[1]);
-                  if (abs(v1coord[0] - v2coord[0]) < 1e-15)
-                  {
-                     dir = 0;
-
-                     if (abs(v1coord[0] - xmax[0]) > 1e-15)
-                     {
-                        side = 0;
-                     }
-                     else
-                     {
-                        side = 1;
-                     }
-                  }
-                  else
-                  {
-                     dir = 1;
-                     if (abs(v1coord[1] - xmax[1]) > 1e-15)
-                     {
-                        side = 0;
-                     }
-                     else
-                     {
-                        side = 1;
-                     }
-                  }
-                  auto q = Algoim::quadGen<N>(
-                      phi,
-                      Algoim::BoundingBox<double, N>(xlower, xupper),
-                      dir,
-                      side,
-                      order);
-                  int i = 0;
-                  ir = new IntegrationRule(q.nodes.size());
-                  for (const auto &pt : q.nodes)
-                  {
-                     IntegrationPoint &ip = ir->IntPoint(i);
-                     ip.y = 0.0;
-                     if (dir == 0)
-                     {
-                        if (v1coord[1] < v2coord[1])
-                        {
-                           if (-1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[1] - xmin[1]) / yscale;
-                           }
-                        }
-                        else
-                        {
-                           if (1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[1] - xmin[1]) / yscale;
-                           }
-                        }
-                     }
-                     else if (dir == 1)
-                     {
-                        if (v1coord[0] < v2coord[0])
-                        {
-                           if (-1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[0] - xmin[0]) / xscale;
-                           }
-                        }
-
-                        else
-                        {
-                           if (1 == orient[c])
-                           {
-                              ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
-                           }
-                           else
-                           {
-                              ip.x = (pt.x[0] - xmin[0]) / xscale;
-                           }
-                        }
-                     }
-                     trans->SetIntPoint(&ip);
-                     ip.weight = pt.w / trans->Weight();
-                     i = i + 1;
-                     // scaled to original element space
-                     TinyVector<double, N> xp;
-                     xp[0] = pt.x[0];
-                     xp[1] = pt.x[1];
-                     qbdrface.evalIntegrand(xp, pt.w);
-                     double xq = (pt.x[0]);
-                     double yq = (pt.x[1]);
-                     // cout << setprecision(
-                     //             11)
-                     //      << "int rule " << xq << " , " << yq << " : " <<
-                     //      pt.w << endl;
-                     // cout << "ymax " << v2coord[1] << " , ymin " <<
-                     // v1coord[1] << endl;
-                     // cout << "phi(pt.x) " << phi(pt.x) << endl;
-
-                     MFEM_ASSERT(ip.weight > 0,
-                                 "integration point weight is negative from "
-                                 "Saye's method");
-                     MFEM_ASSERT(
-                         (phi(pt.x) < tol),
-                         " phi = " << phi(pt.x) << " : "
-                                   << "levelset function positive at the "
-                                      "quadrature point (Saye's method)");
-                     MFEM_ASSERT((xq <= (max(v1coord[0], v2coord[0]))) &&
-                                     (xq >= (min(v1coord[0], v2coord[0]))),
-                                 "integration point (xcoord) not on element "
-                                 "face (Saye's rule)");
-                     MFEM_ASSERT((yq <= (max(v1coord[1], v2coord[1]))) &&
-                                     (yq >= (min(v1coord[1], v2coord[1]))),
-                                 "integration point (ycoord) not on element "
-                                 "face (Saye's rule)");
-                  }
-                  cutBdrFaceIntRules[elemid] = ir;
-                  // delete ir; /// this is a problem
-               }
-            }
-         }
-      }
-      /// quad rule for faces
-      std::ofstream face("bdr_cut_face_quad_rule_outer.vtp");
-      Algoim::outputQuadratureRuleAsVtpXML(qbdrface, face);
-      std::cout << "  scheme.vtp file written for boundary faces, containing "
-                << qbdrface.nodes.size() << " quadrature points\n";
-   }
-#endif
 protected:
    mfem::Mesh *mesh;
-   // mutable circle<N> phi_c;
    // Algoim::LevelSet<N> phi;
-   circle<N> phi;
+   LevelSetF<N> phi;
 };
 }  // namespace mach
 

@@ -311,7 +311,7 @@ public:
        adept::Stack &diff_stack,
        const mfem::FiniteElementCollection *fe_coll,
        std::map<int, IntegrationRule *> _cutSegmentIntRules,
-      /*Algoim::LevelSet<2> */  circle<2> _phi,
+      /*Algoim::LevelSet<2> */  LevelSetF<2> _phi,
        int num_state_vars = 1,
        double a = 1.0)
     : num_states(num_state_vars),
@@ -375,7 +375,7 @@ protected:
    /// integration rule for embedded geom boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
    /// levelset to calculate normal vectors
-   circle<2> phi;
+   LevelSetF<2> phi;
    //Algoim::LevelSet<2> phi;
 #endif
 
