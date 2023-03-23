@@ -66,6 +66,7 @@ ParGalerkinDifference::ParGalerkinDifference(
     mach::MeshType *pm,
     const FiniteElementCollection *f,
     std::vector<bool> _embeddedElements,
+    std::vector<bool> _cutElements,
     int vdim,
     int ordering,
     int de,
@@ -77,7 +78,8 @@ ParGalerkinDifference::ParGalerkinDifference(
    dim = pm->Dimension();
    fec = f;
    comm = _comm;
-   embeddedElements = _embeddedElements;
+   embeddedElements = _embeddedElements,
+   cutElements = _cutElements;
 
    el_offset = GetParMesh()->GetGlobalElementNum(0);
    cout << "el_offset " << el_offset << endl;
@@ -514,8 +516,8 @@ void ParGalerkinDifference::BuildGDProlongation()
                              stencil_elid,
                              cent_mat,
                              V);  // old stencil approach
-         if (i == 365 || i == 716 || i == 429)
-         {
+         // if (i == 365 || i == 716 || i == 429)
+         // {
             cout << " =================================================== "
                  << endl;
             cout << "#elements in final stencil " << stencil_elid.Size()
@@ -524,7 +526,7 @@ void ParGalerkinDifference::BuildGDProlongation()
             stencil_elid.Print(cout, stencil_elid.Size());
             cout << " =================================================== "
                  << endl;
-         }
+        // }
 
          // 2. build the quadrature and barycenter coordinate matrices
          BuildNeighbourMat(stencil_elid, quad_mat);
@@ -680,6 +682,10 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
                                                 DenseMatrix &V) const
 {
    int el_id = elmt_id[0];
+   mfem::Vector cent_coord(dim);
+   GetElementCenter(el_id, cent_coord);
+   double ycent = cent_coord(1);
+   double yref = 20.0;
    ofstream cond_file;
    cond_file.open("vand_cond_cut.txt",
                   std::ios_base::app);  // append instead of overwrite
@@ -716,7 +722,30 @@ void ParGalerkinDifference::buildVandermondeMat(int dim,
          {
             if (embeddedElements.at(adj[i]) == false)
             {
-               stencil_elid.Append(adj[i]);
+               if (cutElements.at(el_id) == true)
+               {
+                  mfem::Vector cent_coord(dim);
+                  GetElementCenter(adj[i], cent_coord);
+                  double yc = cent_coord(1);
+                  if (ycent >= yref)
+                  {
+                     if (yc >= ycent)
+                     {
+                        stencil_elid.Append(adj[i]);
+                     }
+                  }
+                  else
+                  {
+                     if (yc <= ycent)
+                     {
+                        stencil_elid.Append(adj[i]);
+                     }
+                  }
+               }
+               else
+               {
+                  stencil_elid.Append(adj[i]);
+               }
             }
          }
       }

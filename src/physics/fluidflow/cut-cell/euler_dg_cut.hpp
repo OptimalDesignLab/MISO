@@ -120,6 +120,8 @@ protected:
    std::map<int, IntegrationRule *> cutBdrFaceIntRules_outer;
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
+   /// cut elements boolean vector
+   std::vector<bool> cutElements;
    // vector of cut interior faces
    std::vector<int> cutInteriorFaces;
      // vector of cut interior faces by outer circle

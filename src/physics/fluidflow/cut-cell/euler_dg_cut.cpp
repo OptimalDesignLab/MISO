@@ -40,7 +40,6 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    {
       throw MachException("ipitch axis must be between 0 and 2!");
    }
-   CutCell<2, 1> cut_init(mesh.get());
    /// int rules for cut elements
    cout << "#elements " << mesh->GetNE() << endl;
    ofstream sol_ofs("cart_mesh_dg_cut_airfoil.vtk");
@@ -68,8 +67,13 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       if (cutcell.cutByGeom(i) == true)
       {
          cutelems.push_back(i);
+         cutElements.push_back(true);
          cutelems_inner.push_back(i);
          cout << "cut element inner id " << i << endl;
+      }
+      else
+      {
+         cutElements.push_back(false);
       }
       if (vortex)
       {
@@ -250,6 +254,7 @@ void CutEulerDGSolver<dim, entvar>::setGDSpace(int fe_order)
    fes_gd.reset(new GDSpaceType(mesh.get(),
                                 fec.get(),
                                 embeddedElements,
+                                cutElements,
                                 num_state,
                                 Ordering::byVDIM,
                                 fe_order,

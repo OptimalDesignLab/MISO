@@ -28,7 +28,6 @@
 #include "utils.hpp"
 #include "mfem_extensions.hpp"
 #include "default_options.hpp"
-#include "solver.hpp"
 #include "sbp_fe.hpp"
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
@@ -108,6 +107,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    for (int k = 0; k < mesh->GetNE(); ++k)
    {
       embeddedElements.push_back(false);
+      cutElements.push_back(false);
    }
    // mesh->EnsureNodes();
    // mesh_fes = static_cast<SpaceType*>(mesh->GetNodes()->FESpace());
@@ -352,6 +352,7 @@ void AbstractSolver::setGDSpace(int fe_order)
    fes_gd.reset(new GDSpaceType(mesh.get(),
                                 fec.get(),
                                 embeddedElements,
+                                cutElements,
                                 num_state,
                                 Ordering::byVDIM,
                                 fe_order,
@@ -376,8 +377,8 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
-      /// use this criteria for an airfoil geometry
-      #if 1
+/// use this criteria for an airfoil geometry
+#if 1
       uvector<double, 2> airfoil_cent;
       uvector<double, 2> airfoil_le;
       uvector<double, 2> airfoil_te;
@@ -432,7 +433,28 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_cent;
             double dist = norm(x_diff);
-            if (abs(dist) < 8.0 && cut_init.insideBoundary(i) == 0)
+            if (abs(dist) < 10.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 6.25 && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
@@ -502,6 +524,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
+      double rdist = 0.3;
       for (int k = 0; k < ncr_bdr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -516,7 +539,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_le;
             double dist = norm(x_diff);
-            if (abs(dist) < 0.3 && cut_init.insideBoundary(i) == 0)
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
@@ -537,16 +560,115 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
             uvector<double, 2> x_diff;
             x_diff = x_c - airfoil_te;
             double dist = norm(x_diff);
-            if (abs(dist) < 0.3 && cut_init.insideBoundary(i) == 0)
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
             {
                marked_elements1.Append(i);
             }
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-      #endif
-      /// use this criteria for circle geometry
-      #if 0
+      rdist *= 0.5;
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_le;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_te;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+// rdist *= 0.5;
+// for (int k = 0; k < ncr_bdr; ++k)
+// {
+//    mfem::Array<int> marked_elements1;
+//    for (int i = 0; i < smesh->GetNE(); ++i)
+//    {
+//       Vector cent;
+//       cut_init.GetElementCenter(i, cent);
+//       uvector<double, 2> x_c;
+//       x_c(0) = cent(0);
+//       x_c(1) = cent(1);
+//       double lsv = phi_init(x_c);
+//       uvector<double, 2> x_diff;
+//       x_diff = x_c - airfoil_le;
+//       double dist = norm(x_diff);
+//       if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+//       {
+//          marked_elements1.Append(i);
+//       }
+//    }
+//    smesh->GeneralRefinement(marked_elements1, 1, 1);
+// }
+// for (int k = 0; k < ncr_bdr; ++k)
+// {
+//    mfem::Array<int> marked_elements1;
+//    for (int i = 0; i < smesh->GetNE(); ++i)
+//    {
+//       Vector cent;
+//       cut_init.GetElementCenter(i, cent);
+//       uvector<double, 2> x_c;
+//       x_c(0) = cent(0);
+//       x_c(1) = cent(1);
+//       double lsv = phi_init(x_c);
+//       uvector<double, 2> x_diff;
+//       x_diff = x_c - airfoil_te;
+//       double dist = norm(x_diff);
+//       if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+//       {
+//          marked_elements1.Append(i);
+//       }
+//    }
+//    smesh->GeneralRefinement(marked_elements1, 1, 1);
+// }
+// for (int k = 0; k < ncr_bdr; ++k)
+// {
+//    mfem::Array<int> marked_elements1;
+//    for (int i = 0; i < smesh->GetNE(); ++i)
+//    {
+//       if (cut_init.cutByGeom(i) == true &&
+//           cut_init.insideBoundary(i) == 0)
+//       {
+//          marked_elements1.Append(i);
+//       }
+//    }
+//    smesh->GeneralRefinement(marked_elements1, 1, 1);
+// }
+#endif
+/// use this criteria for circle geometry
+#if 0
       uvector<double, 2> circle_cent;
       circle_cent(0) = 5.0;
       circle_cent(1) = 5.0;
@@ -618,7 +740,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
          }
          smesh->GeneralRefinement(marked_elements1, 1, 1);
       }
-      #endif
+#endif
    }
    // native MFEM mesh
    else if (mesh_ext == "mesh")
@@ -1487,7 +1609,8 @@ void AbstractSolver::printAbsError(
       absSolerr(i) = std::log(abs(absSolerr(i)));
    }
    CutCell<2, 1> cut_init(mesh.get());
-   /*Algoim::LevelSet<2> */  LevelSetF<2> phi_init = cut_init.constructLevelSet();
+   /*Algoim::LevelSet<2> */ LevelSetF<2> phi_init =
+       cut_init.constructLevelSet();
    for (int i = 0; i < fes->GetNE(); i++)
    {
       if (cut_init.insideBoundary(i) == true)
