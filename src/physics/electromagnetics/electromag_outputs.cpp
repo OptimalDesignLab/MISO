@@ -1733,13 +1733,13 @@ double calcOutput(PMDemagOutput &output, const MachInputs &inputs)
 {
    setInputs(output, inputs);
 
-   mfem::Vector flux_state;
-   setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
-   ///TODO: Remove once done debugging
-   std::cout << "flux_state.Size() = " << flux_state.Size() << "\n";
-   std::cout << "flux_state.Min() = " << flux_state.Min() << "\n";
-   std::cout << "flux_state.Max() = " << flux_state.Max() << "\n";
-   std::cout << "flux_state.Sum() = " << flux_state.Sum() << "\n";
+   // mfem::Vector flux_state;
+   // setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
+   // ///TODO: Remove once done debugging
+   // std::cout << "flux_state.Size() = " << flux_state.Size() << "\n";
+   // std::cout << "flux_state.Min() = " << flux_state.Min() << "\n";
+   // std::cout << "flux_state.Max() = " << flux_state.Max() << "\n";
+   // std::cout << "flux_state.Sum() = " << flux_state.Sum() << "\n";
    // std::cout << "flux_state=np.array([";
    // for (int j = 0; j < flux_state.Size(); j++) {std::cout << flux_state.Elem(j) << ", ";}
    // std::cout << "])\n";   
@@ -1784,10 +1784,10 @@ PMDemagOutput::PMDemagOutput(
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
 
-      std::cout << "temperature_field.Size() = " << temperature_field->Size() << "\n";
-      std::cout << "temperature_field.Min() = " << temperature_field->Min() << "\n";
-      std::cout << "temperature_field.Max() = " << temperature_field->Max() << "\n";
-      std::cout << "temperature_field.Sum() = " << temperature_field->Sum() << "\n";
+      // std::cout << "temperature_field.Size() = " << temperature_field->Size() << "\n";
+      // std::cout << "temperature_field.Min() = " << temperature_field->Min() << "\n";
+      // std::cout << "temperature_field.Max() = " << temperature_field->Max() << "\n";
+      // std::cout << "temperature_field.Sum() = " << temperature_field->Sum() << "\n";
 
       // std::cout << "PMDemagOutput, electromag_outputs.cpp, temperature field seen\n";
    }

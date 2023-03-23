@@ -151,6 +151,59 @@ private:
    double exponent;
 };
 
+/// Simple linear coefficient (vectorstatecoefficient analog) for testing IEAggDemag 
+class LinearVectorCoefficient : public mach::VectorStateCoefficient
+{
+public:
+   LinearVectorCoefficient(int dim, double val = 1.0) : mach::VectorStateCoefficient(dim), value(val) {}
+   void Eval(mfem::Vector &vec, 
+            mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      vec = value; // independent of state value
+   }
+
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      // Not using, just need to "implement" because it is virtual in the base class
+   }
+
+private:
+   int dim;
+   double value;
+};
+
+/// Simple nonlinear coefficient (vectorstatecoefficient analog) for testing IEAggDemag 
+class NonLinearVectorCoefficient : public mach::VectorStateCoefficient
+{
+public:
+   NonLinearVectorCoefficient(int dim, double exponent = -0.5) : mach::VectorStateCoefficient(dim), exponent(exponent) {}   
+   
+   void Eval(mfem::Vector &vec, 
+            mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      vec = 0.5*pow(state+1, exponent);
+   }
+
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      // Not using, just need to "implement" because it is virtual in the base class
+   }
+
+private:
+   int dim;
+   double exponent;
+};
+
 /*** No longer using SigmaCoefficient (unnecessary)
 /// Simple coefficient for conductivity for testing resistivity (and DCLFIMS)
 class SigmaCoefficient : public mach::StateCoefficient

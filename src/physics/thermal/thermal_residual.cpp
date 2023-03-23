@@ -87,6 +87,23 @@ void jacobianVectorProduct(ThermalResidual &residual,
                            const std::string &wrt,
                            mfem::Vector &res_dot)
 {
+   // if wrt starts with prefix "thermal_load"
+   if (wrt.rfind("thermal_load", 0) == 0)
+   {
+      ///TODO: Test this implementation
+      // Thermal load is subtracted from the (stiffness matrix * thermal) state term
+      // Therefore derivative of residual w/r/t thermal_load is negative identity matrix (represented as negative of input vector in matrix-free form)
+      res_dot = 0.0;
+      res_dot.Add(-1.0, wrt_dot);
+      return;
+   }
+   // if wrt starts with prefix "temperature" 
+   ///TODO: Determine if this should be "state" instead of temperature
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      /// NOTE: Derivative of the thermal residual wrt the thermal state is Jacobian (already implemented above)
+      return;
+   }
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
 }
 
@@ -103,6 +120,23 @@ void vectorJacobianProduct(ThermalResidual &residual,
                            const std::string &wrt,
                            mfem::Vector &wrt_bar)
 {
+   // if wrt starts with prefix "thermal_load"
+   if (wrt.rfind("thermal_load", 0) == 0)
+   {
+      ///TODO: Test this implementation
+      // Thermal load is subtracted from the (stiffness matrix * thermal) state term
+      // Therefore derivative of residual w/r/t thermal_load is negative identity matrix (represented as negative of input vector in matrix-free form)
+      wrt_bar = 0.0;
+      wrt_bar.Add(-1.0, res_bar);
+      return;
+   }
+   // if wrt starts with prefix "temperature"
+   ///TODO: Determine if this should be "state" instead of temperature
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      /// NOTE: Derivative of the thermal residual wrt the thermal state is Jacobian (already implemented above)
+      return;
+   }
    vectorJacobianProduct(residual.res, res_bar, wrt, wrt_bar);
 }
 
@@ -133,7 +167,7 @@ ThermalResidual::ThermalResidual(
           "Thermal residual currently only supports H1 state field!\n");
    }
 
-   res.addDomainIntegrator(new mfem::DiffusionIntegrator(*kappa));
+   res.addDomainIntegrator(new mach::DiffusionIntegrator(*kappa));
 
    if (options.contains("bcs"))
    {

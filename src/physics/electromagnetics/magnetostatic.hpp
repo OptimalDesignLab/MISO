@@ -16,6 +16,8 @@
 #include "conductivity_coefficient.hpp"
 #include "cal2_kh_coefficient.hpp"
 #include "cal2_ke_coefficient.hpp"
+#include "magnetic_source_functions.hpp"
+#include "demag_flux_coefficient.hpp"
 
 namespace mach
 {
@@ -34,6 +36,10 @@ private:
    MeshDependentCoefficient rho;
    /// Coefficient representing the temperature-dependent electrical conductivity
    ConductivityCoefficient sigma;
+   /// Coefficient representing the magnetization in the permanent magnets
+   MagnetizationCoefficient mag_coeff;
+   /// Coefficient representing the knee point flux density
+   DemagFluxCoefficient B_knee;
 
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state

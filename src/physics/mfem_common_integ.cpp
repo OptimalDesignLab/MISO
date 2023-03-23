@@ -7,6 +7,8 @@
 
 #include "mfem_common_integ.hpp"
 
+#include "demag_flux_coefficient.hpp"
+
 using namespace mfem;
 
 namespace mach
@@ -18,9 +20,9 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
 {
    // std::cout << "TODO: Ultimately remove these comments from mfem_common_integ.cpp\n";
 
-   std::cout << "elfun=np.array([";
-   for (int j = 0; j < elfun.Size(); j++) {std::cout << elfun.Elem(j) << ", ";}
-   std::cout << "])\n";
+   // std::cout << "elfun=np.array([";
+   // for (int j = 0; j < elfun.Size(); j++) {std::cout << elfun.Elem(j) << ", ";}
+   // std::cout << "])\n";
 
    int ndof1 = el1.GetDof();
    // int dim = el1.GetDim()+1;
@@ -45,65 +47,6 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
    }
 
    double heat_flux = 0.0;
-   ///TODO: Unfold the below for previous (incorrect) implementation
-   /*
-   for (int i = 0; i < ir->GetNPoints(); i++)
-   {
-      // Set the integration point in the face and the neighboring element
-      const auto &ip = ir->IntPoint(i);
-      trans.SetAllIntPoints(&ip);
-      
-      // const double w = ip.weight * trans.Face->Weight();
-      const double w = ip.weight / trans.Face->Weight(); // mfem::Difusion integrator divides instead of multiplies
-
-      // Access the neighboring element's integration point
-      const auto &eip = trans.GetElement1IntPoint();
-      // trans.Elem1->SetIntPoint(&eip);
-
-      mfem::Vector integration_point;
-      trans.Transform(eip, integration_point);
-      std::cout << "integration_point = ";
-      integration_point.Print();
-      std::cout << "\n";
-
-      el1.CalcDShape(eip, dshape);
-      // std::cout << "dshape =";
-      // dshape.Print();
-      
-      if (dim > 1)
-      {
-         CalcOrtho(trans.Jacobian(), normal_vect);
-         ///TODO: Scale normal vector
-      }
-      else
-      {
-         normal_vect[0] = 1.0;
-      }
-      mfem::Vector q(dim);
-      
-      std::cout << "trans.Elem1->InverseJacobian():\n";
-      trans.Elem1->InverseJacobian().Print();
-
-      // Mult(Jinv.Transpose(), dshape, dshapedxt);
-      MultABt(dshape, trans.Elem1->InverseJacobian(), dshapedxt);
-      
-      dshapedxt.MultTranspose(elfun,q);
-
-      std::cout << "dshapedxt =";
-      dshapedxt.Print();
-      // dshape.MultTranspose(elfun,q);
-      dshapedxt.MultTranspose(elfun,q);
-      double val = q * normal_vect;
-      // std::cout << "\nq =";
-      // q.Print();
-      // std::cout << "\nn =";
-      // normal_vect.Print();
-      // std::cout << "\nq * n = " << val << "\n";
-      double k = kappa.Eval(trans, eip);
-      std::cout << "-k*(grad(T) dot n)*w = " << -k << "*" << val << "*" << w << " = " << -k*val*w << "\n";
-      fun += -k*val*w;
-   }
-   */
    for (int p = 0; p < ir->GetNPoints(); p++)
    {
       // std::cout << "heat_flux contribution before this next ip = " << heat_flux << "\n";
@@ -117,8 +60,8 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
       const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
       mfem::Vector integration_point;
       trans.Transform(eip1, integration_point);
-      std::cout << "integration_point = ";
-      integration_point.Print();
+      // std::cout << "integration_point = ";
+      // integration_point.Print();
 
       if (dim == 1)
       {
@@ -133,7 +76,7 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
       el1.CalcDShape(eip1, dshape1);
       double w = ip.weight/trans.Elem1->Weight();
 
-      std::cout << "kappa @ ip = " << kappa.Eval(*trans.Elem1, eip1);
+      // std::cout << "kappa @ ip = " << kappa.Eval(*trans.Elem1, eip1);
 
       // Negative sign because -k grad(T)
       w *= -kappa.Eval(*trans.Elem1, eip1);
@@ -153,7 +96,7 @@ double BoundaryNormalIntegrator::GetFaceEnergy(const mfem::FiniteElement &el1,
          // std::cout << "heat_flux = " << heat_flux << "\n";
       }
    }
-   std::cout << "heat_flux for this edge = " << heat_flux << "\n";
+   // std::cout << "heat_flux for this edge = " << heat_flux << "\n";
    return heat_flux;
 }
 
@@ -1612,6 +1555,435 @@ void IECurlMagnitudeAggregateIntegratorDenominatorMeshSens::
          }
       }
    }
+}
+
+void setOptions(IEAggregateDemagIntegratorNumerator &integ,
+                const nlohmann::json &options)
+{
+   if (options.contains("rho"))
+   {
+      integ.rho = options["rho"].get<double>();
+   }
+}
+
+void setInputs(IEAggregateDemagIntegratorNumerator &integ, const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "true_max", integ.true_max);
+}
+
+double IEAggregateDemagIntegratorNumerator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+// #ifdef MFEM_THREAD_SAFE
+//    mfem::Vector shape(elfun.Size());
+// #else
+//    shape.SetSize(elfun.Size());
+// #endif
+
+   // Create the vector that will store the magnetization
+   ///TODO: Determine if need mag_flux_buffer
+   double mag_flux_buffer[3] = {};
+   int space_dim = trans.GetSpaceDim();
+   // mfem::Vector M(mag_flux_buffer, space_dim);
+   mfem::Vector M(space_dim);
+
+   // Handle the temperature field
+   const int element = trans.ElementNo;
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom corresponding to the temperature field
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the shape functions for the temperature field
+      int ndof = temp_el->GetDof();
+      temp_shape.SetSize(ndof);
+   }
+
+   // Handle the B field
+   const FiniteElement *B_el=nullptr;
+   if (flux_density_field != nullptr)
+   {
+      B_el = flux_density_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom corresponding to the B field
+      auto *dof_tr = flux_density_field->FESpace()->GetElementVDofs(element, vdofs);
+      flux_density_field->GetSubVector(vdofs, B_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(B_elfun);
+      }
+      
+      // Set the shape functions for the B field
+      int ndof = B_el->GetDof();
+      B_shape.SetSize(ndof);
+   }
+   // Have vdim = 2 for flux density field
+   mfem::Vector B_x_elfun(B_elfun, 0, B_shape.Size());
+   mfem::Vector B_y_elfun(B_elfun, B_shape.Size(), B_shape.Size());
+
+   // Handle the x component of the B field
+   // const FiniteElement *B_el=nullptr;
+   // if (B_x_field != nullptr)
+   // {
+   //    B_el = B_x_field->FESpace()->GetFE(element);
+
+   //    // Transform the degrees of freedom corresponding to the B_x field
+   //    auto *dof_tr = B_x_field->FESpace()->GetElementVDofs(element, vdofs);
+   //    B_x_field->GetSubVector(vdofs, B_x_elfun);
+   //    if (dof_tr != nullptr)
+   //    {
+   //       dof_tr->InvTransformPrimal(B_x_elfun);
+   //    }
+      
+   //    // Set the shape functions for the B field
+   //    int ndof = B_el->GetDof();
+   //    B_shape.SetSize(ndof);
+   // }
+   // // Handle the y component of the B field
+   // if (B_y_field != nullptr)
+   // {
+   //    B_el = B_y_field->FESpace()->GetFE(element);
+
+   //    // Transform the degrees of freedom corresponding to the B_y field
+   //    auto *dof_tr = B_y_field->FESpace()->GetElementVDofs(element, vdofs);
+   //    B_y_field->GetSubVector(vdofs, B_y_elfun);
+   //    if (dof_tr != nullptr)
+   //    {
+   //       dof_tr->InvTransformPrimal(B_y_elfun);
+   //    }
+      
+   //    // Set the shape functions for the B field
+   //    int ndof = B_el->GetDof();
+   //    B_shape.SetSize(ndof);
+   // }
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   // std::cout << "IEADIN start of integration point loop\n";
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      mfem::Vector ip_phys;
+      trans.Transform(ip, ip_phys);
+
+      // el.CalcShape(ip, shape);
+
+      // const double g = shape * elfun; // how g was simply defined previously
+      double temperature;
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, temp_shape); // Calculate the values of the shape functions
+         temperature = temp_shape * temp_elfun; // Take dot product to get the value at the integration point
+      }  
+      else
+      {
+         ///TODO: Change default value of 100 if needed (be consistent throughout)
+         temperature = 100+273.15; // default value for temperature in absence of field
+      }
+      ///TODO: mfem::Vector B -> shape functions dotted with B_elfun
+      mfem::Vector B(space_dim);
+      if (flux_density_field != nullptr)
+      {
+         B_el->CalcPhysShape(trans, B_shape); // Calculate the values of the shape functions
+         B(0) = B_shape * B_x_elfun; // Take dot product for 1st vdim to get the value of B_x at the integration point
+         B(1) = B_shape * B_y_elfun; // Take dot product for 2nd vdim to get the value of B_y at the integration point
+         ///TODO: Remove once done debugging
+         // std::cout << "B_x_elfun = ";
+         // B_x_elfun.Print(); 
+         // std::cout << "B_y_elfun = ";
+         // B_y_elfun.Print(); 
+         // std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "\n";
+         // std::cout << "B_shape=\n";
+         // B_shape.Print();
+         // std::cout << "B_elfun=\n";
+         // B_elfun.Print();
+         // std::cout << "B = " << B.Elem(0) << " " << B.Elem(1) << "\n"; 
+      }
+      else
+      {
+         ///TODO: Determine how to handle the absence of a flux density field
+         B = 99.0; // defaulting to an unreasonably high flux density
+      }
+      // mfem::Vector B(space_dim);
+      // if (B_x_field != nullptr)
+      // {
+      //    B_el->CalcPhysShape(trans, B_shape); // Calculate the values of the shape functions
+      //    B(0) = B_shape * B_x_elfun; // Take dot product to get the value at the integration point
+      // }
+      // else
+      // {
+      //    ///TODO: Determine how to handle the absence of a flux density field
+      //    B(0) = 99.0; // defaulting to an unreasonably high flux density
+      // }
+      // if (B_y_field != nullptr)
+      // {
+      //    B_el->CalcPhysShape(trans, B_shape); // Calculate the values of the shape functions
+      //    B(1) = B_shape * B_y_elfun; // Take dot product to get the value at the integration point
+      // }
+      // else
+      // {
+      //    ///TODO: Determine how to handle the absence of a flux density field
+      //    B(1) = 99.0; // defaulting to an unreasonably high flux density
+      // }
+      double B_demag = B_knee.Eval(trans, ip, temperature); 
+      mag_coeff.Eval(M, trans, ip, temperature);
+      const double g = B_demag - (B * M)/M.Norml2();
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      fun += g * exp_rho_g * w;
+      // Outputting results so can visualize in Excel
+      // std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "|T=" << temperature;
+      // std::cout << "|B_demag=" << B_demag << "|B_x=" << B.Elem(0) << "|B_y=" << B.Elem(1);
+      // std::cout << "|M_x=" << M.Elem(0) << "|M_y=" << M.Elem(1) << "|B_dot_M=" << B * M;
+      // std::cout << "|M_Norml2=" << M.Norml2() << "|g=" << g << "|rho=" << rho;
+      // std::cout << "|true_max=" << true_max << "|w=" << w << "|num_contribution=" << g * exp_rho_g * w << "|denom_contribution=" << exp_rho_g * w << "|\n";
+   }
+   // std::cout << "IEAggregateDemagIntegratorNumerator for element " << element << " = " << fun << "\n";
+   return fun;
+}
+
+void IEAggregateDemagIntegratorNumerator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+   ///TODO: Implement IEAggregateDemagIntegratorNumerator::AssembleElementVector (below is from IEAggregateIntegratorNumerator::AssembleElementVector)
+   /*
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape(elfun.Size());
+#else
+   shape.SetSize(elfun.Size());
+#endif
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      /// fun += g * exp_rho_g * w;
+      const double fun_bar = 1.0;
+      double g_bar = fun_bar * exp_rho_g * w;
+      double exp_rho_g_bar = fun_bar * g * w;
+      // double w_bar = fun_bar * g * exp_rho_g;
+
+      /// double exp_rho_g = exp(rho * (g - true_max));
+      g_bar += exp_rho_g_bar * rho * exp_rho_g;
+
+      /// double g = shape * elfun;
+      elfun_bar.Add(g_bar, shape);
+   }
+   */
+}
+
+void setOptions(IEAggregateDemagIntegratorDenominator &integ,
+                const nlohmann::json &options)
+{
+   if (options.contains("rho"))
+   {
+      integ.rho = options["rho"].get<double>();
+   }
+}
+
+void setInputs(IEAggregateDemagIntegratorDenominator &integ,
+               const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, "true_max", integ.true_max);
+}
+
+double IEAggregateDemagIntegratorDenominator::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+// #ifdef MFEM_THREAD_SAFE
+//    mfem::Vector shape(elfun.Size());
+// #else
+//    shape.SetSize(elfun.Size());
+// #endif
+
+   // Create the vector that will store the magnetization
+   ///TODO: Determine if need mag_flux_buffer
+   double mag_flux_buffer[3] = {};
+   int space_dim = trans.GetSpaceDim();
+   // mfem::Vector M(mag_flux_buffer, space_dim);
+   mfem::Vector M(space_dim);
+
+   // Handle the temperature field
+   const int element = trans.ElementNo;
+   const FiniteElement *temp_el=nullptr;
+   if (temperature_field != nullptr)
+   {
+      temp_el = temperature_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom corresponding to the temperature field
+      auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+      temperature_field->GetSubVector(vdofs, temp_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(temp_elfun);
+      }
+      
+      // Set the shape functions for the temperature field
+      int ndof = temp_el->GetDof();
+      temp_shape.SetSize(ndof);
+   }
+
+   // Handle the B field
+   const FiniteElement *B_el=nullptr;
+   if (flux_density_field != nullptr)
+   {
+      B_el = flux_density_field->FESpace()->GetFE(element);
+
+      // Transform the degrees of freedom corresponding to the B field
+      auto *dof_tr = flux_density_field->FESpace()->GetElementVDofs(element, vdofs);
+      flux_density_field->GetSubVector(vdofs, B_elfun);
+      if (dof_tr != nullptr)
+      {
+         dof_tr->InvTransformPrimal(B_elfun);
+      }
+      
+      // Set the shape functions for the B field
+      int ndof = B_el->GetDof();
+      B_shape.SetSize(ndof);
+   }
+   // Have vdim = 2 for flux density field
+   mfem::Vector B_x_elfun(B_elfun, 0, B_shape.Size());
+   mfem::Vector B_y_elfun(B_elfun, B_shape.Size(), B_shape.Size());
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      mfem::Vector ip_phys;
+      trans.Transform(ip, ip_phys);
+
+      // el.CalcShape(ip, shape);
+
+      //const double g = shape * elfun; // how g was simply defined previously
+      double temperature;
+      if (temperature_field != nullptr)
+      {
+         temp_el->CalcPhysShape(trans, temp_shape); // Calculate the values of the shape functions
+         temperature = temp_shape * temp_elfun; // Take dot product to get the value at the integration point
+      }  
+      else
+      {
+         ///TODO: Change default value of 100 if needed (be consistent throughout)
+         temperature = 100+273.15; // default value for temperature in absence of field
+      }
+      ///TODO: mfem::Vector B -> shape functions dotted with B_elfun
+      mfem::Vector B(space_dim);
+      if (flux_density_field != nullptr)
+      {
+         B_el->CalcPhysShape(trans, B_shape); // Calculate the values of the shape functions
+         B(0) = B_shape * B_x_elfun; // Take dot product for 1st vdim to get the value of B_x at the integration point
+         B(1) = B_shape * B_y_elfun; // Take dot product for 2nd vdim to get the value of B_y at the integration point
+         ///TODO: Remove once done debugging
+         // std::cout << "B_x_elfun = ";
+         // B_x_elfun.Print(); 
+         // std::cout << "B_y_elfun = ";
+         // B_y_elfun.Print(); 
+         // std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "\n";
+         // std::cout << "B_shape=\n";
+         // B_shape.Print();
+         // std::cout << "B_elfun=\n";
+         // B_elfun.Print();
+         // std::cout << "B = " << B.Elem(0) << " " << B.Elem(1) << "\n"; 
+      }
+      else
+      {
+         ///TODO: Determine how to handle the absence of a flux density field
+         B = 99.0; // defaulting to an unreasonably high flux density
+      }
+      double B_demag = B_knee.Eval(trans, ip, temperature); 
+      mag_coeff.Eval(M, trans, ip, temperature);
+      const double g = B_demag - (B * M)/M.Norml2();
+      const double exp_rho_g = exp(rho * (g - true_max));
+      
+      fun += exp_rho_g * w;
+      // Outputting results so can visualize in Excel
+      // std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "|T=" << temperature;
+      // std::cout << "|B_demag=" << B_demag << "|B_x=" << B.Elem(0) << "|B_y=" << B.Elem(1);
+      // std::cout << "|M_x=" << M.Elem(0) << "|M_y=" << M.Elem(1) << "|B_dot_M=" << B * M;
+      // std::cout << "|M_Norml2=" << M.Norml2() << "|g=" << g << "|rho=" << rho;
+      // std::cout << "|true_max=" << true_max << "|w=" << w << "|num_contribution=" << g * exp_rho_g * w << "|denom_contribution=" << exp_rho_g * w << "|\n";
+   }
+   return fun;
+}
+
+void IEAggregateDemagIntegratorDenominator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+   ///TODO: Implement IEAggregateDemagIntegratorDenominator::AssembleElementVector (below is from IEAggregateIntegratorNumerator::AssembleElementVector)
+   /*
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape(elfun.Size());
+#else
+   shape.SetSize(elfun.Size());
+#endif
+
+   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+      const double g = shape * elfun;
+      const double exp_rho_g = exp(rho * (g - true_max));
+
+      /// fun += exp_rho_g * w;
+      double fun_bar = 1.0;
+      double exp_rho_g_bar = fun_bar * w;
+      // double w_bar = fun_bar * exp_rho_g;
+
+      /// double exp_rho_g = exp(rho * (g - true_max));
+      double g_bar = exp_rho_g_bar * rho * exp_rho_g;
+
+      /// double g = shape * elfun;
+      elfun_bar.Add(g_bar, shape);
+   }
+   */
 }
 
 void DiffusionIntegratorMeshSens::AssembleRHSElementVect(

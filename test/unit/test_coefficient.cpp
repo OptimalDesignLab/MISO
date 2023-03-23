@@ -1128,9 +1128,9 @@ TEST_CASE("PMDemagConstraint Coefficient")
                      "alpha_H_ci": -0.57,
                      "H_ci_T0": -1273.0,
                      "alpha_B_knee": 0.005522656,
-                     "beta_B_knee": 0.064272862,
+                     "beta_B_knee": -1.4442405898,
                      "alpha_H_knee": 5.548346445,
-                     "beta_H_knee": -1055.87196
+                     "beta_H_knee": -2571.4027913402
                   }
                }
             }
@@ -1151,7 +1151,8 @@ TEST_CASE("PMDemagConstraint Coefficient")
       // With flux_densities={0.2, 1.0, 2.0, 0.1, 0.7, 1.8}; and temperatures={90.0, 80.0, 120.0, 40.0, 50.0, 20.0};
       // expect to get C_BT={-148.197, 165.436, 725.237, 46.739, -12.416, -1788.199}
       std::vector<double> flux_densities={0.2, 1.0, 2.0, 0.1, 0.7, 1.8};  
-      std::vector<double> temperatures={90.0, 80.0, 120.0, 40.0, 50.0, 20.0};
+      // std::vector<double> temperatures={90.0, 80.0, 120.0, 40.0, 50.0, 20.0};
+      std::vector<double> temperatures={90.0+273.15, 80.0+273.15, 120.0+273.15, 40.0+273.15, 50.0+273.15, 20.0+273.15};
        
       for (int j = 0; j < 1; j++)
       {

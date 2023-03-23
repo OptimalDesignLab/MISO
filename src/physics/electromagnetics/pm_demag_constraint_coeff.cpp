@@ -19,15 +19,15 @@ class PMDemagConstraintEqCoeff : public mach::TwoStateCoefficient
 {
 public:
    /// \brief Define a model to represent the permanent magnetic demagnetization constraint equation coefficient
-   /// \param[in] T0 - the reference temperature (usually 20 deg C). Given by the manufacturer.
-   /// \param[in] alpha_B_r - the remanent flux temperature coefficient. Given by the manufacturer.
-   /// \param[in] B_r_T0 - the remanent flux at the given reference temperature. Given by the manufacturer.
-   /// \param[in] alpha_H_ci - the intrinsic coercivity temperature coefficient. Given by the manufacturer.
-   /// \param[in] H_ci_T0 - the intrinsic coercivity at the given reference temperature. Given by the manufacturer.
-   /// \param[in] alpha_B_knee - the linear slope of the flux density at the knee with respect to temperature. Found by first gathering the flux densities of the knees in the second quadrant, then doing a linear fit to obtain the slope empirically.
-   /// \param[in] beta_B_knee - the y-intercept of the linear fit that approximates the flux density at the knee with respect to temperature. Found by first gathering the flux densities of the knees in the second quadrant, then doing a linear fit to obtain the y-intercept empirically.
-   /// \param[in] alpha_H_knee - the linear slope of the coercive force at the knee with respect to temperature. Found by first gathering the coercive forces of the knees in the second quadrant, then doing a linear fit to obtain the slope empirically.
-   /// \param[in] beta_H_knee - the y-intercept of the linear fit that approximates the coercive forces at the knee with respect to temperature. Found by first gathering the coercive forces of the knees in the second quadrant, then doing a linear fit to obtain the y-intercept empirically.
+   /// \param[in] T0 - the reference temperature (K). Given by the manufacturer.
+   /// \param[in] alpha_B_r - the remanent flux temperature coefficient (%/deg). Given by the manufacturer.
+   /// \param[in] B_r_T0 - the remanent flux at the given reference temperature (T). Given by the manufacturer.
+   /// \param[in] alpha_H_ci - the intrinsic coercivity temperature coefficient (%/deg). Given by the manufacturer.
+   /// \param[in] H_ci_T0 - the intrinsic coercivity at the given reference temperature (kA/m). Given by the manufacturer.
+   /// \param[in] alpha_B_knee - the linear slope of the flux density at the knee with respect to temperature (T/deg). Found by first gathering the flux densities of the knees in the second quadrant, then doing a linear fit to obtain the slope empirically.
+   /// \param[in] beta_B_knee - the y-intercept of the linear fit that approximates the flux density at the knee with respect to temperature (T). Found by first gathering the flux densities of the knees in the second quadrant, then doing a linear fit to obtain the y-intercept empirically.
+   /// \param[in] alpha_H_knee - the linear slope of the coercive force at the knee with respect to temperature (kA/m per deg). Found by first gathering the coercive forces of the knees in the second quadrant, then doing a linear fit to obtain the slope empirically.
+   /// \param[in] beta_H_knee - the y-intercept of the linear fit that approximates the coercive forces at the knee with respect to temperature (kA/m). Found by first gathering the coercive forces of the knees in the second quadrant, then doing a linear fit to obtain the y-intercept empirically.
    PMDemagConstraintEqCoeff(const double &T0,
                         const double &alpha_B_r, const double &B_r_T0,
                         const double &alpha_H_ci, const double &H_ci_T0,

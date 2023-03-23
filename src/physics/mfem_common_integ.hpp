@@ -11,6 +11,8 @@
 
 namespace mach
 {
+class StateCoefficient;
+class VectorStateCoefficient;
 
 class BoundaryNormalIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -593,6 +595,124 @@ inline void addDomainSensitivityIntegrator(
               *attr_marker);
    }
 }
+
+// New induced exponential numerator integrator for demagnetization proximity constraint
+class IEAggregateDemagIntegratorNumerator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setOptions(IEAggregateDemagIntegratorNumerator &integ,
+                          const nlohmann::json &options);
+
+   friend void setInputs(IEAggregateDemagIntegratorNumerator &integ,
+                         const MachInputs &inputs);
+
+   IEAggregateDemagIntegratorNumerator(const double rho,
+                                  StateCoefficient &B_knee,
+                                  VectorStateCoefficient &mag_coeff,
+                                  mfem::GridFunction *temperature_field=nullptr,
+                                  mfem::GridFunction *flux_density_field=nullptr,
+                                  std::string state_name = "state")
+    : rho(rho), B_knee(B_knee), mag_coeff(mag_coeff), 
+      temperature_field(temperature_field), flux_density_field(flux_density_field),
+      _state_name(std::move(state_name))
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override;
+
+   const std::string &state_name() { return _state_name; }
+
+private:
+   /// aggregation parameter rho
+   double rho;
+   /// flux density at the knee point
+   StateCoefficient &B_knee;
+   /// magnetization in the permanent magnets
+   VectorStateCoefficient &mag_coeff;
+   // Fields being used
+   mfem::GridFunction *temperature_field; // temperature field
+   mfem::GridFunction *flux_density_field; // flux density field
+   /// name of state integrating over - needed for mesh sens
+   /// TODO: Determine how to handle state name, seeing as demagnetization is not a state or field per se
+   std::string _state_name;
+   /// true max value - used to improve numerical conditioning
+   /// NOTE: This value is not necessarily known for demagnetization, but it should be on the order of 1
+   double true_max = 1.0;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_shape;
+   mfem::Vector temp_elfun;
+   mfem::Vector B_shape;
+   mfem::Vector B_elfun;
+#endif
+   ///TODO: If needed, 1) create and implement mesh sens class and 2) addDomainSensitivityIntegrator
+   //friend class IEAggregateIntegratorDemagNumeratorMeshSens;
+};
+
+// New induced exponential denominator integrator for demagnetization proximity constraint
+class IEAggregateDemagIntegratorDenominator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setOptions(IEAggregateDemagIntegratorDenominator &integ,
+                          const nlohmann::json &options);
+
+   friend void setInputs(IEAggregateDemagIntegratorDenominator &integ,
+                         const MachInputs &inputs);
+
+   IEAggregateDemagIntegratorDenominator(const double rho,
+                                  StateCoefficient &B_knee,
+                                  VectorStateCoefficient &mag_coeff,
+                                  mfem::GridFunction *temperature_field=nullptr,
+                                  mfem::GridFunction *flux_density_field=nullptr,
+                                  std::string state_name = "state")
+    : rho(rho), B_knee(B_knee), mag_coeff(mag_coeff), 
+      temperature_field(temperature_field), flux_density_field(flux_density_field),
+      _state_name(std::move(state_name))
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elfun_bar) override;
+
+   const std::string &state_name() { return _state_name; }
+
+private:
+   /// aggregation parameter rho
+   double rho;
+   // flux density at the knee point
+   StateCoefficient &B_knee;
+   /// magnetization in the permanent magnets
+   VectorStateCoefficient &mag_coeff;
+   // Fields being used
+   mfem::GridFunction *temperature_field; // temperature field
+   mfem::GridFunction *flux_density_field; // flux density field
+   /// name of state integrating over - needed for mesh sens
+   /// TODO: Determine how to handle state name, seeing as demagnetization is not a state or field per se
+   std::string _state_name;
+   /// true max value - used to improve numerical conditioning
+   /// NOTE: This value is not necessarily known for demagnetization, but it should be on the order of 1
+   double true_max = 1.0;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_shape;
+   mfem::Vector temp_elfun;
+   mfem::Vector B_shape;
+   mfem::Vector B_elfun;
+#endif
+   ///TODO: If needed, 1) create and implement mesh sens class and 2) addDomainSensitivityIntegrator
+   //friend class IEAggregateIntegratorDemagDenominatorMeshSens;
+};
 
 class DiffusionIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {

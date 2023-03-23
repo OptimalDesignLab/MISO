@@ -252,7 +252,9 @@ public:
 
    IEAggregateFunctional(mfem::ParFiniteElementSpace &fes,
                          std::map<std::string, FiniteElementState> &fields,
-                         const nlohmann::json &options);
+                         const nlohmann::json &options,
+                         StateCoefficient &B_knee,
+                         VectorStateCoefficient &mag_coeff);
 
 private:
    FunctionalOutput numerator;
@@ -313,6 +315,9 @@ private:
    MachInputs const *inputs = nullptr;
    mfem::Vector scratch;
 };
+
+///TODO: Either create new induced exponential functional for demag here that looks much like IEAggregateFunctional 
+///TODO: OR add conditional logic to IEAggregateFunctional::IEAggregateFunctional in common_outputs.cpp to use the new integrators
 
 }  // namespace mach
 

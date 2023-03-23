@@ -64,13 +64,6 @@ std::vector<int> getCurrentAttributes(nlohmann::json &options)
 
 }  // anonymous namespace
 
-/// NOTE: As needed, found and replaced per the below
-/*  
-sigma(
-       constructMaterialCoefficient("sigma", options["components"], materials)
-
-sigma(options,materials)
-*/
 namespace mach
 {
 MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
@@ -79,7 +72,9 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
    nu(options, materials),
    rho(constructMaterialCoefficient("rho", options["components"], materials)),
-   sigma(options, materials)
+   sigma(options, materials),
+   mag_coeff(diff_stack, options["magnets"], materials,2),
+   B_knee(options, materials)
 {
    options["time-dis"]["type"] = "steady";
 
@@ -112,8 +107,6 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 
    // // Adding a field for the pm demag constraint field
    // paraview.registerField("pm_demag_field", fields.at("pm_demag_field").gridFunc());
-
-   std::cout << "Magnetostatic solver constructed\n";
 
    addLogger(std::move(paraview), {});
 }
@@ -227,13 +220,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       {
          auto field_name = options["state"].get<std::string>();
          std::cout << "field name: " << field_name << "\n";
-         fes = &fields.at(field_name).space();
+         if (field_name.rfind("demag", 0) == 0)
+         {
+            // Demagnetization doesn't have an explicit field, so just use the solvers finite element space
+            fes = &PDESolver::fes();
+         }
+         else
+         {
+            fes = &fields.at(field_name).space();
+         }
       }
       else
       {
          fes = &PDESolver::fes();
       }
-      IEAggregateFunctional out(*fes, fields, options);
+      //IEAggregateFunctional out(*fes, fields, options);
+      IEAggregateFunctional out(*fes, fields, options, B_knee, mag_coeff);
       outputs.emplace(fun, std::move(out));
    }
    else if (fun.rfind("dc_loss", 0) == 0)
@@ -311,64 +313,97 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                              options);
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun.rfind("pm_demag", 0) == 0)
-   {
-      // Make the pm demag constraint field
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple(fun),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+   // else if (fun.rfind("pm_demag", 0) == 0)
+   // {
+   //    // Make the pm demag constraint field
+   //    auto state_degree =
+   //        AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   //    nlohmann::json dg_field_options{{"degree", state_degree},
+   //                                    {"basis-type", "DG"}};
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple(fun),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
 
-      // Adding the peak flux field so can visualize it
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
-      
-      // Adding the pm demag field so can visualize it
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("pm_demag_field"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+   //    ///TODO: Just need regular flux density, which is assumed to be the elfun passed in to integrator. Look into making this change
+   //    // Adding the peak flux field so can visualize it
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("peak_flux"),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
+   //    /* 
+   //    auto state_degree =
+   //        AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   //    nlohmann::json dg_field_options{{"degree", state_degree},
+   //                                    {"basis-type", "DG"}};
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("peak_flux"),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
+   //    */
 
-      // Add the pm demag constraint to paraview
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("pm_demag",
-                                fields.at("pm_demag").gridFunc());
-         paraview.registerField("pm_demag_field",
-                                fields.at("pm_demag_field").gridFunc());
-      }
-      
-      /* Not using peak flux. Just need regular flux, which is assumed to be the elfun passed in to integrator
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
-      */
+   //    // Adding the pm demag field so can visualize it
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("pm_demag_field"),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
 
-      ///TODO: Set up temp_degree and temp_basis 
-      // auto temp_degree = options["space-dis"]["degree"].get<int>();
-      // auto temp_basis = options["space-dis"]["basis-type"].get<std::string>();
-      // nlohmann::json temp_field_options{{"degree", temp_degree},
-      //                                   {"basis-type", temp_basis}};
-      // fields.emplace(std::piecewise_construct,
-      //                std::forward_as_tuple("temperature"),
-      //                std::forward_as_tuple(mesh(), temp_field_options));
+   //    // Add the pm demag constraint to paraview
+   //    auto &[logger, logger_opts] = loggers.back();
+   //    if (std::holds_alternative<mach::ParaViewLogger>(logger))
+   //    {
+   //       auto &paraview = std::get<mach::ParaViewLogger>(logger);
+   //       paraview.registerField("pm_demag",
+   //                              fields.at("pm_demag").gridFunc());
+   //       paraview.registerField("pm_demag_field",
+   //                              fields.at("pm_demag_field").gridFunc());
+   //    }
+ 
+   //    ///TODO: If needed, emplace the temperature field as was done for heat source outputs
 
-      // std::cout << "magnetostatic.cpp, pre PMDemagOutput call\n";
-      PMDemagOutput out(
-          fields, AbstractSolver2::options["components"], materials, options);
-      // std::cout << "magnetostatic.cpp, post PMDemagOutput call\n";
-      outputs.emplace(fun, std::move(out));
-      // std::cout << "magnetostatic.cpp, post output emplace\n";
-   }
+   //    // std::cout << "magnetostatic.cpp, pre PMDemagOutput call\n";
+   //    PMDemagOutput out(
+   //        fields, AbstractSolver2::options["components"], materials, options);
+   //    // std::cout << "magnetostatic.cpp, post PMDemagOutput call\n";
+   //    outputs.emplace(fun, std::move(out));
+   //    // std::cout << "magnetostatic.cpp, post output emplace\n";
+   // }
+   // else if (fun.rfind("demag_proximity", 0) == 0)
+   // {
+   //    auto state_degree =
+   //        AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   //    nlohmann::json dg_field_options{{"degree", state_degree},
+   //                                    {"basis-type", "DG"}};
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("flux_density"),
+   //                   std::forward_as_tuple(
+   //                       mesh(), dg_field_options, mesh().SpaceDimension()));
+
+   //    auto &[logger, logger_opts] = loggers.back();
+   //    if (std::holds_alternative<mach::ParaViewLogger>(logger))
+   //    {
+   //       auto &paraview = std::get<mach::ParaViewLogger>(logger);
+   //       paraview.registerField("flux_density",
+   //                              fields.at("flux_density").gridFunc());
+   //    }
+
+   //    /* Pseudo-code
+   //    // Get the B field from L2CurlProjection then turn it into a grid function
+   //    // Get the temperature field and turn it into grid function
+
+   //    // For a pointwise evaluation (integrator logic):
+   //    Get trans, ip, etc.
+   //    double temperature -> shape functions dotted with temp_elfun
+   //    mfem::Vector B -> shape functions dotted with B_elfun
+   //    double B_demag = B_knee.Eval(trans, ip, temperature); 
+   //    VectorStateCoefficient M;
+   //    magnetization.Eval(M, trans, ip, temperature) 
+   //    double demag_prox = B_demag - (B * M)/M.Norml2();
+   
+   //    // The above is for one single point in space
+   //    */
+
+   //    // Obtain the flux density field
+   //    auto &dg_B_field = fields.at("flux_density");
+   //    L2CurlProjection out(state(), fields.at("mesh_coords"), dg_B_field);      
+   //    outputs.emplace(fun, std::move(out));
+   // }
    else
    {
       throw MachException("Output with name " + fun +

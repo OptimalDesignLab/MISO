@@ -139,6 +139,7 @@ TEST_CASE("NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+///TODO: Edit and rerun test to account for the fact that there is now a temperature field
 TEST_CASE("MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect")
 {
    using namespace mfem;
