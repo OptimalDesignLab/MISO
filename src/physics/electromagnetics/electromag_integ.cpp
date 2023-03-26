@@ -541,6 +541,16 @@ void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
       }
       // std::cout << "MagnetizationSource2DIntegrator temperature = " << temperature << "\n";
       M.Eval(mag_flux, trans, ip, temperature); 
+      // Outputting results so can visualize in Excel
+      ///TODO: Remove current integration point location vector once done debugging
+      if (mag_flux.Elem(0) != 0 && mag_flux.Elem(1) != 0)
+      {
+         mfem::Vector ip_phys;
+         trans.Transform(ip, ip_phys);
+         std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "|T=" << temperature;
+         std::cout << "|M_x=" << mag_flux.Elem(0) << "|M_y=" << mag_flux.Elem(1);
+         std::cout << "|M_Norml2=" << mag_flux.Norml2() << "|\n";
+      }
 
       mag_flux *= w;
 

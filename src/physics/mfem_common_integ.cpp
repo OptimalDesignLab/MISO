@@ -1678,6 +1678,7 @@ double IEAggregateDemagIntegratorNumerator::GetElementEnergy(
       const double trans_weight = trans.Weight();
       const double w = ip.weight * trans_weight;
 
+      ///TODO: Remove current integration point location vector once done debugging
       mfem::Vector ip_phys;
       trans.Transform(ip, ip_phys);
 
@@ -1886,6 +1887,7 @@ double IEAggregateDemagIntegratorDenominator::GetElementEnergy(
       const double trans_weight = trans.Weight();
       const double w = ip.weight * trans_weight;
 
+      ///TODO: Remove current integration point location vector once done debugging
       mfem::Vector ip_phys;
       trans.Transform(ip, ip_phys);
 
