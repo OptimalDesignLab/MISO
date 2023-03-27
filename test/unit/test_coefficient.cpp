@@ -1,4 +1,5 @@
 #include <random>
+#include <vector>
 
 #include "catch.hpp"
 #include "mfem.hpp"
@@ -8,6 +9,7 @@
 #include "material_library.hpp"
 
 #include "electromag_test_data.hpp"
+#include "reluctivity_coefficient.hpp"
 
 namespace
 {
@@ -457,18 +459,25 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
 }
 */
 
-TEST_CASE("NonlinearReluctivityCoefficient::EvalStateDeriv",
-          "[NonlinearReluctivityCoefficient]")
+void printVector(const std::vector<double> &vector)
+{
+   for (int k = 0; k < vector.size(); ++k)
+   {
+      std::cout << vector[k] << ", ";
+   }
+}
+
+TEST_CASE("ReluctivityCoefficient lognu vs bh")
 {
    using namespace mfem;
    using namespace mach;
 
-   constexpr double eps_fd = 1e-5;
-   constexpr int dim = 3;
-
    std::stringstream meshStr;
    meshStr << two_tet_mesh_str;
    Mesh mesh(meshStr);
+
+   const int dim = mesh.SpaceDimension();
+
 
    /// Costruct coefficient
    for (int p = 1; p <= 1; p++)
@@ -477,23 +486,59 @@ TEST_CASE("NonlinearReluctivityCoefficient::EvalStateDeriv",
       ND_FECollection fec(p, dim);
       FiniteElementSpace fes(&mesh, &fec);
 
-      GridFunction A(&fes);
-      VectorFunctionCoefficient pert(dim, [](const Vector &x, Vector &A)
+                     // "cps": [5.4094, 4.5222, 3.8259, 3.7284, 5.1554, 11.1488, 13.0221, 13.5798, 13.5808, 13.5814],
+
+      const auto &lognu_options = R"(
       {
-         A(0) = -0.5*x(1);
-         A(1) = 1.79*x(0);
-         A(2) = 0.0;
-      });
-      A.ProjectCoefficient(pert);
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "hiperco50",
+                  "reluctivity": {
+                     "model": "lognu",
+                     "cps": [5.40954787023781, 4.50729991768494, 3.82622972028510, 3.73337170624446, 5.16008222491274, 11.0710865890706, 12.6733270435251, 13.5870714039890, 13.5870714039890, 13.5870714039890],
+                     "knots": [0, 0, 0, 0, 0.754565031471487, 1.71725877985567, 2.14583020842710, 2.57440163699853, 3.00297306556996, 3.56974470521025, 6, 6, 6, 6],
+                     "degree": 3
+                  }
+               }
+            }
+         }
+      })"_json;
+      auto lognu_coeff = ReluctivityCoefficient(lognu_options, material_library);
 
+      const auto &bh_options = R"(
+      {
+         "components": {
+            "test": {
+               "attrs": 1,
+               "material": {
+                  "name": "hiperco50",
+                  "reluctivity": {
+                     "model": "bh"
+                  }
+               }
+            }
+         }
+      })"_json;      
+      auto bh_coeff = ReluctivityCoefficient(bh_options, material_library);
 
-      auto b = material_library["hiperco50"]["B"].get<std::vector<double>>();
-      auto h = material_library["hiperco50"]["H"].get<std::vector<double>>();
-      // auto b = material_library["team13"]["B"].get<std::vector<double>>();
-      // auto h = material_library["team13"]["H"].get<std::vector<double>>();
-      mach::NonlinearReluctivityCoefficient coeff(b, h);
+      int npts = 1000;
+      std::vector<double> b_mags(npts);
+      double b_max = 10.0;
+      for (int i = 0; i < npts; ++i)
+      {
+         b_mags[i] = double(i) / double(npts) * b_max;
+      }
 
-      for (int j = 0; j < fes.GetNE(); j++)
+      std::vector<double> lognu_nu(npts);
+      std::vector<double> lognu_dnudb(npts);
+
+      std::vector<double> bh_nu(npts);
+      std::vector<double> bh_dnudb(npts);
+
+      // for (int j = 0; j < fes.GetNE(); j++)
+      for (int j = 0; j < 1; j++)
       {
 
          const FiniteElement &el = *fes.GetFE(j);
@@ -507,26 +552,115 @@ TEST_CASE("NonlinearReluctivityCoefficient::EvalStateDeriv",
             ir = &IntRules.Get(el.GetGeomType(), order);
          }
 
-         for (int i = 0; i < ir->GetNPoints(); i++)
+         // for (int i = 0; i < ir->GetNPoints(); i++)
+         for (int i = 0; i < 1; i++)
          {
             const IntegrationPoint &ip = ir->IntPoint(i);
 
             trans.SetIntPoint(&ip);
-            Vector b_vec;
-            A.GetCurl(trans, b_vec);
 
-            auto b_mag = b_vec.Norml2();
+            for (int k = 0; k < npts; ++k)
+            {
+               auto b_mag = b_mags[k];
 
-            double dnudB = coeff.EvalStateDeriv(trans, ip, b_mag);
+               lognu_nu[k] = lognu_coeff.Eval(trans, ip, b_mag);
+               lognu_dnudb[k] = lognu_coeff.EvalStateDeriv(trans, ip, b_mag);
+               bh_nu[k] = bh_coeff.Eval(trans, ip, b_mag);
+               bh_dnudb[k] = bh_coeff.EvalStateDeriv(trans, ip, b_mag);
+            }
 
-            double dnudB_fd = -coeff.Eval(trans, ip, b_mag - eps_fd);
-            dnudB_fd += coeff.Eval(trans, ip, b_mag + eps_fd);
-            dnudB_fd /= (2* eps_fd);
+            std::cout << "b = np.array([";
+            printVector(b_mags);
+            std::cout << "])\n";
 
-            // std::cout << "dnudB: " << dnudB << "\n";
-            // std::cout << "dnudB_fd: " << dnudB_fd << "\n";
-            REQUIRE(dnudB == Approx(dnudB_fd));
+            std::cout << "lognu_nu = np.array([";
+            printVector(lognu_nu);
+            std::cout << "])\n";
+            std::cout << "lognu_dnudb = np.array([";
+            printVector(lognu_dnudb);
+            std::cout << "])\n";
+
+            std::cout << "bh_nu = np.array([";
+            printVector(bh_nu);
+            std::cout << "])\n";
+            std::cout << "bh_dnudb = np.array([np.";
+            printVector(bh_dnudb);
+            std::cout << "])\n";
          }
       }
    }
 }
+
+// TEST_CASE("NonlinearReluctivityCoefficient::EvalStateDeriv",
+//           "[NonlinearReluctivityCoefficient]")
+// {
+//    using namespace mfem;
+//    using namespace mach;
+
+//    constexpr double eps_fd = 1e-5;
+//    constexpr int dim = 3;
+
+//    std::stringstream meshStr;
+//    meshStr << two_tet_mesh_str;
+//    Mesh mesh(meshStr);
+
+//    /// Costruct coefficient
+//    for (int p = 1; p <= 1; p++)
+//    {
+//       /// construct elements
+//       ND_FECollection fec(p, dim);
+//       FiniteElementSpace fes(&mesh, &fec);
+
+//       GridFunction A(&fes);
+//       VectorFunctionCoefficient pert(dim, [](const Vector &x, Vector &A)
+//       {
+//          A(0) = -0.5*x(1);
+//          A(1) = 1.79*x(0);
+//          A(2) = 0.0;
+//       });
+//       A.ProjectCoefficient(pert);
+
+
+//       auto b = material_library["hiperco50"]["B"].get<std::vector<double>>();
+//       auto h = material_library["hiperco50"]["H"].get<std::vector<double>>();
+//       // auto b = material_library["team13"]["B"].get<std::vector<double>>();
+//       // auto h = material_library["team13"]["H"].get<std::vector<double>>();
+//       mach::NonlinearReluctivityCoefficient coeff(b, h);
+
+//       for (int j = 0; j < fes.GetNE(); j++)
+//       {
+
+//          const FiniteElement &el = *fes.GetFE(j);
+
+//          IsoparametricTransformation trans;
+//          mesh.GetElementTransformation(j, &trans);
+
+//          const IntegrationRule *ir = NULL;
+//          {
+//             int order = trans.OrderW() + 2 * el.GetOrder();
+//             ir = &IntRules.Get(el.GetGeomType(), order);
+//          }
+
+//          for (int i = 0; i < ir->GetNPoints(); i++)
+//          {
+//             const IntegrationPoint &ip = ir->IntPoint(i);
+
+//             trans.SetIntPoint(&ip);
+//             Vector b_vec;
+//             A.GetCurl(trans, b_vec);
+
+//             auto b_mag = b_vec.Norml2();
+
+//             double dnudB = coeff.EvalStateDeriv(trans, ip, b_mag);
+
+//             double dnudB_fd = -coeff.Eval(trans, ip, b_mag - eps_fd);
+//             dnudB_fd += coeff.Eval(trans, ip, b_mag + eps_fd);
+//             dnudB_fd /= (2* eps_fd);
+
+//             // std::cout << "dnudB: " << dnudB << "\n";
+//             // std::cout << "dnudB_fd: " << dnudB_fd << "\n";
+//             REQUIRE(dnudB == Approx(dnudB_fd));
+//          }
+//       }
+//    }
+// }

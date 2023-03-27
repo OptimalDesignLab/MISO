@@ -202,12 +202,22 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
 {
    auto material_coeff = std::make_unique<mach::MeshDependentCoefficient>();
    /// loop over all components, construct coeff for each
-   for (auto &component : components)
+   for (const auto &component : components)
    {
       int attr = component.value("attr", -1);
 
-      const auto &material = component["material"].get<std::string>();
-      double val = materials[material].value(name, default_val);
+      const auto &material = component["material"];
+      std::string material_name;
+      if (material.is_string())
+      {
+         material_name = material.get<std::string>();
+      }
+      else
+      {
+         material_name = material["name"].get<std::string>();
+      }
+
+      double val = materials[material_name].value(name, default_val);
 
       if (-1 != attr)
       {
@@ -216,7 +226,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
       }
       else
       {
-         for (auto &attribute : component["attrs"])
+         for (const auto &attribute : component["attrs"])
          {
             auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
             material_coeff->addCoefficient(attribute, move(coeff));
@@ -226,230 +236,168 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
    return material_coeff;
 }
 
-NonlinearReluctivityCoefficient::NonlinearReluctivityCoefficient(
-    const std::vector<double> &B,
-    const std::vector<double> &H)
- // : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
- : b_max(B[B.size() - 1]),
-   h_max(H[H.size() - 1]),
-   bh(std::make_unique<tinyspline::BSpline>(H.size(), 1, 3))
-{
-   std::vector<double> knots(B);
-   for (int i = 0; i < B.size(); ++i)
-   {
-      knots[i] = knots[i] / b_max;
-   }
-   bh->setControlPoints(H);
-   bh->setKnots(knots);
+// NonlinearReluctivityCoefficient::NonlinearReluctivityCoefficient(
+//     const std::vector<double> &B,
+//     const std::vector<double> &H)
+//  // : b_max(B[B.size()-1]), nu(H.size(), 1, 3)
+//  : b_max(B[B.size() - 1]),
+//    h_max(H[H.size() - 1]),
+//    bh(std::make_unique<tinyspline::BSpline>(H.size(), 1, 3))
+// {
+//    std::vector<double> knots(B);
+//    for (int i = 0; i < B.size(); ++i)
+//    {
+//       knots[i] = knots[i] / b_max;
+//    }
+//    bh->setControlPoints(H);
+//    bh->setKnots(knots);
 
-   dbdh = std::make_unique<tinyspline::BSpline>(bh->derive());
-   // dnudb = nu.derive();
-}
+//    dbdh = std::make_unique<tinyspline::BSpline>(bh->derive());
+//    // dnudb = nu.derive();
+// }
 
-double NonlinearReluctivityCoefficient::Eval(ElementTransformation &trans,
-                                             const IntegrationPoint &ip,
-                                             const double state)
-{
-   constexpr double nu0 = 1 / (4e-7 * M_PI);
-   // std::cout << "eval state state: " << state << "\n";
-   if (state <= 1e-14)
-   {
-      double t = state / b_max;
-      double nu = dbdh->eval(t).result()[0] / b_max;
-      return nu;
-   }
-   else if (state <= b_max)
-   {
-      double t = state / b_max;
-      double nu = bh->eval(t).result()[0] / state;
-      // std::cout << "eval state nu: " << nu << "\n";
-      return nu;
-   }
-   else
-   {
-      return (h_max - nu0 * b_max) / state + nu0;
-   }
-}
+// double NonlinearReluctivityCoefficient::Eval(ElementTransformation &trans,
+//                                              const IntegrationPoint &ip,
+//                                              const double state)
+// {
+//    constexpr double nu0 = 1 / (4e-7 * M_PI);
+//    // std::cout << "eval state state: " << state << "\n";
+//    if (state <= 1e-14)
+//    {
+//       double t = state / b_max;
+//       double nu = dbdh->eval(t).result()[0] / b_max;
+//       return nu;
+//    }
+//    else if (state <= b_max)
+//    {
+//       double t = state / b_max;
+//       double nu = bh->eval(t).result()[0] / state;
+//       // std::cout << "eval state nu: " << nu << "\n";
+//       return nu;
+//    }
+//    else
+//    {
+//       return (h_max - nu0 * b_max) / state + nu0;
+//    }
+// }
 
-double NonlinearReluctivityCoefficient::EvalStateDeriv(
-    ElementTransformation &trans,
-    const IntegrationPoint &ip,
-    const double state)
-{
-   constexpr double nu0 = 1 / (4e-7 * M_PI);
+// double NonlinearReluctivityCoefficient::EvalStateDeriv(
+//     ElementTransformation &trans,
+//     const IntegrationPoint &ip,
+//     const double state)
+// {
+//    constexpr double nu0 = 1 / (4e-7 * M_PI);
 
-   /// TODO: handle state == 0
-   if (state <= b_max)
-   {
-      double t = state / b_max;
-      double h = bh->eval(t).result()[0];
-      return dbdh->eval(t).result()[0] / (state * b_max) - h / pow(state, 2);
-   }
-   else
-   {
-      return -(h_max - nu0 * b_max) / pow(state, 2);
-   }
-}
+//    /// TODO: handle state == 0
+//    if (state <= b_max)
+//    {
+//       double t = state / b_max;
+//       double h = bh->eval(t).result()[0];
+//       return dbdh->eval(t).result()[0] / (state * b_max) - h / pow(state, 2);
+//    }
+//    else
+//    {
+//       return -(h_max - nu0 * b_max) / pow(state, 2);
+//    }
+// }
 
-NonlinearReluctivityCoefficient::~NonlinearReluctivityCoefficient() = default;
+// NonlinearReluctivityCoefficient::~NonlinearReluctivityCoefficient() =
+// default;
 
-/// namespace for TEAM 13 B-H curve fit
-namespace
-{
-/** unused
-double team13h(double b_hat)
-{
-   const double h =
-       exp((0.0011872363994136887 * pow(b_hat, 2) * (15 * pow(b_hat, 2) - 9.0) -
-            0.19379133411847338 * pow(b_hat, 2) -
-            0.012675319795245974 * b_hat * (3 * pow(b_hat, 2) - 1.0) +
-            0.52650810858405916 * b_hat + 0.77170389255937188) /
-           (-0.037860246476916264 * pow(b_hat, 2) +
-            0.085040155318288846 * b_hat + 0.1475250808150366)) -
-       31;
-   return h;
-}
-*/
+// /// namespace for TEAM 13 B-H curve fit
+// namespace
+// {
+// /** unused
+// double team13h(double b_hat)
+// {
+//    const double h =
+//        exp((0.0011872363994136887 * pow(b_hat, 2) * (15 * pow(b_hat, 2)
+//        - 9.0) -
+//             0.19379133411847338 * pow(b_hat, 2) -
+//             0.012675319795245974 * b_hat * (3 * pow(b_hat, 2) - 1.0) +
+//             0.52650810858405916 * b_hat + 0.77170389255937188) /
+//            (-0.037860246476916264 * pow(b_hat, 2) +
+//             0.085040155318288846 * b_hat + 0.1475250808150366)) -
+//        31;
+//    return h;
+// }
+// */
 
-double team13dhdb_hat(double b_hat)
-{
-   const double dhdb_hat =
-       (-0.0013484718812450662 * pow(b_hat, 5) +
-        0.0059829967461202211 * pow(b_hat, 4) +
-        0.0040413617616232578 * pow(b_hat, 3) -
-        0.013804440762666015 * pow(b_hat, 2) - 0.0018970139190370716 * b_hat +
-        0.013917259962808418) *
-       exp((0.017808545991205332 * pow(b_hat, 4) -
-            0.038025959385737926 * pow(b_hat, 3) -
-            0.20447646171319658 * pow(b_hat, 2) + 0.53918342837930511 * b_hat +
-            0.77170389255937188) /
-           (-0.037860246476916264 * pow(b_hat, 2) +
-            0.085040155318288846 * b_hat + 0.1475250808150366)) /
-       (0.0014333982632928504 * pow(b_hat, 4) -
-        0.0064392824815713142 * pow(b_hat, 3) -
-        0.0039388438258098624 * pow(b_hat, 2) + 0.025091111571707653 * b_hat +
-        0.02176364946948308);
-   return dhdb_hat;
-}
+// double team13dhdb_hat(double b_hat)
+// {
+//    const double dhdb_hat =
+//        (-0.0013484718812450662 * pow(b_hat, 5) +
+//         0.0059829967461202211 * pow(b_hat, 4) +
+//         0.0040413617616232578 * pow(b_hat, 3) -
+//         0.013804440762666015 * pow(b_hat, 2) - 0.0018970139190370716 * b_hat
+//         + 0.013917259962808418) *
+//        exp((0.017808545991205332 * pow(b_hat, 4) -
+//             0.038025959385737926 * pow(b_hat, 3) -
+//             0.20447646171319658 * pow(b_hat, 2) + 0.53918342837930511 * b_hat
+//             + 0.77170389255937188) /
+//            (-0.037860246476916264 * pow(b_hat, 2) +
+//             0.085040155318288846 * b_hat + 0.1475250808150366)) /
+//        (0.0014333982632928504 * pow(b_hat, 4) -
+//         0.0064392824815713142 * pow(b_hat, 3) -
+//         0.0039388438258098624 * pow(b_hat, 2) + 0.025091111571707653 * b_hat
+//         + 0.02176364946948308);
+//    return dhdb_hat;
+// }
 
-double team13d2hdb_hat2(double b_hat)
-{
-   const double d2hdb_hat2 =
-       (1.8183764145086082e-6 * pow(b_hat, 10) -
-        1.6135805755447689e-5 * pow(b_hat, 9) +
-        2.2964027416433258e-5 * pow(b_hat, 8) +
-        0.00010295509167249583 * pow(b_hat, 7) -
-        0.0001721199302193437 * pow(b_hat, 6) -
-        0.00031470749218644612 * pow(b_hat, 5) +
-        0.00054873370082066282 * pow(b_hat, 4) +
-        0.00078428896855240252 * pow(b_hat, 3) -
-        0.00020176627749697931 * pow(b_hat, 2) -
-        0.00054403666453702558 * b_hat - 0.00019679534359955033) *
-       exp((0.017808545991205332 * pow(b_hat, 4) -
-            0.038025959385737926 * pow(b_hat, 3) -
-            0.20447646171319658 * pow(b_hat, 2) + 0.53918342837930511 * b_hat +
-            0.77170389255937188) /
-           (-0.037860246476916264 * pow(b_hat, 2) +
-            0.085040155318288846 * b_hat + 0.1475250808150366)) /
-       (2.0546305812109595e-6 * pow(b_hat, 8) -
-        1.8460112651872795e-5 * pow(b_hat, 7) +
-        3.0172495078875982e-5 * pow(b_hat, 6) +
-        0.00012265776759231136 * pow(b_hat, 5) -
-        0.0002452310649846335 * pow(b_hat, 4) -
-        0.00047794451332165656 * pow(b_hat, 3) +
-        0.00045811664722395466 * pow(b_hat, 2) + 0.001092148314092672 * b_hat +
-        0.00047365643823053111);
-   return d2hdb_hat2;
-}
+// double team13d2hdb_hat2(double b_hat)
+// {
+//    const double d2hdb_hat2 =
+//        (1.8183764145086082e-6 * pow(b_hat, 10) -
+//         1.6135805755447689e-5 * pow(b_hat, 9) +
+//         2.2964027416433258e-5 * pow(b_hat, 8) +
+//         0.00010295509167249583 * pow(b_hat, 7) -
+//         0.0001721199302193437 * pow(b_hat, 6) -
+//         0.00031470749218644612 * pow(b_hat, 5) +
+//         0.00054873370082066282 * pow(b_hat, 4) +
+//         0.00078428896855240252 * pow(b_hat, 3) -
+//         0.00020176627749697931 * pow(b_hat, 2) -
+//         0.00054403666453702558 * b_hat - 0.00019679534359955033) *
+//        exp((0.017808545991205332 * pow(b_hat, 4) -
+//             0.038025959385737926 * pow(b_hat, 3) -
+//             0.20447646171319658 * pow(b_hat, 2) + 0.53918342837930511 * b_hat
+//             + 0.77170389255937188) /
+//            (-0.037860246476916264 * pow(b_hat, 2) +
+//             0.085040155318288846 * b_hat + 0.1475250808150366)) /
+//        (2.0546305812109595e-6 * pow(b_hat, 8) -
+//         1.8460112651872795e-5 * pow(b_hat, 7) +
+//         3.0172495078875982e-5 * pow(b_hat, 6) +
+//         0.00012265776759231136 * pow(b_hat, 5) -
+//         0.0002452310649846335 * pow(b_hat, 4) -
+//         0.00047794451332165656 * pow(b_hat, 3) +
+//         0.00045811664722395466 * pow(b_hat, 2) + 0.001092148314092672 * b_hat
+//         + 0.00047365643823053111);
+//    return d2hdb_hat2;
+// }
 
-double team13b_hat(double b)
-{
-   const double b_hat = 1.10803324099723 * b + 1.10803324099723 * atan(20 * b) -
-                        0.9944598337950139;
-   return b_hat;
-}
+// double team13b_hat(double b)
+// {
+//    const double b_hat = 1.10803324099723 * b + 1.10803324099723 * atan(20 *
+//    b) -
+//                         0.9944598337950139;
+//    return b_hat;
+// }
 
-double team13db_hatdb(double b)
-{
-   const double db_hatdb = (443.213296398892 * pow(b, 2) + 23.26869806094183) /
-                           (400 * pow(b, 2) + 1);
-   return db_hatdb;
-}
+// double team13db_hatdb(double b)
+// {
+//    const double db_hatdb = (443.213296398892 * pow(b, 2) + 23.26869806094183)
+//    /
+//                            (400 * pow(b, 2) + 1);
+//    return db_hatdb;
+// }
 
-double team13d2b_hatdb2(double b)
-{
-   const double d2b_hatdb2 =
-       -17728.53185595568 * b / pow(400 * pow(b, 2) + 1, 2);
-   return d2b_hatdb2;
-}
+// double team13d2b_hatdb2(double b)
+// {
+//    const double d2b_hatdb2 =
+//        -17728.53185595568 * b / pow(400 * pow(b, 2) + 1, 2);
+//    return d2b_hatdb2;
+// }
 
-}  // anonymous namespace
-
-double team13ReluctivityCoefficient::Eval(ElementTransformation &trans,
-                                          const IntegrationPoint &ip,
-                                          const double state)
-{
-   if (state > 2.2)
-   {
-      return 1 / (4 * M_PI * 1e-7);
-   }
-   const double b_hat = team13b_hat(state);
-   const double db_hatdb = team13db_hatdb(state);
-
-   const double dhdb_hat = team13dhdb_hat(b_hat);
-
-   const double nu = dhdb_hat * db_hatdb;
-   // std::cout << "state: " << state << " nu: " << nu << "\n";
-
-   // try
-   // {
-   //    if (!isfinite(nu))
-   //    {
-   //       throw MachException("nan!");
-   //    }
-   // }
-   // catch(const std::exception& e)
-   // {
-   //    std::cerr << e.what() << '\n';
-   // }
-
-   return nu;
-}
-
-double team13ReluctivityCoefficient::EvalStateDeriv(
-    ElementTransformation &trans,
-    const IntegrationPoint &ip,
-    const double state)
-{
-   if (state > 2.2)
-   {
-      return 0;
-   }
-   const double b_hat = team13b_hat(state);
-   const double db_hatdb = team13db_hatdb(state);
-   const double d2b_hatdb2 = team13d2b_hatdb2(state);
-
-   const double dhdb_hat = team13dhdb_hat(b_hat);
-   const double d2hdb_hat2 = team13d2hdb_hat2(b_hat);
-
-   // const double dnudb = d2hdb_hat2 * pow(db_hatdb, 2) + dhdb_hat *
-   // d2b_hatdb2; std::cout << "state: " << state << " dnudb: " << dnudb <<
-   // "\n";
-
-   // try
-   // {
-   //    if (!isfinite(dnudb))
-   //    {
-   //       throw MachException("nan!");
-   //    }
-   // }
-   // catch(const std::exception& e)
-   // {
-   //    std::cerr << e.what() << '\n';
-   // }
-
-   return d2hdb_hat2 * pow(db_hatdb, 2) + dhdb_hat * d2b_hatdb2;
-}
+// }  // anonymous namespace
 
 void VectorMeshDependentCoefficient::Eval(Vector &vec,
                                           ElementTransformation &trans,

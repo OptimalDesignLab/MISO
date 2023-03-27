@@ -152,12 +152,53 @@ inline void addSensitivityIntegrator(
 /// output partial derivatives wrt to fields
 /// \param[inout] output_scalar_sens - map of nonlinear forms that will
 /// assemble the output partial derivatives wrt to scalars
+/// \param[in] attr_marker - optional list of element attributes the sensitivity
+/// integrators should be used on
 template <typename T>
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     T &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker = nullptr)
+{ }
+
+/// Function meant to be overloaded to allow output sensitivity integrators
+/// to be associated with the forward version of the integrator
+/// \param[in] primal_integ - integrator used in forward evaluation
+/// \param[in] fields - map of fields solver depends on
+/// \param[inout] output_sens - map of linear forms that will assemble the
+/// output partial derivatives wrt to fields
+/// \param[inout] output_scalar_sens - map of nonlinear forms that will
+/// assemble the output partial derivatives wrt to scalars
+/// \param[in] attr_marker - optional list of element attributes the sensitivity
+/// integrators should be used on
+template <typename T>
+inline void addInteriorFaceSensitivityIntegrator(
+    T &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{ }
+
+/// Function meant to be overloaded to allow output sensitivity integrators
+/// to be associated with the forward version of the integrator
+/// \param[in] primal_integ - integrator used in forward evaluation
+/// \param[in] fields - map of fields solver depends on
+/// \param[inout] output_sens - map of linear forms that will assemble the
+/// output partial derivatives wrt to fields
+/// \param[inout] output_scalar_sens - map of nonlinear forms that will
+/// assemble the output partial derivatives wrt to scalars
+/// \param[in] attr_marker - optional list of element attributes the sensitivity
+/// integrators should be used on
+template <typename T>
+inline void addBdrSensitivityIntegrator(
+    T &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 { }
 
 }  // namespace mach

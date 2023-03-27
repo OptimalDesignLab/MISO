@@ -1,6 +1,8 @@
 #ifndef MACH_NAVIER_STOKES_INTEG
 #define MACH_NAVIER_STOKES_INTEG
 
+#include <utility>
+
 #include "adept.h"
 #include "mfem.hpp"
 
@@ -167,7 +169,7 @@ public:
                          const mfem::FiniteElementCollection *fe_coll,
                          double Re_num,
                          double Pr_num,
-                         const mfem::Vector &q_ref,
+                         mfem::Vector q_ref,
                          double vis = -1.0,
                          double a = 1.0)
     : ViscousBoundaryIntegrator<NoSlipAdiabaticWallBC<dim>>(diff_stack,
@@ -177,7 +179,7 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      qfs(q_ref),
+      qfs(std::move(q_ref)),
       work_vec(dim + 2)
    { }
 
@@ -461,7 +463,7 @@ public:
                    const mfem::FiniteElementCollection *fe_coll,
                    double Re_num,
                    double Pr_num,
-                   const mfem::Vector &q_inflow,
+                   mfem::Vector q_inflow,
                    double vis = -1.0,
                    double a = 1.0)
     : ViscousBoundaryIntegrator<ViscousInflowBC<dim>>(diff_stack,
@@ -471,7 +473,7 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      q_in(q_inflow),
+      q_in(std::move(q_inflow)),
       work_vec(dim + 2)
    { }
 
@@ -610,7 +612,7 @@ public:
                     const mfem::FiniteElementCollection *fe_coll,
                     double Re_num,
                     double Pr_num,
-                    const mfem::Vector &q_outflow,
+                    mfem::Vector q_outflow,
                     double vis = -1.0,
                     double a = 1.0)
     : ViscousBoundaryIntegrator<ViscousOutflowBC<dim>>(diff_stack,
@@ -620,7 +622,7 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      q_out(q_outflow),
+      q_out(std::move(q_outflow)),
       work_vec(dim + 2)
    { }
 
@@ -759,7 +761,7 @@ public:
                      const mfem::FiniteElementCollection *fe_coll,
                      double Re_num,
                      double Pr_num,
-                     const mfem::Vector &q_far,
+                     mfem::Vector q_far,
                      double vis = -1.0,
                      double a = 1.0)
     : ViscousBoundaryIntegrator<ViscousFarFieldBC<dim>>(diff_stack,
@@ -769,7 +771,7 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      qfs(q_far),
+      qfs(std::move(q_far)),
       work_vec(dim + 2)
    { }
 
@@ -927,7 +929,7 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      exactSolution(fun),
+      exactSolution(std::move(fun)),
       qexact(dim + 2),
       work_vec(dim + 2)
    { }
@@ -1072,9 +1074,9 @@ public:
                     const mfem::FiniteElementCollection *fe_coll,
                     double Re_num,
                     double Pr_num,
-                    const mfem::Vector &q_ref,
+                    mfem::Vector q_ref,
                     BCScaleFun scale,
-                    const mfem::Vector &xc,
+                    mfem::Vector xc,
                     double len = 1.0,
                     double vis = -1.0,
                     double a = 1.0)
@@ -1085,11 +1087,11 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      qfs(q_ref),
+      qfs(std::move(q_ref)),
       len_scale(len),
-      x_actuator(xc),
+      x_actuator(std::move(xc)),
       control(0.0),
-      control_scale(scale),
+      control_scale(std::move(scale)),
       work_vec(dim + 2)
    { }
 
@@ -1246,8 +1248,8 @@ public:
                 int num_state_vars,
                 double Re_num,
                 double Pr_num,
-                const mfem::Vector &q_ref,
-                const mfem::Vector &force_dir,
+                mfem::Vector q_ref,
+                mfem::Vector force_dir,
                 double vis = -1.0,
                 double a = 1.0)
     : num_states(num_state_vars),
@@ -1257,8 +1259,8 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
-      qfs(q_ref),
-      force_nrm(force_dir),
+      qfs(std::move(q_ref)),
+      force_nrm(std::move(force_dir)),
       work_vec(dim + 2)
    { }
 

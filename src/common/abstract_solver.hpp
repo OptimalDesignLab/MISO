@@ -310,10 +310,9 @@ protected:
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
 
-   void addLogger(DataLogger logger, LoggingOptions &&options)
+   void addLogger(DataLogger logger, LoggingOptions options)
    {
-      loggers.emplace_back(std::make_pair<DataLogger, LoggingOptions>(
-          std::move(logger), std::move(options)));
+      loggers.emplace_back(std::move(logger), options);
    }
 
    /// For code that should be executed before the time stepping begins
@@ -427,8 +426,7 @@ void AbstractSolver2::setState(T function,
          {
             return std::make_any<decltype(function)>(function);
          }
-      }
-      ();
+      }();
       setState_(any, name, state);
    }
 }
@@ -467,8 +465,7 @@ double AbstractSolver2::calcStateError(T ex_sol,
          {
             return std::make_any<decltype(ex_sol)>(ex_sol);
          }
-      }
-      ();
+      }();
       return calcStateError_(any, name, state);
    }
 }

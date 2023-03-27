@@ -110,6 +110,42 @@ protected:
    std::unique_ptr<L2TransferOperation> operation;
 };
 
+inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
+{
+   mfem::Vector state_tv;
+   setVectorFromInputs(inputs, "state", state_tv);
+   if (state_tv.Size() > 0)
+   {
+      output.state.distributeSharedDofs(state_tv);
+   }
+   mfem::Vector mesh_coords_tv;
+   setVectorFromInputs(inputs, "mesh_coords", mesh_coords_tv);
+   if (mesh_coords_tv.Size() > 0)
+   {
+      output.mesh_coords.distributeSharedDofs(mesh_coords_tv);
+   }
+}
+
+inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
+{
+   return NAN;
+}
+
+inline void calcOutput(L2TransferOperator &output,
+                       const MachInputs &inputs,
+                       mfem::Vector &out_vec)
+{
+   output.apply(inputs, out_vec);
+}
+
+inline void vectorJacobianProduct(L2TransferOperator &output,
+                                  const mfem::Vector &out_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar)
+{
+   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
+}
+
 /// Conveniece class that wraps the projection of an H1 state to its DG
 /// representation
 class ScalarL2IdentityProjection : public L2TransferOperator
@@ -156,9 +192,16 @@ public:
    L2CurlMagnitudeProjection(FiniteElementState &state,
                              FiniteElementState &mesh_coords,
                              FiniteElementState &output);
+   friend inline int getSize(const L2CurlMagnitudeProjection &output)
+   {
+      return output.output.space().GetTrueVSize();
+   }
+   friend void setInputs(L2CurlMagnitudeProjection &output,
+                         const MachInputs &inputs);
 };
 
-inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
+inline void setInputs(L2CurlMagnitudeProjection &output,
+                      const MachInputs &inputs)
 {
    mfem::Vector state_tv;
    setVectorFromInputs(inputs, "state", state_tv);
@@ -174,11 +217,6 @@ inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
    }
 }
 
-inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
-{
-   return NAN;
-}
-
 inline void calcOutput(L2CurlMagnitudeProjection &output,
                        const MachInputs &inputs,
                        mfem::Vector &out_vec)
@@ -187,21 +225,6 @@ inline void calcOutput(L2CurlMagnitudeProjection &output,
 }
 
 inline void vectorJacobianProduct(L2CurlMagnitudeProjection &output,
-                                  const mfem::Vector &out_bar,
-                                  const std::string &wrt,
-                                  mfem::Vector &wrt_bar)
-{
-   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
-}
-
-inline void calcOutput(L2TransferOperator &output,
-                       const MachInputs &inputs,
-                       mfem::Vector &out_vec)
-{
-   output.apply(inputs, out_vec);
-}
-
-inline void vectorJacobianProduct(L2TransferOperator &output,
                                   const mfem::Vector &out_bar,
                                   const std::string &wrt,
                                   mfem::Vector &wrt_bar)

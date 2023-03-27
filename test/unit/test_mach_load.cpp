@@ -83,7 +83,7 @@ TEST_CASE("MachInputs Scalar Input Test",
    MachLinearForm lf(fes, fields);
    lf.addDomainIntegrator(new TestMachLoadIntegrator);
 
-   MachLoad ml(lf);
+   MachLoad ml(std::move(lf));
 
    auto inputs = MachInputs({
       {"test_val", 5.0}

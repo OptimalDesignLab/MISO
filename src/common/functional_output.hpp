@@ -39,14 +39,9 @@ public:
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
 
-   // friend void jacobianVectorProduct(FunctionalOutput &output,
-   //                                   const mfem::Vector &wrt_dot,
-   //                                   const std::string &wrt,
-   //                                   mfem::Vector &out_dot);
-
-   // friend double vectorJacobianProduct(FunctionalOutput &output,
-   //                                     const mfem::Vector &out_bar,
-   //                                     const std::string &wrt);
+   friend double vectorJacobianProduct(FunctionalOutput &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(FunctionalOutput &output,
                                      const mfem::Vector &out_bar,
@@ -68,7 +63,8 @@ public:
    /// should be used on
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addOutputDomainIntegrator(T *integrator, std::vector<int> attr_marker);
+   void addOutputDomainIntegrator(T *integrator,
+                                  const std::vector<int> &attr_marker);
 
    /// Adds interface integrator to the nonlinear form that backs this output,
    /// and adds a reference to it to in integs as a MachIntegrator
@@ -94,7 +90,7 @@ public:
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
    void addOutputBdrFaceIntegrator(T *integrator,
-                                   std::vector<int> bdr_attr_marker);
+                                   const std::vector<int> &bdr_attr_marker);
 
    FunctionalOutput(mfem::ParFiniteElementSpace &fes,
                     std::map<std::string, FiniteElementState> &fields)
@@ -141,13 +137,14 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addDomainSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, nullptr);
 }
 
 template <typename T>
-void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
-                                                 std::vector<int> attr_marker)
+void FunctionalOutput::addOutputDomainIntegrator(
+    T *integrator,
+    const std::vector<int> &attr_marker)
 {
    integs.emplace_back(*integrator);
    // auto &marker = domain_markers.emplace_back(attr_marker.size());
@@ -156,8 +153,8 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addDomainSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, &marker);
 }
 
 template <typename T>
@@ -165,7 +162,7 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddInteriorFaceIntegrator(integrator);
-   addSensitivityIntegrator(
+   addInteriorFaceSensitivityIntegrator(
        *integrator, *func_fields, output_sens, output_scalar_sens);
 }
 
@@ -174,14 +171,14 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addBdrSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, nullptr);
 }
 
 template <typename T>
 void FunctionalOutput::addOutputBdrFaceIntegrator(
     T *integrator,
-    std::vector<int> bdr_attr_marker)
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
 
@@ -190,8 +187,8 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    attrVecToArray(bdr_attr_marker, marker);
 
    output.AddBdrFaceIntegrator(integrator, marker);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addBdrSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, &marker);
 }
 
 }  // namespace mach

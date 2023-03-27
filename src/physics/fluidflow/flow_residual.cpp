@@ -106,13 +106,13 @@ FlowResidual<dim, entvar>::FlowResidual(
           "FlowResidual::addFlowIntegrators: options must"
           "contain flow-param and space-dis!\n");
    }
-   nlohmann::json flow = options["flow-param"];
-   nlohmann::json space_dis = options["space-dis"];
+   const nlohmann::json &flow = options["flow-param"];
+   const nlohmann::json &space_dis = options["space-dis"];
    addFlowDomainIntegrators(flow, space_dis);
    addFlowInterfaceIntegrators(flow, space_dis);
    if (options.contains("bcs"))
    {
-      nlohmann::json bcs = options["bcs"];
+      const nlohmann::json &bcs = options["bcs"];
       addFlowBoundaryIntegrators(flow, space_dis, bcs);
    }
 
@@ -139,7 +139,7 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
     const nlohmann::json &flow,
     const nlohmann::json &space_dis)
 {
-   auto flux = space_dis["flux-fun"];
+   const auto &flux = space_dis["flux-fun"];
    if (flux == "IR")
    {
       res.addDomainIntegrator(new IsmailRoeIntegrator<dim, entvar>(stack));
@@ -155,7 +155,7 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
       res.addDomainIntegrator(new EulerIntegrator<dim>(stack));
    }
    // add the LPS stabilization, if necessary
-   auto lps_coeff = space_dis["lps-coeff"];
+   const auto &lps_coeff = space_dis["lps-coeff"];
    if (lps_coeff > 0.0)
    {
       res.addDomainIntegrator(
@@ -185,7 +185,7 @@ void FlowResidual<dim, entvar>::addFlowInterfaceIntegrators(
    // add the integrators based on if discretization is continuous or discrete
    if (space_dis["basis-type"] == "dsbp")
    {
-      auto iface_coeff = space_dis["iface-coeff"];
+      const auto &iface_coeff = space_dis["iface-coeff"];
       res.addInteriorFaceIntegrator(new InterfaceIntegrator<dim, entvar>(
           stack, iface_coeff, fes.FEColl()));
       if (flow["viscous"])

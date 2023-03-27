@@ -43,6 +43,17 @@ void setUpAdjointSystem(T & /*unused*/,
 }
 
 template <typename T>
+void finalizeAdjointSystem(T & /*unused*/,
+                           mfem::Solver & /*unused*/,
+                           const MachInputs & /*unused*/,
+                           mfem::Vector & /*unused*/,
+                           mfem::Vector & /*unused*/)
+{
+   throw NotImplementedException(
+       "not specialized for concrete residual type!\n");
+}
+
+template <typename T>
 double jacobianVectorProduct(T & /*unused*/,
                              const mfem::Vector & /*unused*/,
                              const std::string & /*unused*/)
@@ -67,7 +78,7 @@ double vectorJacobianProduct(T & /*unused*/,
 }
 
 template <typename T>
-void vectorJacobianProduct(T &,
+void vectorJacobianProduct(T & /*unused*/,
                            const mfem::Vector & /*unused*/,
                            const std::string & /*unused*/,
                            mfem::Vector & /*unused*/)
@@ -104,7 +115,7 @@ mfem::Solver *getPreconditioner(T & /*unused*/)
 template <typename T>
 mfem::Operator &getJacobianBlock(T & /*unused*/,
                                  const MachInputs & /*unused*/,
-                                 int)
+                                 int /*unused*/)
 {
    throw MachException(
        "getJacobianBlock not specialized for concrete residual type!\n");
@@ -208,6 +219,12 @@ public:
                                   const MachInputs &inputs,
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
+
+   friend void finalizeAdjointSystem(MachResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const MachInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
 
    /// Compute the residual's sensitivity to a scalar and contract it with
    /// wrt_dot
@@ -341,6 +358,10 @@ private:
                                        const MachInputs &inputs,
                                        mfem::Vector &state_bar,
                                        mfem::Vector &adjoint) = 0;
+      virtual void finalizeAdjointSystem_(mfem::Solver &adj_solver,
+                                          const MachInputs &inputs,
+                                          mfem::Vector &state_bar,
+                                          mfem::Vector &adjoint) = 0;
       virtual double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
                                             const std::string &wrt) = 0;
       virtual void jacobianVectorProduct_(const mfem::Vector &wrt_dot,
@@ -403,6 +424,13 @@ private:
                                mfem::Vector &adjoint) override
       {
          setUpAdjointSystem(data_, adj_solver, inputs, state_bar, adjoint);
+      }
+      void finalizeAdjointSystem_(mfem::Solver &adj_solver,
+                                  const MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint) override
+      {
+         finalizeAdjointSystem(data_, adj_solver, inputs, state_bar, adjoint);
       }
       double jacobianVectorProduct_(const mfem::Vector &wrt_dot,
                                     const std::string &wrt) override
@@ -547,6 +575,16 @@ inline void setUpAdjointSystem(MachResidual &residual,
                                mfem::Vector &adjoint)
 {
    residual.self_->setUpAdjointSystem_(adj_solver, inputs, state_bar, adjoint);
+}
+
+inline void finalizeAdjointSystem(MachResidual &residual,
+                                  mfem::Solver &adj_solver,
+                                  const MachInputs &inputs,
+                                  mfem::Vector &state_bar,
+                                  mfem::Vector &adjoint)
+{
+   residual.self_->finalizeAdjointSystem_(
+       adj_solver, inputs, state_bar, adjoint);
 }
 
 inline double jacobianVectorProduct(MachResidual &residual,

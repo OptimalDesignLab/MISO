@@ -59,12 +59,12 @@ void SumOfOperators::Mult(const Vector &x, Vector &y) const
    y += work_vec;
 }
 
-JacobianFree::JacobianFree(MachResidual &residual)
+JacobianFree::JacobianFree(MachResidual &residual, Operator *mat_explicit)
  : Operator(getSize(residual)),
    comm(getMPIComm(residual)),
    scale(1.0),
    res(residual),
-   explicit_part(nullptr),
+   explicit_part(mat_explicit),
    state(getSize(res)),
    res_at_state(getSize(res)),
    state_pert(getSize(res))
@@ -103,7 +103,7 @@ void JacobianFree::Mult(const mfem::Vector &x, mfem::Vector &y) const
          y *= scale;
       }
    }
-   if (explicit_part)
+   if (explicit_part != nullptr)
    {
       // Include contribution from explicit operator, if necessary
       explicit_part->Mult(x, state_pert);
@@ -117,7 +117,7 @@ mfem::Operator &JacobianFree::getDiagonalBlock(int i) const
    // We assume that `state` holds where the Jacobian is to be evaluated
    auto inputs = MachInputs({{"state", state}});
    Operator &jac = getJacobianBlock(res, inputs, i);
-   BlockOperator *block_op = dynamic_cast<BlockOperator *>(explicit_part);
+   auto *block_op = dynamic_cast<BlockOperator *>(explicit_part);
    if (explicit_part != nullptr && block_op == nullptr)
    {
       throw MachException(
@@ -127,27 +127,27 @@ mfem::Operator &JacobianFree::getDiagonalBlock(int i) const
    }
 
    // Case 1: HypreParMatrix
-   HypreParMatrix *hypre_jac = dynamic_cast<HypreParMatrix *>(&jac);
-   if (hypre_jac)
+   auto *hypre_jac = dynamic_cast<HypreParMatrix *>(&jac);
+   if (hypre_jac != nullptr)
    {
       *hypre_jac *= scale;
-      if (block_op)
+      if (block_op != nullptr)
       {
          Operator &exp_block = block_op->GetBlock(i, i);
-         HypreParMatrix *hypre_exp = dynamic_cast<HypreParMatrix *>(&exp_block);
+         auto *hypre_exp = dynamic_cast<HypreParMatrix *>(&exp_block);
          *hypre_jac += *hypre_exp;
       }
       return jac;
    }
    // Case 2: DenseMatrix
-   DenseMatrix *dense_jac = dynamic_cast<DenseMatrix *>(&jac);
-   if (dense_jac)
+   auto *dense_jac = dynamic_cast<DenseMatrix *>(&jac);
+   if (dense_jac != nullptr)
    {
       *dense_jac *= scale;
-      if (block_op)
+      if (block_op != nullptr)
       {
          Operator &exp_block = block_op->GetBlock(i, i);
-         DenseMatrix *dense_exp = dynamic_cast<DenseMatrix *>(&exp_block);
+         auto *dense_exp = dynamic_cast<DenseMatrix *>(&exp_block);
          *dense_jac += *dense_exp;
       }
       return jac;
@@ -176,7 +176,7 @@ double JacobianFree::getStepSize(const mfem::Vector &baseline,
    }
 }
 
-void JacobianFree::print(string file_name) const
+void JacobianFree::print(const std::string &file_name) const
 {
    remove(file_name.c_str());
    ofstream matrix_file(file_name, fstream::app);
@@ -199,7 +199,7 @@ void JacobianFree::print(string file_name) const
       {
          y *= scale;
       }
-      if (explicit_part)
+      if (explicit_part != nullptr)
       {
          state_pert = 0.0;
          state_pert(j) = 1.0;

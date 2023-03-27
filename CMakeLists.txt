@@ -71,7 +71,9 @@ endif (MFEM_USE_PUMI)
 # find the MPI compilers
 find_package(MPI REQUIRED)
 
-cmake_policy(SET CMP0077 NEW)
+if (POLICY CMP0077)
+   cmake_policy(SET CMP0077 NEW)
+endif (POLICY CMP0077)
 set(TINYSPLINE_ENABLE_CXX ON)
 set(TINYSPLINE_INSTALL ON)
 include(FetchContent)
@@ -169,8 +171,8 @@ option(MACH_USE_CLANG_TIDY
 if (MACH_USE_CLANG_TIDY)
    set_target_properties(mach
       PROPERTIES
-         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
-         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+         CXX_CLANG_TIDY "clang-tidy;--fix;--format-style=file;--extra-arg=--std=c++17"
+         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++17;"
    )
 endif (MACH_USE_CLANG_TIDY)
 
@@ -281,10 +283,13 @@ if (BUILD_PYTHON_WRAPPER)
 
    include(FetchContent)
 
-   cmake_policy(SET CMP0127 NEW)
+   if (POLICY CMP0127)
+      cmake_policy(SET CMP0127 NEW)
+   endif (POLICY CMP0127)
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
-      GIT_TAG v2.7.1
+      #GIT_TAG v2.7.1
+      GIT_TAG v2.10.0
    )
 
    FetchContent_MakeAvailable(pybind11)
@@ -305,7 +310,7 @@ if (BUILD_PYTHON_WRAPPER)
    if (MACH_USE_CLANG_TIDY)
       set_target_properties(pyMach
          PROPERTIES
-            CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
+            CXX_CLANG_TIDY "clang-tidy;--fix;--format-style=file;--extra-arg=--std=c++17"
             # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
       )
    endif (MACH_USE_CLANG_TIDY)

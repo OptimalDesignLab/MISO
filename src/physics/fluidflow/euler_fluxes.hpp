@@ -198,7 +198,9 @@ inline xdouble entropy(const xdouble *q, const xdouble *qe)
    xdouble we[dim + 2];
    calcEntropyVars<xdouble, dim>(qe, we);
    for (int i = 0; i < dim + 2; ++i)
+   {
       ent -= we[i] * (q[i] - qe[i]);
+   }
    return ent;
 }
 
@@ -750,7 +752,7 @@ void calcBoundaryFluxEC(const xdouble *dir,
    calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, w, flux);
    calcEntropyVars<xdouble, dim, false>(q, w);
    // next, get the entropy flux difference
-   const xdouble psi = dot<xdouble, dim>(q + 1, dir);
+   const auto psi = dot<xdouble, dim>(q + 1, dir);
    // std::cout << "-----------------------------------------" << std::endl;
    // std::cout << "psi = " << psi << ": entflux = " << entflux << std::endl;
    // std::cout << "w^T f = " << dot<xdouble, dim+2>(w, flux) << std::endl;
@@ -784,7 +786,7 @@ void calcControlFlux(const xdouble *dir,
    {
       flux[i] = q[i] * U;
    }
-   xdouble press = pressure<xdouble, dim>(q);
+   auto press = pressure<xdouble, dim>(q);
    for (int i = 0; i < dim; ++i)
    {
       flux[i + 1] += dir[i] * press;

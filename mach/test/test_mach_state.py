@@ -5,72 +5,75 @@ from openmdao.utils.assert_utils import assert_check_partials, assert_check_tota
 
 from mach import PDESolver, MachState, MachMesh
 
-em_options = {
-    "mesh": {
-        # "file": "data/testOMMach/parallel_wires.smb",
-        # "model-file": "data/testOMMach/parallel_wires.egads",
-        "file": "data/box.mesh",
-        "refine": 0
-    },
-    "space-dis": {
-        "basis-type": "nedelec",
-        "degree": 1
-    },
-    "time-dis": {
-        "steady": True,
-    },
-    "nonlin-solver": {
-        "type": "newton",
-        "printlevel": 2,
-        "maxiter": 5,
-        "reltol": 1e-6,
-        "abstol": 1e-6
-    },
-    "lin-solver": {
-        "type": "minres",
-        "printlevel": 1,
-        "maxiter": 100,
-        "abstol": 1e-14,
-        "reltol": 1e-14
-    },
-    "adj-solver": {
-        "type": "minres",
-        "printlevel": 1,
-        "maxiter": 100,
-        "abstol": 1e-14,
-        "reltol": 1e-14
-    },
-    "lin-prec": {
-        "printlevel": -1
-    },
-    "components": {
-        # "wires": {
-        #     "material": "copperwire",
-        #     "attrs": [1, 2],
-        #     "linear": True
-        # },
-        "attr1": {
-            "material": "box1",
-            "attr": 1,
-            "linear": True
+class TestEMState(unittest.TestCase):
+    em_options = {
+        "mesh": {
+            # "file": "data/testOMMach/parallel_wires.smb",
+            # "model-file": "data/testOMMach/parallel_wires.egads",
+            "file": "data/box.mesh",
+            "refine": 0
         },
-        "attr2": {
-            "material": "box2",
-            "attr": 2,
-            "linear": True
-        }
-    },
-    "bcs": {
-        "essential": "all"
-    },
-    "current": {
-        "wires": {
-            "z": [1, 2]
+        "space-dis": {
+            "basis-type": "nedelec",
+            "degree": 1
+        },
+        "time-dis": {
+            "steady": True,
+        },
+        "nonlin-solver": {
+            "type": "newton",
+            "printlevel": 2,
+            "maxiter": 5,
+            "reltol": 1e-6,
+            "abstol": 1e-6
+        },
+        "lin-solver": {
+            "type": "minres",
+            "printlevel": 1,
+            "maxiter": 100,
+            "abstol": 1e-14,
+            "reltol": 1e-14
+        },
+        "adj-solver": {
+            "type": "minres",
+            "printlevel": 1,
+            "maxiter": 100,
+            "abstol": 1e-14,
+            "reltol": 1e-14
+        },
+        "lin-prec": {
+            "printlevel": -1
+        },
+        "components": {
+            # "wires": {
+            #     "material": "copperwire",
+            #     "attrs": [1, 2],
+            #     "linear": True
+            # },
+            "attr1": {
+                "attr": 1,
+                "material": {
+                    "name": "box1",
+                    "mu_r": 795774.7154594767
+                },
+            },
+            "attr2": {
+                "attr": 2,
+                "material": {
+                    "name": "box1",
+                    "mu_r": 795774.7154594767
+                },
+            }
+        },
+        "bcs": {
+            "essential": "all"
+        },
+        "current": {
+            "wires": {
+                "z": [1, 2]
+            }
         }
     }
-}
-
-class TestEMState(unittest.TestCase):
     # def test_forward(self):
     #     prob = om.Problem()
 
@@ -94,17 +97,17 @@ class TestEMState(unittest.TestCase):
     def test_partials(self):
         prob = om.Problem()
 
-        emSolver = PDESolver(type="magnetostatic", solver_options=em_options, comm=prob.comm)
+        emSolver = PDESolver(type="magnetostatic", solver_options=self.em_options, comm=prob.comm)
 
         prob.model.add_subsystem("ivc",
                                  MachMesh(solver=emSolver),
                                  promotes_outputs=["*"])
         solver = prob.model.add_subsystem("em_solver",
-                                 MachState(solver=emSolver, 
-                                           depends=["current_density:wires"],
-                                           check_partials=True),
-                                 promotes_inputs=["current_density:wires", ("mesh_coords", "x_em0")],
-                                 promotes_outputs=["state"])
+                                          MachState(solver=emSolver, 
+                                                    depends=["current_density:wires", "mesh_coords"],
+                                                    check_partials=True),
+                                          promotes_inputs=["current_density:wires", ("mesh_coords", "x_em0")],
+                                          promotes_outputs=["state"])
         solver.set_check_partial_options(wrt="*",
                                          directional=False,
                                          form="central")
@@ -122,14 +125,14 @@ class TestEMState(unittest.TestCase):
 
     def test_totals(self):
         prob = om.Problem()
-        emSolver = PDESolver(type="magnetostatic", solver_options=em_options, comm=prob.comm)
+        emSolver = PDESolver(type="magnetostatic", solver_options=self.em_options, comm=prob.comm)
 
         prob.model.add_subsystem("ivc",
                                  MachMesh(solver=emSolver),
                                  promotes_outputs=["*"])
         prob.model.add_subsystem("em_solver",
                                  MachState(solver=emSolver, 
-                                           depends=["current_density:wires"],
+                                           depends=["current_density:wires", "mesh_coords"],
                                            check_partials=True),
                                  promotes_inputs=["current_density:wires", ("mesh_coords", "x_em0")],
                                  promotes_outputs=["state"])
@@ -140,6 +143,108 @@ class TestEMState(unittest.TestCase):
         prob.run_model()
 
         data = prob.check_totals(of=["state"], wrt=["current_density:wires"])
+        assert_check_totals(data, atol=1e-6, rtol=1e-6)
+
+class TestEMState2D(unittest.TestCase):
+    square_options = {
+        "mesh": {
+            "file": "data/simple_square.mesh",
+            "refine": 0
+        },
+        "space-dis": {
+            "basis-type": "h1",
+            "degree": 1
+        },
+        "lin-solver": {
+            "type": "pcg",
+            "printlevel": 1,
+            "maxiter": 100,
+            "abstol": 1e-14,
+            "reltol": 1e-14
+        },
+        "nonlin-solver": {
+            "type": "newton",
+            "printlevel": 1,
+            "maxiter": 5,
+            "reltol": 1e-12,
+            "abstol": 1e-12
+        },
+        "components": {
+            "ring": {
+                "attrs": [1],
+                "material": {
+                    "name": "box1",
+                    "mu_r": 795774.7154594767
+                },
+            }
+        },
+        "bcs": {
+            "essential": "all"
+        },
+        "current": {
+            "test": {
+                "z": [1]
+            }
+        }
+    }
+
+    def test_partials(self):
+        prob = om.Problem()
+
+        emSolver = PDESolver(type="magnetostatic", solver_options=self.square_options, comm=prob.comm)
+
+        prob.model.add_subsystem("ivc",
+                                 MachMesh(solver=emSolver),
+                                 promotes_outputs=["*"])
+        solver = prob.model.add_subsystem("em_solver",
+                                          MachState(solver=emSolver, 
+                                                    depends=["current_density:test", "mesh_coords"],
+                                                    check_partials=True),
+                                          promotes_inputs=["current_density:test", ("mesh_coords", "x_em0")],
+                                          promotes_outputs=["state"])
+        solver.set_check_partial_options(wrt="*",
+                                         directional=False,
+                                         form="central",
+                                         step=1e-5)
+
+        prob.set_solver_print(level=0)
+        prob.setup()
+
+        state_size = emSolver.getFieldSize("state")
+        prob["state"] = np.random.randn(state_size)
+
+        data = prob.check_partials()
+        # om.partial_deriv_plot("state", "state", data, jac_method="J_rev", binary = False)
+        # om.partial_deriv_plot("state", "mesh_coords", data, jac_method="J_rev", binary = False)
+        # om.partial_deriv_plot("state", "current_density:test", data,jac_method="J_rev", binary = False)
+        assert_check_partials(data)
+
+    def test_totals(self):
+        prob = om.Problem()
+        emSolver = PDESolver(type="magnetostatic", solver_options=self.square_options, comm=prob.comm)
+
+        prob.model.add_subsystem("ivc",
+                                 MachMesh(solver=emSolver),
+                                 promotes_outputs=["*"])
+        prob.model.add_subsystem("em_solver",
+                                 MachState(solver=emSolver, 
+                                           depends=["current_density:test", "mesh_coords"],
+                                           check_partials=True),
+                                 promotes_inputs=["current_density:test", ("mesh_coords", "x_em0")],
+                                 promotes_outputs=["state"])
+
+        prob.setup(mode="rev")
+        state_size = emSolver.getFieldSize("state")
+        state = np.random.randn(state_size)
+
+        prob["state"] = state
+        prob["current_density:test"] = 1.0
+        prob.run_model()
+
+        data = prob.check_totals(of=["state"],
+                                 wrt=["current_density:test", "x_em0"],
+                                 form="central",
+                                 step=1e-5)
         assert_check_totals(data, atol=1e-6, rtol=1e-6)
 
 if __name__ == "__main__":

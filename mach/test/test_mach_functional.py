@@ -33,7 +33,6 @@ class TestEMFunctionals(unittest.TestCase):
             "ring": {
                 "material": "copperwire",
                 "attrs": [1, 2],
-                "linear": True
             }
         },
         "bcs": {
@@ -71,9 +70,53 @@ class TestEMFunctionals(unittest.TestCase):
         },
         "components": {
             "ring": {
-                "material": "box1",
                 "attrs": [1],
-                "linear": True
+                "material": {
+                    "name": "box1",
+                    "mu_r": 795774.7154594767
+                },
+            }
+        },
+        "bcs": {
+            "essential": "all"
+        },
+        "current": {
+            "test": {
+                "z": [1]
+            }
+        }
+    }
+
+    square_options = {
+        "mesh": {
+            "file": "data/simple_square.mesh",
+            "refine": 0
+        },
+        "space-dis": {
+            "basis-type": "h1",
+            "degree": 1
+        },
+        "lin-solver": {
+            "type": "pcg",
+            "printlevel": 1,
+            "maxiter": 100,
+            "abstol": 1e-14,
+            "reltol": 1e-14
+        },
+        "nonlin-solver": {
+            "type": "newton",
+            "printlevel": 1,
+            "maxiter": 5,
+            "reltol": 1e-6,
+            "abstol": 1e-6
+        },
+        "components": {
+            "ring": {
+                "attrs": [1],
+                "material": {
+                    "name": "box1",
+                    "mu_r": 795774.7154594767
+                },
             }
         },
         "bcs": {
@@ -257,11 +300,17 @@ class TestEMFunctionals(unittest.TestCase):
         prob = om.Problem()
 
         emSolver = PDESolver(type="magnetostatic",
-                             solver_options=self.box_options,
+                             solver_options=self.square_options,
                              comm=prob.comm)
 
         state_size = emSolver.getFieldSize("state")
         state = np.random.randn(state_size)
+
+        def field_func(x):
+            return x[0]**2 + x[1]**2
+        emSolver.setState(field_func, state)
+
+        print(f"state: {state}")
 
         ivc = prob.model.add_subsystem("ivc",
                                        om.IndepVarComp(),
@@ -281,10 +330,48 @@ class TestEMFunctionals(unittest.TestCase):
                                         promotes_outputs=["flux_density"])
         flux.set_check_partial_options(wrt="*", directional=True)
 
+        flux_mag = prob.model.add_subsystem("flux_magnitude",
+                                            MachFunctional(solver=emSolver,
+                                                           func="flux_magnitude",
+                                                           check_partials=True,
+                                                           depends=["state", "mesh_coords"]),
+                                            promotes_inputs=[("mesh_coords", "x_em0"), "state"],
+                                            promotes_outputs=["flux_magnitude"])
+        flux_mag.set_check_partial_options(wrt="*", directional=True)
+
+        avg_flux = prob.model.add_subsystem("average_flux_magnitude",
+                                            MachFunctional(solver=emSolver,
+                                                           func="average_flux_magnitude",
+                                                           check_partials=True,
+                                                           depends=["state", "mesh_coords"]),
+                                            promotes_inputs=[("mesh_coords", "x_em0"), "state"],
+                                            promotes_outputs=["average_flux_magnitude"])
+        avg_flux.set_check_partial_options(wrt="*", directional=True)
+
+        max_flux = prob.model.add_subsystem("max_flux_magnitude",
+                                            MachFunctional(solver=emSolver,
+                                                           func="max_flux_magnitude",
+                                                           func_options={"rho": 1},
+                                                           check_partials=True,
+                                                           depends=["state", "mesh_coords"]),
+                                            promotes_inputs=[("mesh_coords", "x_em0"), "state"],
+                                            promotes_outputs=["max_flux_magnitude"])
+        max_flux.set_check_partial_options(wrt="*", directional=True)
+
         prob.setup()
         prob.run_model()
 
         data = prob.check_partials(form="central")
         assert_check_partials(data)
+        # print(data)
+
+        # flux_mag_data = data.pop("flux_magnitude")
+        # assert_check_partials({"flux_magnitude": flux_mag_data})
+        # avg_flux_data = data.pop("average_flux_magnitude")
+        # assert_check_partials({"average_flux_magnitude": avg_flux_data})
+        # max_flux_data = data.pop("max_flux_magnitude")
+        # assert_check_partials({"max_flux_magnitude": max_flux_data})
+
+
 if __name__ == "__main__":
     unittest.main()

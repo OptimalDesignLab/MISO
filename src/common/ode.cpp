@@ -133,7 +133,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    MachInputs input{{"state", work}};
 
    auto *jac_free = dynamic_cast<JacobianFree *>(residual.jac_.get());
-   if (jac_free)
+   if (jac_free != nullptr)
    {
       // Using a Jacobian-free implementation
       jac_free->setScaling(dt);

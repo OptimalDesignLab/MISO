@@ -1,10 +1,13 @@
 #include <iostream>
+#include <memory>
 
 #include "mfem.hpp"
 
 #include "evolver.hpp"
-#include "utils.hpp"
 #include "matrix_operators.hpp"
+#include "relaxed_newton.hpp"
+#include "utils.hpp"
+
 #include "mfem_extensions.hpp"
 
 using namespace mfem;
@@ -97,19 +100,19 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    t += gamma * dt;
 }
 
-ExplicitRRKSolver::ExplicitRRKSolver(int s_,
-                                     const double *a_,
-                                     const double *b_,
-                                     const double *c_,
-                                     std::ostream *out_stream)
- : out(out_stream)
-{
-   s = s_;
-   a = a_;
-   b = b_;
-   c = c_;
-   k = new Vector[s];
-}
+// ExplicitRRKSolver::ExplicitRRKSolver(int s_,
+//                                      const double *a_,
+//                                      const double *b_,
+//                                      const double *c_,
+//                                      std::ostream *out_stream)
+//  : out(out_stream)
+// {
+//    s = s_;
+//    a = a_;
+//    b = b_;
+//    c = c_;
+//    k = new Vector[s];
+// }
 
 void ExplicitRRKSolver::Init(TimeDependentOperator &f_)
 {
@@ -198,7 +201,7 @@ void ExplicitRRKSolver::Step(Vector &x, double &t, double &dt)
    t += gamma * dt;
 }
 
-ExplicitRRKSolver::~ExplicitRRKSolver() { delete[] k; }
+// ExplicitRRKSolver::~ExplicitRRKSolver() { delete[] k; }
 
 const double RRK6Solver::a[] = {.6e-1,
                                 .1923996296296296296296296296296296296296e-1,
@@ -248,12 +251,12 @@ const double RRK6Solver::c[] = {
 
 BlockJacobiPreconditioner::BlockJacobiPreconditioner(const Array<int> &offsets_)
  : Solver(offsets_.Last()),
-   owns_blocks(0),
+   owns_blocks(false),
    nBlocks(offsets_.Size() - 1),
    offsets(0),
    op(nBlocks)
 {
-   op = static_cast<Solver *>(NULL);
+   op = static_cast<Solver *>(nullptr);
    offsets.MakeRef(offsets_);
 }
 
@@ -264,7 +267,7 @@ void BlockJacobiPreconditioner::SetDiagonalBlock(int iblock, Solver *opt)
    // MFEM_VERIFY(offsets[iblock+1] - offsets[iblock] == opt->Height() &&
    //            offsets[iblock+1] - offsets[iblock] == opt->Width(),
    //            "incompatible Operator dimensions");
-   if (owns_blocks && op[iblock])
+   if (owns_blocks && (op[iblock] != nullptr))
    {
       delete op[iblock];
    }
@@ -273,20 +276,20 @@ void BlockJacobiPreconditioner::SetDiagonalBlock(int iblock, Solver *opt)
 
 void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
 {
-   auto block_op = dynamic_cast<const BlockOperator *>(&input_op);
+   const auto *block_op = dynamic_cast<const BlockOperator *>(&input_op);
    if (block_op != nullptr)
    {
       // input_op is a BlockOperator
       for (int i = 0; i < nBlocks; ++i)
       {
-         if (op[i])
+         if (op[i] != nullptr)
          {
             op[i]->SetOperator(block_op->GetBlock(i, i));
          }
       }
       return;
    }
-   auto jacfree_op = dynamic_cast<const JacobianFree *>(&input_op);
+   const auto *jacfree_op = dynamic_cast<const JacobianFree *>(&input_op);
    if (jacfree_op != nullptr)
    {
       // jacfree_op->print("jac-free-matrix.dat");
@@ -295,7 +298,7 @@ void BlockJacobiPreconditioner::SetOperator(const Operator &input_op)
       // input op is a JacobianFree operator
       for (int i = 0; i < nBlocks; ++i)
       {
-         if (op[i])
+         if (op[i] != nullptr)
          {
             op[i]->SetOperator(jacfree_op->getDiagonalBlock(i));
          }
@@ -323,7 +326,7 @@ void BlockJacobiPreconditioner::Mult(const Vector &x, Vector &y) const
 
    for (int i = 0; i < nBlocks; ++i)
    {
-      if (op[i])
+      if (op[i] != nullptr)
       {
          op[i]->Mult(xblock.GetBlock(i), yblock.GetBlock(i));
       }
@@ -354,7 +357,7 @@ void BlockJacobiPreconditioner::MultTranspose(const Vector &x, Vector &y) const
 
    for (int i = 0; i < nBlocks; ++i)
    {
-      if (op[i])
+      if (op[i] != nullptr)
       {
          (op[i])->MultTranspose(xblock.GetBlock(i), yblock.GetBlock(i));
       }
@@ -544,6 +547,10 @@ std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
           nonlin_options.value("alpha", (0.5) * ((1.0) + sqrt((5.0))));
       double gamma = nonlin_options.value("gamma", 1.0);
       nonlin_solver->SetAdaptiveLinRtol(type, rtol0, rtol_max, alpha, gamma);
+   }
+   else if (solver_type == "relaxednewton")
+   {
+      nonlin_solver = std::make_unique<RelaxedNewton>(comm, nonlin_options);
    }
    else
    {

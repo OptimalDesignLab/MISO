@@ -4,7 +4,9 @@
 
 #include "catch.hpp"
 
-#include "mach.hpp"
+// #include "mach.hpp"
+#include "euler_fluxes.hpp"
+#include "flow_solver.hpp"
 
 using namespace std;
 using namespace mfem;

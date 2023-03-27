@@ -43,6 +43,12 @@ public:
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
+   friend void finalizeAdjointSystem(MeshWarperResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const mach::MachInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(MeshWarperResidual &residual,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
@@ -93,7 +99,7 @@ private:
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
 
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
+   static std::unique_ptr<mfem::Solver> constructPreconditioner(
        mfem::ParFiniteElementSpace &fes,
        const nlohmann::json &prec_options)
    {
@@ -131,7 +137,7 @@ void evaluate(MeshWarperResidual &residual,
       mfem::Vector state;
       setVectorFromInputs(inputs, "state", state);
 
-      auto &surface_indices = residual.surface_indices;
+      const auto &surface_indices = residual.surface_indices;
       for (int i = 0; i < surface_indices.Size(); ++i)
       {
          res_vec(surface_indices[i]) =
@@ -168,6 +174,15 @@ void setUpAdjointSystem(MeshWarperResidual &residual,
    setUpAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
 }
 
+void finalizeAdjointSystem(MeshWarperResidual &residual,
+                           mfem::Solver &adj_solver,
+                           const mach::MachInputs &inputs,
+                           mfem::Vector &state_bar,
+                           mfem::Vector &adjoint)
+{
+   finalizeAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
+}
+
 double jacobianVectorProduct(MeshWarperResidual &residual,
                              const mfem::Vector &wrt_dot,
                              const std::string &wrt)
@@ -182,7 +197,7 @@ void jacobianVectorProduct(MeshWarperResidual &residual,
 {
    if (wrt == "surf_mesh_coords")
    {
-      auto &surface_indices = residual.surface_indices;
+      const auto &surface_indices = residual.surface_indices;
       for (int i = 0; i < surface_indices.Size(); ++i)
       {
          res_dot(surface_indices[i]) -= wrt_dot(i);
@@ -205,7 +220,7 @@ void vectorJacobianProduct(MeshWarperResidual &residual,
 {
    if (wrt == "surf_mesh_coords")
    {
-      auto &surface_indices = residual.surface_indices;
+      const auto &surface_indices = residual.surface_indices;
       for (int i = 0; i < surface_indices.Size(); ++i)
       {
          wrt_bar(i) -= res_bar(surface_indices[i]);
@@ -250,40 +265,49 @@ MeshWarper::MeshWarper(MPI_Comm incomm,
 {
    auto num_states = mesh().SpaceDimension();
 
-   FiniteElementState state(mesh(), options["space-dis"], num_states, "state");
-   fields.emplace("state", std::move(state));
+   fields.emplace(
+       "state",
+       FiniteElementState(mesh(), options["space-dis"], num_states, "state"));
 
-   FiniteElementState adjoint(
-       mesh(), options["space-dis"], num_states, "adjoint");
-   fields.emplace("adjoint", std::move(adjoint));
+   fields.emplace(
+       "adjoint",
+       FiniteElementState(mesh(), options["space-dis"], num_states, "adjoint"));
 
-   FiniteElementDual residual(
-       mesh(), options["space-dis"], num_states, "residual");
-   duals.emplace("residual", std::move(residual));
+   duals.emplace(
+       "residual",
+       FiniteElementDual(mesh(), options["space-dis"], num_states, "residual"));
 
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh().GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
    /// create new state vector copying the mesh's fe space
-   fields.emplace(std::piecewise_construct,
-                  std::forward_as_tuple("mesh_coords"),
-                  std::forward_as_tuple(mesh(), *mesh_fespace, "mesh_coords"));
-   FiniteElementState &mesh_coords = fields.at("mesh_coords");
+   // fields.emplace(std::piecewise_construct,
+   //                std::forward_as_tuple("mesh_coords"),
+   //                std::forward_as_tuple(mesh(), *mesh_fespace,
+   //                "mesh_coords"));
+   // FiniteElementState & = fields.at("mesh_coords");
+
+   FiniteElementState mesh_coords(mesh(), *mesh_fespace, "mesh_coords");
    /// set the values of the new GF to those of the mesh's old nodes
    mesh_coords.gridFunc() = mesh_gf;
-   // mesh_coords.setTrueVec();  // distribute coords
+
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh().NewNodes(mesh_coords.gridFunc(), false);
 
    /// Set initial volume coords true vec
-   fields.at("mesh_coords").setTrueVec(vol_coords);
+   mesh_coords.setTrueVec(vol_coords);
+
+   /// Place mesh_coords into the solver's fields map
+   fields.emplace("mesh_coords", std::move(mesh_coords));
 
    /// Get the indices of the surface mesh dofs into the volume mesh
    mfem::Array<int> ess_bdr(mesh().bdr_attributes.Max());
    ess_bdr = 1;
    fes().GetEssentialTrueDofs(ess_bdr, surface_indices);
 
+   std::cout << "Creating MeshWarper with "
+             << fes().GetTrueVSize() - surface_indices.Size() << " dofs!\n";
    /// Set the initial surface coords
    vol_coords.GetSubVector(surface_indices, surf_coords);
 

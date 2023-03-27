@@ -133,7 +133,7 @@ ThermalResidual::ThermalResidual(
 
    if (options.contains("bcs"))
    {
-      auto &bcs = options["bcs"];
+      const auto &bcs = options["bcs"];
 
       // convection heat transfer boundary condition
       if (bcs.contains("convection"))

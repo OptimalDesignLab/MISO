@@ -1,3 +1,4 @@
+#include <cstddef>
 #include "finite_element_dual.hpp"
 #include "mfem.hpp"
 
@@ -149,7 +150,7 @@ MachMesh::~MachMesh()
    /// If we started PCU and we're the last one using it, close it
    if (!PCU_previously_initialized && pumi_mesh_count == 0)
    {
-#ifdef HAVE_EGADS
+#ifdef MFEM_USE_EGADS
       gmi_egads_stop();
 #endif
 #ifdef HAVE_SIMMETRIX
@@ -204,6 +205,11 @@ MachMesh constructMesh(MPI_Comm comm,
    {
       throw MachException("Unrecognized mesh file extension!\n");
    }
+   // auto *nodes = mesh.mesh->GetNodes();
+   // if (nodes == nullptr)
+   // {
+   //    mesh.mesh->SetCurvature(1, false, 3, mfem::Ordering::byVDIM);
+   // }
    mesh.mesh->EnsureNodes();
 
    if (!keep_boundaries)
@@ -339,6 +345,25 @@ PDESolver::PDESolver(MPI_Comm incomm,
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)
 {
+   /// loop over all components specified in options and add their specified
+   /// materials to the solver's known material library
+   if (solver_options.contains("components"))
+   {
+      for (const auto &component : solver_options["components"])
+      {
+         const auto &material = component["material"];
+         if (material.is_string())
+         {
+            continue;
+         }
+         else
+         {
+            const auto &material_name = material["name"].get<std::string>();
+            materials[material_name].merge_patch(material);
+         }
+      }
+   }
+
    fields.emplace(
        "state",
        FiniteElementState(mesh(), options["space-dis"], num_states, "state"));
@@ -352,10 +377,11 @@ PDESolver::PDESolver(MPI_Comm incomm,
    setUpExternalFields();
 }
 
-PDESolver::PDESolver(MPI_Comm incomm,
-                     const nlohmann::json &solver_options,
-                     std::function<int(const nlohmann::json &, int)> num_states,
-                     std::unique_ptr<mfem::Mesh> smesh)
+PDESolver::PDESolver(
+    MPI_Comm incomm,
+    const nlohmann::json &solver_options,
+    const std::function<int(const nlohmann::json &, int)> &num_states,
+    std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)
@@ -473,6 +499,7 @@ void PDESolver::initialHook(const mfem::Vector &state)
    int inverted_elems = mesh().CheckElementOrientation(false);
    if (inverted_elems > 0)
    {
+      mesh().PrintVTU("inverted_mesh", mfem::VTKFormat::BINARY, true);
       throw MachException("Mesh contains inverted elements!\n");
    }
    else
@@ -498,6 +525,7 @@ void PDESolver::terminalHook(int iter,
                              const mfem::Vector &state)
 {
    AbstractSolver2::terminalHook(iter, t_final, state);
+   derivedPDETerminalHook(iter, t_final, state);
 }
 
 }  // namespace mach

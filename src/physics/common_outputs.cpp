@@ -1,6 +1,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "mach_load.hpp"
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
@@ -10,34 +11,20 @@
 
 namespace mach
 {
-double calcOutput(VolumeFunctional &output, const MachInputs &inputs)
-{
-   setInputs(output, inputs);
-   output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-   return output.output.GetEnergy(output.scratch);
-}
-
 VolumeFunctional::VolumeFunctional(
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
- : FunctionalOutput(fields.at("state").space(), fields)
+ : output(fields.at("state").space(), fields)
 {
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new VolumeIntegrator, attributes);
+      output.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
    }
    else
    {
-      addOutputDomainIntegrator(new VolumeIntegrator);
+      output.addOutputDomainIntegrator(new VolumeIntegrator);
    }
-}
-
-double calcOutput(MassFunctional &output, const MachInputs &inputs)
-{
-   setInputs(output, inputs);
-   output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
-   return output.output.GetEnergy(output.scratch);
 }
 
 MassFunctional::MassFunctional(
@@ -45,17 +32,18 @@ MassFunctional::MassFunctional(
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
- : FunctionalOutput(fields.at("state").space(), fields),
+ : output(fields.at("state").space(), fields),
    rho(constructMaterialCoefficient("rho", components, materials))
 {
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      addOutputDomainIntegrator(new VolumeIntegrator(rho.get()), attributes);
+      output.addOutputDomainIntegrator(new VolumeIntegrator(rho.get()),
+                                       attributes);
    }
    else
    {
-      addOutputDomainIntegrator(new VolumeIntegrator(rho.get()));
+      output.addOutputDomainIntegrator(new VolumeIntegrator(rho.get()));
    }
 }
 
@@ -84,11 +72,40 @@ StateAverageFunctional::StateAverageFunctional(
    }
 }
 
-AverageMagnitudeCurlState::AverageMagnitudeCurlState(
-    mfem::ParFiniteElementSpace &fes,
-    std::map<std::string, FiniteElementState> &fields)
- : AverageMagnitudeCurlState(fes, fields, {})
-{ }
+double jacobianVectorProduct(AverageMagnitudeCurlState &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   double state = calcOutput(output.state_integ, inputs);
+   double volume = calcOutput(output.volume, inputs);
+
+   auto out_dot =
+       volume * jacobianVectorProduct(output.state_integ, wrt_dot, wrt);
+   out_dot -= state * jacobianVectorProduct(output.volume, wrt_dot, wrt);
+   out_dot /= pow(volume, 2);
+   return out_dot;
+}
+
+void vectorJacobianProduct(AverageMagnitudeCurlState &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   double state = calcOutput(output.state_integ, inputs);
+   double volume = calcOutput(output.volume, inputs);
+
+   output.scratch.SetSize(wrt_bar.Size());
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.state_integ, out_bar, wrt, output.scratch);
+   wrt_bar.Add(1 / volume, output.scratch);
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.volume, out_bar, wrt, output.scratch);
+   wrt_bar.Add(-state / pow(volume, 2), output.scratch);
+}
 
 AverageMagnitudeCurlState::AverageMagnitudeCurlState(
     mfem::ParFiniteElementSpace &fes,
@@ -110,29 +127,99 @@ AverageMagnitudeCurlState::AverageMagnitudeCurlState(
    }
 }
 
+double jacobianVectorProduct(IEAggregateFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   auto out_dot = denom * jacobianVectorProduct(output.numerator, wrt_dot, wrt);
+   out_dot -= num * jacobianVectorProduct(output.denominator, wrt_dot, wrt);
+   out_dot /= pow(denom, 2);
+   return out_dot;
+}
+
+void vectorJacobianProduct(IEAggregateFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   output.scratch.SetSize(wrt_bar.Size());
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.numerator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(1 / denom, output.scratch);
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.denominator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(-num / pow(denom, 2), output.scratch);
+}
+
 IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
  : numerator(fes, fields), denominator(fes, fields)
 {
-   auto rho = options["rho"].get<double>();
+   // auto rho = options["rho"].get<double>();
+   auto rho = options.value("rho", 1.0);
+   auto state_name = options.value("state", "state");
 
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       numerator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorNumerator(rho), attributes);
+          new IEAggregateIntegratorNumerator(rho, state_name), attributes);
       denominator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorDenominator(rho), attributes);
+          new IEAggregateIntegratorDenominator(rho, state_name), attributes);
    }
    else
    {
       numerator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorNumerator(rho));
+          new IEAggregateIntegratorNumerator(rho, state_name));
       denominator.addOutputDomainIntegrator(
-          new IEAggregateIntegratorDenominator(rho));
+          new IEAggregateIntegratorDenominator(rho, state_name));
    }
+}
+
+double jacobianVectorProduct(IECurlMagnitudeAggregateFunctional &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   auto out_dot = denom * jacobianVectorProduct(output.numerator, wrt_dot, wrt);
+   out_dot -= num * jacobianVectorProduct(output.denominator, wrt_dot, wrt);
+   out_dot /= pow(denom, 2);
+   return out_dot;
+}
+
+void vectorJacobianProduct(IECurlMagnitudeAggregateFunctional &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   double num = calcOutput(output.numerator, inputs);
+   double denom = calcOutput(output.denominator, inputs);
+
+   output.scratch.SetSize(wrt_bar.Size());
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.numerator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(1 / denom, output.scratch);
+
+   output.scratch = 0.0;
+   vectorJacobianProduct(output.denominator, out_bar, wrt, output.scratch);
+   wrt_bar.Add(-num / pow(denom, 2), output.scratch);
 }
 
 IECurlMagnitudeAggregateFunctional::IECurlMagnitudeAggregateFunctional(

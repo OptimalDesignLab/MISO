@@ -79,7 +79,7 @@ public:
                                      mfem::Vector &wrt_bar);
 
    template <typename T>
-   MachLoad(T &x) : self_(new model<T>(x))
+   MachLoad(T x) : self_(new model<T>(x))
    { }
 
 private:
@@ -106,7 +106,7 @@ private:
    class model final : public concept_t
    {
    public:
-      model(T &x) : data_(x) { }
+      model(T &x) : data_(std::move(x)) { }
       void setInputs_(const MachInputs &inputs) override
       {
          setInputs(data_, inputs);
@@ -139,7 +139,7 @@ private:
          vectorJacobianProduct(data_, res_bar, wrt, wrt_bar);
       }
 
-      T &data_;
+      T data_;
    };
 
    std::unique_ptr<concept_t> self_;

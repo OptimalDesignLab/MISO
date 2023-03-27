@@ -811,9 +811,8 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree,
 
    // fes does not own fec, which is generated in this function's scope, but
    // the grid function can own both the fec and fes
-   H1_FECollection *fec = new H1_FECollection(degree, 2 /* = dim */);
-   FiniteElementSpace *fes =
-       new FiniteElementSpace(&mesh, fec, 2, Ordering::byVDIM);
+   auto *fec = new H1_FECollection(degree, 2 /* = dim */);
+   auto *fes = new FiniteElementSpace(&mesh, fec, 2, Ordering::byVDIM);
 
    // This lambda function transforms from (r,\theta) space to (x,y) space
    auto xy_fun = [](const Vector &rt, Vector &xy)
@@ -823,7 +822,7 @@ unique_ptr<Mesh> buildQuarterAnnulusMesh(int degree,
       xy(1) = (rt(0) + 1.0) * sin(rt(1));
    };
    VectorFunctionCoefficient xy_coeff(2, xy_fun);
-   GridFunction *xy = new GridFunction(fes);
+   auto *xy = new GridFunction(fes);
    xy->MakeOwner(fec);
    xy->ProjectCoefficient(xy_coeff);
 

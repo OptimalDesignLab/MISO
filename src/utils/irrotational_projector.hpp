@@ -98,7 +98,9 @@ private:
    mutable mfem::Vector RHS;
 
    mutable mfem::HypreBoomerAMG amg;
-   mutable mfem::HyprePCG pcg;
+   // mutable mfem::HyprePCG pcg;
+   mutable mfem::GMRESSolver pcg;
+   // mutable mfem::CGSolver pcg;
 
    mfem::Array<int> ess_bdr, ess_bdr_tdofs;
 };

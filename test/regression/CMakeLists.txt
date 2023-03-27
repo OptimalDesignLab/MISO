@@ -20,10 +20,13 @@ set(REGRESSION_TEST_SRCS
    test_steady_thermal_cube
    test_mach_inputs
    test_magnetostatic_box
+   test_magnetostatic_box2d
    test_meshmovement_box
    test_meshmovement_annulus
    test_ac_loss
    test_magnetostatic_box_new
+   # test_2d_magnet_in_box
+   test_magnetostatic_residual
 )
 
 create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)

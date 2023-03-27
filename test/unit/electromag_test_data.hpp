@@ -15,6 +15,11 @@ namespace electromag_data
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
+double randNumber()
+{
+   return uniform_rand(gen);
+}
+
 void randBaselineVectorPert(const mfem::Vector &x, mfem::Vector &u)
 {
    const double scale = 0.5;

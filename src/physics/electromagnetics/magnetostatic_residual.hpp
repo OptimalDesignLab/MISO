@@ -3,9 +3,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "adept.h"
+#include "mach_load.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -49,6 +51,12 @@ public:
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
+   friend void finalizeAdjointSystem(MagnetostaticResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const mach::MachInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(MagnetostaticResidual &residual,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
@@ -80,9 +88,17 @@ private:
    /// Nonlinear form that handles the curl curl term of the weak form
    MachNonlinearForm res;
    /// Load vector for current and magnetic sources
-   MagnetostaticLoad load;
+   // MagnetostaticLoad load;
+   std::unique_ptr<MachLoad> load;
+   std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+   std::unique_ptr<MagnetizationCoefficient> mag_coeff;
+   std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM;
+
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
+
+   /// Work vector
+   mfem::Vector scratch;
 };
 
 }  // namespace mach

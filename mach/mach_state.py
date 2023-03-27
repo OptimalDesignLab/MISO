@@ -3,6 +3,7 @@ import openmdao.api as om
 
 from .pyMach import PDESolver
 
+
 def _getMeshCoordsName(solver_options):
     type = solver_options["solver-type"]["type"]
 
@@ -15,8 +16,9 @@ def _getMeshCoordsName(solver_options):
         suffix = "conduct"
     else:
         raise RuntimeError("Bad physics given to MachSolver!")
-    
+
     return "x_" + suffix + "0"
+
 
 class MachMesh(om.IndepVarComp):
     """
@@ -24,7 +26,12 @@ class MachMesh(om.IndepVarComp):
     """
 
     def initialize(self):
-        self.options.declare("solver", types=PDESolver, desc="the mach solver object itself", recordable=False)
+        self.options.declare(
+            "solver",
+            types=PDESolver,
+            desc="the mach solver object itself",
+            recordable=False,
+        )
 
     def setup(self):
         solver = self.options["solver"]
@@ -36,14 +43,25 @@ class MachMesh(om.IndepVarComp):
         solver_options = solver.getOptions()
 
         mesh_name = _getMeshCoordsName(solver_options)
-        self.add_output(mesh_name, distributed=True, val=mesh_coords,
-                        desc="mesh node coordinates", tags=["mphys_coordinates"])
+        self.add_output(
+            mesh_name,
+            distributed=True,
+            val=mesh_coords,
+            desc="mesh node coordinates",
+            tags=["mphys_coordinates"],
+        )
+
 
 class MachState(om.ImplicitComponent):
     """OpenMDAO component that converges the state variables"""
 
     def initialize(self):
-        self.options.declare("solver", types=PDESolver, desc="the mach solver object itself", recordable=False)
+        self.options.declare(
+            "solver",
+            types=PDESolver,
+            desc="the mach solver object itself",
+            recordable=False,
+        )
         self.options.declare("depends", types=list)
         self.options.declare("check_partials", default=False)
 
@@ -58,24 +76,24 @@ class MachState(om.ImplicitComponent):
         ext_fields = "external-fields" in solver_options
         for input in self.options["depends"]:
             if input == "mesh_coords":
-                self.add_input("mesh_coords",
-                               distributed=True,
-                               shape_by_conn=True,
-                               desc="volume mesh node coordinates",
-                               tags=["mphys_coordinates"])
+                mesh_size = solver.getFieldSize(input)
+                self.add_input(
+                    "mesh_coords",
+                    #    distributed=True,
+                    shape=mesh_size,
+                    #    shape_by_conn=True,
+                    desc="volume mesh node coordinates",
+                    tags=["mphys_coordinates"],
+                )
                 self.vectors["mesh_coords"] = np.empty(0)
             else:
                 input_size = solver.getFieldSize(input)
                 if input_size == 0:
                     input_size = 1
                 if ext_fields and input in solver_options["external-fields"]:
-                    self.add_input(input,
-                                   shape=input_size,
-                                   tags=["mphys_coupling"])
+                    self.add_input(input, shape=input_size, tags=["mphys_coupling"])
                 else:
-                    self.add_input(input,
-                                   shape=input_size,
-                                   tags=["mphys_input"])
+                    self.add_input(input, shape=input_size, tags=["mphys_input"])
                 if input_size > 1:
                     self.vectors[input] = np.empty(input_size)
 
@@ -90,11 +108,13 @@ class MachState(om.ImplicitComponent):
         # state outputs
         local_state_size = solver.getStateSize()
         state = np.zeros(local_state_size)
-        self.add_output("state",
-                        val=state,
-                        distributed=True,
-                        desc="Mach state vector",
-                        tags=["mphys_coupling"])
+        self.add_output(
+            "state",
+            val=state,
+            distributed=True,
+            desc="Mach state vector",
+            tags=["mphys_coupling"],
+        )
         self.vectors["state"] = state
         self.vectors["state_res"] = np.empty_like(state)
 
@@ -115,9 +135,9 @@ class MachState(om.ImplicitComponent):
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
-        input_dict.update(self.vectors)   
+        input_dict.update(self.vectors)
 
-        residual = self.vectors["state_res"]     
+        residual = self.vectors["state_res"]
         solver.calcResidual(input_dict, residual)
         residuals["state"][:] = residual[:]
 
@@ -138,7 +158,7 @@ class MachState(om.ImplicitComponent):
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
-        input_dict.update(self.vectors)        
+        input_dict.update(self.vectors)
 
         state = self.vectors["state"]
         solver.solveForState(input_dict, state)
@@ -160,7 +180,7 @@ class MachState(om.ImplicitComponent):
 
         input_dict = dict(zip(inputs.keys(), inputs.values()))
         input_dict.update(dict(zip(outputs.keys(), outputs.values())))
-        input_dict.update(self.vectors)        
+        input_dict.update(self.vectors)
         self.linear_inputs = input_dict
 
         solver = self.options["solver"]
@@ -171,33 +191,64 @@ class MachState(om.ImplicitComponent):
 
         try:
             if mode == "fwd":
-                if "state" in d_residuals: 
-                    if "state" in d_outputs: 
-                        solver.jacobianVectorProduct(wrt_dot=d_outputs["state"],
-                                                     wrt="state",
-                                                     res_dot=d_residuals["state"])
+                if "state" in d_residuals:
+                    if "state" in d_outputs:
+                        if np.linalg.norm(d_outputs["state"], 2) != 0.0:
+                            solver.jacobianVectorProduct(
+                                wrt_dot=d_outputs["state"],
+                                wrt="state",
+                                res_dot=d_residuals["state"],
+                            )
+                        else:
+                            print("zero wrt_dot!")
 
                     for input in d_inputs:
-                        solver.jacobianVectorProduct(wrt_dot=d_inputs[input],
-                                                     wrt=input,
-                                                     res_dot=d_residuals["state"])
+                        if np.linalg.norm(d_inputs[input], 2) != 0.0:
+                            solver.jacobianVectorProduct(
+                                wrt_dot=d_inputs[input],
+                                wrt=input,
+                                res_dot=d_residuals["state"],
+                            )
+                        else:
+                            print("zero wrt_dot!")
 
             elif mode == "rev":
-                if "state" in d_residuals: 
-                    if "state" in d_outputs: 
-                        solver.vectorJacobianProduct(res_bar=d_residuals["state"],
-                                                     wrt="state",
-                                                     wrt_bar=d_outputs["state"])
+                if "state" in d_residuals:
+                    if np.linalg.norm(d_residuals["state"], 2) != 0.0:
 
-                    for input in d_inputs:
-                        solver.vectorJacobianProduct(res_bar=d_residuals["state"],
-                                                     wrt=input,
-                                                     wrt_bar=d_inputs[input])
-        except NotImplementedError as err:
-            if self.options["check_partials"]:
-                pass
+                        if "state" in d_outputs:
+                            solver.vectorJacobianProduct(
+                                res_bar=d_residuals["state"],
+                                wrt="state",
+                                wrt_bar=d_outputs["state"],
+                            )
+
+                        for input in d_inputs:
+                            solver.vectorJacobianProduct(
+                                res_bar=d_residuals["state"],
+                                wrt=input,
+                                wrt_bar=d_inputs[input],
+                            )
+                    else:
+                        print("zero res_bar!")
+
+        except Exception as err:
+            if isinstance(err, NotImplementedError):
+                if self.options["check_partials"]:
+                    print(f"\n\nNot implemented error passed!!!\n\n")
+                    pass
+                else:
+                    print(f"\n\nNot implemented error raised!!!\n\n")
+                    raise err
             else:
+                print("\n\ngeneric exception!!!\n\n")
                 raise err
+
+        # except NotImplementedError as err:
+        #     if self.options["check_partials"]:
+        #         pass
+        #     else:
+        #         raise err
 
     def solve_linear(self, d_outputs, d_residuals, mode):
         if mode == "fwd":
@@ -207,8 +258,15 @@ class MachState(om.ImplicitComponent):
                 raise NotImplementedError("forward mode requested but not implemented")
 
         if mode == "rev":
-            solver = self.options["solver"]
-            input_dict = self.linear_inputs
-            solver.solveForAdjoint(input_dict,
-                                   d_outputs["state"],
-                                   d_residuals["state"])
+            print("!!!!!!! Solving for adjoint !!!!!!!")
+            if np.linalg.norm(d_outputs["state"], 2) != 0.0:
+                solver = self.options["solver"]
+                input_dict = self.linear_inputs
+                solver.solveForAdjoint(
+                    input_dict, d_outputs["state"], d_residuals["state"]
+                )
+                # solver.solveForAdjoint(input_dict,
+                #                        state_bar,
+                #                        d_residuals["state"])
+            else:
+                print("zero fun_bar!")

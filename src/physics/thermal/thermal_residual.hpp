@@ -89,7 +89,7 @@ private:
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
 
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
+   static std::unique_ptr<mfem::Solver> constructPreconditioner(
        mfem::ParFiniteElementSpace &fes,
        const nlohmann::json &prec_options)
    {

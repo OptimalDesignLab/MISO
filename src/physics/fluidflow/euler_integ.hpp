@@ -1,6 +1,8 @@
 #ifndef MACH_EULER_INTEG
 #define MACH_EULER_INTEG
 
+#include <utility>
+
 #include "adept.h"
 #include "mfem.hpp"
 
@@ -367,13 +369,13 @@ public:
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
    FarFieldBC(adept::Stack &diff_stack,
               const mfem::FiniteElementCollection *fe_coll,
-              const mfem::Vector &q_far,
+              mfem::Vector q_far,
               double a = 1.0)
     : InviscidBoundaryIntegrator<FarFieldBC<dim, entvar>>(diff_stack,
                                                           fe_coll,
                                                           dim + 2,
                                                           a),
-      qfs(q_far),
+      qfs(std::move(q_far)),
       work_vec(dim + 2)
    { }
 
@@ -449,7 +451,7 @@ public:
                                                                  fe_coll,
                                                                  dim + 2,
                                                                  a),
-      bc_fun(bnd_state),
+      bc_fun(std::move(bnd_state)),
       work1(dim + 2),
       work2(dim + 2)
    { }
@@ -533,7 +535,7 @@ public:
    ControlBC(adept::Stack &diff_stack,
              const mfem::FiniteElementCollection *fe_coll,
              BCScaleFun scale,
-             const mfem::Vector &xc,
+             mfem::Vector xc,
              double len = 1.0,
              double a = 1.0)
     : InviscidBoundaryIntegrator<ControlBC<dim, entvar>>(diff_stack,
@@ -541,9 +543,9 @@ public:
                                                          dim + 2,
                                                          a),
       len_scale(len),
-      x_actuator(xc),
+      x_actuator(std::move(xc)),
       control(0.0),
-      control_scale(scale),
+      control_scale(std::move(scale)),
       work1(dim + 2),
       work2(dim + 2)
    { }
@@ -691,12 +693,12 @@ public:
    /// \param[in] force_dir - unit vector specifying the direction of the force
    PressureForce(adept::Stack &diff_stack,
                  const mfem::FiniteElementCollection *fe_coll,
-                 const mfem::Vector &force_dir)
+                 mfem::Vector force_dir)
     : InviscidBoundaryIntegrator<PressureForce<dim, entvar>>(diff_stack,
                                                              fe_coll,
                                                              dim + 2,
                                                              1.0),
-      force_nrm(force_dir),
+      force_nrm(std::move(force_dir)),
       work_vec(dim + 2)
    { }
 
@@ -803,15 +805,15 @@ public:
    BoundaryEntropy(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
                    BCScaleFun scale,
-                   const mfem::Vector &xc,
+                   mfem::Vector xc,
                    double len = 1.0)
     : InviscidBoundaryIntegrator<BoundaryEntropy<dim, entvar>>(diff_stack,
                                                                fe_coll,
                                                                dim + 2,
                                                                1.0),
       len_scale(len),
-      x_actuator(xc),
-      control_scale(scale)
+      x_actuator(std::move(xc)),
+      control_scale(std::move(scale))
    { }
 
    /// Returns the entropy, weighted by given scalar function, at a given point

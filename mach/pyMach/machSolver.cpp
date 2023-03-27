@@ -43,28 +43,38 @@ void initSolver(py::module &m)
        //       py::arg("json_options"),
        //       py::arg("comm") = mpi_comm(MPI_COMM_WORLD))
        .def("getOptions", &AbstractSolver2::getOptions)
+       //  .def(
+       //      "setState",
+       //      [](AbstractSolver2 &self,
+       //         const std::function<void(mfem::Vector &)> &fun,
+       //         const py::array_t<double> &state,
+       //         const std::string &name)
+       //      {
+       //         auto state_vec = npBufferToMFEMVector(state);
+       //         self.setState(fun, state_vec, name);
+       //      },
+       //      py::arg("fun"),
+       //      py::arg("state"),
+       //      py::arg("name") = "state")
        .def(
            "setState",
            [](AbstractSolver2 &self,
-              std::function<void(mfem::Vector &)> fun,
+              //   const std::function<double(const mfem::Vector &)> &fun,
+              const std::function<double(const py::array_t<double> &)> &fun,
               const py::array_t<double> &state,
               const std::string &name)
            {
+              auto cpp_fun = [&fun](const mfem::Vector &x)
+              {
+                 py::array_t<double> py_x{
+                     x.Size(),   /* Buffer dimensions */
+                     x.GetData() /* Pointer to buffer */
+                 };
+                 return fun(py_x);
+              };
               auto state_vec = npBufferToMFEMVector(state);
-              self.setState(fun, state_vec, name);
-           },
-           py::arg("fun"),
-           py::arg("state"),
-           py::arg("name") = "state")
-       .def(
-           "setState",
-           [](AbstractSolver2 &self,
-              std::function<double(const mfem::Vector &)> fun,
-              const py::array_t<double> &state,
-              const std::string &name)
-           {
-              auto state_vec = npBufferToMFEMVector(state);
-              self.setState(fun, state_vec, name);
+              //   self.setState(fun, state_vec, name);
+              self.setState(cpp_fun, state_vec, name);
            },
            py::arg("fun"),
            py::arg("state"),
@@ -90,7 +100,7 @@ void initSolver(py::module &m)
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<void(mfem::Vector &)> ex_sol,
+              const std::function<void(mfem::Vector &)> &ex_sol,
               const py::array_t<double> &state,
               const std::string &name) {
               return self.calcStateError(
@@ -102,7 +112,7 @@ void initSolver(py::module &m)
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<double(const mfem::Vector &)> ex_sol,
+              const std::function<double(const mfem::Vector &)> &ex_sol,
               const py::array_t<double> &state,
               const std::string &name)
            { self.calcStateError(ex_sol, npBufferToMFEMVector(state), name); },
@@ -112,8 +122,8 @@ void initSolver(py::module &m)
        .def(
            "calcStateError",
            [](AbstractSolver2 &self,
-              std::function<void(const mfem::Vector &, mfem::Vector *const)>
-                  ex_sol,
+              const std::function<void(const mfem::Vector &,
+                                       mfem::Vector *const)> &ex_sol,
               const py::array_t<double> &state,
               const std::string &name)
            {
@@ -243,7 +253,7 @@ void initSolver(py::module &m)
               const std::string &output,
               const py::dict &py_inputs)
            { return self.calcOutput(output, pyDictToMachInputs(py_inputs)); },
-           "Calculate the output specified by \"output\" using \"inputs\"",
+           R"(Calculate the output specified by "output" using "inputs")",
            py::arg("output"),
            py::arg("inputs"))
        .def(

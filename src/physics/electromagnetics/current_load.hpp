@@ -61,6 +61,12 @@ private:
    // mfem::Vector scratch;
    mfem::Vector load;
 
+   mfem::Vector X;
+   mfem::Vector RHS;
+   mfem::Array<int> dummmy_ess_tdof_list;
+   mfem::HypreBoomerAMG amg;
+   std::unique_ptr<mfem::Solver> pcg;
+
    DivergenceFreeProjector div_free_proj;
 
    mfem::ParLinearForm mesh_sens;

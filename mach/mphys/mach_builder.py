@@ -88,7 +88,10 @@ class MachOutputsGroup(om.Group):
         solver_options = self.solver.getOptions()
         mesh_input = "x_" + _getPhysicsAbbreviation(solver_options) + "_vol"
         state_input = _getPhysicsAbbreviation(solver_options) + "_state"
-        promoted_inputs = [("mesh_coords", mesh_input), ("state", state_input)]
+        promoted_inputs = {
+            "mesh_coords": ("mesh_coords", mesh_input),
+            "state": ("state", state_input)
+        }
 
         for output in self.outputs:
             if "options" in self.outputs[output]:
@@ -101,12 +104,13 @@ class MachOutputsGroup(om.Group):
             else:
                 depends = []
 
+            depends = [promoted_inputs[input] if input in promoted_inputs else input for input in depends]
             self.add_subsystem(output,
                                MachFunctional(solver=self.solver,
                                              func=output,
                                              func_options=output_opts,
                                              depends=depends),
-                               promotes_inputs=[*depends, *promoted_inputs],
+                               promotes_inputs=[*depends],
                                promotes_outputs=[output])
 
 

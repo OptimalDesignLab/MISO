@@ -59,7 +59,7 @@ public:
    /// should be used on
    /// \tparam T - type of integrator, used for constructing MachIntegrator
    template <typename T>
-   void addDomainIntegrator(T *integrator, std::vector<int> attr_marker);
+   void addDomainIntegrator(T *integrator, const std::vector<int> &attr_marker);
 
    /// Adds boundary integrator to linear form
    /// \param[in] integrator - linear form integrator for boundary
@@ -94,6 +94,8 @@ public:
    /// \note The array bdr_attr_marker is copied
    template <typename T>
    void addBdrFaceIntegrator(T *integrator, mfem::Array<int> &bdr_attr_marker);
+
+   const mfem::Array<int> &getEssentialDofs() const { return ess_tdof_list; }
 
    MachLinearForm(mfem::ParFiniteElementSpace &pfes,
                   std::map<std::string, FiniteElementState> &fields)
@@ -164,7 +166,7 @@ void MachLinearForm::addDomainIntegrator(T *integrator)
 
 template <typename T>
 void MachLinearForm::addDomainIntegrator(T *integrator,
-                                         std::vector<int> attr_marker)
+                                         const std::vector<int> &attr_marker)
 {
    integs.emplace_back(*integrator);
 

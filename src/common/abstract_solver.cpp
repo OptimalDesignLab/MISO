@@ -1,4 +1,5 @@
 #include "default_options.hpp"
+#include "mach_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "utils.hpp"
 
@@ -125,10 +126,11 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
       mfem::Vector zero;
       nonlinear_solver->Mult(zero, state);
 
+      terminalHook(1, 1.0, state);
+
       /// log final state
-      for (auto &pair : loggers)
+      for (auto &[logger, options] : loggers)
       {
-         auto &logger = pair.first;
          logState(logger, state, "state", 1, 1.0, rank);
       }
    }
@@ -165,10 +167,11 @@ void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
 
       adj_solver->Mult(work, adjoint);
 
+      finalizeAdjointSystem(*spatial_res, *adj_solver, inputs, work, adjoint);
+
       /// log final state
-      for (auto &pair : loggers)
+      for (auto &[logger, options] : loggers)
       {
-         auto &logger = pair.first;
          logState(logger, adjoint, "adjoint", 0, 0.0, rank);
       }
    }
@@ -380,28 +383,28 @@ void AbstractSolver2::outputJacobianVectorProduct(const std::string &of,
                                                   const std::string &wrt,
                                                   mfem::Vector &out_dot)
 {
-   try
+   // try
+   // {
+   auto output_iter = outputs.find(of);
+   if (output_iter == outputs.end())
    {
-      auto output_iter = outputs.find(of);
-      if (output_iter == outputs.end())
-      {
-         throw MachException("Did not find " + of + " in output map!\n");
-      }
-      auto &output = output_iter->second;
-      setInputs(output, inputs);
-      if (out_dot.Size() == 1)
-      {
-         out_dot(0) += mach::jacobianVectorProduct(output, wrt_dot, wrt);
-      }
-      else
-      {
-         mach::jacobianVectorProduct(output, wrt_dot, wrt, out_dot);
-      }
+      throw MachException("Did not find " + of + " in output map!\n");
    }
-   catch (const std::out_of_range &exception)
+   auto &output = output_iter->second;
+   setInputs(output, inputs);
+   if (out_dot.Size() == 1)
    {
-      std::cerr << exception.what() << std::endl;
+      out_dot(0) += mach::jacobianVectorProduct(output, wrt_dot, wrt);
    }
+   else
+   {
+      mach::jacobianVectorProduct(output, wrt_dot, wrt, out_dot);
+   }
+   // }
+   // catch (const std::out_of_range &exception)
+   // {
+   //    std::cerr << exception.what() << std::endl;
+   // }
 }
 
 void AbstractSolver2::outputVectorJacobianProduct(const std::string &of,
@@ -410,28 +413,28 @@ void AbstractSolver2::outputVectorJacobianProduct(const std::string &of,
                                                   const std::string &wrt,
                                                   mfem::Vector &wrt_bar)
 {
-   try
+   // try
+   // {
+   auto output_iter = outputs.find(of);
+   if (output_iter == outputs.end())
    {
-      auto output_iter = outputs.find(of);
-      if (output_iter == outputs.end())
-      {
-         throw MachException("Did not find " + of + " in output map!\n");
-      }
-      auto &output = output_iter->second;
-      setInputs(output, inputs);
-      if (wrt_bar.Size() == 1)
-      {
-         wrt_bar(0) += mach::vectorJacobianProduct(output, out_bar, wrt);
-      }
-      else
-      {
-         mach::vectorJacobianProduct(output, out_bar, wrt, wrt_bar);
-      }
+      throw MachException("Did not find " + of + " in output map!\n");
    }
-   catch (const std::out_of_range &exception)
+   auto &output = output_iter->second;
+   setInputs(output, inputs);
+   if (wrt_bar.Size() == 1)
    {
-      std::cerr << exception.what() << std::endl;
+      wrt_bar(0) += mach::vectorJacobianProduct(output, out_bar, wrt);
    }
+   else
+   {
+      mach::vectorJacobianProduct(output, out_bar, wrt, wrt_bar);
+   }
+   // }
+   // catch (const std::out_of_range &exception)
+   // {
+   //    std::cerr << exception.what() << std::endl;
+   // }
 }
 
 void AbstractSolver2::linearize(const MachInputs &inputs)
@@ -516,10 +519,8 @@ void AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
 
 void AbstractSolver2::initialHook(const mfem::Vector &state)
 {
-   for (auto &pair : loggers)
+   for (auto &[logger, options] : loggers)
    {
-      auto &logger = pair.first;
-      auto &options = pair.second;
       if (options.initial_state)
       {
          logState(logger, state, "state", 0, 0.0, rank);
@@ -532,10 +533,8 @@ void AbstractSolver2::iterationHook(int iter,
                                     double dt,
                                     const mfem::Vector &state)
 {
-   for (auto &pair : loggers)
+   for (auto &[logger, options] : loggers)
    {
-      auto &logger = pair.first;
-      auto &options = pair.second;
       if (options.each_timestep)
       {
          logState(logger, state, "state", iter, t, rank);
@@ -570,10 +569,8 @@ void AbstractSolver2::terminalHook(int iter,
                                    double t_final,
                                    const mfem::Vector &state)
 {
-   for (auto &pair : loggers)
+   for (auto &[logger, options] : loggers)
    {
-      auto &logger = pair.first;
-      auto &options = pair.second;
       if (options.final_state)
       {
          logState(logger, state, "state", iter, t_final, rank);

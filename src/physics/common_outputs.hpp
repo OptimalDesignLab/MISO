@@ -12,56 +12,89 @@
 
 namespace mach
 {
-class VolumeFunctional : public FunctionalOutput
+class VolumeFunctional final
 {
 public:
    friend inline int getSize(const VolumeFunctional &output)
    {
-      const auto &fun_output = dynamic_cast<const FunctionalOutput &>(output);
-      return getSize(fun_output);
+      return getSize(output.output);
    }
 
    friend void setOptions(VolumeFunctional &output,
                           const nlohmann::json &options)
    {
-      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
-      setOptions(fun_output, options);
+      setOptions(output.output, options);
    }
 
    friend void setInputs(VolumeFunctional &output, const MachInputs &inputs)
    {
-      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
-      setInputs(fun_output, inputs);
+      setInputs(output.output, inputs);
    }
 
-   friend double calcOutput(VolumeFunctional &output, const MachInputs &inputs);
+   friend double calcOutput(VolumeFunctional &output, const MachInputs &inputs)
+   {
+      return calcOutput(output.output, inputs);
+   }
+
+   friend double jacobianVectorProduct(VolumeFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      return jacobianVectorProduct(output.output, wrt_dot, wrt);
+   }
+
+   friend void vectorJacobianProduct(VolumeFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
 
    VolumeFunctional(std::map<std::string, FiniteElementState> &fields,
                     const nlohmann::json &options);
+
+private:
+   FunctionalOutput output;
 };
 
-class MassFunctional : public FunctionalOutput
+class MassFunctional final
 {
 public:
    friend inline int getSize(const MassFunctional &output)
    {
-      const auto &fun_output = dynamic_cast<const FunctionalOutput &>(output);
-      return getSize(fun_output);
+      return getSize(output.output);
    }
 
    friend void setOptions(MassFunctional &output, const nlohmann::json &options)
    {
-      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
-      setOptions(fun_output, options);
+      setOptions(output.output, options);
    }
 
    friend void setInputs(MassFunctional &output, const MachInputs &inputs)
    {
-      auto &fun_output = dynamic_cast<FunctionalOutput &>(output);
-      setInputs(fun_output, inputs);
+      setInputs(output.output, inputs);
    }
 
-   friend double calcOutput(MassFunctional &output, const MachInputs &inputs);
+   friend double calcOutput(MassFunctional &output, const MachInputs &inputs)
+   {
+      return calcOutput(output.output, inputs);
+   }
+
+   friend double jacobianVectorProduct(MassFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      return jacobianVectorProduct(output.output, wrt_dot, wrt);
+   }
+
+   friend void vectorJacobianProduct(MassFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
 
    MassFunctional(std::map<std::string, FiniteElementState> &fields,
                   const nlohmann::json &components,
@@ -69,6 +102,7 @@ public:
                   const nlohmann::json &options);
 
 private:
+   FunctionalOutput output;
    /// Density
    std::unique_ptr<mfem::Coefficient> rho;
 };
@@ -133,6 +167,7 @@ public:
    friend void setInputs(AverageMagnitudeCurlState &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.state_integ, inputs);
       setInputs(output.volume, inputs);
    }
@@ -145,8 +180,19 @@ public:
       return state / volume;
    }
 
+   friend double jacobianVectorProduct(AverageMagnitudeCurlState &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(AverageMagnitudeCurlState &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
    AverageMagnitudeCurlState(mfem::ParFiniteElementSpace &fes,
-                             std::map<std::string, FiniteElementState> &fields);
+                             std::map<std::string, FiniteElementState> &fields)
+    : AverageMagnitudeCurlState(fes, fields, {})
+   { }
 
    AverageMagnitudeCurlState(mfem::ParFiniteElementSpace &fes,
                              std::map<std::string, FiniteElementState> &fields,
@@ -155,6 +201,8 @@ public:
 private:
    FunctionalOutput state_integ;
    FunctionalOutput volume;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 class IEAggregateFunctional
@@ -175,6 +223,7 @@ public:
    friend void setInputs(IEAggregateFunctional &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.numerator, inputs);
       setInputs(output.denominator, inputs);
    }
@@ -182,10 +231,24 @@ public:
    friend double calcOutput(IEAggregateFunctional &output,
                             const MachInputs &inputs)
    {
+      mfem::Vector state;
+      setVectorFromInputs(inputs, "state", state);
+      double true_max = state.Max();
+      setInputs(output, {{"true_max", true_max}});
+
       double num = calcOutput(output.numerator, inputs);
       double denom = calcOutput(output.denominator, inputs);
       return num / denom;
    }
+
+   friend double jacobianVectorProduct(IEAggregateFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(IEAggregateFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    IEAggregateFunctional(mfem::ParFiniteElementSpace &fes,
                          std::map<std::string, FiniteElementState> &fields,
@@ -194,6 +257,8 @@ public:
 private:
    FunctionalOutput numerator;
    FunctionalOutput denominator;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 class IECurlMagnitudeAggregateFunctional
@@ -214,6 +279,7 @@ public:
    friend void setInputs(IECurlMagnitudeAggregateFunctional &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.numerator, inputs);
       setInputs(output.denominator, inputs);
    }
@@ -226,6 +292,16 @@ public:
       return num / denom;
    }
 
+   friend double jacobianVectorProduct(
+       IECurlMagnitudeAggregateFunctional &output,
+       const mfem::Vector &wrt_dot,
+       const std::string &wrt);
+
+   friend void vectorJacobianProduct(IECurlMagnitudeAggregateFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
    IECurlMagnitudeAggregateFunctional(
        mfem::ParFiniteElementSpace &fes,
        std::map<std::string, FiniteElementState> &fields,
@@ -234,6 +310,8 @@ public:
 private:
    FunctionalOutput numerator;
    FunctionalOutput denominator;
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 }  // namespace mach

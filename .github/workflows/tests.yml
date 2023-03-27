@@ -45,6 +45,10 @@ jobs:
           }
 
     steps:
+    - name: Set up Homebrew
+      id: set-up-homebrew
+      uses: Homebrew/actions/setup-homebrew@master
+
     - name: Download Ninja
       id: cmake_and_ninja
       shell: cmake -P {0}
