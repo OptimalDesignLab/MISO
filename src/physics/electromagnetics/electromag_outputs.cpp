@@ -1282,14 +1282,14 @@ CoreLossFunctional::CoreLossFunctional(
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       output.addOutputDomainIntegrator(
-          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, std::move(attr_name)),
+          new SteinmetzLossIntegrator(
+              *rho, *k_s, *alpha, *beta, std::move(attr_name)),
           attributes);
-
    }
    else
    {
-      output.addOutputDomainIntegrator(
-          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, std::move(attr_name)));
+      output.addOutputDomainIntegrator(new SteinmetzLossIntegrator(
+          *rho, *k_s, *alpha, *beta, std::move(attr_name)));
    }
 }
 

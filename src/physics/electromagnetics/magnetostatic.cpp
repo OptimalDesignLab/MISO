@@ -249,9 +249,12 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
 
-      auto attr_name = fun.substr(fun.find(":")+1);
-      CoreLossFunctional out(
-          fields, AbstractSolver2::options["components"], materials, options, std::move(attr_name));
+      auto attr_name = fun.substr(fun.find(":") + 1);
+      CoreLossFunctional out(fields,
+                             AbstractSolver2::options["components"],
+                             materials,
+                             options,
+                             std::move(attr_name));
       outputs.emplace(fun, std::move(out));
    }
    else if (fun.rfind("mass", 0) == 0)
