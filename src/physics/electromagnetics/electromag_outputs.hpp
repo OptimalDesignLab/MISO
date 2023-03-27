@@ -357,7 +357,8 @@ public:
    CoreLossFunctional(std::map<std::string, FiniteElementState> &fields,
                       const nlohmann::json &components,
                       const nlohmann::json &materials,
-                      const nlohmann::json &options);
+                      const nlohmann::json &options,
+                      std::string attr_name = "");
 
 private:
    FunctionalOutput output;

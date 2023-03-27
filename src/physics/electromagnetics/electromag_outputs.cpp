@@ -1270,7 +1270,8 @@ CoreLossFunctional::CoreLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &components,
     const nlohmann::json &materials,
-    const nlohmann::json &options)
+    const nlohmann::json &options,
+    std::string attr_name)
  : output(fields.at("state").space(), fields),
    rho(constructMaterialCoefficient("rho", components, materials)),
    k_s(constructMaterialCoefficient("ks", components, materials)),
@@ -1281,13 +1282,14 @@ CoreLossFunctional::CoreLossFunctional(
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       output.addOutputDomainIntegrator(
-          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, "stator"),
+          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, std::move(attr_name)),
           attributes);
+
    }
    else
    {
       output.addOutputDomainIntegrator(
-          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
+          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, std::move(attr_name)));
    }
 }
 
