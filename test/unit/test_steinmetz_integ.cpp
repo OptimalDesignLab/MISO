@@ -4,8 +4,7 @@
 #include "electromag_test_data.hpp"
 
 #include "coefficient.hpp"
-///TODO: Once install mach again, replace the below line with simply: #include "electromag_integ.hpp"
-#include "../../src/physics/electromagnetics/electromag_integ.hpp"
+#include "electromag_integ.hpp"
 #include "material_library.hpp"
 
 TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
@@ -387,8 +386,6 @@ TEST_CASE("SteinmetzLossDistributionIntegrator::AssembleRHSElementVect")
 }
 */
 
-// Adding CAL2 Core Loss Integrator test here (can always make a new/separate test file)
-// Revise test to allow for the maximum flux value to be passed in (value only used if no peak flux field) 
 TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 {
    using namespace mfem;
@@ -396,42 +393,22 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 
    
    const int dim = 2;
-   // if (dim==2)
-   // {
-   // Option 1: Generate an 8 element mesh in 2D
 
    int num_edge = 2;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                     Element::TRIANGLE);
    mesh.EnsureNodes();
 
-   
-   // }
-   // else if (dim==3)
-   // {
-   // // Option 2: Generate a 3D unit cube mesh
-   
-   // int num_edge = 3;
-   // auto smesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-   //                                        Element::TETRAHEDRON,
-   //                                        1.0, 1.0, 1.0, true);
-
-   // ParMesh mesh(MPI_COMM_WORLD, smesh); 
-   // mesh.EnsureNodes();
-
-   // L2_FECollection fec(p, dim); // Stick with L2 elements or use other FEs? 
-   // ParFiniteElementSpace fes(&mesh, &fec);
-   // }
-
+   const double B_m = 2.2;
    //Function Coefficient model Representing the B Field (peak flux density in this case)
    mfem::FunctionCoefficient Bfield_model(
-      [](const mfem::Vector &x)
+      [=](const mfem::Vector &x)
       {
          // x will be the point in space
          double B = 0;
          for (int i = 0; i < x.Size(); ++i)
          {
-            B = 2.2; //constant flux density throughout mesh
+            B = B_m; //constant flux density throughout mesh
             // B = 2.4*x(0); // flux density linearly dependent in the x(0) direction
             // B = 1.1*x(1); // flux density linearly dependent in the x(1) direction
             // B = 3.0*std::pow(x(0),2); // flux density quadratically dependent in the x(0) direction
@@ -444,7 +421,7 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
 
    //Function Coefficient model Representing the Temperature Field
    mfem::FunctionCoefficient Tfield_model(
-      [](const mfem::Vector &x)
+      [=](const mfem::Vector &x)
       {
          // x will be the point in space
          double T = 0;
@@ -461,105 +438,72 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
          return T;
       });
 
+   // Set the density
+   mfem::ConstantCoefficient rho(1.0);
+   CAL2Coefficient CAL2_kh;
+   CAL2Coefficient CAL2_ke;
+
    // Loop over various degrees of elements (1 to 4)
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
    
-      // Create the finite element collection and finite element space for the current order
-      H1_FECollection fec(p, dim);
-      FiniteElementSpace fes(&mesh, &fec);
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
 
-      // extract mesh nodes and get their finite-element space
-      auto &x_nodes = *mesh.GetNodes();
-      auto &mesh_fes = *x_nodes.FESpace();
+         // initialize peak flux state
+         GridFunction flux(&flux_fes);
+         flux.ProjectCoefficient(Bfield_model);
 
-      mfem::NonlinearForm functional(&fes);
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
 
-      // Set the density
-      mfem::ConstantCoefficient rho(1.0);
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(Tfield_model);
+         
+         auto *integ = new mach::CAL2CoreLossIntegrator(rho, CAL2_kh, CAL2_ke, flux, temp);
 
-      // ** Made CAL2Coefficient simpler to avoid the parameters. Define CAL2_kh (similar methodology to SigmaCoefficient from test_electromag_integ)
-      // double T0 = 293.15;
-      // double T1 = 473.15;
-      // std::vector<double> kh_T0 = {0.0997091541786544,
-      //          -0.129193571991623,
-      //          0.0900090637806644,
-      //          -0.0212834836667556};
-      // std::vector<double> kh_T1 = {0.0895406177349016,
-      //          -0.0810594723247055,
-      //          0.0377588555136910,
-      //          -0.00511339186996760};
-      std::unique_ptr<mach::ThreeStateCoefficient> CAL2_kh(new CAL2Coefficient());
+         double f = 1000.0;
+         setInputs(*integ, {
+            {"frequency", f},
+         });
 
-      // ** Made CAL2Coefficient simpler to avoid the parameters. Define CAL2_ke (similar methodology to SigmaCoefficient from test_electromag_integ)
-      // T0=293.15 and T1=473.15 once again
-      // std::vector<double> ke_T0 = {-5.93693970727006e-06,
-      //          0.000117138629373709,
-      //          -0.000130355460369590,
-      //          4.10973552619398e-05};
-      // std::vector<double> ke_T1 = {1.79301614571386e-05,
-      //          7.45159671115992e-07,
-      //          -1.19410662547280e-06,
-      //          3.53133402660246e-07};
-      std::unique_ptr<mach::ThreeStateCoefficient> CAL2_ke(new CAL2Coefficient());
+         mfem::NonlinearForm functional(&flux_fes);
+         functional.AddDomainIntegrator(integ);
 
-      // Create the temperature_field grid function by mapping the function coefficient to a grid function
-      mfem::GridFunction temperature_field(&fes);
-      temperature_field.ProjectCoefficient(Tfield_model);
+         mfem::Vector dummy_vec(flux_fes.GetTrueVSize());
+         auto CAL2_core_loss = functional.GetEnergy(dummy_vec);
 
-      // Create the peak flux field (B) grid function by mapping the function coefficient to a grid function
-      mfem::GridFunction peak_flux(&fes);
-      peak_flux.ProjectCoefficient(Bfield_model);
-      
-      double f = 1000.0; double Bm = 1.7;
-      auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, peak_flux, &temperature_field);
-      setInputs(*integ, {
-         {"frequency", f},
-         {"max_flux_magnitude", Bm}
-      });
-      // auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, peak_flux);
-      // setInputs(*integ, {
-      //    {"frequency", f},
-      //    {"max_flux_magnitude", Bm}
-      // }); // for the case where the temperature_field is a null pointer (not passed in)
-
-      functional.AddDomainIntegrator(integ);
-
-      mfem::Vector dummy_vec(fes.GetTrueVSize());
-      auto CAL2_core_loss = functional.GetEnergy(dummy_vec);
-      // std::cout << "CAL2_core_loss=" << CAL2_core_loss << "\n";
-
-      double Expected_core_loss = f*37*Bm + pow(f,2)*37*Bm; // for B=1.7, T=37 (both const), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
-      // double Expected_core_loss = f*100*Bm + pow(f,2)*100*Bm; // for B=1.7, T=100 (no temp field), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
-      // double Expected_core_loss = f*(77.0/2)*Bm + pow(f,2)*(77.0/2)*Bm; // for B=1.7, T=77*x(0), UseMaxFluxValueAndNotPeakFluxField = true
-      // double Expected_core_loss = f*(30.0/3)*Bm + pow(f,2)*(30.0/3)*Bm; // for B=1.7, T=30*std::pow(x(0),2), UseMaxFluxValueAndNotPeakFluxField = true
-      // double Expected_core_loss = f*37*2.2 + pow(f,2)*37*2.2; // for B=2.2, T=37, UseMaxFluxValueAndNotPeakFluxField = false
-      // double Expected_core_loss = f*37*(2.4/2) + pow(f,2)*37*(2.4/2); // for B=2.4*x(0), T=37, UseMaxFluxValueAndNotPeakFluxField = false
-      // double Expected_core_loss = f*37*(3.0/3) + pow(f,2)*37*(3.0/3); // for B=3.0*std::pow(x(0),2), T=37, UseMaxFluxValueAndNotPeakFluxField = false
-      
-      // std::cout << "core_loss_diff = " << CAL2_core_loss-Expected_core_loss << "\n";
-      REQUIRE(CAL2_core_loss == Approx(Expected_core_loss));
-      // The below was for when CAL2Coefficient was not as simple (previously) 
-      // At B=1.7, T=20 (both const): CAL2_kh=0.03564052086424506, CAL2_ke=1.8382756161830418e-05, pFe=(0.03564052086424506)*1000*pow(1.7,2)+(1.8382756161830418e-05)*pow(1000,2)*pow(1.7,2)=156.12727060535812 W
-      // Expected_core_loss = 156.12727060535812; // passes for all orders of p, including p=1
-      // At B=1.7, T=100 (both const): CAL2_kh=0.03568496179583322, CAL2_ke=1.798193527110098e-05, pFe=(0.03568496179583322)*1000*pow(1.7,2)+(1.798193527110098e-05)*pow(1000,2)*pow(1.7,2)=155.0973325234398 W
-      // Expected_core_loss = 155.0973325234398; // passes for all orders of p, including p=1
-      // At B=2.2, T=37 (both const): CAL2_kh=0.025918677125662013, CAL2_ke=5.4589283749123626e-05, pFe=(0.025918677125662013)*1000*pow(2.2,2)+(5.4589283749123626e-05)*pow(1000,2)*pow(2.2,2)=389.6585306339625 W
-      // Expected_core_loss = 389.6585306339625; // passes for all orders of p, including p=1
-      // At B=2.2, T=77*x(0): CAL2_kh=0.026043798894524624, CAL2_ke=5.424843329564548e-05, pFe=(0.026043798894524624)*1000*pow(2.2,2)+(5.424843329564548e-05)*pow(1000,2)*pow(2.2,2)=388.61440380042336 W
-      // Expected_core_loss = 388.61440380042336; // passes for all orders of p, including p=1
-      // At B=2.2, T=63*x(1): CAL2_kh=0.02545989730649911, CAL2_ke=5.583906874521016e-05, pFe=(0.02545989730649911)*1000*pow(2.2,2)+(5.583906874521016e-05)*pow(1000,2)*pow(2.2,2)=393.4869956902729 W
-      // Expected_core_loss = 393.4869956902729; // passes for all orders of p, including p=1
-      // Temporarily adjusting logic in CAL2CLI to have CAL2_kh and CAL2_ke=1 (temporarily)
-      // With B=2.4*x(0), T=37: CAL2_kh and CAL2_ke=1 (temporarily), pFe=1.92192e6 W (analytical calc, WolframAlpha verified)
-      // Expected_core_loss = 1.92192e6; // as expected, fails for p=1 and passes for p=2
+         double Expected_core_loss = f*37*B_m + pow(f,2)*37*B_m; // for B=1.7, T=37 (both const), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
+         // double Expected_core_loss = f*100*Bm + pow(f,2)*100*Bm; // for B=1.7, T=100 (no temp field), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
+         // double Expected_core_loss = f*(77.0/2)*Bm + pow(f,2)*(77.0/2)*Bm; // for B=1.7, T=77*x(0), UseMaxFluxValueAndNotPeakFluxField = true
+         // double Expected_core_loss = f*(30.0/3)*Bm + pow(f,2)*(30.0/3)*Bm; // for B=1.7, T=30*std::pow(x(0),2), UseMaxFluxValueAndNotPeakFluxField = true
+         // double Expected_core_loss = f*37*2.2 + pow(f,2)*37*2.2; // for B=2.2, T=37, UseMaxFluxValueAndNotPeakFluxField = false
+         // double Expected_core_loss = f*37*(2.4/2) + pow(f,2)*37*(2.4/2); // for B=2.4*x(0), T=37, UseMaxFluxValueAndNotPeakFluxField = false
+         // double Expected_core_loss = f*37*(3.0/3) + pow(f,2)*37*(3.0/3); // for B=3.0*std::pow(x(0),2), T=37, UseMaxFluxValueAndNotPeakFluxField = false
+         
+         // std::cout << "core_loss_diff = " << CAL2_core_loss-Expected_core_loss << "\n";
+         REQUIRE(CAL2_core_loss == Approx(Expected_core_loss));
+         // The below was for when CAL2Coefficient was not as simple (previously) 
+         // At B=1.7, T=20 (both const): CAL2_kh=0.03564052086424506, CAL2_ke=1.8382756161830418e-05, pFe=(0.03564052086424506)*1000*pow(1.7,2)+(1.8382756161830418e-05)*pow(1000,2)*pow(1.7,2)=156.12727060535812 W
+         // Expected_core_loss = 156.12727060535812; // passes for all orders of p, including p=1
+         // At B=1.7, T=100 (both const): CAL2_kh=0.03568496179583322, CAL2_ke=1.798193527110098e-05, pFe=(0.03568496179583322)*1000*pow(1.7,2)+(1.798193527110098e-05)*pow(1000,2)*pow(1.7,2)=155.0973325234398 W
+         // Expected_core_loss = 155.0973325234398; // passes for all orders of p, including p=1
+         // At B=2.2, T=37 (both const): CAL2_kh=0.025918677125662013, CAL2_ke=5.4589283749123626e-05, pFe=(0.025918677125662013)*1000*pow(2.2,2)+(5.4589283749123626e-05)*pow(1000,2)*pow(2.2,2)=389.6585306339625 W
+         // Expected_core_loss = 389.6585306339625; // passes for all orders of p, including p=1
+         // At B=2.2, T=77*x(0): CAL2_kh=0.026043798894524624, CAL2_ke=5.424843329564548e-05, pFe=(0.026043798894524624)*1000*pow(2.2,2)+(5.424843329564548e-05)*pow(1000,2)*pow(2.2,2)=388.61440380042336 W
+         // Expected_core_loss = 388.61440380042336; // passes for all orders of p, including p=1
+         // At B=2.2, T=63*x(1): CAL2_kh=0.02545989730649911, CAL2_ke=5.583906874521016e-05, pFe=(0.02545989730649911)*1000*pow(2.2,2)+(5.583906874521016e-05)*pow(1000,2)*pow(2.2,2)=393.4869956902729 W
+         // Expected_core_loss = 393.4869956902729; // passes for all orders of p, including p=1
+         // Temporarily adjusting logic in CAL2CLI to have CAL2_kh and CAL2_ke=1 (temporarily)
+         // With B=2.4*x(0), T=37: CAL2_kh and CAL2_ke=1 (temporarily), pFe=1.92192e6 W (analytical calc, WolframAlpha verified)
+         // Expected_core_loss = 1.92192e6; // as expected, fails for p=1 and passes for p=2
       }
    }
 }
 
-// Added test case for CAL2CoreLossIntegratorFreqSens::GetElementEnergy
 TEST_CASE("CAL2CoreLossIntegratorFreqSens::GetElementEnergy")
 {
    using namespace mfem;
@@ -574,71 +518,56 @@ TEST_CASE("CAL2CoreLossIntegratorFreqSens::GetElementEnergy")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   auto f = [](const mfem::Vector &x)
-   {
-      double q = 0;
-      for (int i = 0; i < x.Size(); ++i)
-      {
-         q += pow(x(i), 2);
-      }
-      return q;
-   };
-
-   auto f_rev_diff = [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-   {
-      for (int i = 0; i < x.Size(); ++i)
-      {
-         x_bar(i) += q_bar * 2 * x(i);
-      }
-   };
-
    // Set the density
-   mfem::FunctionCoefficient rho(f, f_rev_diff);
+   mfem::ConstantCoefficient rho(1.0);
+   // Set the CAL2 coefficients
+   CAL2Coefficient CAL2_kh;
+   CAL2Coefficient CAL2_ke;
 
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         L2_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
 
-         // initialize state (used for both peak flux (if using field) and temperature fields)
-         GridFunction a(&fes);
+         // initialize peak flux state
+         GridFunction flux(&flux_fes);
          FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         flux.ProjectCoefficient(pert);
 
-         // Set the CAL2 coefficients
-         std::unique_ptr<mach::ThreeStateCoefficient> CAL2_kh(new CAL2Coefficient());
-         std::unique_ptr<mach::ThreeStateCoefficient> CAL2_ke(new CAL2Coefficient());
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
 
-         auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, a, &a);
-         // auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, a); // for the case where the temperature_field is a null pointer (not passed in)
-         NonlinearForm functional(&fes);
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+
+         auto *integ = new mach::CAL2CoreLossIntegrator(rho, CAL2_kh, CAL2_ke, flux, temp);
+         NonlinearForm functional(&flux_fes);
          functional.AddDomainIntegrator(integ);
 
          // evaluate dJdp and compute its product with pert
-         NonlinearForm dJdp(&fes);
+         NonlinearForm dJdp(&flux_fes);
          dJdp.AddDomainIntegrator(
             new mach::CAL2CoreLossIntegratorFreqSens(*integ));
 
          double frequency = 2.0 + randNumber();
-         double Bm = 1.7;
          mach::MachInputs inputs{
             {"frequency", frequency},
-            {"max_flux_magnitude", Bm}
          };
          setInputs(*integ, inputs);
-         double dfdp_fwd = dJdp.GetEnergy(a);
+         double dfdp_fwd = dJdp.GetEnergy(flux);
          // std::cout << "dfdp_fwd = " << dfdp_fwd << "\n";
 
          // now compute the finite-difference approximation...
          inputs["frequency"] = frequency + delta;
          setInputs(*integ, inputs);
-         double dfdp_fd_p = functional.GetEnergy(a);
+         double dfdp_fd_p = functional.GetEnergy(flux);
 
          inputs["frequency"] = frequency - delta;
          setInputs(*integ, inputs);
-         double dfdp_fd_m = functional.GetEnergy(a);
+         double dfdp_fd_m = functional.GetEnergy(flux);
 
          double dfdp_fd = (dfdp_fd_p - dfdp_fd_m) / (2 * delta);
 
@@ -648,8 +577,7 @@ TEST_CASE("CAL2CoreLossIntegratorFreqSens::GetElementEnergy")
    }
 }
 
-// Added test case for CAL2CoreLossIntegratorMaxFluxSens:: GetElementEnergy
-TEST_CASE("CAL2CoreLossIntegratorMaxFluxSens::GetElementEnergy")
+TEST_CASE("CAL2CoreLossIntegratorPeakFluxSens::AssembleRHSElementVect")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -657,88 +585,71 @@ TEST_CASE("CAL2CoreLossIntegratorMaxFluxSens::GetElementEnergy")
    double delta = 1e-5;
 
    // generate a 8 element mesh
-   int num_edge = 2;
+   int num_edge = 3;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   auto f = [](const mfem::Vector &x)
-   {
-      double q = 0;
-      for (int i = 0; i < x.Size(); ++i)
-      {
-         q += pow(x(i), 2);
-      }
-      return q;
-   };
-
-   auto f_rev_diff = [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-   {
-      for (int i = 0; i < x.Size(); ++i)
-      {
-         x_bar(i) += q_bar * 2 * x(i);
-      }
-   };
-
    // Set the density
-   mfem::FunctionCoefficient rho(f, f_rev_diff);
+   mfem::ConstantCoefficient rho(1.0);
+   // Set the CAL2 coefficients
+   CAL2Coefficient CAL2_kh;
+   CAL2Coefficient CAL2_ke;
 
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         L2_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
 
-         // initialize state (used for both peak flux (if using field) and temperature fields)
-         GridFunction a(&fes);
+         // initialize peak flux state
+         GridFunction flux(&flux_fes);
          FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         flux.ProjectCoefficient(pert);
 
-         // Set the CAL2 coefficients
-         std::unique_ptr<mach::ThreeStateCoefficient> CAL2_kh(new CAL2Coefficient());
-         std::unique_ptr<mach::ThreeStateCoefficient> CAL2_ke(new CAL2Coefficient());
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
 
-         auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, a, &a);
-         // auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, a); // for the case where the temperature_field is a null pointer (not passed in)
-         NonlinearForm functional(&fes);
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+
+         auto *integ = new mach::CAL2CoreLossIntegrator(rho, CAL2_kh, CAL2_ke, flux, temp);
+         NonlinearForm functional(&flux_fes);
          functional.AddDomainIntegrator(integ);
 
-         // evaluate dJdp and compute its product with pert
-         NonlinearForm dJdp(&fes);
-         dJdp.AddDomainIntegrator(
-            new mach::CAL2CoreLossIntegratorMaxFluxSens(*integ));
-
          double frequency = 2.0;
-         double Bm = 1.7 + randNumber();
          mach::MachInputs inputs{
             {"frequency", frequency},
-            {"max_flux_magnitude", Bm}
          };
          setInputs(*integ, inputs);
-         double dfdp_fwd = dJdp.GetEnergy(a);
-         std::cout << "dfdp_fwd = " << dfdp_fwd << "\n";
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&flux_fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with pert
+         LinearForm dJdu(&flux_fes);
+         dJdu.AddDomainIntegrator(
+            new mach::CAL2CoreLossIntegratorPeakFluxSens(*integ));
+         dJdu.Assemble();
+         double dJdu_dot_p = dJdu * p;
 
          // now compute the finite-difference approximation...
-         inputs["max_flux_magnitude"] = Bm + delta;
-         setInputs(*integ, inputs);
-         double dfdp_fd_p = functional.GetEnergy(a);
+         flux.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(flux);
+         flux.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(flux);
+         dJdu_dot_p_fd /= (2 * delta);
 
-         inputs["max_flux_magnitude"] = Bm - delta;
-         setInputs(*integ, inputs);
-         double dfdp_fd_m = functional.GetEnergy(a);
-
-         double dfdp_fd = (dfdp_fd_p - dfdp_fd_m) / (2 * delta);
-
-         std::cout << "dfdp_fwd = " << dfdp_fwd << "\n";
-         REQUIRE(dfdp_fwd == Approx(dfdp_fd).margin(1e-8));
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
       }
    }
 }
 
-// Added test case for CAL2CoreLossIntegratorTemperatureSens::GetElementEnergy
-TEST_CASE("CAL2CoreLossIntegratorTemperatureSens::GetElementEnergy")
+TEST_CASE("CAL2CoreLossIntegratorTemperatureSens::AssembleRHSElementVect")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -746,112 +657,141 @@ TEST_CASE("CAL2CoreLossIntegratorTemperatureSens::GetElementEnergy")
    double delta = 1e-5;
 
    // generate a 8 element mesh
-   int num_edge = 2;
+   int num_edge = 3;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   auto f = [](const mfem::Vector &x)
-   {
-      double q = 0;
-      for (int i = 0; i < x.Size(); ++i)
-      {
-         std::cout << "x(" << i << ")=" << x(i) <<", ";
-         q += pow(x(i), 2);
-      }
-      std::cout << "q=" << q << "\n";
-      return q;
-   };
-
-   auto f_rev_diff = [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-   {
-      std::cout << "f_rev_diff being called for temp sens\n";
-      for (int i = 0; i < x.Size(); ++i)
-      {
-         x_bar(i) += q_bar * 2 * x(i);
-      }
-   };
-
    // Set the density
-   mfem::FunctionCoefficient rho(f, f_rev_diff);
+   mfem::ConstantCoefficient rho(1.0);
+   // Set the CAL2 coefficients
+   CAL2Coefficient CAL2_kh;
+   CAL2Coefficient CAL2_ke;
 
-   ///TODO: Revert to (int p = 1; p <= 4; ++p)
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         // L2_FECollection fec(p, dim);
-         H1_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
+
+         // initialize peak flux state
+         GridFunction flux(&flux_fes);
+         FunctionCoefficient pert(randState);
+         flux.ProjectCoefficient(pert);
+
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+
+         auto *integ = new mach::CAL2CoreLossIntegrator(rho, CAL2_kh, CAL2_ke, flux, temp);
+         NonlinearForm functional(&flux_fes);
+         functional.AddDomainIntegrator(integ);
+
+         double frequency = 2.0;
+         mach::MachInputs inputs{
+            {"frequency", frequency},
+         };
+         setInputs(*integ, inputs);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&temp_fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with pert
+         LinearForm dJdu(&temp_fes);
+         dJdu.AddDomainIntegrator(
+            new mach::CAL2CoreLossIntegratorTemperatureSens(*integ));
+         dJdu.Assemble();
+         double dJdu_dot_p = dJdu * p;
+
+         // now compute the finite-difference approximation...
+         temp.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(flux);
+         temp.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(flux);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
+TEST_CASE("CAL2CoreLossIntegratorMeshSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 3;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   // Set the density
+   mfem::ConstantCoefficient rho(1.0);
+   // Set the CAL2 coefficients
+   CAL2Coefficient CAL2_kh;
+   CAL2Coefficient CAL2_ke;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
+
+         // initialize peak flux state
+         GridFunction flux(&flux_fes);
+         FunctionCoefficient pert(randState);
+         flux.ProjectCoefficient(pert);
+
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+
+         auto *integ = new mach::CAL2CoreLossIntegrator(rho, CAL2_kh, CAL2_ke, flux, temp);
+         NonlinearForm functional(&flux_fes);
+         functional.AddDomainIntegrator(integ);
 
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = *mesh.GetNodes();
          auto &mesh_fes = *x_nodes.FESpace();
 
-         // initialize state (used for peak flux (if using field))
-         GridFunction a(&fes);
-         FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         p.ProjectCoefficient(v_pert);
 
-         // Set the temperature field
-         GridFunction temperature_field(&fes);
-         FunctionCoefficient temperature_func(f, f_rev_diff);
-         temperature_field.ProjectCoefficient(temperature_func);
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdx(&mesh_fes);
+         dJdx.AddDomainIntegrator(
+            new mach::CAL2CoreLossIntegratorMeshSens(*integ));
+         dJdx.Assemble();
+         double dJdx_dot_p = dJdx * p;
 
-         ///TODO: Remove comment out once done debugging
-         // for ( int i = 0; i < mesh.GetNV(); i++ )
-         // {
-         //    for ( int j = 0; j < 2; j++ )
-         //    {
-         //          std::cout << x_nodes.Elem(i + j*mesh.GetNV()) << " ";
-         //    }
-         //    std::cout << "\n";
-         // }
-         // for (int j = 0; j < temperature_field.Size(); j++)
-         // {
-         //    std::cout << "At node " << x_nodes.Elem(j) << "temperature=" << temperature_field.Elem(j) << "\n";
-         // }
-          
-         
-         // Set the CAL2 coefficients
-         std::unique_ptr<mach::ThreeStateCoefficient> CAL2_kh(new CAL2Coefficient());
-         std::unique_ptr<mach::ThreeStateCoefficient> CAL2_ke(new CAL2Coefficient());
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         x_pert.Add(-delta, p);
+         mesh.SetNodes(x_pert);
+         double dJdx_dot_p_fd = -functional.GetEnergy(flux);
+         x_pert.Add(2 * delta, p);
+         mesh.SetNodes(x_pert);
+         dJdx_dot_p_fd += functional.GetEnergy(flux);
+         dJdx_dot_p_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
 
-         auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, a, &temperature_field);
-         // // auto *integ = new mach::CAL2CoreLossIntegrator(rho, *CAL2_kh, *CAL2_ke, a); // for the case where the temperature_field is a null pointer (not passed in)
-         NonlinearForm functional(&fes);
-         functional.AddDomainIntegrator(integ);
-
-         // evaluate dJdp and compute its product with pert
-         NonlinearForm dJdp(&fes);
-         dJdp.AddDomainIntegrator(
-            new mach::CAL2CoreLossIntegratorTemperatureSens(*integ));
-
-         double frequency = 2.0;
-         double Bm = 1.7;
-         mach::MachInputs inputs{
-            {"frequency", frequency},
-            {"max_flux_magnitude", Bm}
-         };
-         setInputs(*integ, inputs);
-         double dfdp_fwd = dJdp.GetEnergy(a);
-         std::cout << "dfdp_fwd = " << dfdp_fwd << "\n";
-
-         ///TODO: Add appropriate assertion
-         // // now compute the finite-difference approximation...
-         // inputs["frequency"] = frequency + delta;
-         // setInputs(*integ, inputs);
-         // double dfdp_fd_p = functional.GetEnergy(a);
-
-         // inputs["frequency"] = frequency - delta;
-         // setInputs(*integ, inputs);
-         // double dfdp_fd_m = functional.GetEnergy(a);
-
-         // double dfdp_fd = (dfdp_fd_p - dfdp_fd_m) / (2 * delta);
-
-         // // std::cout << "dfdp_fwd = " << dfdp_fwd << "\n";
-         // REQUIRE(dfdp_fwd == Approx(dfdp_fd).margin(1e-8));
+         REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
       }
    }
 }

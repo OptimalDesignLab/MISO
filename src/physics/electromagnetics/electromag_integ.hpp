@@ -1,6 +1,7 @@
 #ifndef MACH_ELECTROMAG_INTEG
 #define MACH_ELECTROMAG_INTEG
 
+#include <cstddef>
 #include <unordered_set>
 #include <utility>
 
@@ -132,30 +133,47 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     NonlinearDiffusionIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *bdr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
-   rev_sens.at("mesh_coords")
-       .AddDomainIntegrator(new NonlinearDiffusionIntegratorMeshRevSens(
-           fields.at("state").gridFunc(),
-           fields.at("adjoint").gridFunc(),
-           primal_integ));
+
+   if (bdr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new NonlinearDiffusionIntegratorMeshRevSens(
+              fields.at("state").gridFunc(),
+              fields.at("adjoint").gridFunc(),
+              primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new NonlinearDiffusionIntegratorMeshRevSens(
+                                   fields.at("state").gridFunc(),
+                                   fields.at("adjoint").gridFunc(),
+                                   primal_integ),
+                               *bdr_marker);
+   }
 }
 
 class MagnetizationSource2DIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-   ///TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M (mach)
-   MagnetizationSource2DIntegrator(ScalarVectorProductCoefficient &M, // will need to be formerly a mfem::VectorCoefficient &M
-                                   double alpha = 1.0,
-                                   mfem::GridFunction *temperature_field=nullptr)
+   /// TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M
+   /// (mach)
+   MagnetizationSource2DIntegrator(
+       ScalarVectorProductCoefficient
+           &M,  // will need to be formerly a mfem::VectorCoefficient &M
+       double alpha = 1.0,
+       mfem::GridFunction *temperature_field = nullptr)
     : M(M), alpha(alpha), temperature_field(temperature_field)
    { }
 
@@ -165,14 +183,15 @@ public:
 
 private:
    /// vector coefficient from linear form
-   ///TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M (mach)
+   /// TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M
+   /// (mach)
    // mfem::VectorCoefficient &M;
    ScalarVectorProductCoefficient &M;
 
    /// scaling term if the linear form has a negative sign in the residual
    const double alpha;
 
-   mfem::GridFunction *temperature_field; // pointer to the temperature field
+   mfem::GridFunction *temperature_field;  // pointer to the temperature field
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshape, dshapedxt;
@@ -181,24 +200,29 @@ private:
    mfem::Array<int> vdofs;
    mfem::Vector temp_elfun;
 #endif
-   /// class that implements mesh sensitivities for MagnetizationSource2DIntegrator
+   /// class that implements mesh sensitivities for
+   /// MagnetizationSource2DIntegrator
    friend class MagnetizationSource2DIntegratorMeshRevSens;
-   /// class that implements temperature sensitivities for MagnetizationSource2DIntegrator
+   /// class that implements temperature sensitivities for
+   /// MagnetizationSource2DIntegrator
    friend class MagnetizationSource2DIntegratorTemperatureSens;
 };
 
-/// Integrator to assemble d(psi^T R)/dX for the MagnetizationSource2DIntegrator, updated to reflect the fact there is now (possibly) a temperature field
+/// Integrator to assemble d(psi^T R)/dX for the
+/// MagnetizationSource2DIntegrator, updated to reflect the fact there is now
+/// (possibly) a temperature field
 class MagnetizationSource2DIntegratorMeshRevSens
  : public mfem::LinearFormIntegrator
 {
 public:
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
-   /// \param[in] temperature_field - pointer to the temperature field to use when evaluating d(psi^T R)/dX
+   /// \param[in] temperature_field - pointer to the temperature field to use
+   /// when evaluating d(psi^T R)/dX
    MagnetizationSource2DIntegratorMeshRevSens(
        mfem::GridFunction &adjoint,
        MagnetizationSource2DIntegrator &integ,
-       mfem::GridFunction *temperature_field=nullptr)
+       mfem::GridFunction *temperature_field = nullptr)
     : adjoint(adjoint), integ(integ), temperature_field(temperature_field)
    { }
 
@@ -219,7 +243,9 @@ private:
    /// reference to primal integrator
    MagnetizationSource2DIntegrator &integ;
 
-   mfem::GridFunction *temperature_field; // pointer to the temperature field to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction
+       *temperature_field;  // pointer to the temperature field to use when
+                            // evaluating d(psi^T R)/dX
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
@@ -238,11 +264,12 @@ class MagnetizationSource2DIntegratorTemperatureSens
 public:
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dT
    /// \param[in] integ - reference to primal integrator
-   /// \param[in] temperature_field - pointer to the temperature field to use when evaluating d(psi^T R)/dT
+   /// \param[in] temperature_field - pointer to the temperature field to use
+   /// when evaluating d(psi^T R)/dT
    MagnetizationSource2DIntegratorTemperatureSens(
        mfem::GridFunction &adjoint,
        MagnetizationSource2DIntegrator &integ,
-       mfem::GridFunction *temperature_field=nullptr)
+       mfem::GridFunction *temperature_field = nullptr)
     : adjoint(adjoint), integ(integ), temperature_field(temperature_field)
    { }
 
@@ -263,7 +290,9 @@ private:
    /// reference to primal integrator
    MagnetizationSource2DIntegrator &integ;
 
-   mfem::GridFunction *temperature_field; // pointer to the temperature field to use when evaluating d(psi^T R)/dT
+   mfem::GridFunction
+       *temperature_field;  // pointer to the temperature field to use when
+                            // evaluating d(psi^T R)/dT
 
 #ifndef MFEM_THREAD_SAFE
    mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
@@ -275,31 +304,55 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     MagnetizationSource2DIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
-   ///TODO: Determine if need to emplace temperature field
-      
+   /// TODO: Determine if need to emplace temperature field
+
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
-   rev_sens.at("mesh_coords")
-       .AddDomainIntegrator(new MagnetizationSource2DIntegratorMeshRevSens(
-           fields.at("adjoint").gridFunc(),
-           primal_integ,
-           &fields.at("temperature").gridFunc()));
 
-   ///TODO: Dermine if the below is correct for the temperature sensitivity
    auto &temperature_fes = fields.at("temperature").space();
    rev_sens.emplace("temperature", &temperature_fes);
-   rev_sens.at("temperature").AddDomainIntegrator(
-       new MagnetizationSource2DIntegratorTemperatureSens(fields.at("adjoint").gridFunc(),
-                                                         primal_integ,
-                                                         &fields.at("temperature").gridFunc()));   
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new MagnetizationSource2DIntegratorMeshRevSens(
+              fields.at("adjoint").gridFunc(),
+              primal_integ,
+              &fields.at("temperature").gridFunc()));
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new MagnetizationSource2DIntegratorTemperatureSens(
+                  fields.at("adjoint").gridFunc(),
+                  primal_integ,
+                  &fields.at("temperature").gridFunc()));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new MagnetizationSource2DIntegratorMeshRevSens(
+                                   fields.at("adjoint").gridFunc(),
+                                   primal_integ,
+                                   &fields.at("temperature").gridFunc()),
+                               *attr_marker);
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new MagnetizationSource2DIntegratorTemperatureSens(
+                  fields.at("adjoint").gridFunc(),
+                  primal_integ,
+                  &fields.at("temperature").gridFunc()),
+              *attr_marker);
+   }
 }
 
 /// Integrator for (\nu(u)*curl u, curl v) for Nedelec elements
@@ -436,13 +489,14 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     CurlCurlNLFIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &state = fields.at("state");
    auto &state_fes = fields.at("state").space();
@@ -1177,10 +1231,14 @@ class DCLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \brief - Compute DC copper losses in the domain
-   /// \param[in] sigma - the temperature dependent electrical conductivity coefficient // Made sigma a StateCoefficient (formerly mfem::Coefficient)
-   /// \param[in] temperature_field - a pointer to the temperature field (default is null)
-   DCLossFunctionalIntegrator(StateCoefficient &sigma, mfem::GridFunction *temperature_field=nullptr) 
-   : sigma(sigma), temperature_field(temperature_field) { }
+   /// \param[in] sigma - the temperature dependent electrical conductivity
+   /// coefficient // Made sigma a StateCoefficient (formerly mfem::Coefficient)
+   /// \param[in] temperature_field - a pointer to the temperature field
+   /// (default is null)
+   DCLossFunctionalIntegrator(StateCoefficient &sigma,
+                              mfem::GridFunction *temperature_field = nullptr)
+    : sigma(sigma), temperature_field(temperature_field)
+   { }
 
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] el - the finite element
@@ -1195,9 +1253,9 @@ private:
    // Made sigma a StateCoefficient (formerly mfem::Coefficient)
    StateCoefficient &sigma;
 
-   mfem::GridFunction *temperature_field; // pointer to the temperature field
+   mfem::GridFunction *temperature_field;  // pointer to the temperature field
 
-   ///TODO: Look into making code thread-safe
+   /// TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::Array<int> vdofs;
@@ -1285,17 +1343,20 @@ public:
 
    // Made sigma a StateCoefficient (formerly mfem::Coefficient)
    // Added a grid function pointer for the temperature field to signature
-   DCLossFunctionalDistributionIntegrator(StateCoefficient &sigma,
-                                          mfem::GridFunction *temperature_field=nullptr,
-                                          std::string name = "")
+   DCLossFunctionalDistributionIntegrator(
+       StateCoefficient &sigma,
+       mfem::GridFunction *temperature_field = nullptr,
+       std::string name = "")
     : sigma(sigma), temperature_field(temperature_field), name(std::move(name))
    { }
 
 private:
-   /// Temperature dependent Electrical conductivity // Made sigma a StateCoefficient (formerly mfem::Coefficient)
+   /// Temperature dependent Electrical conductivity // Made sigma a
+   /// StateCoefficient (formerly mfem::Coefficient)
    StateCoefficient &sigma;
-   
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+
+   mfem::GridFunction
+       *temperature_field;  // pointer to temperature field (can be null)
 
    // optional integrator name to differentiate setting inputs
    std::string name;
@@ -1311,7 +1372,7 @@ private:
    /// Stack length
    double stack_length = 1.0;
 
-   ///TODO: Look into making code thread-safe
+   /// TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::Array<int> vdofs;
@@ -1320,7 +1381,7 @@ private:
 
    /// class that implements mesh sensitivities for
    /// DCLossFunctionalDistributionIntegrator
-   ///TODO: If necessary, define and implement this class
+   /// TODO: If necessary, define and implement this class
    friend class DCLossFunctionalDistributionIntegratorMeshSens;
 };
 
@@ -1331,11 +1392,14 @@ class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 public:
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
-   /// \param[in] sigma - the temperature dependent electrical conductivity coefficient // Made sigma a StateCoefficient (formerly an MFEM coefficient)
-   /// \param[in] temperature_field - a pointer to the temperature field (default is null)
-   ACLossFunctionalIntegrator(StateCoefficient &sigma, mfem::GridFunction *temperature_field=nullptr) 
-   : sigma(sigma), temperature_field(temperature_field) { }
-
+   /// \param[in] sigma - the temperature dependent electrical conductivity
+   /// coefficient // Made sigma a StateCoefficient (formerly an MFEM
+   /// coefficient) \param[in] temperature_field - a pointer to the temperature
+   /// field (default is null)
+   ACLossFunctionalIntegrator(StateCoefficient &sigma,
+                              mfem::GridFunction *temperature_field = nullptr)
+    : sigma(sigma), temperature_field(temperature_field)
+   { }
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
@@ -1348,9 +1412,11 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
-   StateCoefficient &sigma; // Made sigma a StateCoefficient (formerly an MFEM coefficient)
+   // Made sigma a StateCoefficient (formerly an MFEM coefficient)
+   StateCoefficient &sigma;
 
-   mfem::GridFunction *temperature_field; // temperature field, if it exists
+   // temperature field, if it exists
+   mfem::GridFunction *temperature_field;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
@@ -1397,8 +1463,6 @@ private:
    mfem::Vector shape;
    mfem::Vector temp_shape;
    mfem::Vector temp_elfun;
-#else
-   auto &shape = integ.shape;
 #endif
 };
 
@@ -1488,19 +1552,25 @@ public:
 
    // Made sigma a StateCoefficient (formerly mfem::Coefficient)
    // Added a grid function pointer for the temperature field to signature
-   ACLossFunctionalDistributionIntegrator(mfem::GridFunction &peak_flux,
-                                          StateCoefficient &sigma,
-                                          mfem::GridFunction *temperature_field=nullptr,
-                                          std::string name = "")
-    : peak_flux(peak_flux), sigma(sigma), temperature_field(temperature_field), name(std::move(name))
+   ACLossFunctionalDistributionIntegrator(
+       mfem::GridFunction &peak_flux,
+       StateCoefficient &sigma,
+       mfem::GridFunction *temperature_field = nullptr,
+       std::string name = "")
+    : peak_flux(peak_flux),
+      sigma(sigma),
+      temperature_field(temperature_field),
+      name(std::move(name))
    { }
 
 private:
    mfem::GridFunction &peak_flux;
-   /// Temperature dependent Electrical conductivity // Made sigma a StateCoefficient (formerly mfem::Coefficient)
+   /// Temperature dependent Electrical conductivity // Made sigma a
+   /// StateCoefficient (formerly mfem::Coefficient)
    StateCoefficient &sigma;
 
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+   mfem::GridFunction
+       *temperature_field;  // pointer to temperature field (can be null)
 
    // optional integrator name to differentiate setting inputs
    std::string name;
@@ -1526,35 +1596,43 @@ private:
 #endif
    /// class that implements mesh sensitivities for
    /// ACLossFunctionalDistributionIntegrator
-   ///TODO: If necessary, define and implement this class
+   /// TODO: If necessary, define and implement this class
    friend class ACLossFunctionalDistributionIntegratorMeshSens;
 };
 
-///NOTE: HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time into
-/// In cpp and hpp, Have only the immediate below HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for test_acloss_functional (this will be the one that remains)
-/// Functional integrator to compute AC copper losses based on hybrid approach
+/// NOTE: HybridACLossFunctionalIntegrator is a Dead class. Not putting any more
+/// time into
+///  In cpp and hpp, Have only the immediate below
+///  HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for
+///  test_acloss_functional (this will be the one that remains) Functional
+///  integrator to compute AC copper losses based on hybrid approach
 // class HybridACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 // {
 // public:
-//    /// \brief allows changing the frequency and diameter of the strands for AC
+//    /// \brief allows changing the frequency and diameter of the strands for
+//    AC
 //    /// loss calculation
 //    friend void setInputs(HybridACLossFunctionalIntegrator &integ,
 //                          const MachInputs &inputs);
 
 //    /// \brief - Compute AC copper losses in the domain based on a hybrid
 //    ///          analytical-FEM approach
-//    /// \param[in] sigma - the temperature dependent electrical conductivity coefficient
+//    /// \param[in] sigma - the temperature dependent electrical conductivity
+//    coefficient
 //    /// \param[in] freq - the electrical excitation frequency
 //    /// \param[in] diam - the diameter of a strand in the bundle
 //    /// \param[in] fill_factor - the density of strands in the bundle
-//    /// \param[in] temperature_field - the temperature field that informs the conductivity
+//    /// \param[in] temperature_field - the temperature field that informs the
+//    conductivity
 //    // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
 //    HybridACLossFunctionalIntegrator(StateCoefficient &sigma,
 //                                     const double freq,
 //                                     const double diam,
 //                                     const double fill_factor,
-//                                     mfem::GridFunction *temperature_field=nullptr)
-//     : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor), temperature_field(temperature_field)
+//                                     mfem::GridFunction
+//                                     *temperature_field=nullptr)
+//     : sigma(sigma), freq(freq), diam(diam), fill_factor(fill_factor),
+//     temperature_field(temperature_field)
 //    { }
 
 //    /// \brief - Compute AC copper losses in the domain based on a hybrid
@@ -1570,13 +1648,14 @@ private:
 // private:
 //    // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
 //    StateCoefficient &sigma;
-   
+
 //    double freq;
 //    double diam;
 //    double fill_factor;
 
-//    mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
-   
+//    mfem::GridFunction *temperature_field; // pointer to temperature field
+//    (can be null)
+
 // #ifndef MFEM_THREAD_SAFE
 //    mfem::DenseMatrix curlshape, curlshape_dFt;
 //    mfem::Vector b_vec;
@@ -2022,13 +2101,14 @@ private:
 #endif
    /// class that implements mesh sensitivities for
    /// SteinmetzLossDistributionIntegrator
-   ///TODO: If necessary, define and implement this class
+   /// TODO: If necessary, define and implement this class
    friend class SteinmetzLossDistributionIntegratorMeshSens;
 };
 
-/// Functional integrator to compute core losses based on the CAL2 core loss model,
-/// a two term loss separation model consisting of a term for hysteresis losses and a term for eddy current losses 
-/// that assumes the hysteresis exponent for B to be constant and equal to 2, like for eddy currents
+/// Functional integrator to compute core losses based on the CAL2 core loss
+/// model, a two term loss separation model consisting of a term for hysteresis
+/// losses and a term for eddy current losses that assumes the hysteresis
+/// exponent for B to be constant and equal to 2, like for eddy currents
 class CAL2CoreLossIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -2045,13 +2125,15 @@ public:
                            const mfem::Vector &elfun) override;
 
    CAL2CoreLossIntegrator(mfem::Coefficient &rho,
-                           ThreeStateCoefficient &CAL2_kh,
-                           ThreeStateCoefficient &CAL2_ke,
-                           mfem::GridFunction &peak_flux,
-                           mfem::GridFunction *temperature_field=nullptr,
-                           std::string name = "")
-    : rho(rho), CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
-    temperature_field(temperature_field), name(std::move(name))
+                          ThreeStateCoefficient &CAL2_kh,
+                          ThreeStateCoefficient &CAL2_ke,
+                          mfem::GridFunction &peak_flux,
+                          mfem::GridFunction &temperature_field)
+    : rho(rho),
+      CAL2_kh(CAL2_kh),
+      CAL2_ke(CAL2_ke),
+      peak_flux(peak_flux),
+      temperature_field(temperature_field)
    { }
 
 private:
@@ -2061,50 +2143,40 @@ private:
    ThreeStateCoefficient &CAL2_kh;
    ThreeStateCoefficient &CAL2_ke;
 
-   mfem::GridFunction &peak_flux; // peak flux field
-
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
-
-   // optional integrator name to differentiate setting inputs
-   std::string name;
+   // peak flux field
+   mfem::GridFunction &peak_flux;
+   // temperature field
+   mfem::GridFunction &temperature_field;
 
    /// Electrical excitation frequency
    double freq = 1.0;
-   /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
-   double max_flux_mag = 1.0;
 
-   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = false;
-
-   ///TODO: Look into making code thread-safe
+   /// TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
    mfem::Array<int> vdofs;
+   mfem::Vector flux_elfun;
    mfem::Vector temp_elfun;
    mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
+   mfem::Vector temp_shape;
 #endif
 
-   /// class that implements frequency sensitivities for CAL2CoreLossIntegrator
+   /// implements frequency sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorFreqSens;
 
-   /// class that implements max flux sensitivities for CAL2CoreLossIntegrator
-   friend class CAL2CoreLossIntegratorMaxFluxSens;
+   /// implements peak flux sensitivities for CAL2CoreLossIntegrator
+   friend class CAL2CoreLossIntegratorPeakFluxSens;
 
-   /// class that implements temperature sensitivities for CAL2CoreLossIntegrator
+   /// implements temperature sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorTemperatureSens;
 
-   /// class that implements mesh sensitivities for CAL2CoreLossIntegrator
+   /// implements mesh sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorMeshSens;
-
-   ///TODO: Determine if need to add CAL2CoreLossTemperatureSens
 };
 
 class CAL2CoreLossIntegratorFreqSens : public mfem::NonlinearFormIntegrator
 {
 public:
-   CAL2CoreLossIntegratorFreqSens(CAL2CoreLossIntegrator &integ)
-    : integ(integ)
+   CAL2CoreLossIntegratorFreqSens(CAL2CoreLossIntegrator &integ) : integ(integ)
    { }
 
    /// \brief - Compute element contribution to global sensitivity
@@ -2119,128 +2191,79 @@ public:
 private:
    /// reference to primal integrator
    CAL2CoreLossIntegrator &integ;
-
-   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = false;
-
-   ///TODO: Look into making code thread-safe
-#ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::Array<int> vdofs;
-   mfem::Vector temp_elfun;
-   mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
-#endif
-
 };
 
-class CAL2CoreLossIntegratorMaxFluxSens : public mfem::NonlinearFormIntegrator
+class CAL2CoreLossIntegratorPeakFluxSens : public mfem::LinearFormIntegrator
 {
 public:
-   CAL2CoreLossIntegratorMaxFluxSens(CAL2CoreLossIntegrator &integ)
+   CAL2CoreLossIntegratorPeakFluxSens(CAL2CoreLossIntegrator &integ)
     : integ(integ)
    { }
 
-   /// \brief - Compute element contribution to global sensitivity
-   /// \param[in] el - the finite element
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - state vector of the element
-   /// \returns the element contribution to global s6ensitvity
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun) override;
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
+   /// space
+   /// \param[out] peak_flux_elfun_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
+                               mfem::Vector &peak_flux_elfun_bar) override;
 
 private:
    /// reference to primal integrator
    CAL2CoreLossIntegrator &integ;
-
-   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = false;
-
-   ///TODO: Look into making code thread-safe
-#ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::Array<int> vdofs;
-   mfem::Vector temp_elfun;
-   mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
-#endif
-
 };
 
-class CAL2CoreLossIntegratorTemperatureSens : public mfem::NonlinearFormIntegrator
+class CAL2CoreLossIntegratorTemperatureSens : public mfem::LinearFormIntegrator
 {
 public:
    CAL2CoreLossIntegratorTemperatureSens(CAL2CoreLossIntegrator &integ)
     : integ(integ)
    { }
 
-   /// \brief - Compute element contribution to global sensitivity
-   /// \param[in] el - the finite element
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - state vector of the element
-   /// \returns the element contribution to global s6ensitvity
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun) override;
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
+   /// space
+   /// \param[out] peak_flux_elfun_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &temp_elfun_bar) override;
 
 private:
    /// reference to primal integrator
    CAL2CoreLossIntegrator &integ;
-
-   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = false;
-
-   ///TODO: Look into making code thread-safe
-#ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::Array<int> vdofs;
-   mfem::Vector temp_elfun;
-   mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
-#endif
-
 };
 
 class CAL2CoreLossIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
 public:
-   CAL2CoreLossIntegratorMeshSens(mfem::GridFunction &state,
-                                   CAL2CoreLossIntegrator &integ)
-    : state(state), integ(integ)
+   CAL2CoreLossIntegratorMeshSens(CAL2CoreLossIntegrator &integ)
+    : integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX
    /// \param[in] mesh_el - the finite element that describes the mesh element
    /// \param[in] mesh_trans - the transformation between reference and physical
-   /// space \param[out] mesh_coords_bar - dJdX for the element
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
    void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
                                mfem::ElementTransformation &mesh_trans,
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
-   /// state vector for evaluating loss
-   mfem::GridFunction &state;
    /// reference to primal integrator
    CAL2CoreLossIntegrator &integ;
-
-   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = false;
-
-   ///TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::Array<int> vdofs;
-   mfem::Vector temp_elfun;
-   mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
    mfem::DenseMatrix PointMat_bar;
 #endif
 };
 
-/// Functional integrator to compute the spacial distribution of the heat flux for core losses based on the CAL2 core loss model,
-/// a two term loss separation model consisting of a term for hysteresis losses and a term for eddy current losses 
-/// that assumes the hysteresis exponent for B to be constant and equal to 2, like for eddy currents
+/// Functional integrator to compute the spacial distribution of the heat flux
+/// for core losses based on the CAL2 core loss model, a two term loss
+/// separation model consisting of a term for hysteresis losses and a term for
+/// eddy current losses that assumes the hysteresis exponent for B to be
+/// constant and equal to 2, like for eddy currents
 class CAL2CoreLossDistributionIntegrator : public mfem::LinearFormIntegrator
 {
 public:
@@ -2252,17 +2275,20 @@ public:
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[out] elvect - element local heat source distribution
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           mfem::Vector &elvect) override;
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &elvect) override;
 
-   CAL2CoreLossDistributionIntegrator(mfem::Coefficient &rho,
-                           ThreeStateCoefficient &CAL2_kh,
-                           ThreeStateCoefficient &CAL2_ke,
-                           mfem::GridFunction &peak_flux,
-                           mfem::GridFunction *temperature_field=nullptr,
-                           std::string name = "")
-    : rho(rho), CAL2_kh(CAL2_kh), CAL2_ke(CAL2_ke), peak_flux(peak_flux), 
-    temperature_field(temperature_field), name(std::move(name))
+   CAL2CoreLossDistributionIntegrator(
+       mfem::Coefficient &rho,
+       ThreeStateCoefficient &CAL2_kh,
+       ThreeStateCoefficient &CAL2_ke,
+       mfem::GridFunction &peak_flux,
+       mfem::GridFunction *temperature_field = nullptr)
+    : rho(rho),
+      CAL2_kh(CAL2_kh),
+      CAL2_ke(CAL2_ke),
+      peak_flux(peak_flux),
+      temperature_field(temperature_field)
    { }
 
 private:
@@ -2272,24 +2298,18 @@ private:
    ThreeStateCoefficient &CAL2_kh;
    ThreeStateCoefficient &CAL2_ke;
 
-   mfem::GridFunction &peak_flux; // peak flux field
+   // peak flux field
+   mfem::GridFunction &peak_flux;
 
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
-
-   // optional integrator name to differentiate setting inputs
-   std::string name;
+   // temperature field
+   mfem::GridFunction *temperature_field;
 
    /// Electrical excitation frequency
    double freq = 1.0;
-   /// Maximum alternating flux density magnitude (assuming sinusoidal excitation)
-   double max_flux_mag = 1.0;
    /// Stack length
    double stack_length = 1.0;
 
-   ///TODO: Move this temporary logic to higher level or remove entirely once determine whether max flux value or peak flux field should be used
-   bool UseMaxFluxValueAndNotPeakFluxField = false;
-
-   ///TODO: Make code thread safe
+   /// TODO: Make code thread safe
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::Array<int> vdofs;
@@ -2297,51 +2317,56 @@ private:
    mfem::Vector flux_shape;
    mfem::Vector flux_elfun;
 #endif
-
-   /// class that implements mesh sensitivities for CAL2CoreLossDistributionIntegrator
-   ///TODO: Will this needed to be added? The equivalent for Steinmetz never was made.
-   friend class CAL2CoreLossDistributionIntegratorMeshSens;
 };
 
-/// Functional integrator to determine values or distribution 
+/// Functional integrator to determine values or distribution
 /// of Permanent Magnet Demagnetization constraint equation
 class PMDemagIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// \brief - determine values or distribution 
+   /// \brief - determine values or distribution
    ///         of Permanent Magnet Demagnetization constraint equation
-   /// \param[in] PMDemagConstraint - the permanent magnet demagnetization constraint equation coefficient
-   /// \param[in] temperature_field - a pointer to the temperature field (default is null)
-   /// \param[in] name - component name to differentiate setting inputs (default is blank)
+   /// \param[in] PMDemagConstraint - the permanent magnet demagnetization
+   /// constraint equation coefficient \param[in] temperature_field - a pointer
+   /// to the temperature field (default is null) \param[in] name - component
+   /// name to differentiate setting inputs (default is blank)
    PMDemagIntegrator(TwoStateCoefficient &PMDemagConstraint,
-                     mfem::GridFunction *temperature_field=nullptr,
-                     std::string name = "") 
-   : PMDemagConstraint(PMDemagConstraint), temperature_field(temperature_field), name(std::move(name)) { }
+                     mfem::GridFunction *temperature_field = nullptr,
+                     std::string name = "")
+    : PMDemagConstraint(PMDemagConstraint),
+      temperature_field(temperature_field),
+      name(std::move(name))
+   { }
 
-   /// \brief - determine value 
+   /// \brief - determine value
    ///         of Permanent Magnet Demagnetization constraint equation
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
-   /// \returns the value of the Permanent Magnet Demagnetization constraint equation calculated over an element
+   /// \returns the value of the Permanent Magnet Demagnetization constraint
+   /// equation calculated over an element
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
                            const mfem::Vector &elfun) override;
 
-   /// \brief - determine distribution 
+   /// \brief - determine distribution
    ///         of Permanent Magnet Demagnetization constraint equation
    /// \param[in] el - the finite element
    /// \param[in] trans - defines the reference to physical element mapping
    /// \param[in] elfun - state vector of the element
-   /// \param[out] elvect - element Permanent Magnet Demagnetization constraint equation distribution
-   void AssembleElementVector(const mfem::FiniteElement &el, 
-                              mfem::ElementTransformation &trans, 
-                              const mfem::Vector &elfun, 
+   /// \param[out] elvect - element Permanent Magnet Demagnetization constraint
+   /// equation distribution
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
 
 private:
-   TwoStateCoefficient &PMDemagConstraint; // the permanent magnet demagnetization constraint equation coefficient
-   mfem::GridFunction *temperature_field; // pointer to temperature field (can be null)
+   TwoStateCoefficient
+       &PMDemagConstraint;  // the permanent magnet demagnetization constraint
+                            // equation coefficient
+   mfem::GridFunction
+       *temperature_field;  // pointer to temperature field (can be null)
 
    // optional integrator name to differentiate setting inputs
    std::string name;
@@ -2353,8 +2378,7 @@ private:
    mfem::Vector temp_elfun;
 #endif
 
-   ///TODO: Add in sens classes, and denote them as friends here
-
+   /// TODO: Add in sens classes, and denote them as friends here
 };
 
 }  // namespace mach
