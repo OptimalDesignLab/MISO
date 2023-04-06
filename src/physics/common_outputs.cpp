@@ -202,10 +202,7 @@ IEAggregateFunctional::IEAggregateFunctional(
          auto &B_field = B_field_iter->second;
          flux_density_field = &B_field.gridFunc();
       }
-      /// TODO: Remove B_x and B_y once B is working
-      mfem::GridFunction *B_x_field=nullptr; // default B_x field to null pointer
-      mfem::GridFunction *B_y_field=nullptr; // default B_y field to null pointer   
-
+      
       // Now add the integrators
       if (options.contains("attributes"))
       {       

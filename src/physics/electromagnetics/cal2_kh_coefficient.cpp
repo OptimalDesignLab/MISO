@@ -567,7 +567,7 @@ double PolyVarHysteresisLossCoeff::EvalDerivS1(mfem::ElementTransformation &tran
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    // First derivative with respect to temperature
    
-   auto T = state1;
+   // auto T = state1;
    // auto f = state2;
    auto B_m = state3;
 
@@ -742,7 +742,7 @@ double PolyVarHysteresisLossCoeff::Eval2ndDerivS1S3(mfem::ElementTransformation 
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    // Derivative with respect to temperature then max alternating flux density
 
-   auto T = state1;
+   // auto T = state1;
    // auto f = state2;
    auto B_m = state3;
 
@@ -814,7 +814,7 @@ double PolyVarHysteresisLossCoeff::Eval2ndDerivS3S1(mfem::ElementTransformation 
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    // Derivative with respect to max alternating flux density then temperature
 
-   auto T = state1;
+   // auto T = state1;
    // auto f = state2;
    auto B_m = state3;
 

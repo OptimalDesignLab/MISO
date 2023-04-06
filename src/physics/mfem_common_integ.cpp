@@ -649,8 +649,8 @@ void IEAggregateIntegratorNumeratorMeshSens::AssembleRHSElementVect(
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int mesh_ndof = mesh_el.GetDof();
-   const int ndof = el.GetDof();
-   const int dim = el.GetDim();
+   // const int ndof = el.GetDof();
+   // const int dim = el.GetDim();
    const int space_dim = trans.GetSpaceDim();
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
@@ -682,8 +682,8 @@ void IEAggregateIntegratorNumeratorMeshSens::AssembleRHSElementVect(
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-      const double trans_weight = trans.Weight();
-      const double w = ip.weight * trans_weight;
+      // const double trans_weight = trans.Weight();
+      // const double w = ip.weight * trans_weight;
 
       el.CalcShape(ip, shape);
       const double g = shape * elfun;
@@ -812,8 +812,8 @@ void IEAggregateIntegratorDenominatorMeshSens::AssembleRHSElementVect(
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int mesh_ndof = mesh_el.GetDof();
-   const int ndof = el.GetDof();
-   const int dim = el.GetDim();
+   // const int ndof = el.GetDof();
+   // const int dim = el.GetDim();
    const int space_dim = trans.GetSpaceDim();
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
@@ -845,8 +845,8 @@ void IEAggregateIntegratorDenominatorMeshSens::AssembleRHSElementVect(
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-      const double trans_weight = trans.Weight();
-      const double w = ip.weight * trans_weight;
+      // const double trans_weight = trans.Weight();
+      // const double w = ip.weight * trans_weight;
 
       el.CalcShape(ip, shape);
       const double g = shape * elfun;
@@ -1584,7 +1584,7 @@ double IEAggregateDemagIntegratorNumerator::GetElementEnergy(
 
    // Create the vector that will store the magnetization
    ///TODO: Determine if need mag_flux_buffer
-   double mag_flux_buffer[3] = {};
+   // double mag_flux_buffer[3] = {};
    int space_dim = trans.GetSpaceDim();
    // mfem::Vector M(mag_flux_buffer, space_dim);
    mfem::Vector M(space_dim);
@@ -1830,7 +1830,7 @@ double IEAggregateDemagIntegratorDenominator::GetElementEnergy(
 
    // Create the vector that will store the magnetization
    ///TODO: Determine if need mag_flux_buffer
-   double mag_flux_buffer[3] = {};
+   // double mag_flux_buffer[3] = {};
    int space_dim = trans.GetSpaceDim();
    // mfem::Vector M(mag_flux_buffer, space_dim);
    mfem::Vector M(space_dim);

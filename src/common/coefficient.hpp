@@ -1056,7 +1056,6 @@ protected:
 // Adding new class to allow for evaluate scalarvectorproductcoefficient with temperature state passed in for magnetization
 /// Vector coefficient defined as a product of scalar and vector coefficients.
 // mach::ScalarVectorProductCoefficient instead of mfem (though most of mfem's code is below, unchanged)
-///TODO: Figure out how to properly define the ScalarVectorProductCoefficient constructor and which terms should be mfem::VectorCoefficient's and which terms should be VectorStateCoefficient's
 
 class ScalarVectorProductCoefficient : public VectorStateCoefficient // inherits from VectorStateCoefficient instead of mfem::VectorStateCoefficient
 {
@@ -1078,30 +1077,6 @@ public:
    ScalarVectorProductCoefficient(StateCoefficient &A, mfem::VectorCoefficient &B) // this constructor needs to be defined
    : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
    { }
-   ///TODO: The below was working
-   // ScalarVectorProductCoefficient(StateCoefficient &A, mfem::VectorCoefficient &B) // this constructor needs to be defined
-   // : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
-   // { }
-
-   /// Set the time for internally stored coefficients
-   // void SetTime(double t);
-
-   /// Reset the scalar factor as a constant
-   // void SetAConst(double A) { a = NULL; aConst = A; }
-   // /// Return the scalar factor
-   // double GetAConst() const { return aConst; }
-
-   /// Reset the scalar factor
-   // void SetACoef(mfem::Coefficient &A) { a = &A; }
-   // /// Return the scalar factor
-   // mfem::Coefficient * GetACoef() const { return a; }
-
-   // /// Reset the vector factor
-   // void SetBCoef(mfem::VectorCoefficient &B) { b = &B; }
-   // /// Return the vector factor
-   // mfem::VectorCoefficient * GetBCoef() const { return b; }
-
-   ///TODO: Debug remaining errors
 
    /// Evaluate the vector coefficient at @a ip.
    void Eval(mfem::Vector &V, mfem::ElementTransformation &T,

@@ -462,6 +462,8 @@ TEST_CASE("StateAverageFunctional::calcOutput (3D)")
 
 TEST_CASE("IEAggregateFunctional::calcOutput")
 {
+   using namespace electromag_data;
+
    auto smesh = mfem::Mesh::MakeCartesian2D(3, 3, mfem::Element::TRIANGLE);
    mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
@@ -491,7 +493,10 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    mfem::Vector state_tv(state.space().GetTrueVSize());
 
    nlohmann::json output_opts{{"rho", 50.0}};
-   mach::IEAggregateFunctional out(fes, fields, output_opts);
+   // Since functional now shared with demagnetization proximity, need to define dummy coefficients for knee and magnetization (not used in this case)
+   std::unique_ptr<mach::StateCoefficient> unused_B_knee(new LinearCoefficient());
+   std::unique_ptr<mach::VectorStateCoefficient> unused_mag_coeff(new LinearVectorCoefficient(dim));
+   mach::IEAggregateFunctional out(fes, fields, output_opts, *unused_B_knee, *unused_mag_coeff);
 
    state.project([](const mfem::Vector &p)
    {
@@ -513,6 +518,99 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    max_state = calcOutput(out, inputs);
    /// Should be 1.0
    REQUIRE(max_state == Approx(0.8544376503));
+}
+
+TEST_CASE("IEAggregateFunctional::calcOutput for Demag")
+{
+   using namespace electromag_data;
+
+   // Set up mesh
+   int num_edge = 2;
+   auto smesh = mfem::Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     mfem::Element::TRIANGLE);
+   auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+   auto dim = mesh.Dimension();
+
+   auto p = 2;
+
+   // get the finite-element space for the state (demag_proximity)
+   mfem::H1_FECollection fec(p, dim);
+   mfem::ParFiniteElementSpace fes(&mesh, &fec, 2);
+
+   std::map<std::string, mach::FiniteElementState> fields;
+   // Flux density field
+   fields.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple("flux_density"),
+      std::forward_as_tuple(mesh, fes, "flux_density"));
+   auto &flux_density = fields.at("flux_density");
+   mfem::Vector flux_density_tv(flux_density.space().GetTrueVSize());
+
+   // temperature field
+   fields.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple("temperature"),
+      std::forward_as_tuple(mesh, fes, "temperature"));
+   auto &temperature = fields.at("temperature");
+   mfem::Vector temperature_tv(temperature.space().GetTrueVSize());
+
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+   /// create new state vector copying the mesh's fe space
+   fields.emplace(
+         std::piecewise_construct,
+         std::forward_as_tuple("mesh_coords"),
+         std::forward_as_tuple(mesh, *mesh_fespace, "mesh_coords"));
+
+   nlohmann::json output_opts{{"rho", 50.0},
+                              {"state","demag_proximity"}};
+   // Since functional now shared with demagnetization proximity, need to define dummy coefficients for knee and magnetization (not used in this case)
+   std::unique_ptr<mach::StateCoefficient> unused_B_knee(new LinearCoefficient());
+   std::unique_ptr<mach::VectorStateCoefficient> unused_mag_coeff(new LinearVectorCoefficient(dim));
+   mach::IEAggregateFunctional out(fes, fields, output_opts, *unused_B_knee, *unused_mag_coeff);
+
+   flux_density.project([](const mfem::Vector& p, mfem::Vector &B)
+   {
+      const double x = p(0);
+      const double y = p(1);
+
+      B(0) = 2.0;
+      B(1) = -2.0;
+   }, flux_density_tv);
+
+   temperature.project([](const mfem::Vector &p)
+   {
+      const double x = p(0);
+      const double y = p(1);
+
+      return 273.15;
+   }, temperature_tv);
+
+   mach::MachInputs inputs{{"state", flux_density_tv},
+                           {"temperature", temperature_tv}};
+   double max_state = calcOutput(out, inputs);
+
+   /// Print fields
+   // mfem::ParaViewDataCollection pv("test_IEAgg_calcoutput_forDemag", &mesh);
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(p+2);
+   // pv.SetDataFormat(mfem::VTKFormat::BINARY);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("flux_density", &flux_density.gridFunc());
+   // pv.RegisterField("temperature", &temperature.gridFunc());
+   // pv.Save();
+
+   ///TODO: Add appropriate assertions
+   // /// Should be 1.0
+   // REQUIRE(max_state == Approx(0.9919141335));
+
+   // output_opts["rho"] = 1.0;
+   // setOptions(out, output_opts);
+
+   // max_state = calcOutput(out, inputs);
+   // /// Should be 1.0
+   // REQUIRE(max_state == Approx(0.8544376503));
 }
 
 TEST_CASE("IEAggregateFunctional sensitivity wrt state")
@@ -564,7 +662,10 @@ TEST_CASE("IEAggregateFunctional sensitivity wrt state")
          auto fun_opts = R"({
             "rho": 10
          })"_json;
-         mach::IEAggregateFunctional fun(state.space(), fields, fun_opts);
+         // Since functional now shared with demagnetization proximity, need to define dummy coefficients for knee and magnetization (not used in this case)
+         std::unique_ptr<mach::StateCoefficient> unused_B_knee(new LinearCoefficient());
+         std::unique_ptr<mach::VectorStateCoefficient> unused_mag_coeff(new LinearVectorCoefficient(dim));
+         mach::IEAggregateFunctional fun(state.space(), fields, fun_opts, *unused_B_knee, *unused_mag_coeff); 
          mach::MachInputs inputs{
             {"state", state_tv},
             {"mesh_coords", mesh_coords_tv}
@@ -654,7 +755,10 @@ TEST_CASE("IEAggregateFunctional sensitivity wrt mesh_coords")
          auto fun_opts = R"({
             "rho": 10
          })"_json;
-         mach::IEAggregateFunctional fun(state.space(), fields, fun_opts);
+         // Since functional now shared with demagnetization proximity, need to define dummy coefficients for knee and magnetization (not used in this case)
+         std::unique_ptr<mach::StateCoefficient> unused_B_knee(new LinearCoefficient());
+         std::unique_ptr<mach::VectorStateCoefficient> unused_mag_coeff(new LinearVectorCoefficient(dim));
+         mach::IEAggregateFunctional fun(state.space(), fields, fun_opts, *unused_B_knee, *unused_mag_coeff);  
          mach::MachInputs inputs{
             {"state", state_tv},
             {"mesh_coords", mesh_coords_tv}

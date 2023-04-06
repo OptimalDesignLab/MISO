@@ -543,14 +543,14 @@ void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
       M.Eval(mag_flux, trans, ip, temperature); 
       // Outputting results so can visualize in Excel
       ///TODO: Remove current integration point location vector once done debugging
-      if (mag_flux.Elem(0) != 0 && mag_flux.Elem(1) != 0)
-      {
-         mfem::Vector ip_phys;
-         trans.Transform(ip, ip_phys);
-         std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "|T=" << temperature;
-         std::cout << "|M_x=" << mag_flux.Elem(0) << "|M_y=" << mag_flux.Elem(1);
-         std::cout << "|M_Norml2=" << mag_flux.Norml2() << "|\n";
-      }
+      // if (mag_flux.Elem(0) != 0 && mag_flux.Elem(1) != 0)
+      // {
+      //    mfem::Vector ip_phys;
+      //    trans.Transform(ip, ip_phys);
+      //    std::cout << "|Element=" << element << "|x_phys=" << ip_phys.Elem(0) << "|y_phys=" << ip_phys.Elem(1) << "|T=" << temperature;
+      //    std::cout << "|M_x=" << mag_flux.Elem(0) << "|M_y=" << mag_flux.Elem(1);
+      //    std::cout << "|M_Norml2=" << mag_flux.Norml2() << "|\n";
+      // }
 
       mag_flux *= w;
 
@@ -6696,7 +6696,7 @@ void setInputs(SteinmetzLossDistributionIntegrator &integ,
       setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
    }
    setValueFromInputs(inputs, "stack_length", integ.stack_length);
-   std::cout << "SteinmetzLossDistributionIntegrator integ.max_flux_mag = " << integ.max_flux_mag;
+   // std::cout << "SteinmetzLossDistributionIntegrator integ.max_flux_mag = " << integ.max_flux_mag;
 }
 
 ///TODO: Compute the spatial distribution of the heat flux due to Steinmetz losses. 
@@ -6708,7 +6708,7 @@ void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
     mfem::Vector &elvect)
 {
    int ndof = el.GetDof();
-   const int element = trans.ElementNo;
+   // const int element = trans.ElementNo;
 
 #ifdef MFEM_THREAD_SAFE
    Vector shape;
@@ -6783,7 +6783,7 @@ void setInputs(CAL2CoreLossIntegrator &integ, const MachInputs &inputs)
    {
       setValueFromInputs(inputs, "max_flux_magnitude", integ.max_flux_mag);
    }
-   std::cout << "CAL2CoreLossIntegrator integ.max_flux_mag = " << integ.max_flux_mag;
+   // std::cout << "CAL2CoreLossIntegrator integ.max_flux_mag = " << integ.max_flux_mag;
 }
 
 double CAL2CoreLossIntegrator::GetElementEnergy(

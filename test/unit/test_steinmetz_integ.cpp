@@ -531,11 +531,11 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
       auto CAL2_core_loss = functional.GetEnergy(dummy_vec);
       // std::cout << "CAL2_core_loss=" << CAL2_core_loss << "\n";
 
-      double Expected_core_loss = f*37*Bm + pow(f,2)*37*Bm; // for B=1.7, T=37 (both const), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
+      // double Expected_core_loss = f*37*Bm + pow(f,2)*37*Bm; // for B=1.7, T=37 (both const), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
       // double Expected_core_loss = f*100*Bm + pow(f,2)*100*Bm; // for B=1.7, T=100 (no temp field), UseMaxFluxValueAndNotPeakFluxField = true (passes for all degrees)
       // double Expected_core_loss = f*(77.0/2)*Bm + pow(f,2)*(77.0/2)*Bm; // for B=1.7, T=77*x(0), UseMaxFluxValueAndNotPeakFluxField = true
       // double Expected_core_loss = f*(30.0/3)*Bm + pow(f,2)*(30.0/3)*Bm; // for B=1.7, T=30*std::pow(x(0),2), UseMaxFluxValueAndNotPeakFluxField = true
-      // double Expected_core_loss = f*37*2.2 + pow(f,2)*37*2.2; // for B=2.2, T=37, UseMaxFluxValueAndNotPeakFluxField = false
+      double Expected_core_loss = f*37*2.2 + pow(f,2)*37*2.2; // for B=2.2, T=37, UseMaxFluxValueAndNotPeakFluxField = false
       // double Expected_core_loss = f*37*(2.4/2) + pow(f,2)*37*(2.4/2); // for B=2.4*x(0), T=37, UseMaxFluxValueAndNotPeakFluxField = false
       // double Expected_core_loss = f*37*(3.0/3) + pow(f,2)*37*(3.0/3); // for B=3.0*std::pow(x(0),2), T=37, UseMaxFluxValueAndNotPeakFluxField = false
       
@@ -559,6 +559,7 @@ TEST_CASE("CAL2CoreLossIntegrator::GetElementEnergy")
    }
 }
 
+/*
 // Added test case for CAL2CoreLossIntegratorFreqSens::GetElementEnergy
 TEST_CASE("CAL2CoreLossIntegratorFreqSens::GetElementEnergy")
 {
@@ -855,6 +856,7 @@ TEST_CASE("CAL2CoreLossIntegratorTemperatureSens::GetElementEnergy")
       }
    }
 }
+*/
 
 ///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
 /*

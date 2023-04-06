@@ -163,13 +163,13 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple(
                          mesh(), dg_field_options, mesh().SpaceDimension()));
 
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("flux_density",
-                                fields.at("flux_density").gridFunc());
-      }
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      // {
+      //    auto &paraview = std::get<mach::ParaViewLogger>(logger);
+      //    paraview.registerField("flux_density",
+      //                           fields.at("flux_density").gridFunc());
+      // }
 
       auto &dg_field = fields.at(fun);
       L2CurlProjection out(state(), fields.at("mesh_coords"), dg_field);

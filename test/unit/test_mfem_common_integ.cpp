@@ -991,7 +991,7 @@ TEST_CASE("IEAggregateDemagIntegratorNumerator::GetElementEnergy")
          GridFunction temperature_field(&fes);
          temperature_field.ProjectCoefficient(Tfield_model);
 
-         ///TODO: Create the flux density field (B) grid function by mapping the function coefficient to a grid function
+         // Create the flux density field (B) grid function by mapping the function coefficient to a grid function
          GridFunction flux_density_field(&fes);
          flux_density_field.ProjectCoefficient(Bfield_model); 
          // GridFunction B_x_field(&fes);
@@ -1004,11 +1004,11 @@ TEST_CASE("IEAggregateDemagIntegratorNumerator::GetElementEnergy")
          // std::unique_ptr<mach::StateCoefficient> B_knee(new NonLinearCoefficient(1.0));
 
          /// Magnetization
-         std::unique_ptr<mach::VectorStateCoefficient> mag_coeff(new NonLinearVectorCoefficient(2, 1.0)); // error when malloc tries to delete
+         std::unique_ptr<mach::VectorStateCoefficient> mag_coeff(new NonLinearVectorCoefficient(2, 1.0));
          
          // Define the functional integrator that will be used to compute the numerator
-         // auto *integ = new mach::IEAggregateDemagIntegratorNumerator(rho, *B_knee, *mag_coeff, &temperature_field, &flux_density_field/*, &B_x_field, &B_y_field/*/);
-         auto *integ = new mach::IEAggregateDemagIntegratorDenominator(rho, *B_knee, *mag_coeff, &temperature_field, &flux_density_field/*, &B_x_field, &B_y_field/*/);
+         auto *integ = new mach::IEAggregateDemagIntegratorNumerator(rho, *B_knee, *mag_coeff, &temperature_field, &flux_density_field/*, &B_x_field, &B_y_field/*/);
+         // auto *integ = new mach::IEAggregateDemagIntegratorDenominator(rho, *B_knee, *mag_coeff, &temperature_field, &flux_density_field/*, &B_x_field, &B_y_field/*/);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);   
 

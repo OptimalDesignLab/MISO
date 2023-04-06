@@ -369,9 +369,43 @@ public:
 
             state_fe.CalcDShape(ip, curlshape);
             Mult(curlshape, trans.AdjugateJacobian(), scratch);
-            mfem::DenseMatrix tmp(
+            mfem::DenseMatrix tmp_curl(
                 curlshape_dFt.GetData(), space_dim * state_dof, 1);
-            scratch.GradToCurl(tmp);
+            // scratch.GradToCurl(tmp_curl);
+            // MFEM's GradToCurl returns (-y, x) for curl. 
+            // However, dealing with scalar H1 field representing Az: (0,0,A_z), so need (dA_z/dy, -dA_z/dx, 0)
+            // In 2D, this is (dA_z/dy, -dA_z/dx). Adapting MFEM's GradToCurl source code accordingly:
+            int n = scratch.Height();
+            for (int i = 0; i < n; i++)
+            {
+               // (x,y) is grad of Ui
+               double x = (scratch)(i,0);
+               double y = (scratch)(i,1);
+
+               int j = i+n;
+
+               // curl of (Ui,0)
+               //tmp_curl(i,0) = -y; // How MFEM GradToCurl would compute
+               tmp_curl(i,0) =  y; // What is needed
+
+               // curl of (0,Ui)
+               // tmp_curl(j,0) =  x; // How MFEM GradToCurl would compute
+               tmp_curl(j,0) =  -x; // What is needed
+            }
+
+            ///TODO: Remove once done debugging
+            // if (state_dof <= 6)
+            // {
+            //    mfem::Vector integration_point;
+            //    trans.Transform(ip, integration_point);
+            //    integration_point.Print();
+            //    el_state.Print();
+            //    // std::cerr << "tmp=\n";
+            //    tmp_curl.Print();
+            //    // std::cerr << "trans.Weight()=" << trans.Weight() << "\n";
+            //    curlshape_dFt.Print();
+            //    // curl_vec.Print();
+            // } 
          }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
 
@@ -429,9 +463,29 @@ public:
 
             state_fe.CalcDShape(ip, curlshape);
             Mult(curlshape, trans.AdjugateJacobian(), scratch);
-            mfem::DenseMatrix tmp(
+            mfem::DenseMatrix tmp_curl(
                 curlshape_dFt.GetData(), space_dim * state_dof, 1);
-            scratch.GradToCurl(tmp);
+            // scratch.GradToCurl(tmp_curl);
+            // MFEM's GradToCurl returns (-y, x) for curl. 
+            // However, dealing with scalar H1 field representing Az: (0,0,A_z), so need (dA_z/dy, -dA_z/dx, 0)
+            // In 2D, this is (dA_z/dy, -dA_z/dx). Adapting MFEM's GradToCurl source code accordingly:
+            int n = scratch.Height();
+            for (int i = 0; i < n; i++)
+            {
+               // (x,y) is grad of Ui
+               double x = (scratch)(i,0);
+               double y = (scratch)(i,1);
+
+               int j = i+n;
+
+               // curl of (Ui,0)
+               //tmp_curl(i,0) = -y; // How MFEM GradToCurl would compute
+               tmp_curl(i,0) =  y; // What is needed
+
+               // curl of (0,Ui)
+               // tmp_curl(j,0) =  x; // How MFEM GradToCurl would compute
+               tmp_curl(j,0) =  -x; // What is needed
+            }
          }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
 
@@ -531,11 +585,33 @@ public:
          }
          else
          {
+            mfem::DenseMatrix scratch(state_dof, curl_dim);
+
             state_fe.CalcDShape(ip, curlshape);
             Mult(curlshape, trans.AdjugateJacobian(), scratch);
-            mfem::DenseMatrix tmp(
+            mfem::DenseMatrix tmp_curl(
                 curlshape_dFt.GetData(), space_dim * state_dof, 1);
-            scratch.GradToCurl(tmp);
+            // scratch.GradToCurl(tmp_curl);
+            // MFEM's GradToCurl returns (-y, x) for curl. 
+            // However, dealing with scalar H1 field representing Az: (0,0,A_z), so need (dA_z/dy, -dA_z/dx, 0)
+            // In 2D, this is (dA_z/dy, -dA_z/dx). Adapting MFEM's GradToCurl source code accordingly:
+            int n = scratch.Height();
+            for (int i = 0; i < n; i++)
+            {
+               // (x,y) is grad of Ui
+               double x = (scratch)(i,0);
+               double y = (scratch)(i,1);
+
+               int j = i+n;
+
+               // curl of (Ui,0)
+               //tmp_curl(i,0) = -y; // How MFEM GradToCurl would compute
+               tmp_curl(i,0) =  y; // What is needed
+
+               // curl of (0,Ui)
+               // tmp_curl(j,0) =  x; // How MFEM GradToCurl would compute
+               tmp_curl(j,0) =  -x; // What is needed
+            }
          }
          curlshape_dFt.MultTranspose(el_state, curl_vec);
 
@@ -610,11 +686,22 @@ public:
             curlshape_dFt_bar.SetSize(state_dof, curl_dim);
             MultVWt(el_state, curl_vec_bar, curlshape_dFt_bar);
 
-            /// mfem::DenseMatrix tmp(curlshape_dFt.GetData(), space_dim *
-            /// state_dof, 1); scratch.GradToCurl(tmp);
+            // mfem::DenseMatrix tmp_curl(
+            //     curlshape_dFt.GetData(), space_dim * state_dof, 1);
+            // Then had alternative to GradToCurl
             mfem::DenseMatrix tmp(
                 scratch_bar.GetData(), space_dim * state_dof, 1);
-            curlshape_dFt_bar.GradToCurl(tmp);
+            // Applying same logic as before
+            // curlshape_dFt_bar.GradToCurl(tmp); // Not using anymore
+            int n = curlshape_dFt_bar.Height();
+            for (int i = 0; i < n; i++)
+            {
+               double x = (curlshape_dFt_bar)(i,0);
+               double y = (curlshape_dFt_bar)(i,1);
+               int j = i+n;               
+               tmp(i,0) =  y; // What is needed
+               tmp(j,0) =  -x; // What is needed
+            }
             scratch_bar *= -1.0;
 
             /// Mult(curlshape, trans.AdjugateJacobian(), scratch);

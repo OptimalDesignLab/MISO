@@ -637,9 +637,80 @@ TEST_CASE("L2CurlProjection::apply")
    // mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_curl", &mesh);
    // pv.SetPrefixPath("ParaView");
    // pv.SetLevelsOfDetail(p+2);
-   // pv.SetDataFormat(mfem::VTKFormat::ASCII);
+   // pv.SetDataFormat(mfem::VTKFormat::BINARY);
    // pv.SetHighOrderOutput(true);
    // pv.RegisterField("curl", &curl.gridFunc());
+   // pv.RegisterField("dg_curl", &dg_curl.gridFunc());
+   // pv.Save();
+}
+
+TEST_CASE("L2CurlProjection::apply for H1 A Field")
+{
+   // Adapting L2CurlProjection::apply for an H1 A Field
+
+   // int nxy = 2;
+   // int nz = 1;
+   // auto smesh = mfem::Mesh::MakeCartesian3D(nxy, nxy, nz,
+   //                                        //   mfem::Element::TETRAHEDRON,
+   //                                          mfem::Element::HEXAHEDRON,
+   //                                          1.0, 1.0, (double)nz / (double)nxy,
+   //                                          true);
+   // auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
+   int num_edge = 2;
+   auto smesh = mfem::Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     mfem::Element::TRIANGLE);
+   auto mesh = mfem::ParMesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+
+   // const auto p = 1; // to match em_options in motor_options
+   const auto p = 2;
+   const auto dim = mesh.Dimension();
+
+   mach::FiniteElementState state(mesh, nlohmann::json{
+      {"degree", p},
+      {"basis-type", "nonsense"}});
+
+   // No need for this computing curl conventionally in this test case
+   // Know what it should be analytically
+   
+   mach::FiniteElementState dg_curl(mesh, nlohmann::json{
+      {"degree", p},
+      {"basis-type", "DG"}},
+      dim);
+
+   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+   auto *mesh_fespace = mesh_gf.ParFESpace();
+
+   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   mesh_coords.gridFunc() = mesh_gf;
+   /// tell the mesh to use this GF for its Nodes
+   /// (and that it doesn't own it)
+   mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+   mach::L2CurlProjection op(state, mesh_coords, dg_curl);
+
+   mfem::Vector state_tv(state.space().GetTrueVSize());
+   mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
+
+   mfem::FunctionCoefficient state_coeff(
+   [](const mfem::Vector &x)
+   {
+      auto A = std::pow(x(0),2) - std::pow(x(1),2);
+      return A;
+   });
+   state.project(state_coeff, state_tv);
+
+   op.apply(state_tv, dg_curl_tv);
+   dg_curl.distributeSharedDofs(dg_curl_tv);
+
+   /// Print fields
+   // mfem::ParaViewDataCollection pv("test_mixed_nonlinear_operator_curl", &mesh);
+   // pv.SetPrefixPath("ParaView");
+   // pv.SetLevelsOfDetail(p+2);
+   // pv.SetDataFormat(mfem::VTKFormat::BINARY);
+   // pv.SetHighOrderOutput(true);
+   // pv.RegisterField("state", &state.gridFunc());
+   // // pv.RegisterField("curl", &curl.gridFunc());
    // pv.RegisterField("dg_curl", &dg_curl.gridFunc());
    // pv.Save();
 }

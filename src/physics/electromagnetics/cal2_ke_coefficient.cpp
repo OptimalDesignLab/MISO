@@ -567,7 +567,7 @@ double PolyVarEddyCurrentLossCoeff::EvalDerivS1(mfem::ElementTransformation &tra
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    // First derivative with respect to temperature
    
-   auto T = state1;
+   // auto T = state1;
    // auto f = state2;
    auto B_m = state3;
 
@@ -701,7 +701,7 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3(mfem::ElementTransformation &
       // dke_T0_f_BdB_m += i*ke_T0[i]*std::pow(B_m,i-1);
       d2ke_T0_f_BdB_m2 += (i-1)*i*ke_T0[i]*std::pow(B_m,i-2);
    }
-   double dke_T1_f_BdB_m = 0.0;
+   // double dke_T1_f_BdB_m = 0.0;
    double d2ke_T1_f_BdB_m2 = 0.0;
    for (int i = 0; i < static_cast<int>(ke_T1.size()); ++i)
    {
@@ -742,7 +742,7 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS1S3(mfem::ElementTransformation
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    // Derivative with respect to temperature then max alternating flux density
 
-   auto T = state1;
+   // auto T = state1;
    // auto f = state2;
    auto B_m = state3;
 
@@ -814,7 +814,7 @@ double PolyVarEddyCurrentLossCoeff::Eval2ndDerivS3S1(mfem::ElementTransformation
    // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
    // Derivative with respect to max alternating flux density then temperature
 
-   auto T = state1;
+   // auto T = state1;
    // auto f = state2;
    auto B_m = state3;
 
