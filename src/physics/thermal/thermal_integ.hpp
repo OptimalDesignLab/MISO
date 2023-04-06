@@ -118,7 +118,8 @@ public:
    // /// \param[in] trans - the transformation between reference and physical
    // /// space
    // /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
-   // /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   // /// \note the LinearForm that assembles this integrator's
+   // FiniteElementSpace
    // /// MUST be the mesh's nodal finite element space
    // void AssembleRHSElementVect(const mfem::FiniteElement &el,
    //                             mfem::FaceElementTransformations &trans,
@@ -138,21 +139,52 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+// inline void addSensitivityIntegrator(
+//     ConvectionBCIntegrator &primal_integ,
+//     std::map<std::string, FiniteElementState> &fields,
+//     std::map<std::string, mfem::ParLinearForm> &rev_sens,
+//     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+//     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+//     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+// {
+//    auto &mesh_fes = fields.at("mesh_coords").space();
+//    rev_sens.emplace("mesh_coords", &mesh_fes);
+//    rev_sens.at("mesh_coords")
+//        .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
+//            fields.at("state").gridFunc(),
+//            fields.at("adjoint").gridFunc(),
+//            primal_integ));
+// }
+
+inline void addBdrSensitivityIntegrator(
     ConvectionBCIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
-   rev_sens.at("mesh_coords")
-       .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
-           fields.at("state").gridFunc(),
-           fields.at("adjoint").gridFunc(),
-           primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
+              fields.at("state").gridFunc(),
+              fields.at("adjoint").gridFunc(),
+              primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
+                                     fields.at("state").gridFunc(),
+                                     fields.at("adjoint").gridFunc(),
+                                     primal_integ),
+                                 *attr_marker);
+   }
 }
 
 class OutfluxBCIntegrator : public mfem::NonlinearFormIntegrator
@@ -197,8 +229,8 @@ public:
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
    OutfluxBCIntegratorMeshRevSens(mfem::GridFunction &state,
-                                     mfem::GridFunction &adjoint,
-                                     OutfluxBCIntegrator &integ)
+                                  mfem::GridFunction &adjoint,
+                                  OutfluxBCIntegrator &integ)
     : state(state), adjoint(adjoint), integ(integ)
    { }
 
@@ -219,6 +251,37 @@ private:
    mfem::Vector elfun, psi;
 #endif
 };
+
+inline void addBdrSensitivityIntegrator(
+    OutfluxBCIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddBoundaryIntegrator(new OutfluxBCIntegratorMeshRevSens(
+              fields.at("state").gridFunc(),
+              fields.at("adjoint").gridFunc(),
+              primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddBoundaryIntegrator(new OutfluxBCIntegratorMeshRevSens(
+                                     fields.at("state").gridFunc(),
+                                     fields.at("adjoint").gridFunc(),
+                                     primal_integ),
+                                 *attr_marker);
+   }
+}
 
 // // MACH::Diffusion integrator copied over from mfem's declaration exactly
 // // Only difference is that it has DiffusionIntegratorMeshRevSens as a friend

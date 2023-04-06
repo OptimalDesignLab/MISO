@@ -55,7 +55,8 @@ void TestBCIntegratorMeshRevSens::AssembleRHSElementVect(
     mfem::Vector &mesh_coords_bar)
 {
    const int element = mesh_trans.ElementNo;
-   auto &trans = *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
+   auto &trans =
+       *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
    const int state_elem_num = trans.Elem1->ElementNo;
    const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
 
@@ -98,7 +99,7 @@ void TestBCIntegratorMeshRevSens::AssembleRHSElementVect(
    const mfem::IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = 2*el1.GetOrder() + trans.OrderW();
+      int order = 2 * el1.GetOrder() + trans.OrderW();
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
@@ -236,7 +237,8 @@ void ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect(
     mfem::Vector &mesh_coords_bar)
 {
    const int element = mesh_trans.ElementNo;
-   auto &trans = *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
+   auto &trans =
+       *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
    const int state_elem_num = trans.Elem1->ElementNo;
    const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
 
@@ -277,7 +279,7 @@ void ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect(
    const mfem::IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = 2*el1.GetOrder() + trans.OrderW();
+      int order = 2 * el1.GetOrder() + trans.OrderW();
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
@@ -316,7 +318,7 @@ void ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double adjoint = psi * shape;
       /// const double flux = h * ((elfun * shape) - theta_f);
-      
+
       /// const double w = alpha * ip.weight * trans_weight;
       const double trans_weight_bar = w_bar * alpha * ip.weight;
 
@@ -369,7 +371,7 @@ void OutfluxBCIntegrator::AssembleFaceVector(
       // Access the neighboring element's integration point
       const auto &eip = trans.GetElement1IntPoint();
       el1.CalcShape(eip, shape);
-      
+
       add(elvect, w * flux, shape, elvect);
    }
 }
@@ -392,7 +394,8 @@ void OutfluxBCIntegratorMeshRevSens::AssembleRHSElementVect(
     mfem::Vector &mesh_coords_bar)
 {
    const int element = mesh_trans.ElementNo;
-   auto &trans = *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
+   auto &trans =
+       *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
    const int state_elem_num = trans.Elem1->ElementNo;
    const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
 
@@ -433,7 +436,7 @@ void OutfluxBCIntegratorMeshRevSens::AssembleRHSElementVect(
    const mfem::IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = 2*el1.GetOrder() + trans.OrderW();
+      int order = 2 * el1.GetOrder() + trans.OrderW();
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
@@ -469,7 +472,7 @@ void OutfluxBCIntegratorMeshRevSens::AssembleRHSElementVect(
       double w_bar = fun_bar * adjoint * flux;
 
       /// const double adjoint = psi * shape;
-      
+
       /// const double w = alpha * ip.weight * trans_weight;
       const double trans_weight_bar = w_bar * alpha * ip.weight;
 
