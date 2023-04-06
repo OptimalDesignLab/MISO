@@ -45,6 +45,20 @@ public:
    {
       return 0.0;
    }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      EvalRevDiff(Q_bar, trans, ip, 0.0, PointMat_bar);
+   }
+
+   virtual void EvalRevDiff(double Q_bar,
+                            mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            double state,
+                            mfem::DenseMatrix &PointMat_bar);
 };
 
 /// Abstract class TwoStateCoefficient
@@ -962,23 +976,24 @@ public:
                      const mfem::IntegrationPoint &ip,
                      double state) = 0;
 
-   /// TODO: Implement EvalStateDeriv and EvalState2ndDeriv here and in
-   /// coefficient cpp if needed
-   // virtual void EvalStateDeriv(mfem::Vector &vec, mfem::ElementTransformation
-   // &trans,
-   //                              const mfem::IntegrationPoint &ip,
-   //                               double state, mfem::Vector &dV_dstate) = 0;
+   virtual void EvalStateDeriv(mfem::Vector &vec_dot,
+                               mfem::ElementTransformation &trans,
+                               const mfem::IntegrationPoint &ip,
+                               double state) = 0;
 
-   // virtual void EvalState2ndDeriv(mfem::Vector &vec,
-   // mfem::ElementTransformation &trans,
-   //                                  const mfem::IntegrationPoint &ip,
-   //                                  const double state, mfem::Vector
-   //                                  &d2V_dstate2) = 0;
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      EvalRevDiff(V_bar, trans, ip, 0.0, PointMat_bar);
+   }
 
-   // virtual void EvalRevDiff(const mfem::Vector &vec,
-   //                          mfem::ElementTransformation &trans,
-   //                          const mfem::IntegrationPoint &ip,
-   //                          mfem::DenseMatrix &PointMat_bar) over;
+   virtual void EvalRevDiff(const mfem::Vector &V_bar,
+                            mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            double state,
+                            mfem::DenseMatrix &PointMat_bar);
 
    VectorStateCoefficient(int dim) : mfem::VectorCoefficient(dim) { }
 };
@@ -1044,6 +1059,11 @@ public:
              const mfem::IntegrationPoint &ip,
              double state) override;
 
+   void EvalStateDeriv(mfem::Vector &vec,
+                       mfem::ElementTransformation &trans,
+                       const mfem::IntegrationPoint &ip,
+                       double state) override;
+
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
    ///        `ip`.
@@ -1051,6 +1071,7 @@ public:
    /// \param[in] trans - element transformation relating real element to
    ///                    reference element
    /// \param[in] ip - defines location in reference space
+   /// \param[in] state - the state to evaluate the coefficient at
    /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
    /// \note When this method is called, the caller must make sure that the
    /// IntegrationPoint associated with trans is the same as ip. This can be
@@ -1058,6 +1079,7 @@ public:
    void EvalRevDiff(const mfem::Vector &V_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override;
 
 protected:
@@ -1067,82 +1089,43 @@ protected:
 
 /// TODO: If needed, add constructMaterialVectorStateCoefficient
 
-// Adding new class to allow for evaluate scalarvectorproductcoefficient with
-// temperature state passed in for magnetization
-/// Vector coefficient defined as a product of scalar and vector coefficients.
-// mach::ScalarVectorProductCoefficient instead of mfem (though most of mfem's
-// code is below, unchanged)
-/// TODO: Figure out how to properly define the ScalarVectorProductCoefficient
-/// constructor and which terms should be mfem::VectorCoefficient's and which
-/// terms should be VectorStateCoefficient's
-
-class ScalarVectorProductCoefficient
- : public VectorStateCoefficient  // inherits from VectorStateCoefficient
-                                  // instead of mfem::VectorStateCoefficient
+class ScalarVectorProductCoefficient : public VectorStateCoefficient
 {
-private:
-   double aConst;
-   mfem::Coefficient *a;
-   StateCoefficient *State_a;
-   mfem::VectorCoefficient *b;
-   VectorStateCoefficient *State_b;
-#ifndef MFEM_THREAD_SAFE
-   mfem::Vector W, W_bar;
-#endif
-
 public:
-   /// Constructor with constant and vector coefficient.  Result is A * B.
-   // ScalarVectorProductCoefficient(double A, mfem::VectorCoefficient &B); //
-   // this constructor apparently is fine
-
-   /// Constructor with two coefficients.  Result is A * B.
-   ScalarVectorProductCoefficient(
-       StateCoefficient &A,
-       mfem::VectorCoefficient &B)  // this constructor needs to be defined
-    : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
+   ScalarVectorProductCoefficient(StateCoefficient &A,
+                                  mfem::VectorCoefficient &B)
+    : VectorStateCoefficient(B.GetVDim()), a(&A), b(&B)
    { }
-   /// TODO: The below was working
-   // ScalarVectorProductCoefficient(StateCoefficient &A,
-   // mfem::VectorCoefficient &B) // this constructor needs to be defined :
-   // VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B) { }
-
-   /// Set the time for internally stored coefficients
-   // void SetTime(double t);
-
-   /// Reset the scalar factor as a constant
-   // void SetAConst(double A) { a = NULL; aConst = A; }
-   // /// Return the scalar factor
-   // double GetAConst() const { return aConst; }
-
-   /// Reset the scalar factor
-   // void SetACoef(mfem::Coefficient &A) { a = &A; }
-   // /// Return the scalar factor
-   // mfem::Coefficient * GetACoef() const { return a; }
-
-   // /// Reset the vector factor
-   // void SetBCoef(mfem::VectorCoefficient &B) { b = &B; }
-   // /// Return the vector factor
-   // mfem::VectorCoefficient * GetBCoef() const { return b; }
-
-   /// TODO: Debug remaining errors
 
    /// Evaluate the vector coefficient at @a ip.
    void Eval(mfem::Vector &V,
              mfem::ElementTransformation &T,
              const mfem::IntegrationPoint &ip) override;
-   // using VectorStateCoefficient::Eval;
 
    /// Evaluate the vector coefficient at @a ip. WITH THE STATE
    void Eval(mfem::Vector &V,
              mfem::ElementTransformation &T,
              const mfem::IntegrationPoint &ip,
              double state) override;
-   // using VectorStateCoefficient::Eval; // I believe this is right....
+
+   void EvalStateDeriv(mfem::Vector &vec_dot,
+                       mfem::ElementTransformation &T,
+                       const mfem::IntegrationPoint &ip,
+                       double state) override;
 
    void EvalRevDiff(const mfem::Vector &V_bar,
                     mfem::ElementTransformation &T,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override;
+
+private:
+   mfem::Coefficient *a;
+   mfem::VectorCoefficient *b;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector W;
+   mfem::Vector W_bar;
+#endif
 };
 
 /// NOTE: Commenting out this class. It is old and no longer used.

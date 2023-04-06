@@ -252,9 +252,7 @@ public:
 
    IEAggregateFunctional(mfem::ParFiniteElementSpace &fes,
                          std::map<std::string, FiniteElementState> &fields,
-                         const nlohmann::json &options,
-                         StateCoefficient &B_knee,
-                         VectorStateCoefficient &mag_coeff);
+                         const nlohmann::json &options);
 
 private:
    FunctionalOutput numerator;

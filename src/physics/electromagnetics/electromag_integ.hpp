@@ -13,12 +13,10 @@
 
 namespace mach
 {
-class AbstractSolver;
 class StateCoefficient;
 class TwoStateCoefficient;
 class ThreeStateCoefficient;
 class VectorStateCoefficient;
-class ScalarVectorProductCoefficient;
 
 /// Compute the integral of HdB from 0 to B
 /// \param[in] trans - element transformation for where to evaluate `nu`
@@ -167,14 +165,10 @@ inline void addDomainSensitivityIntegrator(
 class MagnetizationSource2DIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-   /// TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M
-   /// (mach)
-   MagnetizationSource2DIntegrator(
-       ScalarVectorProductCoefficient
-           &M,  // will need to be formerly a mfem::VectorCoefficient &M
-       double alpha = 1.0,
-       mfem::GridFunction *temperature_field = nullptr)
-    : M(M), alpha(alpha), temperature_field(temperature_field)
+   MagnetizationSource2DIntegrator(VectorStateCoefficient &M,
+                                   mfem::GridFunction &temperature_field,
+                                   double alpha = 1.0)
+    : M(M), temperature_field(temperature_field), alpha(alpha)
    { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -182,35 +176,30 @@ public:
                                mfem::Vector &elvect) override;
 
 private:
-   /// vector coefficient from linear form
-   /// TODO: mfem::VectorCoefficient &M -> ScalarVectorProductCoefficient &M
-   /// (mach)
-   // mfem::VectorCoefficient &M;
-   ScalarVectorProductCoefficient &M;
+   /// coefficient representing polarization
+   VectorStateCoefficient &M;
+
+   // pointer to the temperature field
+   mfem::GridFunction &temperature_field;
 
    /// scaling term if the linear form has a negative sign in the residual
    const double alpha;
 
-   mfem::GridFunction *temperature_field;  // pointer to the temperature field
-
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix dshape, dshapedxt;
-   mfem::Vector scratch;
-   mfem::Vector temp_shape;
    mfem::Array<int> vdofs;
    mfem::Vector temp_elfun;
+   mfem::DenseMatrix dshape;
+   mfem::DenseMatrix dshapedxt;
+   mfem::Vector scratch;
+   mfem::Vector temp_shape;
 #endif
-   /// class that implements mesh sensitivities for
-   /// MagnetizationSource2DIntegrator
+   /// implements mesh sensitivities for MagnetizationSource2DIntegrator
    friend class MagnetizationSource2DIntegratorMeshRevSens;
-   /// class that implements temperature sensitivities for
-   /// MagnetizationSource2DIntegrator
+   /// implements temperature sensitivities for MagnetizationSource2DIntegrator
    friend class MagnetizationSource2DIntegratorTemperatureSens;
 };
 
 /// Integrator to assemble d(psi^T R)/dX for the
-/// MagnetizationSource2DIntegrator, updated to reflect the fact there is now
-/// (possibly) a temperature field
 class MagnetizationSource2DIntegratorMeshRevSens
  : public mfem::LinearFormIntegrator
 {
@@ -221,9 +210,8 @@ public:
    /// when evaluating d(psi^T R)/dX
    MagnetizationSource2DIntegratorMeshRevSens(
        mfem::GridFunction &adjoint,
-       MagnetizationSource2DIntegrator &integ,
-       mfem::GridFunction *temperature_field = nullptr)
-    : adjoint(adjoint), integ(integ), temperature_field(temperature_field)
+       MagnetizationSource2DIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to d(psi^T R)/dX
@@ -243,17 +231,12 @@ private:
    /// reference to primal integrator
    MagnetizationSource2DIntegrator &integ;
 
-   mfem::GridFunction
-       *temperature_field;  // pointer to the temperature field to use when
-                            // evaluating d(psi^T R)/dX
-
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix dshapedxt_bar;
    mfem::Vector scratch_bar;
    mfem::Array<int> vdofs;
    mfem::Vector psi;
-   mfem::Vector temp_shape;
-   mfem::Vector temp_elfun;
 #endif
 };
 
@@ -268,21 +251,20 @@ public:
    /// when evaluating d(psi^T R)/dT
    MagnetizationSource2DIntegratorTemperatureSens(
        mfem::GridFunction &adjoint,
-       MagnetizationSource2DIntegrator &integ,
-       mfem::GridFunction *temperature_field = nullptr)
-    : adjoint(adjoint), integ(integ), temperature_field(temperature_field)
+       MagnetizationSource2DIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to d(psi^T R)/dT
    /// \param[in] el - the finite element that describes the mesh element
    /// \param[in] trans - the transformation between reference and physical
    /// space
-   /// \param[out] temperature_bar - d(psi^T R)/dT for the element
+   /// \param[out] temp_elfun_bar - d(psi^T R)/dT for the element
    /// \note the LinearForm that assembles this integrator's FiniteElementSpace
    /// MUST be the mesh's nodal finite element space
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
-                               mfem::Vector &mesh_coords_bar) override;
+                               mfem::Vector &temp_elfun_bar) override;
 
 private:
    /// the adjoint to use when evaluating d(psi^T R)/dT
@@ -290,17 +272,11 @@ private:
    /// reference to primal integrator
    MagnetizationSource2DIntegrator &integ;
 
-   mfem::GridFunction
-       *temperature_field;  // pointer to the temperature field to use when
-                            // evaluating d(psi^T R)/dT
-
 #ifndef MFEM_THREAD_SAFE
-   mfem::DenseMatrix dshapedxt_bar, PointMat_bar;
+   mfem::DenseMatrix dshapedxt_bar;
    mfem::Vector scratch_bar;
    mfem::Array<int> vdofs;
    mfem::Vector psi;
-   mfem::Vector temp_shape;
-   mfem::Vector temp_elfun;
 #endif
 };
 
@@ -325,32 +301,25 @@ inline void addDomainSensitivityIntegrator(
    {
       rev_sens.at("mesh_coords")
           .AddDomainIntegrator(new MagnetizationSource2DIntegratorMeshRevSens(
-              fields.at("adjoint").gridFunc(),
-              primal_integ,
-              &fields.at("temperature").gridFunc()));
+              fields.at("adjoint").gridFunc(), primal_integ));
 
       rev_sens.at("temperature")
           .AddDomainIntegrator(
               new MagnetizationSource2DIntegratorTemperatureSens(
-                  fields.at("adjoint").gridFunc(),
-                  primal_integ,
-                  &fields.at("temperature").gridFunc()));
+                  fields.at("adjoint").gridFunc(), primal_integ));
    }
    else
    {
       rev_sens.at("mesh_coords")
-          .AddDomainIntegrator(new MagnetizationSource2DIntegratorMeshRevSens(
-                                   fields.at("adjoint").gridFunc(),
-                                   primal_integ,
-                                   &fields.at("temperature").gridFunc()),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new MagnetizationSource2DIntegratorMeshRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
 
       rev_sens.at("temperature")
           .AddDomainIntegrator(
               new MagnetizationSource2DIntegratorTemperatureSens(
-                  fields.at("adjoint").gridFunc(),
-                  primal_integ,
-                  &fields.at("temperature").gridFunc()),
+                  fields.at("adjoint").gridFunc(), primal_integ),
               *attr_marker);
    }
 }

@@ -82,6 +82,22 @@ public:
    template <typename T>
    void addDomainIntegrator(T *integrator);
 
+   /// Adds the given domain integrator to the nonlinear form, restricted to
+   /// the given domain attributes
+   /// \param[in] integrator - nonlinear form integrator for domain
+   /// \param[in] attr_marker - domain attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   template <typename T>
+   void addDomainIntegrator(T *integrator, const std::vector<int> &attr_marker);
+
+   /// Adds the given interior face integrator to the nonlinear form
+   /// \param[in] integrator - face nonlinear form integrator for interfaces
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   template <typename T>
+   void addInteriorFaceIntegrator(T *integrator);
+
    /// Adds the given boundary face integrator to the nonlinear form
    /// \param[in] integrator - face nonlinear form integrator for boundary
    /// \tparam T - type of integrator, used for constructing MachIntegrator
@@ -99,13 +115,6 @@ public:
    template <typename T>
    void addBdrFaceIntegrator(T *integrator,
                              const std::vector<int> &bdr_attr_marker);
-
-   /// Adds the given interior face integrator to the nonlinear form
-   /// \param[in] integrator - face nonlinear form integrator for interfaces
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   /// \note Assumes ownership of integrator
-   template <typename T>
-   void addInteriorFaceIntegrator(T *integrator);
 
    const mfem::Array<int> &getEssentialDofs() const
    {
@@ -143,6 +152,8 @@ private:
 
    /// Collection of integrators to be applied.
    std::vector<MachIntegrator> integs;
+   /// Collection of  markers for domain integrators
+   std::list<mfem::Array<int>> domain_markers;
    /// Collection of boundary markers for boundary integrators
    std::list<mfem::Array<int>> bdr_markers;
 
@@ -179,12 +190,46 @@ void MachNonlinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(*integrator,
-                            nf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addDomainSensitivityIntegrator(*integrator,
+                                  nf_fields,
+                                  rev_sens,
+                                  rev_scalar_sens,
+                                  fwd_sens,
+                                  fwd_scalar_sens,
+                                  nullptr);
+}
+
+template <typename T>
+void MachNonlinearForm::addDomainIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
+{
+   integs.emplace_back(*integrator);
+   auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = domain_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
+
+   nf.AddDomainIntegrator(integrator);
+   addDomainSensitivityIntegrator(*integrator,
+                                  nf_fields,
+                                  rev_sens,
+                                  rev_scalar_sens,
+                                  fwd_sens,
+                                  fwd_scalar_sens,
+                                  &marker);
+}
+
+template <typename T>
+void MachNonlinearForm::addInteriorFaceIntegrator(T *integrator)
+{
+   integs.emplace_back(*integrator);
+   nf.AddInteriorFaceIntegrator(integrator);
+   addInteriorFaceSensitivityIntegrator(*integrator,
+                                        nf_fields,
+                                        rev_sens,
+                                        rev_scalar_sens,
+                                        fwd_sens,
+                                        fwd_scalar_sens);
 }
 
 template <typename T>
@@ -192,12 +237,13 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(*integrator,
-                            nf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               nf_fields,
+                               rev_sens,
+                               rev_scalar_sens,
+                               fwd_sens,
+                               fwd_scalar_sens,
+                               nullptr);
 }
 
 template <typename T>
@@ -206,80 +252,18 @@ void MachNonlinearForm::addBdrFaceIntegrator(
     const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-
-   std::cout << "TODO: Ultimately remove these instances of Print(); and other "
-                "comments in mach_nonlinearform.hpp.\n";
-
-   // std::cout << "bdr_attr_marker:\n";
-   // for (int k = 0; k < bdr_attr_marker.size(); ++k)
-   // {
-   //    std::cout << bdr_attr_marker[k] << ", ";
-   // }
-   // std::cout << "\n";
-
    auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Max();
-
-   // std::cout << "mesh_attr_size =
-   // nf.ParFESpace()->GetMesh()->bdr_attributes.Max(); = " << mesh_attr_size <<
-   // "\n"; std::cout << "bdr_attributes:\n";
-   // nf.ParFESpace()->GetMesh()->bdr_attributes.Print(mfem::out,25);
-
-   // std::cout << "Size of bdr_markers before emplace back = " <<
-   // bdr_markers.size() << "and bdr_markers ="; int element_number=0; // to
-   // allow for bdr_markers to print with certain number of elements per row for
-   // (auto const &i: bdr_markers)
-   // {
-   //    ++element_number;
-   //    if (element_number % 50 == 1)
-   //    {
-   //       std::cout << "\n";
-   //    }
-   //    std::cout << i << " ";
-   // }
-   // std::cout << "\n";
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
-
-   // std::cout << "Size of bdr_markers after emplace back = " <<
-   // bdr_markers.size() << "and bdr_markers ="; element_number=0; // to allow
-   // for bdr_markers to print with certain number of elements per row for (auto
-   // const &i: bdr_markers)
-   // {
-   //    ++element_number;
-   //    if (element_number % 50 == 1)
-   //    {
-   //       std::cout << "\n";
-   //    }
-   //    std::cout << i << " ";
-   // }
-   // std::cout << "\n";
-   // std::cout << "marker size before attrVecToArray = " << marker.Size() << "
-   // and is:\n"; marker.Print(mfem::out,50);
-
    attrVecToArray(bdr_attr_marker, marker);
 
-   // std::cout << "marker size after attrVecToArray = " << marker.Size() << "
-   // and is:\n"; marker.Print(mfem::out,50);
-
    nf.AddBdrFaceIntegrator(integrator, marker);
-   addSensitivityIntegrator(*integrator,
-                            nf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
-}
-
-template <typename T>
-void MachNonlinearForm::addInteriorFaceIntegrator(T *integrator)
-{
-   integs.emplace_back(*integrator);
-   nf.AddInteriorFaceIntegrator(integrator);
-   addSensitivityIntegrator(*integrator,
-                            nf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               nf_fields,
+                               rev_sens,
+                               rev_scalar_sens,
+                               fwd_sens,
+                               fwd_scalar_sens,
+                               &marker);
 }
 
 }  // namespace mach

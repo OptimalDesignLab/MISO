@@ -3,6 +3,7 @@
 #include <variant>
 
 #include "data_logging.hpp"
+#include "finite_element_state.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -14,6 +15,7 @@
 #include "l2_transfer_operator.hpp"
 
 #include "magnetostatic.hpp"
+#include "pde_solver.hpp"
 
 namespace
 {
@@ -72,14 +74,19 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
    nu(options, materials),
    rho(constructMaterialCoefficient("rho", options["components"], materials)),
-   sigma(options, materials),
-   mag_coeff(diff_stack, options["magnets"], materials, 2),
-   B_knee(options, materials)
+   sigma(options, materials)
+   // mag_coeff(diff_stack, options["magnets"], materials, 2),
+   // B_knee(options, materials)
 {
    options["time-dis"]["type"] = "steady";
 
-   /// TODO: Add temperature field as optional last argument to magnetostatic
-   /// residual (also edit magnetostatic_residual.hpp and .cpp to reflect this)
+   if (auto temp_iter = fields.find("temperature"); temp_iter == fields.end())
+   {
+      fields.emplace("temperature", FiniteElementState(mesh(), {.name="temperature"}));
+   }
+   auto &temp = fields.at("temperature");
+   temp.gridFunc() = 273.15;
+
    spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
        diff_stack, fes(), fields, options, materials, nu));
    mach::setOptions(*spatial_res, options);
@@ -229,24 +236,13 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       if (options.contains("state"))
       {
          auto field_name = options["state"].get<std::string>();
-         std::cout << "field name: " << field_name << "\n";
-         if (field_name.rfind("demag", 0) == 0)
-         {
-            // Demagnetization doesn't have an explicit field, so just use the
-            // solvers finite element space
-            fes = &PDESolver::fes();
-         }
-         else
-         {
-            fes = &fields.at(field_name).space();
-         }
+         fes = &fields.at(field_name).space();
       }
       else
       {
          fes = &PDESolver::fes();
       }
-      // IEAggregateFunctional out(*fes, fields, options);
-      IEAggregateFunctional out(*fes, fields, options, B_knee, mag_coeff);
+      IEAggregateFunctional out(*fes, fields, options);
       outputs.emplace(fun, std::move(out));
    }
    else if (fun.rfind("dc_loss", 0) == 0)

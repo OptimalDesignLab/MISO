@@ -1600,11 +1600,8 @@ CoreLossFunctional::CoreLossFunctional(
       {
          auto attributes = options["attributes"].get<std::vector<int>>();
          output.addOutputDomainIntegrator(
-             new CAL2CoreLossIntegrator(*rho,
-                                        *CAL2_kh,
-                                        *CAL2_ke,
-                                        *peak_flux,
-                                        *temperature_field),
+             new CAL2CoreLossIntegrator(
+                 *rho, *CAL2_kh, *CAL2_ke, *peak_flux, *temperature_field),
              attributes);
          std::cout << "CoreLossFunctional using CAL2\n";
       }

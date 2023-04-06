@@ -37,10 +37,10 @@ private:
    /// Coefficient representing the temperature-dependent electrical
    /// conductivity
    ConductivityCoefficient sigma;
-   /// Coefficient representing the magnetization in the permanent magnets
-   MagnetizationCoefficient mag_coeff;
-   /// Coefficient representing the knee point flux density
-   DemagFluxCoefficient B_knee;
+   // /// Coefficient representing the magnetization in the permanent magnets
+   // MagnetizationCoefficient mag_coeff;
+   // /// Coefficient representing the knee point flux density
+   // DemagFluxCoefficient B_knee;
 
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state

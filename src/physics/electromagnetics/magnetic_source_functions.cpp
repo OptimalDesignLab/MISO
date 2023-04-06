@@ -511,12 +511,22 @@ void MagnetizationCoefficient::Eval(mfem::Vector &V,
    mag_coeff.Eval(V, trans, ip, state);
 }
 
+void MagnetizationCoefficient::EvalStateDeriv(
+    mfem::Vector &vec_dot,
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    double state)
+{
+   mag_coeff.EvalStateDeriv(vec_dot, trans, ip, state);
+}
+
 void MagnetizationCoefficient::EvalRevDiff(const mfem::Vector &V_bar,
                                            mfem::ElementTransformation &trans,
                                            const mfem::IntegrationPoint &ip,
+                                           double state,
                                            mfem::DenseMatrix &PointMat_bar)
 {
-   mag_coeff.EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+   mag_coeff.EvalRevDiff(V_bar, trans, ip, state, PointMat_bar);
 }
 
 /// TODO: Make changes so that the state is accounted for

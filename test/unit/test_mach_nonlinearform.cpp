@@ -239,13 +239,14 @@ void setInputs(TestIntegrator &integ, const mach::MachInputs &inputs)
    mach::setValueFromInputs(inputs, "time", integ.time);
 }
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     TestIntegrator &primal_integ,
     std::map<std::string, mach::FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);

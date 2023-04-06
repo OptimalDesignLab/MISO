@@ -8,6 +8,17 @@ using namespace mfem;
 
 namespace mach
 {
+void StateCoefficient::EvalRevDiff(double Q_bar,
+                                   mfem::ElementTransformation &trans,
+                                   const mfem::IntegrationPoint &ip,
+                                   double state,
+                                   mfem::DenseMatrix &PointMat_bar)
+{
+   MFEM_ABORT(
+       "StateCoefficient::EvalRevDiff\n"
+       "\tEvalRevDiff not implemented for this coefficient!\n");
+}
+
 double ParameterContinuationCoefficient::lambda = 0.0;
 
 double ParameterContinuationCoefficient::Eval(ElementTransformation &trans,
@@ -1580,11 +1591,8 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      // std::cout << "attr found\n";
       coeff = it->second.get();
       coeff->Eval(vec, trans, ip);
-      // std::cout << "mag_vec in eval: ";
-      // vec.Print();
    }
    else if (default_coeff)
    {
@@ -1594,8 +1602,6 @@ void VectorMeshDependentCoefficient::Eval(Vector &vec,
    {
       vec = 0.0;
    }
-   // std::cout << "mag_vec in eval: ";
-   // vec.Print();
 }
 
 void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
@@ -1619,12 +1625,22 @@ void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
+void VectorStateCoefficient::EvalRevDiff(const mfem::Vector &V_bar,
+                                         mfem::ElementTransformation &trans,
+                                         const mfem::IntegrationPoint &ip,
+                                         double state,
+                                         mfem::DenseMatrix &PointMat_bar)
+{
+   MFEM_ABORT(
+       "VectorStateCoefficient::EvalRevDiff\n"
+       "\tEvalRevDiff not implemented for this coefficient!\n");
+}
+
 // Adaped from VectorMeshDependentCoefficient
 void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
                                                ElementTransformation &trans,
                                                const IntegrationPoint &ip)
 {
-   std::cout << "VectorMeshDependentStateCoefficient::Eval w/o state call\n";
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
    VectorCoefficient *coeff = nullptr;
@@ -1645,8 +1661,6 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
    {
       vec = 0.0;
    }
-   // std::cout << "mag_vec in eval: ";
-   // vec.Print();
 }
 
 // Adaped from VectorMeshDependentCoefficient. Added in state as argument as
@@ -1656,7 +1670,6 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
                                                const IntegrationPoint &ip,
                                                double state)
 {
-   // std::cout << "VectorMeshDependentStateCoefficient::Eval w/ state call\n";
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
    VectorCoefficient *coeff = nullptr;
@@ -1668,14 +1681,10 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
       auto *vector_state_coeff = dynamic_cast<VectorStateCoefficient *>(coeff);
       if (vector_state_coeff != nullptr)
       {
-         // std::cout << "VMDSC #1 vector_state_coeff->Eval(vec, trans, ip,
-         // state); with state =" << state << "\n";
          vector_state_coeff->Eval(vec, trans, ip, state);
       }
       else
       {
-         // std::cout << "Could not cast to VectorStateCoefficient in VMDSC
-         // #1\n";
          vec = 0.0;
       }
    }
@@ -1685,14 +1694,10 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
           dynamic_cast<VectorStateCoefficient *>(default_coeff.get());
       if (vector_state_coeff != nullptr)
       {
-         // std::cout << "VMDSC #2 vector_state_coeff->Eval(vec, trans, ip,
-         // state); with state =" << state << "\n";
          vector_state_coeff->Eval(vec, trans, ip, state);
       }
       else
       {
-         // std::cout << "Could not cast to VectorStateCoefficient in VMDSC
-         // #2\n";
          vec = 0.0;
       }
    }
@@ -1700,111 +1705,231 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
    {
       vec = 0.0;
    }
-   // std::cout << "mag_vec in eval: ";
-   // vec.Print();
 }
 
-// Adaped from VectorMeshDependentCoefficient. No changes needed
+void VectorMeshDependentStateCoefficient::EvalStateDeriv(
+    mfem::Vector &vec_dot,
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    double state)
+{
+   // given the attribute, extract the coefficient value from the map
+   int this_att = trans.Attribute;
+   auto it = material_map.find(this_att);
+   if (it != material_map.end())
+   {
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<VectorStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         state_coeff->EvalStateDeriv(vec_dot, trans, ip, state);
+      }
+      else
+      {
+         vec_dot = 0.0;
+      }
+   }
+   else if (default_coeff)
+   {
+      auto *state_coeff =
+          dynamic_cast<VectorStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         state_coeff->EvalStateDeriv(vec_dot, trans, ip, state);
+      }
+      else
+      {
+         vec_dot = 0.0;
+      }
+   }
+   else  // if attribute not found in material map default to zero
+   {
+      vec_dot = 0.0;
+   }
+}
+
 void VectorMeshDependentStateCoefficient::EvalRevDiff(
     const Vector &V_bar,
     ElementTransformation &trans,
     const IntegrationPoint &ip,
+    double state,
     DenseMatrix &PointMat_bar)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
-   VectorCoefficient *coeff = nullptr;
    auto it = material_map.find(this_att);
    if (it != material_map.end())
    {
-      coeff = it->second.get();
-      coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+      auto *coeff = it->second.get();
+      auto *state_coeff = dynamic_cast<VectorStateCoefficient *>(coeff);
+      if (state_coeff != nullptr)
+      {
+         coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+      }
+      else
+      {
+         state_coeff->EvalRevDiff(V_bar, trans, ip, state, PointMat_bar);
+      }
    }
    else if (default_coeff)
    {
-      default_coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+      auto *state_coeff =
+          dynamic_cast<VectorStateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         default_coeff->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+      }
+      else
+      {
+         state_coeff->EvalRevDiff(V_bar, trans, ip, state, PointMat_bar);
+      }
    }
    // if attribute not found and no default set, don't change PointMat_bar
 }
-
-/// TODO: Uncomment these methods once get b cast figured out for
-/// ScalarVectorProductCoefficient
 
 // Adaped from VectorMeshDependentCoefficient
 void ScalarVectorProductCoefficient::Eval(mfem::Vector &V,
                                           mfem::ElementTransformation &T,
                                           const mfem::IntegrationPoint &ip)
 {
-   // std::cout << "ScalarVectorProductCoefficient::Eval w/o state call\n";
-
-   double sa = a->Eval(
-       T, ip);  // evaluate the State Coefficient NOT factoring in the state
-   b->Eval(
-       V,
-       T,
-       ip);  // evaluate the vector state Coefficient NOT factoring in the state
+   double sa = a->Eval(T, ip);
+   b->Eval(V, T, ip);
    V *= sa;
 }
 
 // Adaped from VectorMeshDependentCoefficient. Added in state as argument as
 // well as dynamic cast for coeff
 void ScalarVectorProductCoefficient::Eval(mfem::Vector &V,
-                                          mfem::ElementTransformation &T,
+                                          mfem::ElementTransformation &trans,
                                           const mfem::IntegrationPoint &ip,
                                           double state)
 {
-   // std::cout << "ScalarVectorProductCoefficient::Eval w state call\n";
-
-   // Try to cast the vector coefficient to a VectorStateCoefficient
-   // If it is indeed a VectorStateCoefficient, it will evaluate b at the state
-   // and not a Otherwise, it will not evaluate b at the state and try to give
-   // the state to a instead
-   VectorStateCoefficient *State_b = nullptr;
-   State_b = dynamic_cast<VectorStateCoefficient *>(b);
-   double sa;
-   if (State_b != nullptr)
+   auto *b_state = dynamic_cast<VectorStateCoefficient *>(b);
+   if (b_state == nullptr)
    {
-      // std::cout << "SVPC State_b->Eval(V, T, ip, state); with state =" <<
-      // state << "\n";
-      State_b->Eval(
-          V,
-          T,
-          ip,
-          state);  // evaluate the vector state Coefficient AT the state
-      sa = a->Eval(T, ip);  // evaluate the coefficient NOT at the state
+      b->Eval(V, trans, ip);
    }
    else
    {
-      // std::cout << "Could not cast to VectorStateCoefficient in SVPC\n";
-      b->Eval(V, T, ip);  // evaluate the vector Coefficient NOT at the state
-      auto *State_a = dynamic_cast<StateCoefficient *>(a);
-      if (State_a != nullptr)
-      {
-         // std::cout << "State_a not a null pointer in
-         // ScalarVectorProductCoefficient::Eval\n";
-         sa = State_a->Eval(
-             T, ip, state);  // evaluate the State Coefficient AT the state
-      }
-      else
-      {
-         // std::cout << "State_a not is a null pointer in
-         // ScalarVectorProductCoefficient::Eval\n";
-         sa = a->Eval(T, ip);  // evaluate the coefficient NOT at the state
-      }
+      b_state->Eval(V, trans, ip, state);
    }
-   V *= sa;
+
+   auto *a_state = dynamic_cast<StateCoefficient *>(a);
+   if (a_state == nullptr)
+   {
+      V *= a->Eval(trans, ip);
+   }
+   else
+   {
+      V *= a->Eval(trans, ip, state);
+   }
 }
 
-// Adaped from VectorMeshDependentCoefficient. No changes needed
+void ScalarVectorProductCoefficient::EvalStateDeriv(
+    mfem::Vector &vec_dot,
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip,
+    double state)
+{
+#ifdef MFEM_THREAD_SAFE
+   Vector W(vec_dot.Size());
+   Vector W_bar(vec_dot.Size());
+#else
+   W.SetSize(vec_dot.Size());
+   W_bar.SetSize(vec_dot.Size());
+#endif
+
+   /// Note: W_bar not actually used as a reverse mode "bar" variable here
+   /// Just using to avoid allocating a new vector
+
+   auto *b_state = dynamic_cast<VectorStateCoefficient *>(b);
+   if (b_state == nullptr)
+   {
+      b->Eval(W, trans, ip);
+      W_bar = 0.0;
+   }
+   else
+   {
+      b_state->Eval(W, trans, ip, state);
+      b_state->EvalStateDeriv(W_bar, trans, ip, state);
+   }
+
+   auto *a_state = dynamic_cast<StateCoefficient *>(a);
+   if (a_state == nullptr)
+   {
+      W_bar *= a->Eval(trans, ip);
+      W *= 0.0;
+   }
+   else
+   {
+      W_bar *= a_state->Eval(trans, ip, state);
+      W *= a_state->EvalStateDeriv(trans, ip, state);
+   }
+
+   vec_dot = 0.0;
+   vec_dot += W;
+   vec_dot += W_bar;
+}
+
 void ScalarVectorProductCoefficient::EvalRevDiff(const Vector &V_bar,
                                                  ElementTransformation &trans,
                                                  const IntegrationPoint &ip,
+                                                 double state,
                                                  DenseMatrix &PointMat_bar)
 {
-   // I believe this is all that is needed
-   b->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
+#ifdef MFEM_THREAD_SAFE
+   Vector W(V_bar.Size());
+   Vector W_bar(V_bar.Size());
+#else
+   W.SetSize(V_bar.Size());
+   W_bar.SetSize(V_bar.Size());
+#endif
 
-   // if attribute not found and no default set, don't change PointMat_bar
+   auto *b_state = dynamic_cast<VectorStateCoefficient *>(b);
+   if (b_state == nullptr)
+   {
+      b->Eval(W, trans, ip);
+   }
+   else
+   {
+      b_state->Eval(W, trans, ip, state);
+   }
+   auto a_val = [&]()
+   {
+      auto *a_state = dynamic_cast<StateCoefficient *>(a);
+      if (a_state == nullptr)
+      {
+         return a->Eval(trans, ip);
+      }
+      else
+      {
+         return a_state->Eval(trans, ip, state);
+      }
+   }();
+
+   /// reverse pass
+   W_bar = 0.0;
+   W_bar.Add(a_val, V_bar);
+
+   if (b_state == nullptr)
+   {
+      b->EvalRevDiff(W_bar, trans, ip, PointMat_bar);
+   }
+   else
+   {
+      b_state->EvalRevDiff(W_bar, trans, ip, state, PointMat_bar);
+   }
+
+   const double a_val_bar = V_bar * W;
+   auto *a_state = dynamic_cast<StateCoefficient *>(a);
+   if (a_state != nullptr)
+   {
+      a->EvalRevDiff(a_val_bar, trans, ip, PointMat_bar);
+   }
+   else
+   {
+      a_state->EvalRevDiff(a_val_bar, trans, ip, state, PointMat_bar);
+   }
 }
 
 /// NOTE: Commenting out this class. It is old and no longer used.

@@ -1,6 +1,7 @@
 #ifndef MACH_LINEAR_FORM
 #define MACH_LINEAR_FORM
 
+#include <cstddef>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -53,7 +54,7 @@ public:
    void addDomainIntegrator(T *integrator);
 
    /// Adds domain integrator restricted to certain elements specified by the
-   /// attributes listed in @a bdr_attr_marker to linear form
+   /// attributes listed in @a attr_marker to linear form
    /// \param[in] integrator - integrator to add to functional
    /// \param[in] bdr_attr_marker - lists element attributes this integrator
    /// should be used on
@@ -76,7 +77,7 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBoundaryIntegrator(T *integrator, mfem::Array<int> &bdr_attr_marker);
+   void addBoundaryIntegrator(T *integrator, const std::vector<int> &bdr_attr_marker);
 
    /// Adds boundary face integrator to linear form
    /// \param[in] integrator - face linear form integrator for boundary
@@ -93,7 +94,7 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBdrFaceIntegrator(T *integrator, mfem::Array<int> &bdr_attr_marker);
+   void addBdrFaceIntegrator(T *integrator, const std::vector<int> &bdr_attr_marker);
 
    const mfem::Array<int> &getEssentialDofs() const { return ess_tdof_list; }
 
@@ -156,12 +157,13 @@ void MachLinearForm::addDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(*integrator,
-                            *lf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addDomainSensitivityIntegrator(*integrator,
+                                  *lf_fields,
+                                  rev_sens,
+                                  rev_scalar_sens,
+                                  fwd_sens,
+                                  fwd_scalar_sens,
+                                  nullptr);
 }
 
 template <typename T>
@@ -174,12 +176,13 @@ void MachLinearForm::addDomainIntegrator(T *integrator,
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    lf.AddDomainIntegrator(integrator, marker);
-   addSensitivityIntegrator(*integrator,
-                            *lf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addDomainSensitivityIntegrator(*integrator,
+                                  *lf_fields,
+                                  rev_sens,
+                                  rev_scalar_sens,
+                                  fwd_sens,
+                                  fwd_scalar_sens,
+                                  &marker);
 }
 
 template <typename T>
@@ -187,27 +190,31 @@ void MachLinearForm::addBoundaryIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddBoundaryIntegrator(integrator);
-   addSensitivityIntegrator(*integrator,
-                            *lf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               *lf_fields,
+                               rev_sens,
+                               rev_scalar_sens,
+                               fwd_sens,
+                               fwd_scalar_sens,
+                               nullptr);
 }
 
 template <typename T>
-void MachLinearForm::addBoundaryIntegrator(T *integrator,
-                                           mfem::Array<int> &bdr_attr_marker)
+void MachLinearForm::addBoundaryIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   bdr_marker.emplace_back(bdr_attr_marker);
+   auto &marker = bdr_marker.emplace_back(bdr_attr_marker);
+   attrVecToArray(bdr_attr_marker, marker);
    lf.AddBoundaryIntegrator(integrator, bdr_marker.back());
-   addSensitivityIntegrator(*integrator,
-                            *lf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               *lf_fields,
+                               rev_sens,
+                               rev_scalar_sens,
+                               fwd_sens,
+                               fwd_scalar_sens,
+                               &marker);
 }
 
 template <typename T>
@@ -215,27 +222,31 @@ void MachLinearForm::addBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    lf.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(*integrator,
-                            *lf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               *lf_fields,
+                               rev_sens,
+                               rev_scalar_sens,
+                               fwd_sens,
+                               fwd_scalar_sens,
+                               nullptr);
 }
 
 template <typename T>
-void MachLinearForm::addBdrFaceIntegrator(T *integrator,
-                                          mfem::Array<int> &bdr_attr_marker)
+void MachLinearForm::addBdrFaceIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   bdr_marker.emplace_back(bdr_attr_marker);
+   auto &marker = bdr_marker.emplace_back(bdr_attr_marker);
+   attrVecToArray(bdr_attr_marker, marker);
    lf.AddBdrFaceIntegrator(integrator, bdr_marker.back());
-   addSensitivityIntegrator(*integrator,
-                            *lf_fields,
-                            rev_sens,
-                            rev_scalar_sens,
-                            fwd_sens,
-                            fwd_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               *lf_fields,
+                               rev_sens,
+                               rev_scalar_sens,
+                               fwd_sens,
+                               fwd_scalar_sens,
+                               &marker);
 }
 
 }  // namespace mach

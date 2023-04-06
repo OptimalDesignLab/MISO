@@ -189,11 +189,9 @@ ThermalResidual::ThermalResidual(
       }
       if (bcs.contains("outflux"))
       {
-         const auto &bdr_attr_marker =
-             bcs["outflux"].get<std::vector<int>>();
+         const auto &bdr_attr_marker = bcs["outflux"].get<std::vector<int>>();
 
          res.addBdrFaceIntegrator(new OutfluxBCIntegrator, bdr_attr_marker);
-
       }
    }
 }

@@ -937,48 +937,48 @@ protected:
    // AbstractSolver(const std::string &opt_file_name,
    //                MPI_Comm comm = MPI_COMM_WORLD);
 
-   /// Adds domain integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   template <typename T>
-   void addResidualDomainIntegrator(T *integrator)
-   {
-      res->AddDomainIntegrator(integrator);
-      res_integrators.emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
-          *integrator, res_fields, res_sens, res_scalar_sens);
-   }
+   // /// Adds domain integrator to the nonlinear form for `fun`, and adds
+   // /// reference to it to in fun_integrators as a MachIntegrator
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] integrator - integrator to add to functional
+   // /// \tparam T - type of integrator, used for constructing MachIntegrator
+   // template <typename T>
+   // void addResidualDomainIntegrator(T *integrator)
+   // {
+   //    res->AddDomainIntegrator(integrator);
+   //    res_integrators.emplace_back(*integrator);
+   //    addDomainSensitivityIntegrator(
+   //        *integrator, res_fields, res_sens, res_scalar_sens);
+   // }
 
-   /// Adds interface integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   template <typename T>
-   void addResidualInteriorFaceIntegrator(T *integrator)
-   {
-      res->AddInteriorFaceIntegrator(integrator);
-      res_integrators.emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
-          *integrator, res_fields, res_sens, res_scalar_sens);
-   }
+   // /// Adds interface integrator to the nonlinear form for `fun`, and adds
+   // /// reference to it to in fun_integrators as a MachIntegrator
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] integrator - integrator to add to functional
+   // /// \tparam T - type of integrator, used for constructing MachIntegrator
+   // template <typename T>
+   // void addResidualInteriorFaceIntegrator(T *integrator)
+   // {
+   //    res->AddInteriorFaceIntegrator(integrator);
+   //    res_integrators.emplace_back(*integrator);
+   //    mach::addSensitivityIntegrator(
+   //        *integrator, res_fields, res_sens, res_scalar_sens);
+   // }
 
-   /// Adds boundary integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
-   /// \param[in] fun - specifies the desired functional
-   /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
-   template <typename T>
-   void addResidualBdrFaceIntegrator(T *integrator,
-                                     mfem::Array<int> &bdr_marker)
-   {
-      res->AddBdrFaceIntegrator(integrator, bdr_marker);
-      res_integrators.emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
-          *integrator, res_fields, res_sens, res_scalar_sens);
-   }
+   // /// Adds boundary integrator to the nonlinear form for `fun`, and adds
+   // /// reference to it to in fun_integrators as a MachIntegrator
+   // /// \param[in] fun - specifies the desired functional
+   // /// \param[in] integrator - integrator to add to functional
+   // /// \tparam T - type of integrator, used for constructing MachIntegrator
+   // template <typename T>
+   // void addResidualBdrFaceIntegrator(T *integrator,
+   //                                   mfem::Array<int> &bdr_marker)
+   // {
+   //    res->AddBdrFaceIntegrator(integrator, bdr_marker);
+   //    res_integrators.emplace_back(*integrator);
+   //    mach::addSensitivityIntegrator(
+   //        *integrator, res_fields, res_sens, res_scalar_sens);
+   // }
 
 private:
    /// Used to do the bulk of the initialization shared between constructors

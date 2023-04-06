@@ -271,6 +271,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature",
+                        mach::FiniteElementState(mesh, {.order=p, .name="temperature"}));
+         auto &temp = fields.at("temperature");
 
          mfem::Vector state_tv(state.space().GetTrueVSize());
          for (int i = 0; i < state_tv.Size(); ++i)
@@ -280,6 +283,12 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
 
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
          mesh_coords.setTrueVec(mesh_coords_tv);
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         for (int i = 0; i < temp_tv.Size(); ++i)
+         {
+            temp_tv(i) = uniform_rand(gen);
+         }
 
          mfem::Vector res_bar(state.space().GetTrueVSize());
          for (int i = 0; i < res_bar.Size(); ++i)
@@ -338,7 +347,8 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
             {"state", state_tv},
             {"mesh_coords", mesh_coords_tv},
             {"current_density:box1", current_density},
-            {"current_density:box2", -current_density}
+            {"current_density:box2", -current_density},
+            {"temperature", temp_tv}
          };
 
          double pert = uniform_rand(gen);
@@ -447,6 +457,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature",
+                        mach::FiniteElementState(mesh, {.order=p, .name="temperature"}));
+         auto &temp = fields.at("temperature");
 
          mfem::Vector state_tv(state.space().GetTrueVSize());
          for (int i = 0; i < state_tv.Size(); ++i)
@@ -456,6 +469,12 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
 
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
          mesh_coords.setTrueVec(mesh_coords_tv);
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         for (int i = 0; i < temp_tv.Size(); ++i)
+         {
+            temp_tv(i) = uniform_rand(gen);
+         }
 
          mfem::Vector res_bar(state.space().GetTrueVSize());
          for (int i = 0; i < res_bar.Size(); ++i)
@@ -495,18 +514,8 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
                   }
                }
             },
-            "current": {
-               "box1": {
-                  "box1": [1]
-               }
-            },
             "bcs": {
                "essential": "all"
-            },
-            "magnets": {
-               "Nd2Fe14B": {
-                  "north": [2]
-               }
             }
          })"_json;
 
@@ -530,7 +539,8 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
             {"state", state_tv},
             {"mesh_coords", mesh_coords_tv},
             {"current_density:box1", current_density},
-            {"current_density:box2", -current_density}
+            {"current_density:box2", -current_density},
+            {"temperature", temp_tv}
          };
 
          setInputs(res, inputs);
