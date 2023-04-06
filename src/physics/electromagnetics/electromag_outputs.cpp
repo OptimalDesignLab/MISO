@@ -1604,8 +1604,7 @@ CoreLossFunctional::CoreLossFunctional(
                                         *CAL2_kh,
                                         *CAL2_ke,
                                         *peak_flux,
-                                        temperature_field,
-                                        "stator"),
+                                        *temperature_field),
              attributes);
          std::cout << "CoreLossFunctional using CAL2\n";
       }
@@ -1624,7 +1623,7 @@ CoreLossFunctional::CoreLossFunctional(
           options["UseCAL2forCoreLoss"].get<bool>())
       {
          output.addOutputDomainIntegrator(new CAL2CoreLossIntegrator(
-             *rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field));
+             *rho, *CAL2_kh, *CAL2_ke, *peak_flux, *temperature_field));
          std::cout << "CoreLossFunctional using CAL2\n";
       }
       else
@@ -1725,7 +1724,7 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    {
       lf.addDomainIntegrator(
           new CAL2CoreLossDistributionIntegrator(
-              rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
+              rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field),
           stator_attrs);
       std::cout << "(options.contains(\"UseCAL2forCoreLoss\") && "
                    "options[\"UseCAL2forCoreLoss\"].get<bool>()) = TRUE\n";

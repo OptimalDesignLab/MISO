@@ -3,9 +3,9 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "electromag_integ.hpp"
 #include "coefficient.hpp"
 #include "mach_input.hpp"
-#include "mfem_common_integ.hpp"
 #include "thermal_integ.hpp"
 
 #include "thermal_residual.hpp"
@@ -173,7 +173,7 @@ ThermalResidual::ThermalResidual(
           "Thermal residual currently only supports H1 state field!\n");
    }
 
-   res.addDomainIntegrator(new mach::DiffusionIntegrator(*kappa));
+   res.addDomainIntegrator(new NonlinearDiffusionIntegrator(*kappa));
 
    if (options.contains("bcs"))
    {
@@ -186,6 +186,14 @@ ThermalResidual::ThermalResidual(
              bcs["convection"].get<std::vector<int>>();
 
          res.addBdrFaceIntegrator(new ConvectionBCIntegrator, bdr_attr_marker);
+      }
+      if (bcs.contains("outflux"))
+      {
+         const auto &bdr_attr_marker =
+             bcs["outflux"].get<std::vector<int>>();
+
+         res.addBdrFaceIntegrator(new OutfluxBCIntegrator, bdr_attr_marker);
+
       }
    }
 }

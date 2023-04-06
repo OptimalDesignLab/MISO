@@ -3955,7 +3955,7 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
 
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
-      sigma.EvalRevDiff(sigma_v_bar, trans, ip, temperature, PointMat_bar);
+      sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
 
       /// double w = ip.weight * trans_weight;
       double trans_weight_bar = w_bar * ip.weight;
@@ -4430,7 +4430,7 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
       /// TODO: Adapt EvalRevDiff if needed
-      sigma.EvalRevDiff(sigma_v_bar, trans, ip, temperature, PointMat_bar);
+      sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
       // std::cout << "PointMat_bar(0,0)" << PointMat_bar(0,0) << "\n";
       /// const double b_mag = shape * elfun;
       shape_bar = 0.0;

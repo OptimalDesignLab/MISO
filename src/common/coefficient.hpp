@@ -948,6 +948,8 @@ protected:
 class VectorStateCoefficient : public mfem::VectorCoefficient
 {
 public:
+   using mfem::VectorCoefficient::Eval;
+
    void Eval(mfem::Vector &vec,
              mfem::ElementTransformation &trans,
              const mfem::IntegrationPoint &ip) override
@@ -973,10 +975,10 @@ public:
    //                                  const double state, mfem::Vector
    //                                  &d2V_dstate2) = 0;
 
-   virtual void EvalRevDiff(const mfem::Vector &vec,
-                            mfem::ElementTransformation &trans,
-                            const mfem::IntegrationPoint &ip,
-                            mfem::DenseMatrix &PointMat_bar) = 0;
+   // virtual void EvalRevDiff(const mfem::Vector &vec,
+   //                          mfem::ElementTransformation &trans,
+   //                          const mfem::IntegrationPoint &ip,
+   //                          mfem::DenseMatrix &PointMat_bar) over;
 
    VectorStateCoefficient(int dim) : mfem::VectorCoefficient(dim) { }
 };
@@ -1140,7 +1142,7 @@ public:
    void EvalRevDiff(const mfem::Vector &V_bar,
                     mfem::ElementTransformation &T,
                     const mfem::IntegrationPoint &ip,
-                    mfem::DenseMatrix &PointMat_bar);
+                    mfem::DenseMatrix &PointMat_bar) override;
 };
 
 /// NOTE: Commenting out this class. It is old and no longer used.

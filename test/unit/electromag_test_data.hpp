@@ -294,7 +294,7 @@ public:
    double Eval(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       auto B = state1;
@@ -307,7 +307,7 @@ public:
    double EvalDerivS1(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       // First derivative with respect to flux density
@@ -323,7 +323,7 @@ public:
    double EvalDerivS2(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       // First derivative with respect to temperature
@@ -339,7 +339,7 @@ public:
    double Eval2ndDerivS1(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       // Second derivative with respect to flux density
@@ -356,7 +356,7 @@ public:
    double Eval2ndDerivS2(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       // Second derivative with respect to temperature
@@ -373,7 +373,7 @@ public:
    double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       // Derivative with respect to flux density then temperature
@@ -391,7 +391,7 @@ public:
    double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
                               const mfem::IntegrationPoint &ip,
                               const double state1,
-                              const double state2)
+                              const double state2) override
    {
       // Assuming state1=flux density and state2=temperature
       // Derivative with respect to temperature then flux density
@@ -438,7 +438,7 @@ public:
                            const mfem::IntegrationPoint &ip,
                            const double state1,
                            const double state2,
-                           const double state3)
+                           const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -453,7 +453,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -468,7 +468,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       auto T = state1;
@@ -483,7 +483,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -498,7 +498,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -513,7 +513,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       auto T = state1;
@@ -528,7 +528,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -543,7 +543,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -558,7 +558,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -574,7 +574,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -590,7 +590,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;
@@ -606,7 +606,7 @@ public:
                               const mfem::IntegrationPoint &ip,
                               const double state1,
                               const double state2,
-                              const double state3)
+                              const double state3) override
    {
       // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
       // auto T = state1;

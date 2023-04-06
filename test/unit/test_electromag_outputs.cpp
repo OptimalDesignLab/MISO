@@ -9,6 +9,37 @@
 #include "electromag_outputs.hpp"
 
 #include "electromag_test_data.hpp"
+ 
+class TestConducitivityModel : public mach::StateCoefficient
+{
+public:
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      return 0.5*pow(state+1, -0.5);
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         const double state) override
+   {
+      return -0.25*pow(state+1, -1.5);
+   }
+
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override
+   {
+      return 0.375*pow(state+1, -2.5);
+   }
+
+   void EvalRevDiff(const double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_Bar) override
+   {}
+};
 
 TEST_CASE("DCLossFunctional sensitivity wrt mesh_coords")
 {
@@ -27,15 +58,7 @@ TEST_CASE("DCLossFunctional sensitivity wrt mesh_coords")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -147,15 +170,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt strand_radius")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -241,15 +256,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt frequency")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -336,15 +343,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt stack_length")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -430,15 +429,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt strands_in_hand")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -524,15 +515,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt num_turns")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -618,15 +601,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt num_slots")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -712,16 +687,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt mesh_coords")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return 1.0;
-         // return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         // x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -820,16 +786,7 @@ TEST_CASE("ACLossFunctional sensitivity wrt peak_flux")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   mfem::FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         return 1.0;
-         // return exp(-pow(x(0),2));
-      },
-      [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-      {
-         // x_bar(0) -= q_bar * 2 * x(0) * exp(-pow(x(0),2));
-      });
+   TestConducitivityModel model;
 
    for (int p = 1; p <= 4; ++p)
    {
