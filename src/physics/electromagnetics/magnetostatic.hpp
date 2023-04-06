@@ -34,7 +34,8 @@ private:
    ReluctivityCoefficient nu;
    /// Material dependent coefficient representing density
    MeshDependentCoefficient rho;
-   /// Coefficient representing the temperature-dependent electrical conductivity
+   /// Coefficient representing the temperature-dependent electrical
+   /// conductivity
    ConductivityCoefficient sigma;
    /// Coefficient representing the magnetization in the permanent magnets
    MagnetizationCoefficient mag_coeff;

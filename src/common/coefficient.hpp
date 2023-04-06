@@ -65,48 +65,47 @@ public:
                        double state2) = 0;
 
    virtual double EvalDerivS1(mfem::ElementTransformation &trans,
-                                 const mfem::IntegrationPoint &ip,
-                                 double state1,
-                                 double state2) = 0;
+                              const mfem::IntegrationPoint &ip,
+                              double state1,
+                              double state2) = 0;
 
    virtual double EvalDerivS2(mfem::ElementTransformation &trans,
-                                 const mfem::IntegrationPoint &ip,
-                                 double state1,
-                                 double state2) = 0;                               
+                              const mfem::IntegrationPoint &ip,
+                              double state1,
+                              double state2) = 0;
 
    virtual double Eval2ndDerivS1(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2)
+                                 const mfem::IntegrationPoint &ip,
+                                 const double state1,
+                                 const double state2)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS2(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2)
+                                 const mfem::IntegrationPoint &ip,
+                                 const double state1,
+                                 const double state2)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2)
    {
       return 0.0;
    }
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   /// TODO: Likely not necessary because of Eval2ndDerivS1S2
    virtual double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2)
    {
       return 0.0;
    }
-
 };
 
 /// Abstract class ThreeStateCoefficient
@@ -128,103 +127,103 @@ public:
                        double state3) = 0;
 
    virtual double EvalDerivS1(mfem::ElementTransformation &trans,
-                                 const mfem::IntegrationPoint &ip,
-                                 double state1,
-                                 double state2,
-                                 double state3) = 0;
+                              const mfem::IntegrationPoint &ip,
+                              double state1,
+                              double state2,
+                              double state3) = 0;
 
    virtual double EvalDerivS2(mfem::ElementTransformation &trans,
-                                 const mfem::IntegrationPoint &ip,
-                                 double state1,
-                                 double state2,
-                                 double state3) = 0;
+                              const mfem::IntegrationPoint &ip,
+                              double state1,
+                              double state2,
+                              double state3) = 0;
 
    virtual double EvalDerivS3(mfem::ElementTransformation &trans,
-                                 const mfem::IntegrationPoint &ip,
-                                 double state1,
-                                 double state2,
-                                 double state3) = 0;                                 
+                              const mfem::IntegrationPoint &ip,
+                              double state1,
+                              double state2,
+                              double state3) = 0;
 
    virtual double Eval2ndDerivS1(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                 const mfem::IntegrationPoint &ip,
+                                 const double state1,
+                                 const double state2,
+                                 const double state3)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS2(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                 const mfem::IntegrationPoint &ip,
+                                 const double state1,
+                                 const double state2,
+                                 const double state3)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS3(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                 const mfem::IntegrationPoint &ip,
+                                 const double state1,
+                                 const double state2,
+                                 const double state3)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2,
+                                   const double state3)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS1S3(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2,
+                                   const double state3)
    {
       return 0.0;
    }
 
    virtual double Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2,
+                                   const double state3)
    {
       return 0.0;
    }
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   /// TODO: Likely not necessary because of Eval2ndDerivS1S2
    virtual double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2,
+                                   const double state3)
    {
       return 0.0;
    }
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS3S1
+   /// TODO: Likely not necessary because of Eval2ndDerivS3S1
    virtual double Eval2ndDerivS3S1(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2,
+                                   const double state3)
    {
       return 0.0;
    }
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS2S3
+   /// TODO: Likely not necessary because of Eval2ndDerivS2S3
    virtual double Eval2ndDerivS3S2(mfem::ElementTransformation &trans,
-                                    const mfem::IntegrationPoint &ip,
-                                    const double state1,
-                                    const double state2,
-                                    const double state3)
+                                   const mfem::IntegrationPoint &ip,
+                                   const double state1,
+                                   const double state2,
+                                   const double state3)
    {
       return 0.0;
    }
@@ -551,9 +550,10 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
     const nlohmann::json &materials,
     double default_val = 0.0);
 
-/// MeshDependentTwoStateCoefficient, adapted from MeshDependentCoefficient, but is for TwoStateCoefficients rather than StateCoefficients
-/// A class that contains a map of material attributes and coefficients to
-/// evaluate on for each attribute.
+/// MeshDependentTwoStateCoefficient, adapted from MeshDependentCoefficient, but
+/// is for TwoStateCoefficients rather than StateCoefficients A class that
+/// contains a map of material attributes and coefficients to evaluate on for
+/// each attribute.
 class MeshDependentTwoStateCoefficient : public TwoStateCoefficient
 {
 public:
@@ -561,7 +561,8 @@ public:
    /// \param [in] dflt - default coefficient to evaluate if element attribute
    ///						  is not found in the map. If not set, will default
    ///						  to zero
-   MeshDependentTwoStateCoefficient(std::unique_ptr<mfem::Coefficient> dflt = nullptr)
+   MeshDependentTwoStateCoefficient(
+       std::unique_ptr<mfem::Coefficient> dflt = nullptr)
     : default_coeff(move(dflt))
    { }
 
@@ -623,35 +624,35 @@ public:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
    double EvalDerivS1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2) override;
+                      const mfem::IntegrationPoint &ip,
+                      double state1,
+                      double state2) override;
 
    double EvalDerivS2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2) override;
+                      const mfem::IntegrationPoint &ip,
+                      double state1,
+                      double state2) override;
 
    double Eval2ndDerivS1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2) override;
+                         const mfem::IntegrationPoint &ip,
+                         double state1,
+                         double state2) override;
 
    double Eval2ndDerivS2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2) override;
+                         const mfem::IntegrationPoint &ip,
+                         double state1,
+                         double state2) override;
 
    double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2) override;
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   /// TODO: Likely not necessary because of Eval2ndDerivS1S2
    double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2) override;
 
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
@@ -674,16 +675,18 @@ private:
    std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
 };
 
-///Copied from MeshDependentCoefficient and adapted for MeshDependentTwoStateCoefficient
-std::unique_ptr<mach::MeshDependentTwoStateCoefficient> constructMaterialTwoStateCoefficient(
-    const std::string &name,
-    const nlohmann::json &components,
-    const nlohmann::json &materials,
-    double default_val = 0.0);
+/// Copied from MeshDependentCoefficient and adapted for
+/// MeshDependentTwoStateCoefficient
+std::unique_ptr<mach::MeshDependentTwoStateCoefficient>
+constructMaterialTwoStateCoefficient(const std::string &name,
+                                     const nlohmann::json &components,
+                                     const nlohmann::json &materials,
+                                     double default_val = 0.0);
 
-/// MeshDependentThreeStateCoefficient, adapted from MeshDependentCoefficient, but is for ThreeStateCoefficients rather than StateCoefficients
-/// A class that contains a map of material attributes and coefficients to
-/// evaluate on for each attribute.
+/// MeshDependentThreeStateCoefficient, adapted from MeshDependentCoefficient,
+/// but is for ThreeStateCoefficients rather than StateCoefficients A class that
+/// contains a map of material attributes and coefficients to evaluate on for
+/// each attribute.
 class MeshDependentThreeStateCoefficient : public ThreeStateCoefficient
 {
 public:
@@ -691,7 +694,8 @@ public:
    /// \param [in] dflt - default coefficient to evaluate if element attribute
    ///						  is not found in the map. If not set, will default
    ///						  to zero
-   MeshDependentThreeStateCoefficient(std::unique_ptr<mfem::Coefficient> dflt = nullptr)
+   MeshDependentThreeStateCoefficient(
+       std::unique_ptr<mfem::Coefficient> dflt = nullptr)
     : default_coeff(move(dflt))
    { }
 
@@ -755,79 +759,79 @@ public:
    /// IntegrationPoint associated with trans is the same as ip. This can be
    /// achieved by calling trans.SetIntPoint(&ip).
    double EvalDerivS1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                      const mfem::IntegrationPoint &ip,
+                      double state1,
+                      double state2,
+                      double state3) override;
 
    double EvalDerivS2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                      const mfem::IntegrationPoint &ip,
+                      double state1,
+                      double state2,
+                      double state3) override;
 
    double EvalDerivS3(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                      const mfem::IntegrationPoint &ip,
+                      double state1,
+                      double state2,
+                      double state3) override;
 
    double Eval2ndDerivS1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                         const mfem::IntegrationPoint &ip,
+                         double state1,
+                         double state2,
+                         double state3) override;
 
    double Eval2ndDerivS2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
-   
+                         const mfem::IntegrationPoint &ip,
+                         double state1,
+                         double state2,
+                         double state3) override;
+
    double Eval2ndDerivS3(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                         const mfem::IntegrationPoint &ip,
+                         double state1,
+                         double state2,
+                         double state3) override;
 
    double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2,
+                           double state3) override;
 
    double Eval2ndDerivS1S3(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2,
+                           double state3) override;
 
    double Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2,
+                           double state3) override;
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   /// TODO: Likely not necessary because of Eval2ndDerivS1S2
    double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2,
+                           double state3) override;
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS3S1
+   /// TODO: Likely not necessary because of Eval2ndDerivS3S1
    double Eval2ndDerivS3S1(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2,
+                           double state3) override;
 
-   ///TODO: Likely not necessary because of Eval2ndDerivS2S3
+   /// TODO: Likely not necessary because of Eval2ndDerivS2S3
    double Eval2ndDerivS3S2(mfem::ElementTransformation &trans,
-               const mfem::IntegrationPoint &ip,
-               double state1,
-               double state2,
-               double state3) override;
+                           const mfem::IntegrationPoint &ip,
+                           double state1,
+                           double state2,
+                           double state3) override;
 
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
@@ -850,12 +854,13 @@ private:
    std::map<const int, std::unique_ptr<mfem::Coefficient>> material_map;
 };
 
-///Copied from MeshDependentCoefficient and adapted for MeshDependentThreeStateCoefficient
-std::unique_ptr<mach::MeshDependentThreeStateCoefficient> constructMaterialThreeStateCoefficient(
-    const std::string &name,
-    const nlohmann::json &components,
-    const nlohmann::json &materials,
-    double default_val = 0.0);
+/// Copied from MeshDependentCoefficient and adapted for
+/// MeshDependentThreeStateCoefficient
+std::unique_ptr<mach::MeshDependentThreeStateCoefficient>
+constructMaterialThreeStateCoefficient(const std::string &name,
+                                       const nlohmann::json &components,
+                                       const nlohmann::json &materials,
+                                       double default_val = 0.0);
 
 class VectorMeshDependentCoefficient : public mfem::VectorCoefficient
 {
@@ -938,42 +943,48 @@ protected:
 /// Abstract class VectorStateCoefficient
 /// Defines new signature for Eval() and new method EvalStateDeriv() that
 /// subclasses must implement.
-///NOTE: Started from State Coefficient declaration and adjusted as needed for vector coefficient
+/// NOTE: Started from State Coefficient declaration and adjusted as needed for
+/// vector coefficient
 class VectorStateCoefficient : public mfem::VectorCoefficient
 {
 public:
-   void Eval(mfem::Vector &vec, mfem::ElementTransformation &trans,
-                     const mfem::IntegrationPoint &ip) override
+   void Eval(mfem::Vector &vec,
+             mfem::ElementTransformation &trans,
+             const mfem::IntegrationPoint &ip) override
    {
       Eval(vec, trans, ip, 0);
    }
 
-   virtual void Eval(mfem::Vector &vec, mfem::ElementTransformation &trans,
-                     const mfem::IntegrationPoint &ip, double state) = 0;
+   virtual void Eval(mfem::Vector &vec,
+                     mfem::ElementTransformation &trans,
+                     const mfem::IntegrationPoint &ip,
+                     double state) = 0;
 
-   ///TODO: Implement EvalStateDeriv and EvalState2ndDeriv here and in coefficient cpp if needed
-   // virtual void EvalStateDeriv(mfem::Vector &vec, mfem::ElementTransformation &trans,
+   /// TODO: Implement EvalStateDeriv and EvalState2ndDeriv here and in
+   /// coefficient cpp if needed
+   // virtual void EvalStateDeriv(mfem::Vector &vec, mfem::ElementTransformation
+   // &trans,
    //                              const mfem::IntegrationPoint &ip,
    //                               double state, mfem::Vector &dV_dstate) = 0;
 
-   // virtual void EvalState2ndDeriv(mfem::Vector &vec, mfem::ElementTransformation &trans,
+   // virtual void EvalState2ndDeriv(mfem::Vector &vec,
+   // mfem::ElementTransformation &trans,
    //                                  const mfem::IntegrationPoint &ip,
-   //                                  const double state, mfem::Vector &d2V_dstate2) = 0;
+   //                                  const double state, mfem::Vector
+   //                                  &d2V_dstate2) = 0;
 
-   virtual void EvalRevDiff(const mfem::Vector &vec, mfem::ElementTransformation &trans,
+   virtual void EvalRevDiff(const mfem::Vector &vec,
+                            mfem::ElementTransformation &trans,
                             const mfem::IntegrationPoint &ip,
                             mfem::DenseMatrix &PointMat_bar) = 0;
 
-   VectorStateCoefficient(int dim)
-   : mfem::VectorCoefficient(dim)
-   {}
-
+   VectorStateCoefficient(int dim) : mfem::VectorCoefficient(dim) { }
 };
 
 /// VectorMeshDependentStateCoefficient
-/// A class that contains a map of material attributes and vector state coefficients to
-/// evaluate on for each attribute.
-/// Adapted from MeshDependentVectorCoefficient
+/// A class that contains a map of material attributes and vector state
+/// coefficients to evaluate on for each attribute. Adapted from
+/// MeshDependentVectorCoefficient
 class VectorMeshDependentStateCoefficient : public VectorStateCoefficient
 {
 public:
@@ -981,9 +992,10 @@ public:
        const int dim = 3,
        std::unique_ptr<VectorStateCoefficient> dflt = nullptr)
     : VectorStateCoefficient(dim), default_coeff(move(dflt))
-   {}
+   { }
 
-   // addCoefficient should be same for MeshDependentVectorStateCoefficient as it is for MeshDependentVectorCoefficient
+   // addCoefficient should be same for MeshDependentVectorStateCoefficient as
+   // it is for MeshDependentVectorCoefficient
    /// Adds <int, std::unique_ptr<VectorStateCoefficient> pair to material_map
    /// \param[in] attr - attribute integer indicating which elements coeff
    ///					    should be evaluated on
@@ -1028,7 +1040,7 @@ public:
    void Eval(mfem::Vector &vec,
              mfem::ElementTransformation &trans,
              const mfem::IntegrationPoint &ip,
-               double state) override;
+             double state) override;
 
    /// \brief Search the map of coefficients and evaluate the one whose key is
    ///        the same as the element's `Attribute` at the point defined by
@@ -1051,37 +1063,46 @@ protected:
    std::map<const int, std::unique_ptr<VectorCoefficient>> material_map;
 };
 
-///TODO: If needed, add constructMaterialVectorStateCoefficient
+/// TODO: If needed, add constructMaterialVectorStateCoefficient
 
-// Adding new class to allow for evaluate scalarvectorproductcoefficient with temperature state passed in for magnetization
+// Adding new class to allow for evaluate scalarvectorproductcoefficient with
+// temperature state passed in for magnetization
 /// Vector coefficient defined as a product of scalar and vector coefficients.
-// mach::ScalarVectorProductCoefficient instead of mfem (though most of mfem's code is below, unchanged)
-///TODO: Figure out how to properly define the ScalarVectorProductCoefficient constructor and which terms should be mfem::VectorCoefficient's and which terms should be VectorStateCoefficient's
+// mach::ScalarVectorProductCoefficient instead of mfem (though most of mfem's
+// code is below, unchanged)
+/// TODO: Figure out how to properly define the ScalarVectorProductCoefficient
+/// constructor and which terms should be mfem::VectorCoefficient's and which
+/// terms should be VectorStateCoefficient's
 
-class ScalarVectorProductCoefficient : public VectorStateCoefficient // inherits from VectorStateCoefficient instead of mfem::VectorStateCoefficient
+class ScalarVectorProductCoefficient
+ : public VectorStateCoefficient  // inherits from VectorStateCoefficient
+                                  // instead of mfem::VectorStateCoefficient
 {
 private:
    double aConst;
-   mfem::Coefficient * a;
-   StateCoefficient * State_a;
-   mfem::VectorCoefficient * b;
-   VectorStateCoefficient * State_b;
+   mfem::Coefficient *a;
+   StateCoefficient *State_a;
+   mfem::VectorCoefficient *b;
+   VectorStateCoefficient *State_b;
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector W, W_bar;
 #endif
 
 public:
    /// Constructor with constant and vector coefficient.  Result is A * B.
-   // ScalarVectorProductCoefficient(double A, mfem::VectorCoefficient &B); // this constructor apparently is fine
+   // ScalarVectorProductCoefficient(double A, mfem::VectorCoefficient &B); //
+   // this constructor apparently is fine
 
    /// Constructor with two coefficients.  Result is A * B.
-   ScalarVectorProductCoefficient(StateCoefficient &A, mfem::VectorCoefficient &B) // this constructor needs to be defined
-   : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
+   ScalarVectorProductCoefficient(
+       StateCoefficient &A,
+       mfem::VectorCoefficient &B)  // this constructor needs to be defined
+    : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
    { }
-   ///TODO: The below was working
-   // ScalarVectorProductCoefficient(StateCoefficient &A, mfem::VectorCoefficient &B) // this constructor needs to be defined
-   // : VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B)
-   // { }
+   /// TODO: The below was working
+   // ScalarVectorProductCoefficient(StateCoefficient &A,
+   // mfem::VectorCoefficient &B) // this constructor needs to be defined :
+   // VectorStateCoefficient(B.GetVDim()), aConst(0.0), a(&A), b(&B) { }
 
    /// Set the time for internally stored coefficients
    // void SetTime(double t);
@@ -1101,26 +1122,29 @@ public:
    // /// Return the vector factor
    // mfem::VectorCoefficient * GetBCoef() const { return b; }
 
-   ///TODO: Debug remaining errors
+   /// TODO: Debug remaining errors
 
    /// Evaluate the vector coefficient at @a ip.
-   void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
-                     const mfem::IntegrationPoint &ip) override;
+   void Eval(mfem::Vector &V,
+             mfem::ElementTransformation &T,
+             const mfem::IntegrationPoint &ip) override;
    // using VectorStateCoefficient::Eval;
 
    /// Evaluate the vector coefficient at @a ip. WITH THE STATE
-   void Eval(mfem::Vector &V, mfem::ElementTransformation &T,
-                     const mfem::IntegrationPoint &ip, double state) override;
+   void Eval(mfem::Vector &V,
+             mfem::ElementTransformation &T,
+             const mfem::IntegrationPoint &ip,
+             double state) override;
    // using VectorStateCoefficient::Eval; // I believe this is right....
 
-   void EvalRevDiff(const mfem::Vector &V_bar, mfem::ElementTransformation &T,
-                            const mfem::IntegrationPoint &ip,
-                            mfem::DenseMatrix &PointMat_bar);
-
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &T,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar);
 };
 
-
-///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+/// NOTE: Commenting out this class. It is old and no longer used.
+/// SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // class SteinmetzCoefficient : public mfem::Coefficient
 // {
 // public:
@@ -1159,15 +1183,19 @@ public:
 //    mfem::GridFunction &A;
 // };
 
-///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+/// NOTE: Commenting out this class. It is old and no longer used.
+/// SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // class SteinmetzVectorDiffCoefficient : public mfem::VectorCoefficient
 // {
 // public:
 //    /// Define a coefficient to represent the Steinmetz core losses
-//    /// differentiated with respect to the magnetic vector potential \param[in]
+//    /// differentiated with respect to the magnetic vector potential
+//    \param[in]
 //    /// rho - TODO: material density? \param[in] alpha - TODO \param[in] f -
-//    /// electrical frequency of excitation \param[in] kh - Steinmetz hysteresis
-//    /// coefficient \param[in] ke - Steinmetz eddy currnt coefficient \param[in]
+//    /// electrical frequency of excitation \param[in] kh - Steinmetz
+//    hysteresis
+//    /// coefficient \param[in] ke - Steinmetz eddy currnt coefficient
+//    \param[in]
 //    /// A - magnetic vector potential GridFunction \note this coefficient only
 //    /// works on meshes with only one element type
 //    SteinmetzVectorDiffCoefficient(double rho,

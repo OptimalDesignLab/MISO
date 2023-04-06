@@ -126,8 +126,9 @@ protected:
    const FiniteElementDual &res_vec() const { return duals.at("residual"); }
 
    /// Reference to the pm demag constraint field
-   // FiniteElementState &pm_demag_field() { return fields.at("pm_demag_field"); }
-   // const FiniteElementState &pm_demag_field() const { return fields.at("pm_demag_field"); }
+   // FiniteElementState &pm_demag_field() { return fields.at("pm_demag_field");
+   // } const FiniteElementState &pm_demag_field() const { return
+   // fields.at("pm_demag_field"); }
 
    /// Reference to the state vectors finite element space
    mfem::ParFiniteElementSpace &fes() { return state().space(); }

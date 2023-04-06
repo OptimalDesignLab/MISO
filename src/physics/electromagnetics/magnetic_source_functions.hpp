@@ -13,8 +13,9 @@
 #include "remnant_flux_coefficient.hpp"
 
 namespace mach
-{ 
-class MagnetizationCoefficient : public VectorStateCoefficient //formely a mfem::VectorCoefficient 
+{
+class MagnetizationCoefficient
+ : public VectorStateCoefficient  // formely a mfem::VectorCoefficient
 {
 public:
    friend void setInputs(MagnetizationCoefficient &mag_coeff,
@@ -27,10 +28,11 @@ public:
 
    void Eval(mfem::Vector &V,
              mfem::ElementTransformation &trans,
-             const mfem::IntegrationPoint &ip, 
+             const mfem::IntegrationPoint &ip,
              double state) override;
 
-   ///TODO: If needed, and once implemented at coefficient level, declare EvalStateDeriv and EvalState2ndDeriv
+   /// TODO: If needed, and once implemented at coefficient level, declare
+   /// EvalStateDeriv and EvalState2ndDeriv
 
    void EvalRevDiff(const mfem::Vector &V_bar,
                     mfem::ElementTransformation &trans,
@@ -44,12 +46,13 @@ public:
 
 private:
    /// The underlying coefficient that does all the heavy lifting
-   VectorMeshDependentStateCoefficient mag_coeff; // formerly a VectorMeshDependentCoefficient
+   VectorMeshDependentStateCoefficient
+       mag_coeff;  // formerly a VectorMeshDependentCoefficient
    /// Map that holds the remnant flux for each magnet material group
    // std::map<std::string, double> remnant_flux_map;
    std::map<std::string, RemnantFluxCoefficient> remnant_flux_coeffs;
    /// Map that owns all of the underlying magnetization direction coefficients
-   std::map<int, mfem::VectorFunctionCoefficient> mag_direction_coeffs;   
+   std::map<int, mfem::VectorFunctionCoefficient> mag_direction_coeffs;
 };
 
 }  // namespace mach

@@ -17,7 +17,8 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
                              const nlohmann::json &solver_options,
                              std::unique_ptr<mfem::Mesh> smesh)
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
-   kappa(constructMaterialCoefficient("kappa", options["components"], materials))
+   kappa(
+       constructMaterialCoefficient("kappa", options["components"], materials))
 {
    options["time-dis"]["type"] = "steady";
 
@@ -44,28 +45,26 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
 
 void ThermalSolver::addOutput(const std::string &fun,
                               const nlohmann::json &options)
-{ 
-
-    if (fun.rfind("thermal_flux", 0) == 0)
-    {
-    FunctionalOutput out(fes(), fields);
-    if (options.contains("attributes"))
-    {
-        auto attributes = options["attributes"].get<std::vector<int>>();
-        out.addOutputBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa),
-                                        attributes);
-    }
-    else
-    {
-        std::cout << "thermal_flux output sees no attributes\n";
-        out.addOutputBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa));
-    }
-    outputs.emplace(fun, std::move(out));
-    }
-   else if (fun.rfind("pm_demag", 0) == 0)
+{
+   if (fun.rfind("thermal_flux", 0) == 0)
    {
-    
+      FunctionalOutput out(fes(), fields);
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         out.addOutputBdrFaceIntegrator(
+             new mach::BoundaryNormalIntegrator(kappa), attributes);
+      }
+      else
+      {
+         std::cout << "thermal_flux output sees no attributes\n";
+         out.addOutputBdrFaceIntegrator(
+             new mach::BoundaryNormalIntegrator(kappa));
+      }
+      outputs.emplace(fun, std::move(out));
    }
+   else if (fun.rfind("pm_demag", 0) == 0)
+   { }
    else
    {
       throw MachException("Output with name " + fun +

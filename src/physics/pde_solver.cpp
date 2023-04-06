@@ -377,7 +377,8 @@ PDESolver::PDESolver(MPI_Comm incomm,
    // // The pm demag constraint field
    // fields.emplace(
    //     "pm_demag_field",
-   //     FiniteElementState(mesh(), options["space-dis"], num_states, "pm_demag_field"));
+   //     FiniteElementState(mesh(), options["space-dis"], num_states,
+   //     "pm_demag_field"));
 
    setUpExternalFields();
 }
@@ -404,7 +405,8 @@ PDESolver::PDESolver(
    // // The pm demag constraint field
    // fields.emplace(
    //     "pm_demag_field",
-   //     FiniteElementState(mesh(), options["space-dis"], ns, "pm_demag_field"));
+   //     FiniteElementState(mesh(), options["space-dis"], ns,
+   //     "pm_demag_field"));
 
    setUpExternalFields();
 }

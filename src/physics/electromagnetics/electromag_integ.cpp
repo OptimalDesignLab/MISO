@@ -4326,12 +4326,12 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       dof_tr->InvTransformPrimal(elfun);
    }
 
-// #ifdef MFEM_THREAD_SAFE
-//    mfem::Vector shape;
-//    mfem::Vector shape_bar;
-// #else
-//    auto &shape = integ.shape;
-// #endif
+   // #ifdef MFEM_THREAD_SAFE
+   //    mfem::Vector shape;
+   //    mfem::Vector shape_bar;
+   // #else
+   //    auto &shape = integ.shape;
+   // #endif
 
    shape.SetSize(ndof);
    shape_bar.SetSize(ndof);

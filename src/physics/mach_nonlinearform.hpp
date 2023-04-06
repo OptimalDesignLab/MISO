@@ -207,24 +207,27 @@ void MachNonlinearForm::addBdrFaceIntegrator(
 {
    integs.emplace_back(*integrator);
 
-   std::cout << "TODO: Ultimately remove these instances of Print(); and other comments in mach_nonlinearform.hpp.\n";
+   std::cout << "TODO: Ultimately remove these instances of Print(); and other "
+                "comments in mach_nonlinearform.hpp.\n";
 
    // std::cout << "bdr_attr_marker:\n";
-   // for (int k = 0; k < bdr_attr_marker.size(); ++k) 
+   // for (int k = 0; k < bdr_attr_marker.size(); ++k)
    // {
    //    std::cout << bdr_attr_marker[k] << ", ";
    // }
    // std::cout << "\n";
 
    auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Max();
-   
-   // std::cout << "mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Max(); = " << mesh_attr_size << "\n";
-   // std::cout << "bdr_attributes:\n";
+
+   // std::cout << "mesh_attr_size =
+   // nf.ParFESpace()->GetMesh()->bdr_attributes.Max(); = " << mesh_attr_size <<
+   // "\n"; std::cout << "bdr_attributes:\n";
    // nf.ParFESpace()->GetMesh()->bdr_attributes.Print(mfem::out,25);
 
-   // std::cout << "Size of bdr_markers before emplace back = " << bdr_markers.size() << "and bdr_markers =";
-   // int element_number=0; // to allow for bdr_markers to print with certain number of elements per row
-   // for (auto const &i: bdr_markers) 
+   // std::cout << "Size of bdr_markers before emplace back = " <<
+   // bdr_markers.size() << "and bdr_markers ="; int element_number=0; // to
+   // allow for bdr_markers to print with certain number of elements per row for
+   // (auto const &i: bdr_markers)
    // {
    //    ++element_number;
    //    if (element_number % 50 == 1)
@@ -236,9 +239,10 @@ void MachNonlinearForm::addBdrFaceIntegrator(
    // std::cout << "\n";
    auto &marker = bdr_markers.emplace_back(mesh_attr_size);
 
-   // std::cout << "Size of bdr_markers after emplace back = " << bdr_markers.size() << "and bdr_markers =";
-   // element_number=0; // to allow for bdr_markers to print with certain number of elements per row
-   // for (auto const &i: bdr_markers) 
+   // std::cout << "Size of bdr_markers after emplace back = " <<
+   // bdr_markers.size() << "and bdr_markers ="; element_number=0; // to allow
+   // for bdr_markers to print with certain number of elements per row for (auto
+   // const &i: bdr_markers)
    // {
    //    ++element_number;
    //    if (element_number % 50 == 1)
@@ -248,13 +252,13 @@ void MachNonlinearForm::addBdrFaceIntegrator(
    //    std::cout << i << " ";
    // }
    // std::cout << "\n";
-   // std::cout << "marker size before attrVecToArray = " << marker.Size() << " and is:\n";
-   // marker.Print(mfem::out,50);
+   // std::cout << "marker size before attrVecToArray = " << marker.Size() << "
+   // and is:\n"; marker.Print(mfem::out,50);
 
-   attrVecToArray(bdr_attr_marker, marker); 
+   attrVecToArray(bdr_attr_marker, marker);
 
-   // std::cout << "marker size after attrVecToArray = " << marker.Size() << " and is:\n";
-   // marker.Print(mfem::out,50);
+   // std::cout << "marker size after attrVecToArray = " << marker.Size() << "
+   // and is:\n"; marker.Print(mfem::out,50);
 
    nf.AddBdrFaceIntegrator(integrator, marker);
    addSensitivityIntegrator(*integrator,

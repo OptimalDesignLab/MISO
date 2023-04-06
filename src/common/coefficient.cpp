@@ -217,14 +217,18 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
          material_name = material["name"].get<std::string>();
       }
 
-      // JSON structure changed for Steinmetz core losses. If statement below added to account for this
+      // JSON structure changed for Steinmetz core losses. If statement below
+      // added to account for this
       double val;
       if (name == "ks" || name == "alpha" || name == "beta")
-      { 
+      {
          if (materials[material_name].contains("core_loss"))
          {
-            val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
-            // std::cout << "Steinmetz now correctly accounting for new JSON structure for name = " << name << " with a value = " << val << "\n";
+            val = materials[material_name]["core_loss"]["steinmetz"].value(
+                name, default_val);
+            // std::cout << "Steinmetz now correctly accounting for new JSON
+            // structure for name = " << name << " with a value = " << val <<
+            // "\n";
          }
          else
          {
@@ -253,9 +257,10 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
    return material_coeff;
 }
 
-/// MeshDependentCoefficient::Eval copied over. No changes needed to get to MeshDependentTwoStateCoefficient
+/// MeshDependentCoefficient::Eval copied over. No changes needed to get to
+/// MeshDependentTwoStateCoefficient
 double MeshDependentTwoStateCoefficient::Eval(ElementTransformation &trans,
-                                      const IntegrationPoint &ip)
+                                              const IntegrationPoint &ip)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -278,11 +283,12 @@ double MeshDependentTwoStateCoefficient::Eval(ElementTransformation &trans,
    return value;
 }
 
-// MeshDependentCoefficient::Eval copied over and adapted for MeshDependentTwoStateCoefficient
+// MeshDependentCoefficient::Eval copied over and adapted for
+// MeshDependentTwoStateCoefficient
 double MeshDependentTwoStateCoefficient::Eval(ElementTransformation &trans,
-                                      const IntegrationPoint &ip,
-                                      const double state1,
-                                      const double state2)
+                                              const IntegrationPoint &ip,
+                                              const double state1,
+                                              const double state2)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -303,7 +309,8 @@ double MeshDependentTwoStateCoefficient::Eval(ElementTransformation &trans,
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->Eval(trans, ip, state1, state2);
@@ -321,11 +328,13 @@ double MeshDependentTwoStateCoefficient::Eval(ElementTransformation &trans,
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalStateDeriv to make MeshDependentTwoStateCoefficient::EvalDerivS1
-double MeshDependentTwoStateCoefficient::EvalDerivS1(ElementTransformation &trans,
-                                                const IntegrationPoint &ip,
-                                                const double state1,
-                                                const double state2)
+// Adapted MeshDependentCoefficient::EvalStateDeriv to make
+// MeshDependentTwoStateCoefficient::EvalDerivS1
+double MeshDependentTwoStateCoefficient::EvalDerivS1(
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    const double state1,
+    const double state2)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -346,7 +355,8 @@ double MeshDependentTwoStateCoefficient::EvalDerivS1(ElementTransformation &tran
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->EvalDerivS1(trans, ip, state1, state2);
@@ -363,11 +373,13 @@ double MeshDependentTwoStateCoefficient::EvalDerivS1(ElementTransformation &tran
    return value;
 }
 
-// Adapted MeshDependentTwoStateCoefficient::EvalDerivS1 to make MeshDependentTwoStateCoefficient::EvalDerivS2
-double MeshDependentTwoStateCoefficient::EvalDerivS2(ElementTransformation &trans,
-                                                const IntegrationPoint &ip,
-                                                const double state1,
-                                                const double state2)
+// Adapted MeshDependentTwoStateCoefficient::EvalDerivS1 to make
+// MeshDependentTwoStateCoefficient::EvalDerivS2
+double MeshDependentTwoStateCoefficient::EvalDerivS2(
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    const double state1,
+    const double state2)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -388,7 +400,8 @@ double MeshDependentTwoStateCoefficient::EvalDerivS2(ElementTransformation &tran
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->EvalDerivS2(trans, ip, state1, state2);
@@ -405,7 +418,8 @@ double MeshDependentTwoStateCoefficient::EvalDerivS2(ElementTransformation &tran
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentTwoStateCoefficient::Eval2ndDerivS1
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentTwoStateCoefficient::Eval2ndDerivS1
 double MeshDependentTwoStateCoefficient::Eval2ndDerivS1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -431,7 +445,8 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS1(
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->Eval2ndDerivS1(trans, ip, state1, state2);
@@ -448,7 +463,8 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS1(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentTwoStateCoefficient::Eval2ndDerivS2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentTwoStateCoefficient::Eval2ndDerivS2
 double MeshDependentTwoStateCoefficient::Eval2ndDerivS2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -474,7 +490,8 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS2(
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->Eval2ndDerivS2(trans, ip, state1, state2);
@@ -491,7 +508,8 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS2(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentTwoStateCoefficient::Eval2ndDerivS1S2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentTwoStateCoefficient::Eval2ndDerivS1S2
 double MeshDependentTwoStateCoefficient::Eval2ndDerivS1S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -517,7 +535,8 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS1S2(
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->Eval2ndDerivS1S2(trans, ip, state1, state2);
@@ -534,8 +553,9 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS1S2(
    return value;
 }
 
-///TODO: Likely not necessary because of Eval2ndDerivS1S2
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentTwoStateCoefficient::Eval2ndDerivS2S1
+/// TODO: Likely not necessary because of Eval2ndDerivS1S2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentTwoStateCoefficient::Eval2ndDerivS2S1
 double MeshDependentTwoStateCoefficient::Eval2ndDerivS2S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -561,7 +581,8 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS2S1(
    }
    else if (default_coeff)
    {
-      auto *two_state_coeff = dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
+      auto *two_state_coeff =
+          dynamic_cast<TwoStateCoefficient *>(default_coeff.get());
       if (two_state_coeff != nullptr)
       {
          value = two_state_coeff->Eval2ndDerivS2S1(trans, ip, state1, state2);
@@ -580,9 +601,9 @@ double MeshDependentTwoStateCoefficient::Eval2ndDerivS2S1(
 
 // Copied over from MeshDependentCoefficient::EvalRevDiff. No changes needed
 void MeshDependentTwoStateCoefficient::EvalRevDiff(const double Q_bar,
-                                           ElementTransformation &trans,
-                                           const IntegrationPoint &ip,
-                                           DenseMatrix &PointMat_bar)
+                                                   ElementTransformation &trans,
+                                                   const IntegrationPoint &ip,
+                                                   DenseMatrix &PointMat_bar)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -600,14 +621,16 @@ void MeshDependentTwoStateCoefficient::EvalRevDiff(const double Q_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
-///Copied from MeshDependentCoefficient and adapted for MeshDependentTwoStateCoefficient
-std::unique_ptr<mach::MeshDependentTwoStateCoefficient> constructMaterialTwoStateCoefficient(
-    const std::string &name,
-    const nlohmann::json &components,
-    const nlohmann::json &materials,
-    double default_val)
+/// Copied from MeshDependentCoefficient and adapted for
+/// MeshDependentTwoStateCoefficient
+std::unique_ptr<mach::MeshDependentTwoStateCoefficient>
+constructMaterialTwoStateCoefficient(const std::string &name,
+                                     const nlohmann::json &components,
+                                     const nlohmann::json &materials,
+                                     double default_val)
 {
-   auto material_coeff = std::make_unique<mach::MeshDependentTwoStateCoefficient>();
+   auto material_coeff =
+       std::make_unique<mach::MeshDependentTwoStateCoefficient>();
    /// loop over all components, construct coeff for each
    for (const auto &component : components)
    {
@@ -624,11 +647,13 @@ std::unique_ptr<mach::MeshDependentTwoStateCoefficient> constructMaterialTwoStat
          material_name = material["name"].get<std::string>();
       }
 
-      // JSON structure changed for Steinmetz core losses. If statement below added to account for this
+      // JSON structure changed for Steinmetz core losses. If statement below
+      // added to account for this
       double val;
       if (name == "ks" || name == "alpha" || name == "beta")
-      { 
-         val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
+      {
+         val = materials[material_name]["core_loss"]["steinmetz"].value(
+             name, default_val);
       }
       else
       {
@@ -652,9 +677,10 @@ std::unique_ptr<mach::MeshDependentTwoStateCoefficient> constructMaterialTwoStat
    return material_coeff;
 }
 
-/// MeshDependentCoefficient::Eval copied over. No changes needed to get to MeshDependentThreeStateCoefficient
+/// MeshDependentCoefficient::Eval copied over. No changes needed to get to
+/// MeshDependentThreeStateCoefficient
 double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
-                                      const IntegrationPoint &ip)
+                                                const IntegrationPoint &ip)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -677,12 +703,13 @@ double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
    return value;
 }
 
-// MeshDependentCoefficient::Eval copied over and adapted for MeshDependentThreeStateCoefficient
+// MeshDependentCoefficient::Eval copied over and adapted for
+// MeshDependentThreeStateCoefficient
 double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
-                                      const IntegrationPoint &ip,
-                                      const double state1,
-                                      const double state2,
-                                      const double state3)
+                                                const IntegrationPoint &ip,
+                                                const double state1,
+                                                const double state2,
+                                                const double state3)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -703,7 +730,8 @@ double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
          value = three_state_coeff->Eval(trans, ip, state1, state2, state3);
@@ -721,12 +749,14 @@ double MeshDependentThreeStateCoefficient::Eval(ElementTransformation &trans,
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalStateDeriv to make MeshDependentThreeStateCoefficient::EvalDerivS1
-double MeshDependentThreeStateCoefficient::EvalDerivS1(ElementTransformation &trans,
-                                                const IntegrationPoint &ip,
-                                                const double state1,
-                                                const double state2,
-                                                const double state3)
+// Adapted MeshDependentCoefficient::EvalStateDeriv to make
+// MeshDependentThreeStateCoefficient::EvalDerivS1
+double MeshDependentThreeStateCoefficient::EvalDerivS1(
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -738,7 +768,8 @@ double MeshDependentThreeStateCoefficient::EvalDerivS1(ElementTransformation &tr
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->EvalDerivS1(trans, ip, state1, state2, state3);
+         value =
+             three_state_coeff->EvalDerivS1(trans, ip, state1, state2, state3);
       }
       else
       {
@@ -747,10 +778,12 @@ double MeshDependentThreeStateCoefficient::EvalDerivS1(ElementTransformation &tr
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->EvalDerivS1(trans, ip, state1, state2, state3);
+         value =
+             three_state_coeff->EvalDerivS1(trans, ip, state1, state2, state3);
       }
       else
       {
@@ -764,12 +797,14 @@ double MeshDependentThreeStateCoefficient::EvalDerivS1(ElementTransformation &tr
    return value;
 }
 
-// Adapted MeshDependentThreeStateCoefficient::EvalDerivS1 to make MeshDependentThreeStateCoefficient::EvalDerivS2
-double MeshDependentThreeStateCoefficient::EvalDerivS2(ElementTransformation &trans,
-                                                const IntegrationPoint &ip,
-                                                const double state1,
-                                                const double state2,
-                                                const double state3)
+// Adapted MeshDependentThreeStateCoefficient::EvalDerivS1 to make
+// MeshDependentThreeStateCoefficient::EvalDerivS2
+double MeshDependentThreeStateCoefficient::EvalDerivS2(
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -781,7 +816,8 @@ double MeshDependentThreeStateCoefficient::EvalDerivS2(ElementTransformation &tr
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->EvalDerivS2(trans, ip, state1, state2, state3);
+         value =
+             three_state_coeff->EvalDerivS2(trans, ip, state1, state2, state3);
       }
       else
       {
@@ -790,10 +826,12 @@ double MeshDependentThreeStateCoefficient::EvalDerivS2(ElementTransformation &tr
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->EvalDerivS2(trans, ip, state1, state2, state3);
+         value =
+             three_state_coeff->EvalDerivS2(trans, ip, state1, state2, state3);
       }
       else
       {
@@ -807,12 +845,14 @@ double MeshDependentThreeStateCoefficient::EvalDerivS2(ElementTransformation &tr
    return value;
 }
 
-// Adapted MeshDependentThreeStateCoefficient::EvalDerivS1 to make MeshDependentThreeStateCoefficient::EvalDerivS3
-double MeshDependentThreeStateCoefficient::EvalDerivS3(ElementTransformation &trans,
-                                                const IntegrationPoint &ip,
-                                                const double state1,
-                                                const double state2,
-                                                const double state3)
+// Adapted MeshDependentThreeStateCoefficient::EvalDerivS1 to make
+// MeshDependentThreeStateCoefficient::EvalDerivS3
+double MeshDependentThreeStateCoefficient::EvalDerivS3(
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    const double state1,
+    const double state2,
+    const double state3)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -824,7 +864,8 @@ double MeshDependentThreeStateCoefficient::EvalDerivS3(ElementTransformation &tr
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->EvalDerivS3(trans, ip, state1, state2, state3);
+         value =
+             three_state_coeff->EvalDerivS3(trans, ip, state1, state2, state3);
       }
       else
       {
@@ -833,10 +874,12 @@ double MeshDependentThreeStateCoefficient::EvalDerivS3(ElementTransformation &tr
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->EvalDerivS3(trans, ip, state1, state2, state3);
+         value =
+             three_state_coeff->EvalDerivS3(trans, ip, state1, state2, state3);
       }
       else
       {
@@ -850,7 +893,8 @@ double MeshDependentThreeStateCoefficient::EvalDerivS3(ElementTransformation &tr
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS1
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS1
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -868,7 +912,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS1(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS1(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -877,10 +922,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS1(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS1(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -894,7 +941,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS2
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -912,7 +960,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS2(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS2(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -921,10 +970,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS2(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS2(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -938,7 +989,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS3
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -956,7 +1008,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS3(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS3(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -965,10 +1018,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS3(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS3(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -982,7 +1037,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -1000,7 +1056,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS1S2(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS1S2(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1009,10 +1066,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS1S2(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS1S2(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1026,7 +1085,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S2(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -1044,7 +1104,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS1S3(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS1S3(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1053,10 +1114,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS1S3(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS1S3(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1070,7 +1133,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS1S3(
    return value;
 }
 
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -1088,7 +1152,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS2S3(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS2S3(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1097,10 +1162,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS2S3(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS2S3(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1114,8 +1181,9 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S3(
    return value;
 }
 
-///TODO: Likely not necessary because of Eval2ndDerivS1S2
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1
+/// TODO: Likely not necessary because of Eval2ndDerivS1S2
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -1133,7 +1201,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS2S1(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS2S1(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1142,10 +1211,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS2S1(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS2S1(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1159,8 +1230,9 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS2S1(
    return value;
 }
 
-///TODO: Likely not necessary because of Eval2ndDerivS1S3
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1
+/// TODO: Likely not necessary because of Eval2ndDerivS1S3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -1178,7 +1250,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS3S1(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS3S1(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1187,10 +1260,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS3S1(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS3S1(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1204,8 +1279,9 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S1(
    return value;
 }
 
-///TODO: Likely not necessary because of Eval2ndDerivS2S3
-// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2
+/// TODO: Likely not necessary because of Eval2ndDerivS2S3
+// Adapted MeshDependentCoefficient::EvalState2ndDeriv to make
+// MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2
 double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2(
     mfem::ElementTransformation &trans,
     const mfem::IntegrationPoint &ip,
@@ -1223,7 +1299,8 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2(
       auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(coeff);
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS3S2(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS3S2(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1232,10 +1309,12 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2(
    }
    else if (default_coeff)
    {
-      auto *three_state_coeff = dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
+      auto *three_state_coeff =
+          dynamic_cast<ThreeStateCoefficient *>(default_coeff.get());
       if (three_state_coeff != nullptr)
       {
-         value = three_state_coeff->Eval2ndDerivS3S2(trans, ip, state1, state2, state3);
+         value = three_state_coeff->Eval2ndDerivS3S2(
+             trans, ip, state1, state2, state3);
       }
       else
       {
@@ -1250,10 +1329,11 @@ double MeshDependentThreeStateCoefficient::Eval2ndDerivS3S2(
 }
 
 // Copied over from MeshDependentCoefficient::EvalRevDiff. No changes needed
-void MeshDependentThreeStateCoefficient::EvalRevDiff(const double Q_bar,
-                                           ElementTransformation &trans,
-                                           const IntegrationPoint &ip,
-                                           DenseMatrix &PointMat_bar)
+void MeshDependentThreeStateCoefficient::EvalRevDiff(
+    const double Q_bar,
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    DenseMatrix &PointMat_bar)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -1271,14 +1351,16 @@ void MeshDependentThreeStateCoefficient::EvalRevDiff(const double Q_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
-///Copied from MeshDependentCoefficient and adapted for MeshDependentThreeStateCoefficient
-std::unique_ptr<mach::MeshDependentThreeStateCoefficient> constructMaterialThreeStateCoefficient(
-    const std::string &name,
-    const nlohmann::json &components,
-    const nlohmann::json &materials,
-    double default_val)
+/// Copied from MeshDependentCoefficient and adapted for
+/// MeshDependentThreeStateCoefficient
+std::unique_ptr<mach::MeshDependentThreeStateCoefficient>
+constructMaterialThreeStateCoefficient(const std::string &name,
+                                       const nlohmann::json &components,
+                                       const nlohmann::json &materials,
+                                       double default_val)
 {
-   auto material_coeff = std::make_unique<mach::MeshDependentThreeStateCoefficient>();
+   auto material_coeff =
+       std::make_unique<mach::MeshDependentThreeStateCoefficient>();
    /// loop over all components, construct coeff for each
    for (const auto &component : components)
    {
@@ -1295,11 +1377,13 @@ std::unique_ptr<mach::MeshDependentThreeStateCoefficient> constructMaterialThree
          material_name = material["name"].get<std::string>();
       }
 
-      // JSON structure changed for Steinmetz core losses. If statement below added to account for this
+      // JSON structure changed for Steinmetz core losses. If statement below
+      // added to account for this
       double val;
       if (name == "ks" || name == "alpha" || name == "beta")
-      { 
-         val = materials[material_name]["core_loss"]["steinmetz"].value(name, default_val);
+      {
+         val = materials[material_name]["core_loss"]["steinmetz"].value(
+             name, default_val);
       }
       else
       {
@@ -1537,8 +1621,8 @@ void VectorMeshDependentCoefficient::EvalRevDiff(const Vector &V_bar,
 
 // Adaped from VectorMeshDependentCoefficient
 void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
-                                          ElementTransformation &trans,
-                                          const IntegrationPoint &ip)
+                                               ElementTransformation &trans,
+                                               const IntegrationPoint &ip)
 {
    std::cout << "VectorMeshDependentStateCoefficient::Eval w/o state call\n";
    // given the attribute, extract the coefficient value from the map
@@ -1565,11 +1649,12 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
    // vec.Print();
 }
 
-// Adaped from VectorMeshDependentCoefficient. Added in state as argument as well as dynamic cast for coeff
+// Adaped from VectorMeshDependentCoefficient. Added in state as argument as
+// well as dynamic cast for coeff
 void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
-                                          ElementTransformation &trans,
-                                          const IntegrationPoint &ip,
-                                          double state)
+                                               ElementTransformation &trans,
+                                               const IntegrationPoint &ip,
+                                               double state)
 {
    // std::cout << "VectorMeshDependentStateCoefficient::Eval w/ state call\n";
    // given the attribute, extract the coefficient value from the map
@@ -1583,26 +1668,31 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
       auto *vector_state_coeff = dynamic_cast<VectorStateCoefficient *>(coeff);
       if (vector_state_coeff != nullptr)
       {
-         // std::cout << "VMDSC #1 vector_state_coeff->Eval(vec, trans, ip, state); with state =" << state << "\n";
+         // std::cout << "VMDSC #1 vector_state_coeff->Eval(vec, trans, ip,
+         // state); with state =" << state << "\n";
          vector_state_coeff->Eval(vec, trans, ip, state);
       }
       else
       {
-         // std::cout << "Could not cast to VectorStateCoefficient in VMDSC #1\n";
+         // std::cout << "Could not cast to VectorStateCoefficient in VMDSC
+         // #1\n";
          vec = 0.0;
       }
    }
    else if (default_coeff)
    {
-      auto *vector_state_coeff = dynamic_cast<VectorStateCoefficient *>(default_coeff.get());
+      auto *vector_state_coeff =
+          dynamic_cast<VectorStateCoefficient *>(default_coeff.get());
       if (vector_state_coeff != nullptr)
       {
-         // std::cout << "VMDSC #2 vector_state_coeff->Eval(vec, trans, ip, state); with state =" << state << "\n";
+         // std::cout << "VMDSC #2 vector_state_coeff->Eval(vec, trans, ip,
+         // state); with state =" << state << "\n";
          vector_state_coeff->Eval(vec, trans, ip, state);
       }
       else
       {
-         // std::cout << "Could not cast to VectorStateCoefficient in VMDSC #2\n";
+         // std::cout << "Could not cast to VectorStateCoefficient in VMDSC
+         // #2\n";
          vec = 0.0;
       }
    }
@@ -1615,10 +1705,11 @@ void VectorMeshDependentStateCoefficient::Eval(Vector &vec,
 }
 
 // Adaped from VectorMeshDependentCoefficient. No changes needed
-void VectorMeshDependentStateCoefficient::EvalRevDiff(const Vector &V_bar,
-                                                 ElementTransformation &trans,
-                                                 const IntegrationPoint &ip,
-                                                 DenseMatrix &PointMat_bar)
+void VectorMeshDependentStateCoefficient::EvalRevDiff(
+    const Vector &V_bar,
+    ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    DenseMatrix &PointMat_bar)
 {
    // given the attribute, extract the coefficient value from the map
    int this_att = trans.Attribute;
@@ -1636,54 +1727,69 @@ void VectorMeshDependentStateCoefficient::EvalRevDiff(const Vector &V_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
-///TODO: Uncomment these methods once get b cast figured out for ScalarVectorProductCoefficient
+/// TODO: Uncomment these methods once get b cast figured out for
+/// ScalarVectorProductCoefficient
 
 // Adaped from VectorMeshDependentCoefficient
-void ScalarVectorProductCoefficient::Eval(mfem::Vector &V, 
+void ScalarVectorProductCoefficient::Eval(mfem::Vector &V,
                                           mfem::ElementTransformation &T,
                                           const mfem::IntegrationPoint &ip)
 {
    // std::cout << "ScalarVectorProductCoefficient::Eval w/o state call\n";
 
-   double sa = a->Eval(T, ip); // evaluate the State Coefficient NOT factoring in the state
-   b->Eval(V, T, ip); // evaluate the vector state Coefficient NOT factoring in the state
+   double sa = a->Eval(
+       T, ip);  // evaluate the State Coefficient NOT factoring in the state
+   b->Eval(
+       V,
+       T,
+       ip);  // evaluate the vector state Coefficient NOT factoring in the state
    V *= sa;
 }
 
-// Adaped from VectorMeshDependentCoefficient. Added in state as argument as well as dynamic cast for coeff
-void ScalarVectorProductCoefficient::Eval(mfem::Vector &V, 
+// Adaped from VectorMeshDependentCoefficient. Added in state as argument as
+// well as dynamic cast for coeff
+void ScalarVectorProductCoefficient::Eval(mfem::Vector &V,
                                           mfem::ElementTransformation &T,
-                                          const mfem::IntegrationPoint &ip, 
+                                          const mfem::IntegrationPoint &ip,
                                           double state)
 {
    // std::cout << "ScalarVectorProductCoefficient::Eval w state call\n";
 
    // Try to cast the vector coefficient to a VectorStateCoefficient
-   // If it is indeed a VectorStateCoefficient, it will evaluate b at the state and not a
-   // Otherwise, it will not evaluate b at the state and try to give the state to a instead
+   // If it is indeed a VectorStateCoefficient, it will evaluate b at the state
+   // and not a Otherwise, it will not evaluate b at the state and try to give
+   // the state to a instead
    VectorStateCoefficient *State_b = nullptr;
    State_b = dynamic_cast<VectorStateCoefficient *>(b);
    double sa;
    if (State_b != nullptr)
    {
-      // std::cout << "SVPC State_b->Eval(V, T, ip, state); with state =" << state << "\n";
-      State_b->Eval(V, T, ip, state); // evaluate the vector state Coefficient AT the state
-      sa = a->Eval(T, ip); // evaluate the coefficient NOT at the state
+      // std::cout << "SVPC State_b->Eval(V, T, ip, state); with state =" <<
+      // state << "\n";
+      State_b->Eval(
+          V,
+          T,
+          ip,
+          state);  // evaluate the vector state Coefficient AT the state
+      sa = a->Eval(T, ip);  // evaluate the coefficient NOT at the state
    }
    else
    {
       // std::cout << "Could not cast to VectorStateCoefficient in SVPC\n";
-      b->Eval(V, T, ip); // evaluate the vector Coefficient NOT at the state
+      b->Eval(V, T, ip);  // evaluate the vector Coefficient NOT at the state
       auto *State_a = dynamic_cast<StateCoefficient *>(a);
       if (State_a != nullptr)
       {
-         // std::cout << "State_a not a null pointer in ScalarVectorProductCoefficient::Eval\n";
-         sa = State_a->Eval(T, ip, state); // evaluate the State Coefficient AT the state
+         // std::cout << "State_a not a null pointer in
+         // ScalarVectorProductCoefficient::Eval\n";
+         sa = State_a->Eval(
+             T, ip, state);  // evaluate the State Coefficient AT the state
       }
       else
       {
-         // std::cout << "State_a not is a null pointer in ScalarVectorProductCoefficient::Eval\n";
-         sa = a->Eval(T, ip); // evaluate the coefficient NOT at the state
+         // std::cout << "State_a not is a null pointer in
+         // ScalarVectorProductCoefficient::Eval\n";
+         sa = a->Eval(T, ip);  // evaluate the coefficient NOT at the state
       }
    }
    V *= sa;
@@ -1697,100 +1803,101 @@ void ScalarVectorProductCoefficient::EvalRevDiff(const Vector &V_bar,
 {
    // I believe this is all that is needed
    b->EvalRevDiff(V_bar, trans, ip, PointMat_bar);
-   
+
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
-
-///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+/// NOTE: Commenting out this class. It is old and no longer used.
+/// SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // double SteinmetzCoefficient::Eval(ElementTransformation &trans,
 //                                   const IntegrationPoint &ip)
 // {
-   // int dim = trans.GetSpaceDim();
-   // // Array<int> vdofs;
-   // // Vector elfun;
-   // // A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-   // // A.GetSubVector(vdofs, elfun);
+// int dim = trans.GetSpaceDim();
+// // Array<int> vdofs;
+// // Vector elfun;
+// // A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+// // A.GetSubVector(vdofs, elfun);
 
-   // // auto &el = *A.FESpace()->GetFE(trans.ElementNo);
-   // // int ndof = el.GetDof();
+// // auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+// // int ndof = el.GetDof();
 
-   // // DenseMatrix curlshape(ndof,dim);
-   // // DenseMatrix curlshape_dFt(ndof,dim);
-   // Vector b_vec(dim);
-   // b_vec = 0.0;
+// // DenseMatrix curlshape(ndof,dim);
+// // DenseMatrix curlshape_dFt(ndof,dim);
+// Vector b_vec(dim);
+// b_vec = 0.0;
 
-   // trans.SetIntPoint(&ip);
+// trans.SetIntPoint(&ip);
 
-   // /// TODO: this changes how I differentiate
-   // A.GetCurl(trans, b_vec);
+// /// TODO: this changes how I differentiate
+// A.GetCurl(trans, b_vec);
 
-   // // el.CalcCurlShape(ip, curlshape);
-   // // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-   // // curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   // // curlshape.AddMultTranspose(elfun, b_vec);
+// // el.CalcCurlShape(ip, curlshape);
+// // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+// // curlshape_dFt.AddMultTranspose(elfun, b_vec);
+// // curlshape.AddMultTranspose(elfun, b_vec);
 
-   // double b_mag = b_vec.Norml2();
+// double b_mag = b_vec.Norml2();
 
-   // // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
-   // // ke*freq*freq*b_mag*b_mag);
+// // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
+// // ke*freq*freq*b_mag*b_mag);
 
-   // double S = rho * ks * std::pow(freq, alpha) * std::pow(b_mag, beta);
-   // return -S;
+// double S = rho * ks * std::pow(freq, alpha) * std::pow(b_mag, beta);
+// return -S;
 // }
 
-
-///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+/// NOTE: Commenting out this class. It is old and no longer used.
+/// SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // void SteinmetzCoefficient::EvalRevDiff(const double Q_bar,
 //                                        ElementTransformation &trans,
 //                                        const IntegrationPoint &ip,
 //                                        DenseMatrix &PointMat_bar)
 // {
-   // int dim = trans.GetSpaceDim();
-   // Array<int> vdofs;
-   // Vector elfun;
-   // A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
-   // A.GetSubVector(vdofs, elfun);
+// int dim = trans.GetSpaceDim();
+// Array<int> vdofs;
+// Vector elfun;
+// A.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+// A.GetSubVector(vdofs, elfun);
 
-   // const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
-   // int ndof = el.GetDof();
+// const auto &el = *A.FESpace()->GetFE(trans.ElementNo);
+// int ndof = el.GetDof();
 
-   // DenseMatrix curlshape(ndof, dim);
-   // DenseMatrix curlshape_dFt(ndof, dim);
-   // Vector b_vec(dim);
-   // Vector b_hat(dim);
-   // b_vec = 0.0;
-   // b_hat = 0.0;
+// DenseMatrix curlshape(ndof, dim);
+// DenseMatrix curlshape_dFt(ndof, dim);
+// Vector b_vec(dim);
+// Vector b_hat(dim);
+// b_vec = 0.0;
+// b_hat = 0.0;
 
-   // trans.SetIntPoint(&ip);
+// trans.SetIntPoint(&ip);
 
-   // el.CalcCurlShape(ip, curlshape);
-   // MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
-   // curlshape_dFt.AddMultTranspose(elfun, b_vec);
-   // curlshape.AddMultTranspose(elfun, b_hat);
+// el.CalcCurlShape(ip, curlshape);
+// MultABt(curlshape, trans.Jacobian(), curlshape_dFt);
+// curlshape_dFt.AddMultTranspose(elfun, b_vec);
+// curlshape.AddMultTranspose(elfun, b_hat);
 
-   // // double b_mag = b_vec.Norml2();
-   // // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
-   // // ke*freq*freq*b_mag*b_mag); double dS = rho*(alpha*kh*freq*std::pow(b_mag,
-   // // alpha-2) + 2*ke*freq*freq);
-   // double dS = 1.0;
+// // double b_mag = b_vec.Norml2();
+// // double S = rho*(kh*freq*std::pow(b_mag, alpha) +
+// // ke*freq*freq*b_mag*b_mag); double dS = rho*(alpha*kh*freq*std::pow(b_mag,
+// // alpha-2) + 2*ke*freq*freq);
+// double dS = 1.0;
 
-   // DenseMatrix Jac_bar(3);
-   // MultVWt(b_vec, b_hat, Jac_bar);
-   // Jac_bar *= dS;
+// DenseMatrix Jac_bar(3);
+// MultVWt(b_vec, b_hat, Jac_bar);
+// Jac_bar *= dS;
 
-   // // cast the ElementTransformation
-   // auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+// // cast the ElementTransformation
+// auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
 
-   // DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
-   // loc_PointMat_bar = 0.0;
+// DenseMatrix loc_PointMat_bar(PointMat_bar.Height(), PointMat_bar.Width());
+// loc_PointMat_bar = 0.0;
 
-   // isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
+// isotrans.JacobianRevDiff(Jac_bar, loc_PointMat_bar);
 
-   // PointMat_bar.Add(Q_bar, loc_PointMat_bar);
+// PointMat_bar.Add(Q_bar, loc_PointMat_bar);
 // }
 
-///NOTE: Commenting out this class. It is old and no longer used. SteinmetzLossIntegrator now used to calculate the steinmetz loss
+/// NOTE: Commenting out this class. It is old and no longer used.
+/// SteinmetzLossIntegrator now used to calculate the steinmetz loss
 // void SteinmetzVectorDiffCoefficient::Eval(Vector &V,
 //                                           ElementTransformation &trans,
 //                                           const IntegrationPoint &ip)

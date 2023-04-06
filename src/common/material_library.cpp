@@ -179,9 +179,11 @@ const auto team13 = R"(
 }
 )"_json;
 
-// Adding parameters needed for permanent magnet demagnetization model's constraint equation
-// Demag parameters explained in mach/src/physics/electromagnetics/pm_demag_constraint_coeff.cpp file
-// Manufacturer taken to be Arnold Magnetics. Data sheet: https://www.arnoldmagnetics.com/wp-content/uploads/2017/11/N48H-151021.pdf 
+// Adding parameters needed for permanent magnet demagnetization model's
+// constraint equation Demag parameters explained in
+// mach/src/physics/electromagnetics/pm_demag_constraint_coeff.cpp file
+// Manufacturer taken to be Arnold Magnetics. Data sheet:
+// https://www.arnoldmagnetics.com/wp-content/uploads/2017/11/N48H-151021.pdf
 const auto Nd2Fe14B = R"(
 {
    "mu_r": 1.04,
@@ -220,11 +222,16 @@ const auto air = R"(
 )"_json;
 
 // Copper Wire that accounts for temperature dependent conductivity/resistivity
-// Current value is (=1 divided by resistivity value from https://www.britannica.com/science/resistivity)
-///NOTE: Sigma_T_ref value is slightly less than the 58.14e6 that was there (wasn't sure about where that # came from)
-// Current alpha value for resistivity is from https://www.engineeringtoolbox.com/resistivity-conductivity-d_418.html
-///TODO: Ultimately remove "sigma": 58.14e6 once sigma logic has moved away from MeshDependentCoefficient & ConstantCoefficient and to StateCoefficient & Conductivity Coefficient
-/// TODO: since this is meant for windings, should have reduced conductivity...
+// Current value is (=1 divided by resistivity value from
+// https://www.britannica.com/science/resistivity)
+/// NOTE: Sigma_T_ref value is slightly less than the 58.14e6 that was there
+/// (wasn't sure about where that # came from)
+// Current alpha value for resistivity is from
+// https://www.engineeringtoolbox.com/resistivity-conductivity-d_418.html
+/// TODO: Ultimately remove "sigma": 58.14e6 once sigma logic has moved away
+/// from MeshDependentCoefficient & ConstantCoefficient and to StateCoefficient
+/// & Conductivity Coefficient
+///  TODO: since this is meant for windings, should have reduced conductivity...
 const auto copper_wire = R"(
 {
    "rho": 8960,

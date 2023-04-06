@@ -90,18 +90,21 @@ void jacobianVectorProduct(ThermalResidual &residual,
    // if wrt starts with prefix "thermal_load"
    if (wrt.rfind("thermal_load", 0) == 0)
    {
-      ///TODO: Test this implementation
-      // Thermal load is subtracted from the (stiffness matrix * thermal) state term
-      // Therefore derivative of residual w/r/t thermal_load is negative identity matrix (represented as negative of input vector in matrix-free form)
+      /// TODO: Test this implementation
+      // Thermal load is subtracted from the (stiffness matrix * thermal) state
+      // term Therefore derivative of residual w/r/t thermal_load is negative
+      // identity matrix (represented as negative of input vector in matrix-free
+      // form)
       res_dot = 0.0;
       res_dot.Add(-1.0, wrt_dot);
       return;
    }
-   // if wrt starts with prefix "temperature" 
-   ///TODO: Determine if this should be "state" instead of temperature
+   // if wrt starts with prefix "temperature"
+   /// TODO: Determine if this should be "state" instead of temperature
    else if (wrt.rfind("temperature", 0) == 0)
    {
-      /// NOTE: Derivative of the thermal residual wrt the thermal state is Jacobian (already implemented above)
+      /// NOTE: Derivative of the thermal residual wrt the thermal state is
+      /// Jacobian (already implemented above)
       return;
    }
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
@@ -123,18 +126,21 @@ void vectorJacobianProduct(ThermalResidual &residual,
    // if wrt starts with prefix "thermal_load"
    if (wrt.rfind("thermal_load", 0) == 0)
    {
-      ///TODO: Test this implementation
-      // Thermal load is subtracted from the (stiffness matrix * thermal) state term
-      // Therefore derivative of residual w/r/t thermal_load is negative identity matrix (represented as negative of input vector in matrix-free form)
+      /// TODO: Test this implementation
+      // Thermal load is subtracted from the (stiffness matrix * thermal) state
+      // term Therefore derivative of residual w/r/t thermal_load is negative
+      // identity matrix (represented as negative of input vector in matrix-free
+      // form)
       wrt_bar = 0.0;
       wrt_bar.Add(-1.0, res_bar);
       return;
    }
    // if wrt starts with prefix "temperature"
-   ///TODO: Determine if this should be "state" instead of temperature
+   /// TODO: Determine if this should be "state" instead of temperature
    else if (wrt.rfind("temperature", 0) == 0)
    {
-      /// NOTE: Derivative of the thermal residual wrt the thermal state is Jacobian (already implemented above)
+      /// NOTE: Derivative of the thermal residual wrt the thermal state is
+      /// Jacobian (already implemented above)
       return;
    }
    vectorJacobianProduct(residual.res, res_bar, wrt, wrt_bar);
@@ -172,8 +178,8 @@ ThermalResidual::ThermalResidual(
    if (options.contains("bcs"))
    {
       const auto &bcs = options["bcs"];
-       
-      //convection heat transfer boundary condition
+
+      // convection heat transfer boundary condition
       if (bcs.contains("convection"))
       {
          const auto &bdr_attr_marker =

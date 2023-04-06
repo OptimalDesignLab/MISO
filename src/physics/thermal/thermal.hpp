@@ -24,7 +24,8 @@ private:
                   const nlohmann::json &options) override;
 
    // Material dependent coefficient representing thermal conductivity
-   MeshDependentCoefficient kappa; // Making a member of ThermalSolver instead so can be used to compute outputs
+   MeshDependentCoefficient kappa;  // Making a member of ThermalSolver instead
+                                    // so can be used to compute outputs
 };
 
 }  // namespace mach

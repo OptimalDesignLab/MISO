@@ -34,14 +34,15 @@ public:
                             const mfem::IntegrationPoint &ip,
                             const double state) override;
 
-/// TODO: Adapt EvalRevDiff as needed for demag flux
+   /// TODO: Adapt EvalRevDiff as needed for demag flux
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
 
    DemagFluxCoefficient(const nlohmann::json &B_knee_options,
-                       const nlohmann::json &materials);
+                        const nlohmann::json &materials);
+
 private:
    /// The underlying coefficient that does all the heavy lifting
    MeshDependentCoefficient B_knee;

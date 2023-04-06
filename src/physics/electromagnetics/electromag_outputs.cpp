@@ -17,7 +17,7 @@
 namespace mach
 {
 
-double EOutputsGlobalVariableCounter=0;
+double EOutputsGlobalVariableCounter = 0;
 
 void setOptions(ForceFunctional &output, const nlohmann::json &options)
 {
@@ -91,15 +91,20 @@ double calcOutput(DCLossFunctional &output, const MachInputs &inputs)
    double loss = pow(output.rms_current, 2) * R * sqrt(2);
 
    double volume = calcOutput(output.volume, inputs);
-   if (EOutputsGlobalVariableCounter<10)
+   if (EOutputsGlobalVariableCounter < 10)
    {
-      std::cout << "Ultimately remove EOutputsGlobalVariableCounter from electromag_outputs.cpp\n";
-      // std::cout << "rho = calcOutput(output.resistivity, inputs) = " << rho << "\n";
-      // std::cout << "strand_area = M_PI * pow(output.strand_radius, 2) = PI * " << output.strand_radius << "^2 = " << strand_area << "\n";
-      // std::cout << "R = output.wire_length * rho / (strand_area * output.strands_in_hand) = " << output.wire_length << " * " << rho << "/ (" << strand_area << "*" << output.strands_in_hand << ") = " << R << "\n";
-      // std::cout << "loss = sqrt(2) * pow(output.rms_current, 2) * R = sqrt(2) *" << output.rms_current << "^2 * " << R << " = " << loss << "\n";
-      // std::cout << "volume = calcOutput(output.volume, inputs) = " << volume << "\n";
-      // std::cout << "loss/volume = " << loss/volume << "\n";
+      std::cout << "Ultimately remove EOutputsGlobalVariableCounter from "
+                   "electromag_outputs.cpp\n";
+      // std::cout << "rho = calcOutput(output.resistivity, inputs) = " << rho
+      // << "\n"; std::cout << "strand_area = M_PI * pow(output.strand_radius,
+      // 2) = PI * " << output.strand_radius << "^2 = " << strand_area << "\n";
+      // std::cout << "R = output.wire_length * rho / (strand_area *
+      // output.strands_in_hand) = " << output.wire_length << " * " << rho << "/
+      // (" << strand_area << "*" << output.strands_in_hand << ") = " << R <<
+      // "\n"; std::cout << "loss = sqrt(2) * pow(output.rms_current, 2) * R =
+      // sqrt(2) *" << output.rms_current << "^2 * " << R << " = " << loss <<
+      // "\n"; std::cout << "volume = calcOutput(output.volume, inputs) = " <<
+      // volume << "\n"; std::cout << "loss/volume = " << loss/volume << "\n";
       EOutputsGlobalVariableCounter++;
    }
    return loss / volume;
@@ -220,12 +225,14 @@ double jacobianVectorProduct(DCLossFunctional &output,
    {
       std::cout << "temperature_dot = " << wrt_dot(0) << "\n";
 
-      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho is linear in T, goes away
+      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho
+      // is linear in T, goes away
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
       // double R =
       //     output.wire_length * rho / (strand_area * output.strands_in_hand);
-      double R_dot = output.wire_length / (strand_area * output.strands_in_hand) * wrt_dot(0);
+      double R_dot = output.wire_length /
+                     (strand_area * output.strands_in_hand) * wrt_dot(0);
 
       // double loss = pow(output.rms_current, 2) * R * sqrt(2);
       double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
@@ -241,13 +248,14 @@ double jacobianVectorProduct(DCLossFunctional &output,
    else if (wrt.rfind("temperature_field", 0) == 0)
    {
       // double rho = calcOutput(output.resistivity, inputs);
-      ///TODO: Determine if rho_dot computes correctly
+      /// TODO: Determine if rho_dot computes correctly
       double rho_dot = jacobianVectorProduct(output.resistivity, wrt_dot, wrt);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
       // double R =
       //     output.wire_length * rho / (strand_area * output.strands_in_hand);
-      double R_dot = output.wire_length / (strand_area * output.strands_in_hand) * rho_dot;
+      double R_dot =
+          output.wire_length / (strand_area * output.strands_in_hand) * rho_dot;
 
       // double loss = pow(output.rms_current, 2) * R * sqrt(2);
       double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
@@ -468,7 +476,8 @@ double vectorJacobianProduct(DCLossFunctional &output,
    // Adding in w/r/t temperature for the future. Untested.
    else if (wrt.rfind("temperature", 0) == 0)
    {
-      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho is linear in T, goes away
+      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho
+      // is linear in T, goes away
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
       // double R = output.wire_length * rho / (strand_area *
@@ -497,7 +506,7 @@ double vectorJacobianProduct(DCLossFunctional &output,
       /// double R = output.wire_length * rho / (strand_area *
       /// output.strands_in_hand);
       double wire_length_bar =
-          output.wire_length * R_bar  / (strand_area * output.strands_in_hand);
+          output.wire_length * R_bar / (strand_area * output.strands_in_hand);
 
       return wire_length_bar;
    }
@@ -617,33 +626,33 @@ void vectorJacobianProduct(DCLossFunctional &output,
 }
 
 // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
-///Also make this functional see the pre-computed temperature field
+/// Also make this functional see the pre-computed temperature field
 DCLossFunctional::DCLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
  : resistivity(fields.at("state").space(), fields), volume(fields, options)
 {
-   
    // Making the integrator see the temperature field
-   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
-   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   const auto &temp_field_iter =
+       fields.find("temperature");  // find where temperature field is
+   mfem::GridFunction *temperature_field =
+       nullptr;  // default temperature field to null pointer
    if (temp_field_iter != fields.end())
    {
       // If temperature field exists, turn it into a grid function
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
    }
-   
+
    // Assign the integrator used to compute the DC losses
    if (options.contains("attributes"))
    {
-      
       auto attributes = options["attributes"].get<std::vector<int>>();
       resistivity.addOutputDomainIntegrator(
-          new DCLossFunctionalIntegrator(sigma,temperature_field), attributes);
-      // std::cout << "TODO: Ultimately remove from DCLF in Eoutputs cpp. attributes=\n";
-      // for (const auto &attribute : attributes)
+          new DCLossFunctionalIntegrator(sigma, temperature_field), attributes);
+      // std::cout << "TODO: Ultimately remove from DCLF in Eoutputs cpp.
+      // attributes=\n"; for (const auto &attribute : attributes)
       // {
       //    std::cout << attribute << ", ";
       // }
@@ -684,11 +693,11 @@ double calcOutput(ACLossFunctional &output, const MachInputs &inputs)
 
    // mfem::Vector flux_state;
    // setVectorFromInputs(inputs, "peak_flux", flux_state, false, true);
-   ///TODO: Remove once done debugging
-      // std::cout << "flux_state.Size() = " << flux_state.Size() << "\n";
-      // std::cout << "flux_state=np.array([";
-      // for (int j = 0; j < flux_state.Size(); j++) {std::cout << flux_state.Elem(j) << ", ";}
-      // std::cout << "])\n";   
+   /// TODO: Remove once done debugging
+   // std::cout << "flux_state.Size() = " << flux_state.Size() << "\n";
+   // std::cout << "flux_state=np.array([";
+   // for (int j = 0; j < flux_state.Size(); j++) {std::cout <<
+   // flux_state.Elem(j) << ", ";} std::cout << "])\n";
    // auto &flux_mag = output.fields.at("peak_flux");
    // flux_mag.distributeSharedDofs(flux_state);
    // mfem::ParaViewDataCollection pv("FluxMag", &flux_mag.mesh());
@@ -897,7 +906,8 @@ double jacobianVectorProduct(ACLossFunctional &output,
    else if (wrt.rfind("temperature", 0) == 0)
    {
       // double sigma_b2 = calcOutput(output.output, output.inputs);
-      ///TODO: Determine if the sigma_b2_dot defined below computes correctly. Should equal sigma_b2/(alpha*(T-Tref)).
+      /// TODO: Determine if the sigma_b2_dot defined below computes correctly.
+      /// Should equal sigma_b2/(alpha*(T-Tref)).
       double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -915,9 +925,10 @@ double jacobianVectorProduct(ACLossFunctional &output,
       double loss_dot = num_strands * strand_loss_dot;
 
       double volume = calcOutput(output.volume, output.inputs);
-      // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt); // volume is independent of temperature
+      // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+      // // volume is independent of temperature
 
-      return loss_dot / volume;  
+      return loss_dot / volume;
    }
    else
    {
@@ -1464,8 +1475,9 @@ void vectorJacobianProduct(ACLossFunctional &output,
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 8.0;
 
-      ///TODO: Determine if the sigma_b2_bar defined below computes correctly. That is, is vectorJacobianProduct in functional_output.cpp correct?
-      /// double sigma_b2 = calcOutput(output.output, output.inputs);
+      /// TODO: Determine if the sigma_b2_bar defined below computes correctly.
+      /// That is, is vectorJacobianProduct in functional_output.cpp correct?
+      ///  double sigma_b2 = calcOutput(output.output, output.inputs);
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
    }
@@ -1480,8 +1492,10 @@ ACLossFunctional::ACLossFunctional(
  : output(fields.at("peak_flux").space(), fields), volume(fields, options)
 {
    // Making the integrator see the temperature field
-   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
-   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   const auto &temp_field_iter =
+       fields.find("temperature");  // find where temperature field is
+   mfem::GridFunction *temperature_field =
+       nullptr;  // default temperature field to null pointer
    if (temp_field_iter != fields.end())
    {
       // If temperature field exists, turn it into a grid function
@@ -1493,12 +1507,13 @@ ACLossFunctional::ACLossFunctional(
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma, temperature_field),
-                                       attributes);
+      output.addOutputDomainIntegrator(
+          new ACLossFunctionalIntegrator(sigma, temperature_field), attributes);
    }
    else
    {
-      output.addOutputDomainIntegrator(new ACLossFunctionalIntegrator(sigma, temperature_field));
+      output.addOutputDomainIntegrator(
+          new ACLossFunctionalIntegrator(sigma, temperature_field));
    }
    setOptions(*this, options);
 }
@@ -1553,21 +1568,24 @@ CoreLossFunctional::CoreLossFunctional(
    CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
    CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {
-
    // Making the integrator see the peak flux field
-   const auto &peak_flux_iter = fields.find("peak_flux"); // find where peak flux field is
-   mfem::GridFunction *peak_flux=nullptr; // default peak flux field to null pointer
+   const auto &peak_flux_iter =
+       fields.find("peak_flux");  // find where peak flux field is
+   mfem::GridFunction *peak_flux =
+       nullptr;  // default peak flux field to null pointer
    if (peak_flux_iter != fields.end())
    {
       // If peak flux field exists, turn it into a grid function
-      ///TODO: Ultimately handle the case where there is no peak flux field
+      /// TODO: Ultimately handle the case where there is no peak flux field
       auto &flux_field = peak_flux_iter->second;
       peak_flux = &flux_field.gridFunc();
    }
 
    // Making the integrator see the temperature field
-   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
-   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   const auto &temp_field_iter =
+       fields.find("temperature");  // find where temperature field is
+   mfem::GridFunction *temperature_field =
+       nullptr;  // default temperature field to null pointer
    if (temp_field_iter != fields.end())
    {
       // If temperature field exists, turn it into a grid function
@@ -1577,29 +1595,36 @@ CoreLossFunctional::CoreLossFunctional(
 
    if (options.contains("attributes"))
    {
-      if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
+      if (options.contains("UseCAL2forCoreLoss") &&
+          options["UseCAL2forCoreLoss"].get<bool>())
       {
          auto attributes = options["attributes"].get<std::vector<int>>();
          output.addOutputDomainIntegrator(
-          new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
-          attributes);
+             new CAL2CoreLossIntegrator(*rho,
+                                        *CAL2_kh,
+                                        *CAL2_ke,
+                                        *peak_flux,
+                                        temperature_field,
+                                        "stator"),
+             attributes);
          std::cout << "CoreLossFunctional using CAL2\n";
       }
       else
       {
          auto attributes = options["attributes"].get<std::vector<int>>();
          output.addOutputDomainIntegrator(
-          new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, "stator"),
-          attributes);
+             new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, "stator"),
+             attributes);
          std::cout << "CoreLossFunctional using Steinmetz\n";
       }
    }
    else
    {
-      if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
+      if (options.contains("UseCAL2forCoreLoss") &&
+          options["UseCAL2forCoreLoss"].get<bool>())
       {
-         output.addOutputDomainIntegrator(
-            new CAL2CoreLossIntegrator(*rho,*CAL2_kh, *CAL2_ke, *peak_flux, temperature_field));
+         output.addOutputDomainIntegrator(new CAL2CoreLossIntegrator(
+             *rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field));
          std::cout << "CoreLossFunctional using CAL2\n";
       }
       else
@@ -1632,10 +1657,11 @@ void calcOutput(EMHeatSourceOutput &output,
    out_vec = 0.0;
    addLoad(output.lf, out_vec);
 
-   std::cout << "Load has been added to out_vec in calcOutput in EMHeatSourceOutput\n";
+   std::cout << "Load has been added to out_vec in calcOutput in "
+                "EMHeatSourceOutput\n";
 }
 
-///TODO: Ensure implementation is complete and correct
+/// TODO: Ensure implementation is complete and correct
 // Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
@@ -1653,15 +1679,17 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {
    // Making the integrator see the peak flux field
-   const auto &peak_flux_iter = fields.find("peak_flux"); // find where peak flux field is
-   mfem::GridFunction *peak_flux=nullptr; // default peak flux field to null pointer
+   const auto &peak_flux_iter =
+       fields.find("peak_flux");  // find where peak flux field is
+   mfem::GridFunction *peak_flux =
+       nullptr;  // default peak flux field to null pointer
    if (peak_flux_iter != fields.end())
    {
       // If peak flux field exists, turn it into a grid function
-      ///TODO: Ultimately handle the case where there is no peak flux field
+      /// TODO: Ultimately handle the case where there is no peak flux field
       auto &flux_field = peak_flux_iter->second;
       peak_flux = &flux_field.gridFunc();
-      ///TODO: Remove once done debugging
+      /// TODO: Remove once done debugging
       // std::cout << "peak_flux seen by EMHeatSourceOutput\n";
       // std::cout << "peak_flux->Size() = " << peak_flux->Size() << "\n";
       // std::cout << "peak_flux->Min() = " << peak_flux->Min() << "\n";
@@ -1670,46 +1698,57 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    }
 
    // Making the integrator see the temperature field
-   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
-   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   const auto &temp_field_iter =
+       fields.find("temperature");  // find where temperature field is
+   mfem::GridFunction *temperature_field =
+       nullptr;  // default temperature field to null pointer
    if (temp_field_iter != fields.end())
    {
       // If temperature field exists, turn it into a grid function
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
-      
-      ///TODO: Remove once done debugging
+
+      /// TODO: Remove once done debugging
       // std::cout << "Temperature field seen by EMHeatSourceOutput\n";
-      // std::cout << "temperature_field->Size() = " << temperature_field->Size() << "\n";
-      // std::cout << "temperature_field->Min() = " << temperature_field->Min() << "\n";
-      // std::cout << "temperature_field->Max() = " << temperature_field->Max() << "\n";
-      // std::cout << "temperature_field->Sum() = " << temperature_field->Sum() << "\n";
+      // std::cout << "temperature_field->Size() = " <<
+      // temperature_field->Size() << "\n"; std::cout <<
+      // "temperature_field->Min() = " << temperature_field->Min() << "\n";
+      // std::cout << "temperature_field->Max() = " << temperature_field->Max()
+      // << "\n"; std::cout << "temperature_field->Sum() = " <<
+      // temperature_field->Sum() << "\n";
    }
 
-   std::vector<int> stator_attrs = components["stator"]["attrs"].get<std::vector<int>>();
-   if (options.contains("UseCAL2forCoreLoss") && options["UseCAL2forCoreLoss"].get<bool>())
+   std::vector<int> stator_attrs =
+       components["stator"]["attrs"].get<std::vector<int>>();
+   if (options.contains("UseCAL2forCoreLoss") &&
+       options["UseCAL2forCoreLoss"].get<bool>())
    {
-      lf.addDomainIntegrator(new CAL2CoreLossDistributionIntegrator(
-                                 rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
-                           stator_attrs);
-      std::cout << "(options.contains(\"UseCAL2forCoreLoss\") && options[\"UseCAL2forCoreLoss\"].get<bool>()) = TRUE\n";
+      lf.addDomainIntegrator(
+          new CAL2CoreLossDistributionIntegrator(
+              rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field, "stator"),
+          stator_attrs);
+      std::cout << "(options.contains(\"UseCAL2forCoreLoss\") && "
+                   "options[\"UseCAL2forCoreLoss\"].get<bool>()) = TRUE\n";
    }
    else
-   {     
+   {
       lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
                                  rho, *k_s, *alpha, *beta, "stator"),
-                           stator_attrs);
+                             stator_attrs);
       std::cout << "False, using Steinmetz\n";
    }
-   
-   std::vector<int> winding_attrs = components["windings"]["attrs"].get<std::vector<int>>();
-   lf.addDomainIntegrator(new DCLossFunctionalDistributionIntegrator(sigma, temperature_field),
-                          winding_attrs); // DCLFI WITH a temperature field
+
+   std::vector<int> winding_attrs =
+       components["windings"]["attrs"].get<std::vector<int>>();
+   lf.addDomainIntegrator(
+       new DCLossFunctionalDistributionIntegrator(sigma, temperature_field),
+       winding_attrs);  // DCLFI WITH a temperature field
    lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
                               *peak_flux, sigma, temperature_field),
-                          winding_attrs); // ACLFI WITH a temperature field
+                          winding_attrs);  // ACLFI WITH a temperature field
 
-   // std::cout << "EMHeatSourceOutput::EMHeatSourceOutput has been constructed\n";
+   // std::cout << "EMHeatSourceOutput::EMHeatSourceOutput has been
+   // constructed\n";
 }
 
 void setOptions(PMDemagOutput &output, const nlohmann::json &options)
@@ -1721,10 +1760,11 @@ void setOptions(PMDemagOutput &output, const nlohmann::json &options)
 void setInputs(PMDemagOutput &output, const MachInputs &inputs)
 {
    // setInputs(output.lf, inputs);
-   
+
    output.inputs = inputs;
    output.inputs["state"] = inputs.at("peak_flux");
-   // output.inputs["state"] = inputs.at("pm_demag_field"); // causes temperature to be 1 exclusively
+   // output.inputs["state"] = inputs.at("pm_demag_field"); // causes
+   // temperature to be 1 exclusively
 
    setInputs(output.output, inputs);
 }
@@ -1741,21 +1781,24 @@ double calcOutput(PMDemagOutput &output, const MachInputs &inputs)
    // std::cout << "flux_state.Max() = " << flux_state.Max() << "\n";
    // std::cout << "flux_state.Sum() = " << flux_state.Sum() << "\n";
    // std::cout << "flux_state=np.array([";
-   // for (int j = 0; j < flux_state.Size(); j++) {std::cout << flux_state.Elem(j) << ", ";}
-   // std::cout << "])\n";   
+   // for (int j = 0; j < flux_state.Size(); j++) {std::cout <<
+   // flux_state.Elem(j) << ", ";} std::cout << "])\n";
 
    // mfem::Vector temperature_vector;
-   // setVectorFromInputs(inputs, "temperature", temperature_vector, false, true);
+   // setVectorFromInputs(inputs, "temperature", temperature_vector, false,
+   // true);
    // ///TODO: Remove once done debugging
-   // std::cout << "temperature_vector.Size() = " << temperature_vector.Size() << "\n";
-   // std::cout << "temperature_vector.Min() = " << temperature_vector.Min() << "\n";
-   // std::cout << "temperature_vector.Max() = " << temperature_vector.Max() << "\n";
-   // std::cout << "temperature_vector.Sum() = " << temperature_vector.Sum() << "\n";
+   // std::cout << "temperature_vector.Size() = " << temperature_vector.Size()
+   // << "\n"; std::cout << "temperature_vector.Min() = " <<
+   // temperature_vector.Min() << "\n"; std::cout << "temperature_vector.Max() =
+   // " << temperature_vector.Max() << "\n"; std::cout <<
+   // "temperature_vector.Sum() = " << temperature_vector.Sum() << "\n";
 
    return calcOutput(output.output, output.inputs);
 }
 
-///TODO: Implement this method for the AssembleElementVector (or distribution case) for demag rather than singular value
+/// TODO: Implement this method for the AssembleElementVector (or distribution
+/// case) for demag rather than singular value
 // void calcOutput(PMDemagOutput &output,
 //                 const MachInputs &inputs,
 //                 mfem::Vector &out_vec)
@@ -1766,38 +1809,44 @@ double calcOutput(PMDemagOutput &output, const MachInputs &inputs)
 //    addLoad(output.lf, out_vec);
 // }
 
-PMDemagOutput::PMDemagOutput(
-    std::map<std::string, FiniteElementState> &fields,
-    const nlohmann::json &components,
-    const nlohmann::json &materials,
-    const nlohmann::json &options)
+PMDemagOutput::PMDemagOutput(std::map<std::string, FiniteElementState> &fields,
+                             const nlohmann::json &components,
+                             const nlohmann::json &materials,
+                             const nlohmann::json &options)
  : output(fields.at("peak_flux").space(), fields),
-   PMDemagConstraint(std::make_unique<PMDemagConstraintCoefficient>(components, materials))
+   PMDemagConstraint(
+       std::make_unique<PMDemagConstraintCoefficient>(components, materials))
 {
    // /*
    // Making the integrator see the temperature field
-   const auto &temp_field_iter = fields.find("temperature"); // find where temperature field is
-   mfem::GridFunction *temperature_field=nullptr; // default temperature field to null pointer
+   const auto &temp_field_iter =
+       fields.find("temperature");  // find where temperature field is
+   mfem::GridFunction *temperature_field =
+       nullptr;  // default temperature field to null pointer
    if (temp_field_iter != fields.end())
    {
       // If temperature field exists, turn it into a grid function
       auto &temp_field = temp_field_iter->second;
       temperature_field = &temp_field.gridFunc();
 
-      // std::cout << "temperature_field.Size() = " << temperature_field->Size() << "\n";
-      // std::cout << "temperature_field.Min() = " << temperature_field->Min() << "\n";
-      // std::cout << "temperature_field.Max() = " << temperature_field->Max() << "\n";
-      // std::cout << "temperature_field.Sum() = " << temperature_field->Sum() << "\n";
+      // std::cout << "temperature_field.Size() = " << temperature_field->Size()
+      // << "\n"; std::cout << "temperature_field.Min() = " <<
+      // temperature_field->Min() << "\n"; std::cout << "temperature_field.Max()
+      // = " << temperature_field->Max() << "\n"; std::cout <<
+      // "temperature_field.Sum() = " << temperature_field->Sum() << "\n";
 
-      // std::cout << "PMDemagOutput, electromag_outputs.cpp, temperature field seen\n";
+      // std::cout << "PMDemagOutput, electromag_outputs.cpp, temperature field
+      // seen\n";
    }
 
-   // Assign the integrator used to compute the singular value for the PMDM constraint coefficient
+   // Assign the integrator used to compute the singular value for the PMDM
+   // constraint coefficient
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       output.addOutputDomainIntegrator(
-          new PMDemagIntegrator(*PMDemagConstraint, temperature_field), attributes);
+          new PMDemagIntegrator(*PMDemagConstraint, temperature_field),
+          attributes);
    }
    else
    {

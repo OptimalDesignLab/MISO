@@ -13,7 +13,7 @@ using adept::adouble;
 
 template <typename xdouble = double>
 void north_magnetization(int vdim,
-                        //  const xdouble &remnant_flux,
+                         //  const xdouble &remnant_flux,
                          const xdouble *x,
                          xdouble *M)
 {
@@ -33,7 +33,7 @@ void north_magnetization(int vdim,
 
 template <typename xdouble = double>
 void south_magnetization(int vdim,
-                        //  const xdouble &remnant_flux,
+                         //  const xdouble &remnant_flux,
                          const xdouble *x,
                          xdouble *M)
 {
@@ -53,7 +53,7 @@ void south_magnetization(int vdim,
 
 template <typename xdouble = double>
 void cw_magnetization(int vdim,
-                     //  const xdouble &remnant_flux,
+                      //  const xdouble &remnant_flux,
                       const xdouble *x,
                       xdouble *M)
 {
@@ -73,7 +73,7 @@ void cw_magnetization(int vdim,
 
 template <typename xdouble = double>
 void ccw_magnetization(int vdim,
-                     //   const xdouble &remnant_flux,
+                       //   const xdouble &remnant_flux,
                        const xdouble *x,
                        xdouble *M)
 {
@@ -93,7 +93,7 @@ void ccw_magnetization(int vdim,
 
 template <typename xdouble = double>
 void x_axis_magnetization(int vdim,
-                        //   const xdouble &remnant_flux,
+                          //   const xdouble &remnant_flux,
                           const xdouble *x,
                           xdouble *M)
 {
@@ -108,7 +108,7 @@ void x_axis_magnetization(int vdim,
 
 template <typename xdouble = double>
 void y_axis_magnetization(int vdim,
-                        //   const xdouble &remnant_flux,
+                          //   const xdouble &remnant_flux,
                           const xdouble *x,
                           xdouble *M)
 {
@@ -123,7 +123,7 @@ void y_axis_magnetization(int vdim,
 
 template <typename xdouble = double>
 void z_axis_magnetization(int vdim,
-                        //   const xdouble &remnant_flux,
+                          //   const xdouble &remnant_flux,
                           const xdouble *x,
                           xdouble *M)
 {
@@ -155,7 +155,7 @@ void northMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void northMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      int vdim,
-                                    //  double remnant_flux,
+                                     //  double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
@@ -214,7 +214,7 @@ void southMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void southMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      int vdim,
-                                    //  double remnant_flux,
+                                     //  double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
@@ -266,7 +266,6 @@ void cwMagnetizationSource(int vdim,
 {
    // cw_magnetization(vdim, remnant_flux, x.GetData(), M.GetData());
    cw_magnetization(vdim, x.GetData(), M.GetData());
-
 }
 
 /// \param[in] x - position x in space of evaluation
@@ -274,7 +273,7 @@ void cwMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void cwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                   int vdim,
-                                 //  double remnant_flux,
+                                  //  double remnant_flux,
                                   const mfem::Vector &x,
                                   const mfem::Vector &V_bar,
                                   mfem::Vector &x_bar)
@@ -320,13 +319,12 @@ void cwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
 /// \param[out] M - magetic flux density at position x cause by permanent
 ///                 magnets
 void ccwMagnetizationSource(int vdim,
-                           //  double remnant_flux,
+                            //  double remnant_flux,
                             const mfem::Vector &x,
                             mfem::Vector &M)
 {
    // ccw_magnetization(vdim, remnant_flux, x.GetData(), M.GetData());
    ccw_magnetization(vdim, x.GetData(), M.GetData());
-
 }
 
 /// \param[in] x - position x in space of evaluation
@@ -334,7 +332,7 @@ void ccwMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void ccwMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                    int vdim,
-                                 //   double remnant_flux,
+                                   //   double remnant_flux,
                                    const mfem::Vector &x,
                                    const mfem::Vector &V_bar,
                                    mfem::Vector &x_bar)
@@ -378,7 +376,6 @@ void xAxisMagnetizationSource(int vdim,
 {
    // x_axis_magnetization(vdim, remnant_flux, x.GetData(), M.GetData());
    x_axis_magnetization(vdim, x.GetData(), M.GetData());
-
 }
 
 /// function defining magnetization aligned with the x axis
@@ -387,7 +384,7 @@ void xAxisMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void xAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      int vdim,
-                                    //  double remnant_flux,
+                                     //  double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
@@ -429,7 +426,7 @@ void yAxisMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void yAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      int vdim,
-                                    //  double remnant_flux,
+                                     //  double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
@@ -471,7 +468,7 @@ void zAxisMagnetizationSource(int vdim,
 /// \param[out] x_bar - V_bar^T Jacobian
 void zAxisMagnetizationSourceRevDiff(adept::Stack &diff_stack,
                                      int vdim,
-                                    //  double remnant_flux,
+                                     //  double remnant_flux,
                                      const mfem::Vector &x,
                                      const mfem::Vector &V_bar,
                                      mfem::Vector &x_bar)
@@ -522,18 +519,19 @@ void MagnetizationCoefficient::EvalRevDiff(const mfem::Vector &V_bar,
    mag_coeff.EvalRevDiff(V_bar, trans, ip, PointMat_bar);
 }
 
-///TODO: Make changes so that the state is accounted for
+/// TODO: Make changes so that the state is accounted for
 MagnetizationCoefficient::MagnetizationCoefficient(
     adept::Stack &diff_stack,
     const nlohmann::json &magnet_options,
     const nlohmann::json &materials,
     int vdim)
  : VectorStateCoefficient(vdim), mag_coeff(vdim)
-{   
+{
    for (auto &[material, group_details] : magnet_options.items())
    {
       /// Construct the material's remnant flux coefficient
-      remnant_flux_coeffs.emplace(material, RemnantFluxCoefficient(materials[material]));
+      remnant_flux_coeffs.emplace(material,
+                                  RemnantFluxCoefficient(materials[material]));
       auto &remnant_flux = remnant_flux_coeffs.at(material);
 
       for (auto &[source, attrs] : group_details.items())
@@ -546,17 +544,14 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { northMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           northMagnetizationSourceRevDiff(
-                              diff_stack, vdim, x, M_bar, x_bar);                        
-                       }));               
+                              diff_stack, vdim, x, M_bar, x_bar);
+                       }));
 
                auto &dir_coeff = mag_direction_coeffs.at(attr);
 
@@ -574,16 +569,13 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { southMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           southMagnetizationSourceRevDiff(
-                              diff_stack, vdim, x, M_bar, x_bar);                           
+                              diff_stack, vdim, x, M_bar, x_bar);
                        }));
 
                auto &dir_coeff = mag_direction_coeffs.at(attr);
@@ -602,16 +594,13 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { cwMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           cwMagnetizationSourceRevDiff(
-                              diff_stack, vdim, x, M_bar, x_bar);                              
+                              diff_stack, vdim, x, M_bar, x_bar);
                        }));
 
                auto &dir_coeff = mag_direction_coeffs.at(attr);
@@ -630,14 +619,11 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { ccwMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           ccwMagnetizationSourceRevDiff(
                               diff_stack, vdim, x, M_bar, x_bar);
                        }));
@@ -658,14 +644,11 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { xAxisMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           xAxisMagnetizationSourceRevDiff(
                               diff_stack, vdim, x, M_bar, x_bar);
                        }));
@@ -686,14 +669,11 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { yAxisMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           yAxisMagnetizationSourceRevDiff(
                               diff_stack, vdim, x, M_bar, x_bar);
                        }));
@@ -714,14 +694,11 @@ MagnetizationCoefficient::MagnetizationCoefficient(
                    attr,
                    mfem::VectorFunctionCoefficient(
                        vdim,
-                       [vdim](const mfem::Vector &x,
-                                             mfem::Vector &M)
+                       [vdim](const mfem::Vector &x, mfem::Vector &M)
                        { zAxisMagnetizationSource(vdim, x, M); },
-                       [&diff_stack, vdim](
-                           const mfem::Vector &x,
-                           const mfem::Vector &M_bar,
-                           mfem::Vector &x_bar)
-                       {
+                       [&diff_stack, vdim](const mfem::Vector &x,
+                                           const mfem::Vector &M_bar,
+                                           mfem::Vector &x_bar) {
                           zAxisMagnetizationSourceRevDiff(
                               diff_stack, vdim, x, M_bar, x_bar);
                        }));

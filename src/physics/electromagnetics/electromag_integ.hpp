@@ -2238,8 +2238,7 @@ private:
 class CAL2CoreLossIntegratorMeshSens : public mfem::LinearFormIntegrator
 {
 public:
-   CAL2CoreLossIntegratorMeshSens(CAL2CoreLossIntegrator &integ)
-    : integ(integ)
+   CAL2CoreLossIntegratorMeshSens(CAL2CoreLossIntegrator &integ) : integ(integ)
    { }
 
    /// \brief - assemble an element's contribution to dJdX

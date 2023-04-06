@@ -34,14 +34,14 @@ public:
                             const mfem::IntegrationPoint &ip,
                             const double state) override;
 
-/// TODO: Adapt EvalRevDiff as needed for conductivity
+   /// TODO: Adapt EvalRevDiff as needed for conductivity
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
 
    ConductivityCoefficient(const nlohmann::json &sigma_options,
-                          const nlohmann::json &materials);
+                           const nlohmann::json &materials);
 
 private:
    /// The underlying coefficient that does all the heavy lifting

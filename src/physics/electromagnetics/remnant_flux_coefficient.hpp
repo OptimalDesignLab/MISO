@@ -34,7 +34,7 @@ public:
                             const mfem::IntegrationPoint &ip,
                             const double state) override;
 
-/// TODO: Adapt EvalRevDiff as needed for remnant flux
+   /// TODO: Adapt EvalRevDiff as needed for remnant flux
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,

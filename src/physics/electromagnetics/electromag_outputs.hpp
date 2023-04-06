@@ -375,10 +375,10 @@ private:
    std::unique_ptr<mfem::Coefficient> alpha;
    std::unique_ptr<mfem::Coefficient> beta;
 
-   /// CAL2 Coefficients   
+   /// CAL2 Coefficients
    std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
    std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
-   
+
    MachInputs inputs;
 };
 
@@ -415,16 +415,16 @@ public:
 
 private:
    MachLinearForm lf;
-   
+
    /// Density
    std::unique_ptr<mfem::Coefficient> rho;
-   
+
    /// Steinmetz coefficients
    std::unique_ptr<mfem::Coefficient> k_s;
    std::unique_ptr<mfem::Coefficient> alpha;
    std::unique_ptr<mfem::Coefficient> beta;
 
-   /// CAL2 Coefficients   
+   /// CAL2 Coefficients
    std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
    std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
 };
@@ -438,23 +438,23 @@ public:
       // return getSize(output.lf);
       return getSize(output.output);
    }
-   
-   friend void setOptions(PMDemagOutput &output,
-                          const nlohmann::json &options);
+
+   friend void setOptions(PMDemagOutput &output, const nlohmann::json &options);
 
    friend void setInputs(PMDemagOutput &output, const MachInputs &inputs);
 
    friend double calcOutput(PMDemagOutput &output, const MachInputs &inputs);
 
-   ///TODO: Implement this method for the AssembleElementVector (or distribution case) for demag rather than singular value
+   /// TODO: Implement this method for the AssembleElementVector (or
+   /// distribution case) for demag rather than singular value
    // friend void calcOutput(PMDemagOutput &output,
    //                        const MachInputs &inputs,
    //                        mfem::Vector &out_vec);
 
    PMDemagOutput(std::map<std::string, FiniteElementState> &fields,
-                  const nlohmann::json &components,
-                  const nlohmann::json &materials,
-                  const nlohmann::json &options);
+                 const nlohmann::json &components,
+                 const nlohmann::json &materials,
+                 const nlohmann::json &options);
 
 private:
    MachInputs inputs;

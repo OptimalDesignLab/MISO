@@ -316,8 +316,11 @@ private:
    mfem::Vector scratch;
 };
 
-///TODO: Either create new induced exponential functional for demag here that looks much like IEAggregateFunctional 
-///TODO: OR add conditional logic to IEAggregateFunctional::IEAggregateFunctional in common_outputs.cpp to use the new integrators
+/// TODO: Either create new induced exponential functional for demag here that
+/// looks much like IEAggregateFunctional
+/// TODO: OR add conditional logic to
+/// IEAggregateFunctional::IEAggregateFunctional in common_outputs.cpp to use
+/// the new integrators
 
 }  // namespace mach
 
