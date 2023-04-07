@@ -147,6 +147,14 @@ public:
       // return 0.375*pow(state+1, -2.5);
       return 0.5*(exponent)*(exponent-1)*pow(state+1, exponent-2);
    }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    const double state,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
 private:
    double exponent;
 };

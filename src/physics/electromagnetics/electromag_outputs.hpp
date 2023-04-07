@@ -268,7 +268,6 @@ public:
                                      const std::string &wrt,
                                      mfem::Vector &wrt_bar);
 
-   // Made sigma a StateCoefficient (was formerly an mfem::coefficient)
    DCLossFunctional(std::map<std::string, FiniteElementState> &fields,
                     StateCoefficient &sigma,
                     const nlohmann::json &options);

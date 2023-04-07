@@ -9,15 +9,13 @@
 #include "material_library.hpp"
 
 #include "electromag_test_data.hpp"
-#include "reluctivity_coefficient.hpp"
 
-///TODO: Ultimately change below line to #include "conductivity_coefficient.hpp" once re-install mach and file ends up in mach/include
-#include "../../src/physics/electromagnetics/conductivity_coefficient.hpp"
-///TODO: Make the below absolute paths relative/shorter
-#include "../../src/physics/electromagnetics/cal2_kh_coefficient.hpp"
-#include "../../src/physics/electromagnetics/cal2_ke_coefficient.hpp"
-#include "../../src/physics/electromagnetics/pm_demag_constraint_coeff.hpp"
-#include "../../src/physics/electromagnetics/remnant_flux_coefficient.hpp"
+#include "reluctivity_coefficient.hpp"
+#include "conductivity_coefficient.hpp"
+#include "cal2_kh_coefficient.hpp"
+#include "cal2_ke_coefficient.hpp"
+#include "pm_demag_constraint_coeff.hpp"
+#include "remnant_flux_coefficient.hpp"
 
 namespace
 {
@@ -64,6 +62,34 @@ void vectorFunc2RevDiff(const Vector &x, const Vector &v_bar, Vector &x_bar)
    x_bar(1) = v_bar(1) + cos(x(1))*exp(x(2))*v_bar(2); 
    x_bar(2) = 2*sin(x(0))*x(2)*v_bar(0) - x(0)*v_bar(1) + sin(x(1))*exp(x(2))*v_bar(2);
 }
+
+// String used to define a single element mesh, with a c-shaped quad element
+std::string mesh_str =
+   "MFEM mesh v1.0"                    "\n\n"
+   "dimension"                           "\n"
+   "2"                                 "\n\n"
+   "elements"                            "\n"
+   "1"                                   "\n"
+   "1 3 0 1 2 3"                       "\n\n"
+   "boundary"                            "\n"
+   "0"                                 "\n\n"
+   "vertices"                            "\n"
+   "4"                                 "\n\n"
+   "nodes"                               "\n"
+   "FiniteElementSpace"                  "\n"
+   "FiniteElementCollection: Quadratic"  "\n"
+   "VDim: 2"                             "\n"
+   "Ordering: 1"                         "\n"
+   "0 0"                                 "\n"
+   "0 2"                                 "\n"
+   "0 6"                                 "\n"
+   "0 8"                                 "\n"
+   "0 1"                                 "\n"
+   "-6 4"                                "\n"
+   "0 7"                                 "\n"
+   "-8 4"                                "\n"
+   "-7 4"                                "\n";
+
 
 std::string one_tet_mesh_str = 
    "MFEM mesh v1.0\n\n"
@@ -192,6 +218,98 @@ TEST_CASE("MeshDependentVectorCoefficient::EvalRevDiff",
             // reverse-mode differentiation of eval
             coords_bar = 0.0;
             coeff.EvalRevDiff(V_bar, trans, ip, coords_bar);
+
+            // get the weighted derivatives using finite difference method
+            for (int n = 0; n < coords.Width(); ++n)
+            {
+               for (int di = 0; di < coords.Height(); ++di)
+               {
+
+                  Vector vb(dim), vf(dim);
+
+                  coords(di, n) += eps_fd;
+                  coeff.Eval(vf, trans, ip);
+                  coords(di, n) -= 2.0*eps_fd;
+                  coeff.Eval(vb, trans, ip);
+
+                  vf -= vb;
+                  vf *= 1.0/(2.0*eps_fd);
+                  coords(di, n) += eps_fd;
+                  double v_bar_fd = V_bar * vf;
+
+                  REQUIRE(coords_bar(di, n) == Approx(v_bar_fd));
+               }
+            }
+         }
+      }
+   }
+}
+
+TEST_CASE("ScalarVectorProductCoefficient::EvalStateDeriv")
+{
+   
+}
+
+TEST_CASE("ScalarVectorProductCoefficient::EvalRevDiff")
+{
+   using namespace mfem;
+   using namespace mach;
+
+   constexpr double eps_fd = 1e-5;
+   constexpr int dim = 3;
+
+   // Create quadratic mesh with single C-shaped quadrilateral
+   std::stringstream meshStr;
+   meshStr << one_tet_mesh_str;
+   Mesh mesh(meshStr);
+
+   FunctionCoefficient scalar(func, funcRevDiff);
+   VectorFunctionCoefficient vec(dim, vectorFunc, vectorFuncRevDiff);
+
+   /// Costruct coefficient
+   mach::ScalarVectorProductCoefficient coeff(scalar, vec);
+
+   for (int p = 1; p <= 4; p++)
+   {
+      /// construct elements
+      H1_FECollection fec(p, dim);
+      FiniteElementSpace fes(&mesh, &fec);
+
+      for (int j = 0; j < fes.GetNE(); j++)
+      {
+
+         const FiniteElement &el = *fes.GetFE(j);
+
+         IsoparametricTransformation trans;
+         mesh.GetElementTransformation(j, &trans);
+
+         const IntegrationRule *ir = NULL;
+         {
+            int order = trans.OrderW() + 2 * el.GetOrder();
+            ir = &IntRules.Get(el.GetGeomType(), order);
+         }
+
+         DenseMatrix &coords = trans.GetPointMat();
+         DenseMatrix coords_bar(coords.Height(), coords.Width());
+
+         // V_bar is the vector contrated with the derivative of the projection
+         // the values are not important for this test
+         Vector V_bar(dim);
+
+         for (int i = 0; i < ir->GetNPoints(); i++)
+         {
+            for (int v = 0; v < V_bar.Size(); ++v)
+            {
+               V_bar(v) = uniform(gener);
+            }
+
+            const IntegrationPoint &ip = ir->IntPoint(i);
+
+            trans.SetIntPoint(&ip);
+
+            // reverse-mode differentiation of eval
+            coords_bar = 0.0;
+            coeff.EvalRevDiff(V_bar, trans, ip, 0.0, coords_bar);
 
             // get the weighted derivatives using finite difference method
             for (int n = 0; n < coords.Width(); ++n)

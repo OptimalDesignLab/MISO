@@ -21,28 +21,31 @@ public:
                const mfem::IntegrationPoint &ip,
                const double state) override
    {
-      return 0.5*pow(state+1, -0.5);
+      return 0.5*pow(state+10, -0.5);
    }
 
    double EvalStateDeriv(mfem::ElementTransformation &trans,
                          const mfem::IntegrationPoint &ip,
                          const double state) override
    {
-      return -0.25*pow(state+1, -1.5);
+      return -0.25*pow(state+10, -1.5);
    }
 
    double EvalState2ndDeriv(mfem::ElementTransformation &trans,
                             const mfem::IntegrationPoint &ip,
                             const double state) override
    {
-      return 0.375*pow(state+1, -2.5);
+      return 0.375*pow(state+10, -2.5);
    }
 
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_Bar) override
-   {}
+   {
+
+   }
 };
 
 // TEST_CASE("CurrentLoad sensitivity wrt mesh_coords")
@@ -434,7 +437,7 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
 
    NonLinearCoefficient nu;
 
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -488,11 +491,6 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
             pert_vec(i) = uniform_rand(gen);
          }
 
-         // res_bar = 0.0;
-         // res_bar(0) = 1.0;
-         // pert_vec = 0.0;
-         // pert_vec(0) = 1.0;
-
          auto options = R"({
             "lin-prec": {
                "type": "hypreboomeramg",
@@ -509,13 +507,22 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
                "box2": {
                   "attrs": [2],
                   "material": {
-                     "name": "box2",
-                     "mu_r": 795774.7154594767
+                     "name": "Nd2Fe14B"
                   }
+               }
+            },
+            "current": {
+               "box1": {
+                  "box1": [1]
                }
             },
             "bcs": {
                "essential": "all"
+            },
+            "magnets": {
+               "Nd2Fe14B": {
+                  "north": [2]
+               }
             }
          })"_json;
 

@@ -1,7 +1,6 @@
 #ifndef MACH_MFEM_COMMON_INTEG
 #define MACH_MFEM_COMMON_INTEG
 
-#include <linalg/vector.hpp>
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -1111,19 +1110,32 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     mach::DomainLFIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
-   rev_sens.at("mesh_coords")
-       .AddDomainIntegrator(new DomainLFIntegratorMeshRevSens(
-           fields.at("adjoint").gridFunc(), primal_integ));
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new DomainLFIntegratorMeshRevSens(
+              fields.at("adjoint").gridFunc(), primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new DomainLFIntegratorMeshRevSens(fields.at("adjoint").gridFunc(),
+                                                primal_integ),
+              *attr_marker);
+   }
 }
 
 /** Not yet differentiated, class only needed if magnets are on the boundary
@@ -1172,7 +1184,8 @@ public:
    /// \param[in] trans - the transformation between reference and physical
 space
    /// \param[out] mesh_coords_bar - d(psi^T f)/dX for the element
-   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// \note the LinearForm that assembles this integrator's
+FiniteElementSpace
    ///       MUST be the mesh's nodal finite element space
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,

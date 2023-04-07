@@ -77,7 +77,8 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBoundaryIntegrator(T *integrator, const std::vector<int> &bdr_attr_marker);
+   void addBoundaryIntegrator(T *integrator,
+                              const std::vector<int> &bdr_attr_marker);
 
    /// Adds boundary face integrator to linear form
    /// \param[in] integrator - face linear form integrator for boundary
@@ -94,7 +95,8 @@ public:
    /// \note Assumes ownership of integrator
    /// \note The array bdr_attr_marker is copied
    template <typename T>
-   void addBdrFaceIntegrator(T *integrator, const std::vector<int> &bdr_attr_marker);
+   void addBdrFaceIntegrator(T *integrator,
+                             const std::vector<int> &bdr_attr_marker);
 
    const mfem::Array<int> &getEssentialDofs() const { return ess_tdof_list; }
 

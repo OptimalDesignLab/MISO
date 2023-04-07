@@ -58,6 +58,7 @@ public:
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override
    { }
 
@@ -160,13 +161,13 @@ double RemnantFluxCoefficient::EvalState2ndDeriv(
    return B_r.EvalState2ndDeriv(trans, ip, state);
 }
 
-/// TODO: Adapt if keeping, remove if not
 void RemnantFluxCoefficient::EvalRevDiff(const double Q_bar,
                                          mfem::ElementTransformation &trans,
                                          const mfem::IntegrationPoint &ip,
+                                         double state,
                                          mfem::DenseMatrix &PointMat_bar)
 {
-   B_r.EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   B_r.EvalRevDiff(Q_bar, trans, ip, state, PointMat_bar);
 }
 
 /// TODO: Change B_r(std::make_unique<mfem::ConstantCoefficient>(1.39) line IF

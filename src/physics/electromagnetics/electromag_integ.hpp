@@ -138,12 +138,12 @@ inline void addDomainSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
-    mfem::Array<int> *bdr_marker)
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
 
-   if (bdr_marker == nullptr)
+   if (attr_marker == nullptr)
    {
       rev_sens.at("mesh_coords")
           .AddDomainIntegrator(new NonlinearDiffusionIntegratorMeshRevSens(
@@ -158,7 +158,7 @@ inline void addDomainSensitivityIntegrator(
                                    fields.at("state").gridFunc(),
                                    fields.at("adjoint").gridFunc(),
                                    primal_integ),
-                               *bdr_marker);
+                               *attr_marker);
    }
 }
 
@@ -289,8 +289,6 @@ inline void addDomainSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
     mfem::Array<int> *attr_marker)
 {
-   /// TODO: Determine if need to emplace temperature field
-
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
 
@@ -1200,12 +1198,11 @@ class DCLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \brief - Compute DC copper losses in the domain
-   /// \param[in] sigma - the temperature dependent electrical conductivity
-   /// coefficient // Made sigma a StateCoefficient (formerly mfem::Coefficient)
-   /// \param[in] temperature_field - a pointer to the temperature field
-   /// (default is null)
+   /// \param[in] sigma - the temperature-dependent electrical conductivity
+   /// coefficient
+   /// \param[in] temperature_field - GridFunction holding temperature
    DCLossFunctionalIntegrator(StateCoefficient &sigma,
-                              mfem::GridFunction *temperature_field = nullptr)
+                              mfem::GridFunction &temperature_field)
     : sigma(sigma), temperature_field(temperature_field)
    { }
 
@@ -1219,16 +1216,15 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
-   // Made sigma a StateCoefficient (formerly mfem::Coefficient)
+   /// Temperature-dependent electrical conductivity
    StateCoefficient &sigma;
+   /// Temperature field
+   mfem::GridFunction &temperature_field;
 
-   mfem::GridFunction *temperature_field;  // pointer to the temperature field
-
-   /// TODO: Look into making code thread-safe
 #ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
    mfem::Array<int> vdofs;
    mfem::Vector temp_elfun;
+   mfem::Vector temp_shape;
 #endif
 
    // double rms_current;
@@ -1354,19 +1350,17 @@ private:
    friend class DCLossFunctionalDistributionIntegratorMeshSens;
 };
 
-/// Functional integrator to compute AC copper losses based on hybrid approach
-/// (new)
+/// Functional integrator to compute AC copper losses based on Fatemi et al. 
+/// hybrid approach
 class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
-   /// \param[in] sigma - the temperature dependent electrical conductivity
-   /// coefficient // Made sigma a StateCoefficient (formerly an MFEM
-   /// coefficient) \param[in] temperature_field - a pointer to the temperature
-   /// field (default is null)
+   /// \param[in] sigma - the temperature-dependent electrical conductivity
+   /// \param[in] temperature_field - GridFunction holding the temperature field
    ACLossFunctionalIntegrator(StateCoefficient &sigma,
-                              mfem::GridFunction *temperature_field = nullptr)
+                              mfem::GridFunction &temperature_field)
     : sigma(sigma), temperature_field(temperature_field)
    { }
 
@@ -1381,11 +1375,10 @@ public:
                            const mfem::Vector &elfun) override;
 
 private:
-   // Made sigma a StateCoefficient (formerly an MFEM coefficient)
+   /// temperature-dependent electrical conductivity
    StateCoefficient &sigma;
-
-   // temperature field, if it exists
-   mfem::GridFunction *temperature_field;
+   /// GridFunction holding the temperature field
+   mfem::GridFunction &temperature_field;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
@@ -1427,11 +1420,11 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Array<int> vdofs;
    mfem::Vector elfun;
-   mfem::Vector shape_bar;
-   mfem::DenseMatrix PointMat_bar;
+   mfem::Vector temp_elfun;
    mfem::Vector shape;
    mfem::Vector temp_shape;
-   mfem::Vector temp_elfun;
+   mfem::Vector shape_bar;
+   mfem::DenseMatrix PointMat_bar;
 #endif
 };
 
@@ -1839,11 +1832,12 @@ private:
 #endif
 };
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     ForceIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);

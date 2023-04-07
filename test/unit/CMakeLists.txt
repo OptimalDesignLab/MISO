@@ -75,6 +75,7 @@ set(EM_MPI_TEST_SRCS
    test_linesearch
    test_mesh_warper
    test_mach_nonlinearform
+   test_mach_linearform
    test_reluctivity_coeff
 )
 

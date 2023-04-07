@@ -92,8 +92,15 @@ double vectorJacobianProduct(MachLinearForm &load,
 {
    if (load.rev_scalar_sens.count(wrt) != 0)
    {
-      throw NotImplementedException(
-          "not implemented for scalar sensitivities!\n");
+      /// Integrators added to rev_scalar_sens will reference the adjoint grid
+      /// func so we update it here
+      auto &adjoint = load.lf_fields->at("adjoint");
+      adjoint.distributeSharedDofs(load_bar);
+
+      /// The state must have previously been distributed before calling this
+      /// function
+      auto &state = load.lf_fields->at("state").gridFunc();
+      return load.rev_scalar_sens.at(wrt).GetGridFunctionEnergy(state);
    }
    return 0.0;
 }

@@ -366,6 +366,24 @@ public:
                     const mfem::IntegrationPoint &ip,
                     mfem::DenseMatrix &PointMat_bar) override;
 
+   /// \brief Search the map of coefficients and evaluate the one whose key is
+   ///        the same as the element's `Attribute` at the point defined by
+   ///        `ip`.
+   /// \param[in] Q_bar - derivative of functional with respect to `Q`
+   /// \param[in] trans - element transformation relating real element to
+   ///                    reference element
+   /// \param[in] ip - defines location in reference space
+   /// \param[in] state - state to evaluate coefficient at
+   /// \param[out] PointMat_bar - derivative of function w.r.t. mesh nodes
+   /// \note When this method is called, the caller must make sure that the
+   /// IntegrationPoint associated with trans is the same as ip. This can be
+   /// achieved by calling trans.SetIntPoint(&ip).
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    double state,
+                    mfem::DenseMatrix &PointMat_bar) override;
+
 protected:
    // /// \brief Method to be called if a coefficient matching the element's
    // /// 		  attribute is a subclass of `StateCoefficient and
@@ -1092,7 +1110,7 @@ protected:
 class ScalarVectorProductCoefficient : public VectorStateCoefficient
 {
 public:
-   ScalarVectorProductCoefficient(StateCoefficient &A,
+   ScalarVectorProductCoefficient(mfem::Coefficient &A,
                                   mfem::VectorCoefficient &B)
     : VectorStateCoefficient(B.GetVDim()), a(&A), b(&B)
    { }
@@ -1102,7 +1120,7 @@ public:
              mfem::ElementTransformation &T,
              const mfem::IntegrationPoint &ip) override;
 
-   /// Evaluate the vector coefficient at @a ip. WITH THE STATE
+   /// Evaluate the vector coefficient at @a ip. with the state
    void Eval(mfem::Vector &V,
              mfem::ElementTransformation &T,
              const mfem::IntegrationPoint &ip,

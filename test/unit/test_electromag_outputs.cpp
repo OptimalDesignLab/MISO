@@ -2,6 +2,7 @@
 
 #include "catch.hpp"
 #include "finite_element_state.hpp"
+#include "finite_element_vector.hpp"
 #include "functional_output.hpp"
 #include "magnetostatic_load.hpp"
 #include "mfem.hpp"
@@ -37,6 +38,7 @@ public:
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_Bar) override
    {}
 };
@@ -86,9 +88,16 @@ TEST_CASE("DCLossFunctional sensitivity wrt mesh_coords")
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
          mesh_coords.setTrueVec(mesh_coords_tv);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::DCLossFunctional fun(fields, model, {});
          mach::MachInputs inputs{
-            {"mesh_coords", mesh_coords_tv}
+            {"mesh_coords", mesh_coords_tv},
+            {"temperature", temp_tv}
          };
 
          // // initialize the vector that we use to perturb the mesh nodes
@@ -206,12 +215,19 @@ TEST_CASE("ACLossFunctional sensitivity wrt strand_radius")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
 
          double strand_radius = 1.0;
          mach::MachInputs inputs{
             {"strand_radius", strand_radius},
-            {"peak_flux", peak_flux_tv}
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
          };
 
          double pert = randNumber();
@@ -292,12 +308,19 @@ TEST_CASE("ACLossFunctional sensitivity wrt frequency")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
 
          double frequency = 1.0;
          mach::MachInputs inputs{
             {"frequency", frequency},
-            {"peak_flux", peak_flux_tv}
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
          };
 
          double pert = randNumber();
@@ -379,12 +402,19 @@ TEST_CASE("ACLossFunctional sensitivity wrt stack_length")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
 
          double stack_length = 1.0;
          mach::MachInputs inputs{
             {"stack_length", stack_length},
-            {"peak_flux", peak_flux_tv}
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
          };
 
          double pert = randNumber();
@@ -465,12 +495,19 @@ TEST_CASE("ACLossFunctional sensitivity wrt strands_in_hand")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
 
          double strands_in_hand = 1.0;
          mach::MachInputs inputs{
             {"strands_in_hand", strands_in_hand},
-            {"peak_flux", peak_flux_tv}
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
          };
 
          double pert = randNumber();
@@ -551,12 +588,19 @@ TEST_CASE("ACLossFunctional sensitivity wrt num_turns")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
 
          double num_turns = 1.0;
          mach::MachInputs inputs{
             {"num_turns", num_turns},
-            {"peak_flux", peak_flux_tv}
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
          };
 
          double pert = randNumber();
@@ -637,12 +681,19 @@ TEST_CASE("ACLossFunctional sensitivity wrt num_slots")
          /// (and that it doesn't own it)
          mesh.NewNodes(mesh_coords.gridFunc(), false);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
 
          double num_slots = 1.0;
          mach::MachInputs inputs{
             {"num_slots", num_slots},
-            {"peak_flux", peak_flux_tv}
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
          };
 
          double pert = randNumber();
@@ -726,11 +777,18 @@ TEST_CASE("ACLossFunctional sensitivity wrt mesh_coords")
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
          mesh_coords.setTrueVec(mesh_coords_tv);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
          mach::MachInputs inputs{
             {"state", peak_flux_tv},
             {"peak_flux", peak_flux_tv},
-            {"mesh_coords", mesh_coords_tv}
+            {"mesh_coords", mesh_coords_tv},
+            {"temperature", temp_tv}
          };
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -828,11 +886,18 @@ TEST_CASE("ACLossFunctional sensitivity wrt peak_flux")
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
          mesh_coords.setTrueVec(mesh_coords_tv);
 
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp_tv = 300;
+
          mach::ACLossFunctional fun(fields, model, {});
          mach::MachInputs inputs{
             {"state", state_tv},
             {"peak_flux", peak_flux_tv},
-            {"mesh_coords", mesh_coords_tv}
+            {"mesh_coords", mesh_coords_tv},
+            {"temperature", temp_tv}
          };
 
          // initialize the vector that we use to perturb peak_flux

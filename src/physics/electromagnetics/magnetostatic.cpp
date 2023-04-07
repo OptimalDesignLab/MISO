@@ -75,14 +75,15 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
    nu(options, materials),
    rho(constructMaterialCoefficient("rho", options["components"], materials)),
    sigma(options, materials)
-   // mag_coeff(diff_stack, options["magnets"], materials, 2),
-   // B_knee(options, materials)
+// mag_coeff(diff_stack, options["magnets"], materials, 2),
+// B_knee(options, materials)
 {
    options["time-dis"]["type"] = "steady";
 
    if (auto temp_iter = fields.find("temperature"); temp_iter == fields.end())
    {
-      fields.emplace("temperature", FiniteElementState(mesh(), {.name="temperature"}));
+      fields.emplace("temperature",
+                     FiniteElementState(mesh(), {.name = "temperature"}));
    }
    auto &temp = fields.at("temperature");
    temp.gridFunc() = 273.15;

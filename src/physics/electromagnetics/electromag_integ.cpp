@@ -10,9 +10,6 @@ using namespace mfem;
 
 namespace mach
 {
-
-double EIntegGlobalVariableCounter = 0;
-
 double calcMagneticEnergy(ElementTransformation &trans,
                           const IntegrationPoint &ip,
                           StateCoefficient &nu,
@@ -552,7 +549,6 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
    const int ndof = el.GetDof();
    const int dim = el.GetDim();
    const int space_dim = trans.GetSpaceDim();
-   const int curl_dim = space_dim;
 
    /// get the proper element, transformation, and state vector
 #ifdef MFEM_THREAD_SAFE
@@ -704,8 +700,6 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// M.Eval(mag_flux, trans, ip);
       PointMat_bar = 0.0;
-      /// TODO: Determine if need to update EvalRevDiff at all to account for
-      /// temperature
       M.EvalRevDiff(mag_flux_bar, trans, ip, temperature, PointMat_bar);
 
       /// Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
@@ -718,7 +712,7 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
       // code to insert PointMat_bar into mesh_coords_bar;
       for (int j = 0; j < mesh_ndof; ++j)
       {
-         for (int k = 0; k < curl_dim; ++k)
+         for (int k = 0; k < space_dim; ++k)
          {
             mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
          }
@@ -3724,30 +3718,29 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
     ElementTransformation &trans,
     const Vector &elfun)
 {
-   // Obtain correct element, DOFs, etc for temperature field
    const int element = trans.ElementNo;
 
-   // Handle the temperature field, if there is one
-   const FiniteElement *temp_el = nullptr;
-   if (temperature_field != nullptr)
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+#endif
+   // Obtain correct element, DOFs, etc for temperature field
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   // auto &temp_trans =
+   //     *temperature_field.FESpace()->GetElementTransformation(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   auto *dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
    {
-      // std::cout << "Per DCLFI, temperature field is not a null pointer\n";
-
-      temp_el = temperature_field->FESpace()->GetFE(element);
-
-      // Transform the degrees of freedom corresponding to the temperature field
-      auto *dof_tr =
-          temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-      temperature_field->GetSubVector(vdofs, temp_elfun);
-      if (dof_tr != nullptr)
-      {
-         dof_tr->InvTransformPrimal(temp_elfun);
-      }
-
-      // Set the shape functions for the temperature field
-      int ndof = temp_el->GetDof();
-      shape.SetSize(ndof);
+      dof_tr->InvTransformPrimal(temp_elfun);
    }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector temp_shape;
+#endif
+   temp_shape.SetSize(temp_ndof);
 
    // Set the integration rule
    const IntegrationRule *ir = IntRule;
@@ -3775,29 +3768,16 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
       // Set the current integration point and quadrature weight
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
+
       const double trans_weight = trans.Weight();
+
       const double w = ip.weight * trans_weight;
 
-      double temperature;
-
-      if (temperature_field != nullptr)
-      {
-         temp_el->CalcPhysShape(
-             trans, shape);  // Calculate the values of the shape functions
-         temperature = shape * temp_elfun;  // Take dot product to get the value
-                                            // at the integration point
-      }
-      else
-      {
-         /// TODO: Change default value of 100 if needed (be consistent
-         /// throughout)
-         temperature =
-             100 + 273.15;  // default value for temperature in absence of field
-      }
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
       // Calculate the value of the conductivity at the integration point
       const double sigma_v = sigma.Eval(trans, ip, temperature);
-      // const double sigma_v = sigma.Eval(trans, ip);
 
       // Add the contribution to the resistivity value
       fun += w / sigma_v;
@@ -3817,6 +3797,33 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
    const int mesh_ndof = mesh_el.GetDof();
    const int space_dim = mesh_trans.GetSpaceDim();
 
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+#else
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+   auto &temperature_field = integ.temperature_field;
+
+   // Obtain correct element, DOFs, etc for temperature field
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   auto &temp_trans =
+       *temperature_field.FESpace()->GetElementTransformation(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   auto *dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix PointMat_bar;
+#else
+   auto &temp_shape = integ.temp_shape;
+#endif
+   temp_shape.SetSize(temp_ndof);
    PointMat_bar.SetSize(space_dim, mesh_ndof);
 
    // cast the ElementTransformation
@@ -3841,27 +3848,6 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
    }
 
    auto &sigma = integ.sigma;
-   auto *temperature_field = integ.temperature_field;
-
-   // Obtain correct element, DOFs, etc for temperature field
-   // Logic from DCLossFunctionalIntegrator
-   const FiniteElement *temp_el = nullptr;
-   if (temperature_field != nullptr)
-   {
-      temp_el = temperature_field->FESpace()->GetFE(element);
-
-      auto *dof_tr =
-          temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-      temperature_field->GetSubVector(vdofs, temp_elfun);
-      if (dof_tr != nullptr)
-      {
-         dof_tr->InvTransformPrimal(temp_elfun);
-      }
-
-      int ndof = temp_el->GetDof();
-      shape.SetSize(ndof);
-   }
-
    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
    mesh_coords_bar = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -3872,27 +3858,10 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       double trans_weight = trans.Weight();
       double w = ip.weight * trans_weight;
 
-      // Logic from DCLossFunctionalIntegrator
-      double temperature;
-      if (temperature_field != nullptr)
-      {
-         temp_el->CalcPhysShape(
-             trans, shape);  // Alternative to CalcShape, used by
-                             // ACLossFunctionalIntegrator. Difference between
-                             // CalcPhysShape and CalcShape?
-         temperature =
-             shape * temp_elfun;  // Take dot product between shape and elfun to
-                                  // get the value at the integration point
-      }
-      else
-      {
-         /// TODO: Change default value of 100 if needed (be consistent
-         /// throughout)
-         temperature = 100 + 273.15;
-      }
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
-      // const double sigma_v = sigma.Eval(trans, ip);
       // fun += w / sigma_v;
 
       /// Start reverse pass...
@@ -3902,13 +3871,9 @@ void DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       double w_bar = fun_bar / sigma_v;
       double sigma_v_bar = -fun_bar * w / pow(sigma_v, 2);
 
-      // std::cout << "sigma_v_bar: " << sigma_v_bar << "\n";
-      // std::cout << "fun_bar: " << fun_bar << " w: " << w << " sigma_v: " <<
-      // sigma_v << "\n";
-
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
-      sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
+      sigma.EvalRevDiff(sigma_v_bar, trans, ip, temperature, PointMat_bar);
 
       /// double w = ip.weight * trans_weight;
       double trans_weight_bar = w_bar * ip.weight;
@@ -4054,21 +4019,6 @@ void DCLossFunctionalDistributionIntegrator::AssembleRHSElementVect(
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (0.02314281 * stack_length);
 
-      /// TODO: Remove comment out once done debugging
-      // if (EIntegGlobalVariableCounter<10)
-      // {
-      //    std::cout << "Ultimately remove EIntegGlobalVariableCounter from
-      //    electromag_integ.cpp\n"; std::cout << "Temperature at current ip in
-      //    DCLFDI = " << temperature << "\n"; std::cout << "strand_area = M_PI
-      //    * pow(strand_radius, 2) = PI * " << strand_radius << "^2 = " <<
-      //    strand_area << "\n"; std::cout << "R = wire_length / (strand_area *
-      //    strands_in_hand * sigma_v) = " << wire_length << "/ (" <<
-      //    strand_area << "*" << strands_in_hand << "*" << sigma_v << ") = " <<
-      //    R << "\n"; std::cout << "loss = sqrt(2) * pow(rms_current, 2) * R =
-      //    sqrt(2) *" << rms_current << "^2 * " << R << " = " << loss << "\n";
-      //    EIntegGlobalVariableCounter++;
-      // }
-
       // std::cout << "elvect.Size()=" << elvect.Size() << "\n";
       // std::cout << "shape.Size()=" << shape.Size() << "\n";
       // std::cout << "shape right before elvect.Add=np.array([";
@@ -4099,32 +4049,31 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
     ElementTransformation &trans,
     const Vector &elfun)
 {
+   const int element = trans.ElementNo;
    int ndof = el.GetDof();  // number of degrees of freedom
    shape.SetSize(ndof);
 
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector temp_elfun;
+#endif
    // Obtain correct element, DOFs, etc for temperature field
-   // Same logic as DCLossFunctionalIntegrator
-   const int element = trans.ElementNo;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   // auto &temp_trans =
+   //     *temperature_field.FESpace()->GetElementTransformation(element);
+   const int temp_ndof = temp_el.GetDof();
 
-   // Handle the temperature field, if there is one
-   const FiniteElement *temp_el = nullptr;
-   if (temperature_field != nullptr)
+   auto *dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
    {
-      temp_el = temperature_field->FESpace()->GetFE(element);
-
-      // Transform the degrees of freedom corresponding to the temperature field
-      auto *dof_tr =
-          temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-      temperature_field->GetSubVector(vdofs, temp_elfun);
-      if (dof_tr != nullptr)
-      {
-         dof_tr->InvTransformPrimal(temp_elfun);
-      }
-
-      // Set the shape functions for the temperature field
-      int ndof = temp_el->GetDof();
-      temp_shape.SetSize(ndof);
+      dof_tr->InvTransformPrimal(temp_elfun);
    }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector temp_shape;
+#endif
+   temp_shape.SetSize(temp_ndof);
 
    // Set the integration rule
    const IntegrationRule *ir = IntRule;
@@ -4162,29 +4111,11 @@ double ACLossFunctionalIntegrator::GetElementEnergy(
       // Compute the value for the magnitude of the flux density
       const auto b_mag = shape * elfun;
 
-      // Now, handle the temperature
-      double temperature;
-
-      if (temperature_field != nullptr)
-      {
-         // Calculate the values of the shape functions for the temperature
-         // field
-         temp_el->CalcPhysShape(trans, temp_shape);
-
-         temperature =
-             temp_shape * temp_elfun;  // Take dot product  to get the value at
-                                       // the integration point
-      }
-      else
-      {
-         /// TODO: Change default value of 100 if needed (be consistent
-         /// throughout)
-         temperature = 100 + 273.15;
-      }
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
       // Calculate the value of the conductivity at the integration point
       const auto sigma_val = sigma.Eval(trans, ip, temperature);
-      // const auto sigma_val = sigma.Eval(trans, ip);
 
       // Add the contribution to the sigma*B^2 value
       const auto loss = sigma_val * pow(b_mag, 2);
@@ -4272,6 +4203,14 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
    const int mesh_ndof = mesh_el.GetDof();
    const int space_dim = mesh_trans.GetSpaceDim();
 
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
    auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
    peak_flux.GetSubVector(vdofs, elfun);
    if (dof_tr != nullptr)
@@ -4279,15 +4218,32 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       dof_tr->InvTransformPrimal(elfun);
    }
 
-   // #ifdef MFEM_THREAD_SAFE
-   //    mfem::Vector shape;
-   //    mfem::Vector shape_bar;
-   // #else
-   //    auto &shape = integ.shape;
-   // #endif
+   auto &temperature_field = integ.temperature_field;
 
+   // Obtain correct element, DOFs, etc for temperature field
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   auto &temp_trans =
+       *temperature_field.FESpace()->GetElementTransformation(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::Vector temp_shape;
+   mfem::Vector shape_bar;
+   mfem::DenseMatrix PointMat_bar;
+#else
+   auto &shape = integ.shape;
+#endif
    shape.SetSize(ndof);
    shape_bar.SetSize(ndof);
+   temp_shape.SetSize(temp_ndof);
    PointMat_bar.SetSize(space_dim, mesh_ndof);
 
    // cast the ElementTransformation
@@ -4312,26 +4268,6 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
    }
 
    auto &sigma = integ.sigma;
-   auto *temperature_field = integ.temperature_field;
-
-   // Obtain correct element, DOFs, etc for temperature field
-   // Logic from DCLossFunctionalIntegrator
-   const FiniteElement *temp_el = nullptr;
-   if (temperature_field != nullptr)
-   {
-      temp_el = temperature_field->FESpace()->GetFE(element);
-
-      auto *dof_tr =
-          temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-      temperature_field->GetSubVector(vdofs, temp_elfun);
-      if (dof_tr != nullptr)
-      {
-         dof_tr->InvTransformPrimal(temp_elfun);
-      }
-
-      int ndof = temp_el->GetDof();
-      temp_shape.SetSize(ndof);
-   }
 
    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
    mesh_coords_bar = 0.0;
@@ -4346,24 +4282,10 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
       el.CalcPhysShape(trans, shape);
       const double b_mag = shape * elfun;
 
-      // Logic from DCLossFunctionalIntegrator
-      double temperature;
-      if (temperature_field != nullptr)
-      {
-         temp_el->CalcPhysShape(trans, temp_shape);
-         temperature = temp_shape *
-                       temp_elfun;  // Take dot product between shape and elfun
-                                    // to get the value at the integration point
-      }
-      else
-      {
-         /// TODO: Change default value of 100 if needed (be consistent
-         /// throughout)
-         temperature = 100 + 273.15;
-      }
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
-      // const double sigma_v = sigma.Eval(trans, ip);
 
       const double loss = sigma_v * pow(b_mag, 2);
       // fun += loss * w;
@@ -4382,13 +4304,11 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
 
       /// const double sigma_v = sigma.Eval(trans, ip);
       PointMat_bar = 0.0;
-      /// TODO: Adapt EvalRevDiff if needed
-      sigma.EvalRevDiff(sigma_v_bar, trans, ip, PointMat_bar);
-      // std::cout << "PointMat_bar(0,0)" << PointMat_bar(0,0) << "\n";
+      sigma.EvalRevDiff(sigma_v_bar, trans, ip, temperature, PointMat_bar);
+
       /// const double b_mag = shape * elfun;
       shape_bar = 0.0;
       shape_bar.Add(b_mag_bar, elfun);
-      // std::cout << "shape_bar(0)=" << shape_bar(0) << "\n";
 
       /// el.CalcPhysShape(trans, shape);
       el.CalcPhysShapeRevDiff(trans, shape_bar, PointMat_bar);
@@ -4405,10 +4325,6 @@ void ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect(
          for (int d = 0; d < space_dim; ++d)
          {
             mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
-            // std::cout << "PointMat_bar(" << d << "," << j << ")=" <<
-            // PointMat_bar(d, j) << "\n"; std::cout << "mesh_coords_bar(" <<
-            // d*mesh_ndof+j << ")=" << mesh_coords_bar(d * mesh_ndof + j) <<
-            // "\n";
          }
       }
    }
@@ -4421,12 +4337,17 @@ void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
     mfem::ElementTransformation &trans,
     mfem::Vector &elfun_bar)
 {
+   const int element = trans.ElementNo;
    const int ndof = el.GetDof();
 
 #ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
    mfem::Vector elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &temp_elfun = integ.temp_elfun;
 #endif
-   const int element = trans.ElementNo;
+
    auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
    peak_flux.GetSubVector(vdofs, elfun);
    if (dof_tr != nullptr)
@@ -4434,13 +4355,30 @@ void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
       dof_tr->InvTransformPrimal(elfun);
    }
 
+   auto &temperature_field = integ.temperature_field;
+
+   // Obtain correct element, DOFs, etc for temperature field
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   auto &temp_trans =
+       *temperature_field.FESpace()->GetElementTransformation(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
 #ifdef MFEM_THREAD_SAFE
    mfem::Vector shape;
+   mfem::Vector temp_shape;
 #else
    auto &shape = integ.shape;
+   auto &temp_shape = integ.temp_shape;
 #endif
-
    shape.SetSize(ndof);
+   temp_shape.SetSize(temp_ndof);
 
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
@@ -4461,26 +4399,6 @@ void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
    }
 
    auto &sigma = integ.sigma;
-   auto *temperature_field = integ.temperature_field;
-
-   // Obtain correct element, DOFs, etc for temperature field
-   // Logic from DCLossFunctionalIntegrator
-   const FiniteElement *temp_el = nullptr;
-   if (temperature_field != nullptr)
-   {
-      temp_el = temperature_field->FESpace()->GetFE(element);
-
-      auto *dof_tr =
-          temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-      temperature_field->GetSubVector(vdofs, temp_elfun);
-      if (dof_tr != nullptr)
-      {
-         dof_tr->InvTransformPrimal(temp_elfun);
-      }
-
-      int ndof = temp_el->GetDof();
-      shape.SetSize(ndof);
-   }
 
    elfun_bar.SetSize(ndof);
    elfun_bar = 0.0;
@@ -4496,26 +4414,9 @@ void ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect(
       el.CalcPhysShape(trans, shape);
       const auto b_mag = shape * elfun;
 
-      // Logic from DCLossFunctionalIntegrator to get the temperature
-      double temperature;
-      if (temperature_field != nullptr)
-      {
-         temp_el->CalcPhysShape(
-             trans, shape);  // Alternative to CalcShape, used by
-                             // ACLossFunctionalIntegrator. Difference between
-                             // CalcPhysShape and CalcShape?
-         temperature =
-             shape * temp_elfun;  // Take dot product between shape and elfun to
-                                  // get the value at the integration point
-      }
-      else
-      {
-         /// TODO: Change default value of 100 if needed (be consistent
-         /// throughout)
-         temperature = 100 + 273.15;
-      }
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
-      // const auto sigma_v = sigma.Eval(trans, ip);
       const auto sigma_v = sigma.Eval(trans, ip, temperature);
 
       // const auto loss = sigma_v * pow(b_mag, 2);

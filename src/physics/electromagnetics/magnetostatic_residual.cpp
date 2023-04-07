@@ -167,13 +167,6 @@ void jacobianVectorProduct(MagnetostaticResidual &residual,
       res_dot.Add(wrt_dot(0), residual.scratch);
       return;
    }
-   // if wrt starts with prefix "temperature"
-   else if (wrt.rfind("temperature", 0) == 0)
-   {
-      /// TODO: Add JVP implementation of derivative of EM residual w/r/t
-      /// temperature here
-      return;
-   }
    jacobianVectorProduct(residual.res, wrt_dot, wrt, res_dot);
    jacobianVectorProduct(*residual.load, wrt_dot, wrt, res_dot);
 }
@@ -209,13 +202,6 @@ void vectorJacobianProduct(MagnetostaticResidual &residual,
                            const std::string &wrt,
                            mfem::Vector &wrt_bar)
 {
-   // if wrt starts with prefix "temperature"
-   if (wrt.rfind("temperature", 0) == 0)
-   {
-      /// TODO: Add VJP implementation of derivative of EM residual w/r/t
-      /// temperature here
-      return;
-   }
    vectorJacobianProduct(residual.res, res_bar, wrt, wrt_bar);
    vectorJacobianProduct(*residual.load, res_bar, wrt, wrt_bar);
 }

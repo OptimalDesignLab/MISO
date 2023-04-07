@@ -2194,13 +2194,10 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
          GridFunction temperature_field_test(&fes);
          temperature_field_test.ProjectCoefficient(model);
          
-         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
-         std::unique_ptr<mach::StateCoefficient> sigma(new NonLinearCoefficient(-1.0)); // no longer using SigmaCoefficient (unnecessary) 
+         NonLinearCoefficient sigma(-1.0);
 
          // Define the functional integrator that will be used to compute the resistivity
-         auto *integ = new mach::DCLossFunctionalIntegrator(*sigma,&temperature_field_test);
-         // auto *integ = new mach::DCLossFunctionalIntegrator(*sigma); //confirms that DCLossFunctional integrator works as intended if don't pass in a temperature field
+         auto *integ = new mach::DCLossFunctionalIntegrator(sigma, temperature_field_test);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);                 
 
@@ -2232,8 +2229,6 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
    }
 }
 
-/*** Leaving DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect test commented out because sigma no longer directly depends on the mesh coords (1/11/23)
-// Sigma depends on the temperature which depends on the mesh. Thus, not worrying about this class (for now, at least).
 TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
 {
    using namespace mfem;
@@ -2307,17 +2302,13 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          FunctionCoefficient pert(randState);
          a.ProjectCoefficient(pert);
 
-         // Create the temperature_field grid function by mapping the function coefficient to a grid function
-         GridFunction temperature_field_test(&fes);
-         temperature_field_test.ProjectCoefficient(model);
+         GridFunction temp(&fes);
+         temp.ProjectCoefficient(model);
          
-         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
-         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient()); // no longer using SigmaCoefficient (unnecessary) 
+         NonLinearCoefficient sigma;
 
          // Define the primal integrator (DCLossFunctionalIntegrator, resistivity)
-         auto *integ = new mach::DCLossFunctionalIntegrator(*sigma,&temperature_field_test);
-         // auto *integ = new mach::DCLossFunctionalIntegrator(*sigma); //confirms that DCLossFunctional integrator works as intended if don't pass in a temperature field
+         auto *integ = new mach::DCLossFunctionalIntegrator(sigma, temp);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
          
@@ -2361,7 +2352,6 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
       }
    }
 }
-*/
 
 ///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed. 
 /*
@@ -2488,10 +2478,6 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
    using namespace mfem;
    using namespace electromag_data;
 
-   // Very similar structure to DCLossFunctionalIntegrator test (resistivity test) up to a point
-   // Just needs an additional function coefficient to represent the elfun corresponding to the B field
-   // Instead of using the sigma value to calculate resistivity, uses the sigma value to compute sigma_b2
-
    // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
    int num_edge = 2;
    auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
@@ -2552,8 +2538,8 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          auto &mesh_fes = *x_nodes.FESpace();
 
          // Create the temperature_field grid function by mapping the function coefficient to a grid function
-         GridFunction temperature_field_test(&fes);
-         temperature_field_test.ProjectCoefficient(Tfield_model);
+         GridFunction temp(&fes);
+         temp.ProjectCoefficient(Tfield_model);
 
          // Create the flux density field (B) grid function by mapping the function coefficient to a grid function
          GridFunction flux_density_field(&fes);
@@ -2563,10 +2549,11 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
          // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
          double state=30.0/3+273.15; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
          // In order of temperature field, state=37.0+273.15, 77.0/2+273.15, 63.0/2+273.15, 30.0/3+273.15, 77.0/2+63.0/2+273.15, 30.0/3+3.0/3+273.15
-         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient(state)); // no longer using SigmaCoefficient (unnecessary) 
+         
+         LinearCoefficient sigma(state);
 
          // Define the functional integrator that will be used to compute the sigma_b2
-         auto *integ = new mach::ACLossFunctionalIntegrator(*sigma,&temperature_field_test);
+         auto *integ = new mach::ACLossFunctionalIntegrator(sigma, temp);
          // auto *integ = new mach::ACLossFunctionalIntegrator(*sigma); //confirms that ACLossFunctional integrator works as intended if don't pass in a temperature field
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);                 
@@ -2606,8 +2593,6 @@ TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
    }
 }
 
-/*** 1/11/23: Leaving ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect test commented out because sigma no longer directly depends on the mesh coords. 
-// Sigma depends on the temperature which depends on the mesh. Thus, not worrying about this class (for now, at least).
 TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
 {
    using namespace mfem;
@@ -2698,20 +2683,17 @@ TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
          a.ProjectCoefficient(pert);
 
          // Create the temperature_field grid function by mapping the function coefficient to a grid function
-         GridFunction temperature_field_test(&fes);
-         temperature_field_test.ProjectCoefficient(Tfield_model);
+         GridFunction temp(&fes);
+         temp.ProjectCoefficient(Tfield_model);
 
          // Create the flux density field (B) grid function by mapping the function coefficient to a grid function
          GridFunction flux_density_field(&fes);
          flux_density_field.ProjectCoefficient(Bfield_model);
          
-         // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
-         // std::unique_ptr<mach::StateCoefficient> sigma(new SigmaCoefficient()); // using default parameters for alpha_resistivity, T_ref, and sigma_T_ref
-         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient()); // no longer using SigmaCoefficient (unnecessary) 
+         NonLinearCoefficient sigma;
 
          // Define the primal integrator (ACLossFunctionalIntegrator)
-         auto *integ = new mach::ACLossFunctionalIntegrator(*sigma,&temperature_field_test);
-         // auto *integ = new mach::ACLossFunctionalIntegrator(*sigma); //confirms that ACLossFunctional integrator works as intended if don't pass in a temperature field
+         auto *integ = new mach::ACLossFunctionalIntegrator(sigma, temp);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
 
@@ -2759,7 +2741,6 @@ TEST_CASE("ACLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
       }
    }
 }
-*/
 
 TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
 {
@@ -2837,11 +2818,9 @@ TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
          // Handling the coefficient for the sigma in the same way the StateCoefficient nu was handled in other tests
          double state=77.0/2; // the "average" temperature over the simple 2D domain. (from either a temperature field, else the default temperature)
          // In order of temperature field, state=37.0, 77.0/2, 63.0/2, 30.0/3, 77.0/2+63.0/2, 30.0/3+3.0/3
-         std::unique_ptr<mach::StateCoefficient> sigma(new LinearCoefficient(state));
+         LinearCoefficient sigma(state);
 
-         // Define the functional integrator that will be used to compute the sigma_b2
-         // auto *integ = new mach::ACLossFunctionalIntegrator(*sigma,&temperature_field_test);
-         auto *integ = new mach::ACLossFunctionalIntegrator(*sigma); //confirms that ACLossFunctional integrator works as intended if don't pass in a temperature field
+         auto *integ = new mach::ACLossFunctionalIntegrator(sigma, temperature_field_test);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
 

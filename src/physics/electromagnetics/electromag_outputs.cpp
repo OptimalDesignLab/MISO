@@ -625,43 +625,25 @@ void vectorJacobianProduct(DCLossFunctional &output,
    }
 }
 
-// Made sigma a StateCoefficient (was formerly an mfem::coefficient)
-/// Also make this functional see the pre-computed temperature field
 DCLossFunctional::DCLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
  : resistivity(fields.at("state").space(), fields), volume(fields, options)
 {
-   // Making the integrator see the temperature field
-   const auto &temp_field_iter =
-       fields.find("temperature");  // find where temperature field is
-   mfem::GridFunction *temperature_field =
-       nullptr;  // default temperature field to null pointer
-   if (temp_field_iter != fields.end())
-   {
-      // If temperature field exists, turn it into a grid function
-      auto &temp_field = temp_field_iter->second;
-      temperature_field = &temp_field.gridFunc();
-   }
+   auto &temp = fields.at("temperature");
 
    // Assign the integrator used to compute the DC losses
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       resistivity.addOutputDomainIntegrator(
-          new DCLossFunctionalIntegrator(sigma, temperature_field), attributes);
-      // std::cout << "TODO: Ultimately remove from DCLF in Eoutputs cpp.
-      // attributes=\n"; for (const auto &attribute : attributes)
-      // {
-      //    std::cout << attribute << ", ";
-      // }
-      // std::cout << "])\n";
+          new DCLossFunctionalIntegrator(sigma, temp.gridFunc()), attributes);
    }
    else
    {
       resistivity.addOutputDomainIntegrator(
-          new DCLossFunctionalIntegrator(sigma, temperature_field));
+          new DCLossFunctionalIntegrator(sigma, temp.gridFunc()));
       std::cout << "In the else\n";
    }
 }
@@ -1491,29 +1473,19 @@ ACLossFunctional::ACLossFunctional(
     const nlohmann::json &options)
  : output(fields.at("peak_flux").space(), fields), volume(fields, options)
 {
-   // Making the integrator see the temperature field
-   const auto &temp_field_iter =
-       fields.find("temperature");  // find where temperature field is
-   mfem::GridFunction *temperature_field =
-       nullptr;  // default temperature field to null pointer
-   if (temp_field_iter != fields.end())
-   {
-      // If temperature field exists, turn it into a grid function
-      auto &temp_field = temp_field_iter->second;
-      temperature_field = &temp_field.gridFunc();
-   }
+   auto &temp = fields.at("temperature");
 
    // Assign the integrator used to compute the AC losses
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
       output.addOutputDomainIntegrator(
-          new ACLossFunctionalIntegrator(sigma, temperature_field), attributes);
+          new ACLossFunctionalIntegrator(sigma, temp.gridFunc()), attributes);
    }
    else
    {
       output.addOutputDomainIntegrator(
-          new ACLossFunctionalIntegrator(sigma, temperature_field));
+          new ACLossFunctionalIntegrator(sigma, temp.gridFunc()));
    }
    setOptions(*this, options);
 }
