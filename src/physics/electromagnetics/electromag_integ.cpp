@@ -720,235 +720,174 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 }
 
-/// TODO: Implement MagnetizationSource2DIntegratorTemperatureSens
 void MagnetizationSource2DIntegratorTemperatureSens::AssembleRHSElementVect(
     const FiniteElement &temp_el,
-    ElementTransformation &temp_trans,
+    ElementTransformation &trans,
     Vector &temp_bar)
 {
-   //    const int element = temp_trans.ElementNo;
-   //    const auto &el = *adjoint.FESpace()->GetFE(element);
-   //    auto &trans = *adjoint.FESpace()->GetElementTransformation(element);
+   const int element = trans.ElementNo;
+   const auto &el = *adjoint.FESpace()->GetFE(element);
 
-   //    const int temp_ndof = temp_el.GetDof();
-   //    const int ndof = el.GetDof();
-   //    const int dim = el.GetDim();
-   //    const int space_dim = trans.GetSpaceDim();
-   //    const int curl_dim = space_dim;
+   const int ndof = el.GetDof();
+   const int dim = el.GetDim();
+   const int space_dim = trans.GetSpaceDim();
 
-   //    /// get the proper element, transformation, and state vector
-   // #ifdef MFEM_THREAD_SAFE
-   //    mfem::Array<int> vdofs;
-   //    mfem::Vector psi;
-   // #endif
-   //    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
-   //    adjoint.GetSubVector(vdofs, psi);
-   //    if (dof_tr != nullptr)
-   //    {
-   //       dof_tr->InvTransformPrimal(psi);
-   //    }
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector temp_elfun;
+#else
+   auto &temp_elfun = integ.temp_elfun;
+#endif
 
-   // #ifdef MFEM_THREAD_SAFE
-   //    DenseMatrix dshape;
-   //    DenseMatrix dshapedxt;
-   //    DenseMatrix dshapedxt_bar;
-   //    Vector scratch_bar;
-   // #else
-   //    auto &dshape = integ.dshape;
-   //    auto &dshapedxt = integ.dshapedxt;
-   // #endif
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
 
-   //    dshape.SetSize(ndof, dim);
-   //    dshapedxt.SetSize(ndof, space_dim);
+   auto &temperature_field = integ.temperature_field;
 
-   //    dshapedxt_bar.SetSize(ndof, space_dim);
-   //    scratch_bar.SetSize(ndof);
+   // Obtain correct element, DOFs, etc for temperature field
+   const int temp_ndof = temp_el.GetDof();
 
-   //    double mag_flux_buffer[3] = {};
-   //    Vector mag_flux(mag_flux_buffer, space_dim);
-   //    double mag_flux_bar_buffer[3] = {};
-   //    Vector mag_flux_bar(mag_flux_bar_buffer, space_dim);
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
 
-   //    // cast the ElementTransformation
-   //    auto &isotrans = dynamic_cast<IsoparametricTransformation
-   //    &>(temp_trans);
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix dshape;
+   DenseMatrix dshapedxt;
+   DenseMatrix dshapedxt_bar;
+   Vector scratch_bar;
+#else
+   auto &dshape = integ.dshape;
+   auto &dshapedxt = integ.dshapedxt;
+   auto &temp_shape = integ.temp_shape;
+#endif
 
-   //    // Obtain correct element, DOFs, etc for temperature field
-   //    // Same logic as DCLFI
-   //    // Handle the temperature field, if there is one
-   //    /// TODO: Handle the redeclaration error of temp_el
-   //    // const FiniteElement *temp_el=nullptr;
-   //    if (temperature_field != nullptr)
-   //    {
-   //       // temp_el = temperature_field->FESpace()->GetFE(element);
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, space_dim);
+   temp_shape.SetSize(temp_ndof);
 
-   //       // Transform the degrees of freedom corresponding to the temperature
-   //       field auto *dof_tr =
-   //           temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-   //       temperature_field->GetSubVector(vdofs, temp_elfun);
-   //       if (dof_tr != nullptr)
-   //       {
-   //          dof_tr->InvTransformPrimal(temp_elfun);
-   //       }
+   dshapedxt_bar.SetSize(ndof, space_dim);
+   scratch_bar.SetSize(ndof);
 
-   //       // Set the shape functions for the temperature field
-   //       int ndof = temp_el.GetDof();
-   //       temp_shape.SetSize(ndof);
-   //    }
+   double mag_flux_buffer[3] = {};
+   Vector mag_flux(mag_flux_buffer, space_dim);
+   double mag_flux_bar_buffer[3] = {};
+   Vector mag_flux_bar(mag_flux_bar_buffer, space_dim);
+   double mag_flux_dot_buffer[3] = {};
+   Vector mag_flux_dot(mag_flux_dot_buffer, space_dim);
 
-   //    const IntegrationRule *ir = IntRule;
-   //    if (ir == nullptr)
-   //    {
-   //       int order = [&]()
-   //       {
-   //          if (el.Space() == FunctionSpace::Pk)
-   //          {
-   //             return 2 * el.GetOrder() - 2;
-   //          }
-   //          else
-   //          {
-   //             // order = 2*el.GetOrder() - 2;  // <-- this seems to work
-   //             fine too return 2 * el.GetOrder() + el.GetDim() - 1;
-   //          }
-   //       }();
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
 
-   //       if (el.Space() == FunctionSpace::rQk)
-   //       {
-   //          ir = &RefinedIntRules.Get(el.GetGeomType(), order);
-   //       }
-   //       else
-   //       {
-   //          ir = &IntRules.Get(el.GetGeomType(), order);
-   //       }
-   //    }
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 2;
+         }
+         else
+         {
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            return 2 * el.GetOrder() + el.GetDim() - 1;
+         }
+      }();
 
-   //    auto &alpha = integ.alpha;
-   //    auto &M = integ.M;
-   //    temp_bar.SetSize(temp_ndof * space_dim);
-   //    temp_bar = 0.0;
+      if (el.Space() == FunctionSpace::rQk)
+      {
+         ir = &RefinedIntRules.Get(el.GetGeomType(), order);
+      }
+      else
+      {
+         ir = &IntRules.Get(el.GetGeomType(), order);
+      }
+   }
 
-   //    for (int i = 0; i < ir->GetNPoints(); i++)
-   //    {
-   //       const IntegrationPoint &ip = ir->IntPoint(i);
-   //       trans.SetIntPoint(&ip);
+   auto &alpha = integ.alpha;
+   auto &M = integ.M;
 
-   //       double w = alpha * ip.weight;
+   temp_bar.SetSize(temp_ndof);
+   temp_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
 
-   //       el.CalcDShape(ip, dshape);
-   //       Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
+      double w = alpha * ip.weight;
 
-   //       // M.Eval(mag_flux, trans, ip);
-   //       // Evaluate the nuM at the current temperature state of the ip
-   //       double temperature;
+      el.CalcDShape(ip, dshape);
+      Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
 
-   //       if (temperature_field != nullptr)
-   //       {
-   //          temp_el.CalcPhysShape(
-   //              trans, temp_shape);  // Calculate the values of the shape
-   //              functions
-   //          temperature =
-   //              temp_shape * temp_elfun;  // Take dot product to get the
-   //              value at
-   //                                        // the integration point
-   //       }
-   //       else
-   //       {
-   //          /// TODO: Change default value of 100 if needed (be consistent
-   //          /// throughout)
-   //          temperature =
-   //              100 + 273.15;  // default value for temperature in absence of
-   //              field
-   //       }
-   //       // std::cout << "MagnetizationSource2DIntegratorMeshRevSens
-   //       temperature =
-   //       // " << temperature << "\n";
-   //       M.Eval(mag_flux, trans, ip, temperature);
-   //       // mag_flux *= w;
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
-   //       Vector grad_column_0;
-   //       dshapedxt.GetColumnReference(0, grad_column_0);
+      M.Eval(mag_flux, trans, ip, temperature);
 
-   //       Vector grad_column_1;
-   //       dshapedxt.GetColumnReference(1, grad_column_1);
+      Vector grad_column_0;
+      dshapedxt.GetColumnReference(0, grad_column_0);
 
-   //       /// TODO: If needed, can also define needed parameters for reverse
-   //       pass
-   //       /// above
+      Vector grad_column_1;
+      dshapedxt.GetColumnReference(1, grad_column_1);
 
-   //       // scratch = 0.0;
-   //       // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
-   //       scratch);
+      // scratch = 0.0;
+      // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
 
-   //       // const double psi_dot_scratch = psi * scratch;
+      // const double psi_dot_scratch = psi * scratch;
 
-   //       // elvect += scratch;
-   //       /// dummy functional for adjoint-weighted residual
-   //       // fun += psi_dot_scratch * w;
+      // elvect += scratch;
+      /// dummy functional for adjoint-weighted residual
+      // fun += psi_dot_scratch * w;
 
-   //       /// start reverse pass
-   //       double fun_bar = 1.0;
+      /// start reverse pass
+      double fun_bar = 1.0;
 
-   //       /// fun += psi_dot_scratch * w;
-   //       double psi_dot_scratch_bar = fun_bar * w;
-   //       // double w_bar = fun_bar * psi_dot_scratch;
+      /// fun += psi_dot_scratch * w;
+      double psi_dot_scratch_bar = fun_bar * w;
+      // double w_bar = fun_bar * psi_dot_scratch;
 
-   //       /// const double psi_dot_scratch = psi * scratch;
-   //       scratch_bar = 0.0;
-   //       scratch_bar.Add(psi_dot_scratch_bar, psi);
+      /// const double psi_dot_scratch = psi * scratch;
+      scratch_bar = 0.0;
+      scratch_bar.Add(psi_dot_scratch_bar, psi);
 
-   //       /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
-   //       scratch);
-   //       /// Vector grad_column_1;
-   //       /// dshapedxt.GetColumnReference(1, grad_column_1);
-   //       /// Vector grad_column_0;
-   //       /// dshapedxt.GetColumnReference(0, grad_column_0);
+      /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
+      /// Vector grad_column_1;
+      /// dshapedxt.GetColumnReference(1, grad_column_1);
+      /// Vector grad_column_0;
+      /// dshapedxt.GetColumnReference(0, grad_column_0);
+      dshapedxt_bar = 0.0;
+      Vector grad_bar_column_1;
+      dshapedxt_bar.GetColumnReference(1, grad_bar_column_1);
+      Vector grad_bar_column_0;
+      dshapedxt_bar.GetColumnReference(0, grad_bar_column_0);
 
-   //       /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
-   //       scratch);
-   //       /// Vector grad_column_1;
-   //       /// dshapedxt.GetColumnReference(1, grad_column_1);
-   //       /// Vector grad_column_0;
-   //       /// dshapedxt.GetColumnReference(0, grad_column_0);
-   //       dshapedxt_bar = 0.0;
-   //       Vector grad_bar_column_1;
-   //       dshapedxt_bar.GetColumnReference(1, grad_bar_column_1);
-   //       Vector grad_bar_column_0;
-   //       dshapedxt_bar.GetColumnReference(0, grad_bar_column_0);
+      mag_flux_bar(1) = grad_column_0 * scratch_bar;
+      mag_flux_bar(0) = -(grad_column_1 * scratch_bar);
 
-   //       mag_flux_bar(1) = grad_column_0 * scratch_bar;
-   //       mag_flux_bar(0) = -(grad_column_1 * scratch_bar);
+      grad_bar_column_0.Add(mag_flux(1), scratch_bar);
+      grad_bar_column_1.Add(-mag_flux(0), scratch_bar);
 
-   //       grad_bar_column_0.Add(mag_flux(1), scratch_bar);
-   //       grad_bar_column_1.Add(-mag_flux(0), scratch_bar);
+      /// M.Eval(mag_flux, trans, ip, temperature);
+      mag_flux_dot = 0.0;
+      M.EvalStateDeriv(mag_flux_dot, trans, ip, temperature);
 
-   //       /// TODO: Determine how this section will change considering need
-   //       rev mode
-   //       /// deriv wrt temperature rather than mesh coords
-   //       ///  M.Eval(mag_flux, trans, ip, temperature);
-   //       PointMat_bar = 0.0;
-   //       /// TODO: Determine if need to update EvalRevDiff at all to account
-   //       for
-   //       /// temperature
-   //       M.EvalRevDiff(
-   //           mag_flux_bar, trans, ip, PointMat_bar);  // EvalTempRevDiff
-   //           needed?
+      const double temperature_bar = mag_flux_bar * mag_flux_dot;
 
-   //       /// Mult(dshape, trans.AdjugateJacobian(), dshapedxt);
-   //       double adj_jac_bar_buffer[9] = {};
-   //       DenseMatrix adj_jac_bar(adj_jac_bar_buffer, space_dim, space_dim);
-   //       MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
+      /// const double temperature = temp_shape * temp_elfun;
+      temp_bar.Add(temperature_bar, temp_shape);
 
-   //       isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
-
-   //       // code to insert PointMat_bar into temp_bar;
-   //       for (int j = 0; j < temp_ndof; ++j)
-   //       {
-   //          for (int k = 0; k < curl_dim; ++k)
-   //          {
-   //             temp_bar(k * temp_ndof + j) += PointMat_bar(k, j);
-   //          }
-   //       }
-   //    }
+      /// temp_el.CalcPhysShape(trans, temp_shape);
+   }
 }
 
 void CurlCurlNLFIntegrator::AssembleElementVector(const FiniteElement &el,

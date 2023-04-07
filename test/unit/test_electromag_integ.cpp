@@ -280,6 +280,71 @@ TEST_CASE("MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("MagnetizationSource2DIntegratorTemperatureRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   TestMagnetizationSource model(dim);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize temperature field
+         GridFunction temp(&fes);
+         FunctionCoefficient pert(randState);
+         temp.ProjectCoefficient(pert);
+
+
+         // initialize adjoint; here we randomly perturb a constant state
+         GridFunction adjoint(&fes);
+         adjoint.ProjectCoefficient(pert);
+
+         LinearForm res(&fes);
+         auto *integ = new mach::MagnetizationSource2DIntegrator(model, temp);
+         res.AddDomainIntegrator(integ);
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&fes);
+         dfdx.AddDomainIntegrator(
+            new mach::MagnetizationSource2DIntegratorTemperatureSens(adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         // GridFunction r(&fes);
+         temp.Add(delta, v);
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         temp.Add(-2 * delta, v);
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
 TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
           "[CurlCurlNLFIntegrator]")
 {

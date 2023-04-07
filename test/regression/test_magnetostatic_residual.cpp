@@ -591,6 +591,180 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
    }
 }
 
+TEST_CASE("MagnetostaticResidual sensitivity wrt temperature")
+{
+   std::default_random_engine gen;
+   std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+   using namespace mfem;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto smesh = buildMesh(num_edge);
+
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         auto &state = fields.at("state");
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         fields.emplace("temperature",
+                        mach::FiniteElementState(mesh, {.order=p, .name="temperature"}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector state_tv(state.space().GetTrueVSize());
+         for (int i = 0; i < state_tv.Size(); ++i)
+         {
+            state_tv(i) = uniform_rand(gen);
+         }
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         for (int i = 0; i < temp_tv.Size(); ++i)
+         {
+            temp_tv(i) = uniform_rand(gen);
+         }
+
+         mfem::Vector res_bar(state.space().GetTrueVSize());
+         for (int i = 0; i < res_bar.Size(); ++i)
+         {
+            res_bar(i) = uniform_rand(gen);
+         }
+
+         mfem::Vector pert_vec(temp.space().GetTrueVSize());
+         for (int i = 0; i < pert_vec.Size(); ++i)
+         {
+            pert_vec(i) = uniform_rand(gen);
+         }
+
+         auto options = R"({
+            "lin-prec": {
+               "type": "hypreboomeramg",
+               "printlevel": 0
+            },       
+            "components": {
+               "box1": {
+                  "attrs": [1],
+                  "material": {
+                     "name": "box1",
+                     "mu_r": 795774.7154594767
+                  }
+               },
+               "box2": {
+                  "attrs": [2],
+                  "material": {
+                     "name": "Nd2Fe14B"
+                  }
+               }
+            },
+            "current": {
+               "box1": {
+                  "box1": [1]
+               }
+            },
+            "bcs": {
+               "essential": "all"
+            },
+            "magnets": {
+               "Nd2Fe14B": {
+                  "north": [2]
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "box1": {
+               "mu_r": 795774.715
+            },
+            "box2": {
+               "mu_r": 795774.715
+            },
+            "Nd2Fe14B": {
+               "B_r": 1.2
+            }
+         })"_json;
+
+         auto &stack = mach::getDiffStack();
+         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu);
+
+         double current_density = 1.0;
+         mach::MachInputs inputs{
+            {"state", state_tv},
+            {"mesh_coords", mesh_coords_tv},
+            {"current_density:box1", current_density},
+            {"current_density:box2", -current_density},
+            {"temperature", temp_tv}
+         };
+
+         setInputs(res, inputs);
+
+         mfem::Vector res_dot(state.space().GetTrueVSize());
+         res_dot = 0.0;
+         jacobianVectorProduct(res, pert_vec, "temperature", res_dot);
+         double drdp_fwd = res_bar * res_dot;
+
+         mfem::Vector wrt_bar(temp.space().GetTrueVSize());
+         wrt_bar = 0.0;
+         vectorJacobianProduct(res, res_bar, "temperature", wrt_bar);
+         double drdp_rev = wrt_bar * pert_vec;
+
+         // now compute the finite-difference approximation...
+         temp_tv.Add(delta, pert_vec);
+         mfem::Vector drdp_fd_p(state.space().GetTrueVSize());
+         drdp_fd_p = 0.0;
+         setInputs(res, inputs);
+         evaluate(res, inputs, drdp_fd_p);
+
+         temp_tv.Add(-2 * delta, pert_vec);
+         mfem::Vector drdp_fd_m(state.space().GetTrueVSize());
+         drdp_fd_m = 0.0;
+         setInputs(res, inputs);
+         evaluate(res, inputs, drdp_fd_m);
+
+         mfem::Vector scratch(state.space().GetTrueVSize());
+         scratch = 0.0;
+         scratch += drdp_fd_p;
+         scratch -= drdp_fd_m;
+         scratch /= (2 * delta);
+
+         double drdp_fd = res_bar * scratch;
+
+         std::cout << "drdp_rev: " << drdp_rev << " drdp_fd: " << drdp_fd << "\n";
+         // REQUIRE(drdp_fwd == Approx(drdp_fd).margin(1e-8));
+         REQUIRE(drdp_rev == Approx(drdp_fd).margin(1e-8));
+         temp_tv.Add(delta, pert_vec);
+      }
+   }
+}
+
 mfem::Mesh buildMesh(int nxy)
 {
    // generate a simple tet mesh
