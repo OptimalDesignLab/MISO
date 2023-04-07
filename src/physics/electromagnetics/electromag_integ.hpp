@@ -1350,7 +1350,7 @@ private:
    friend class DCLossFunctionalDistributionIntegratorMeshSens;
 };
 
-/// Functional integrator to compute AC copper losses based on Fatemi et al. 
+/// Functional integrator to compute AC copper losses based on Fatemi et al.
 /// hybrid approach
 class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
 {
