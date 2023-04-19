@@ -4198,16 +4198,23 @@ void DCLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
       double R_bar = loss_bar * pow(rms_current, 2);
 
       /// double R = wire_length / (strand_area * strands_in_hand * sigma_v);
-      double wire_length_bar = R_bar / (strand_area * strands_in_hand * sigma_v);
-      double strand_area_bar = -R_bar * wire_length / (pow(strand_area,2) * strands_in_hand * sigma_v);
-      double strands_in_hand_bar = -R_bar * wire_length / (strand_area * pow(strands_in_hand,2) * sigma_v);
-      double sigma_v_bar = -R_bar * wire_length / (strand_area * strands_in_hand * pow(sigma_v,2));
+      double wire_length_bar =
+          R_bar / (strand_area * strands_in_hand * sigma_v);
+      double strand_area_bar =
+          -R_bar * wire_length /
+          (pow(strand_area, 2) * strands_in_hand * sigma_v);
+      double strands_in_hand_bar =
+          -R_bar * wire_length /
+          (strand_area * pow(strands_in_hand, 2) * sigma_v);
+      double sigma_v_bar = -R_bar * wire_length /
+                           (strand_area * strands_in_hand * pow(sigma_v, 2));
 
       /// double strand_area = M_PI * pow(strand_radius, 2);
       double strand_radius_bar = strand_area_bar * M_PI * 2 * strand_radius;
 
       /// const double sigma_v = sigma.Eval(trans, ip, temperature);
-      double temperature_bar = sigma_v_bar * sigma.EvalStateDeriv(trans, ip, temperature);
+      double temperature_bar =
+          sigma_v_bar * sigma.EvalStateDeriv(trans, ip, temperature);
 
       /// const double temperature = temp_shape * temp_elfun;
       temp_bar.Add(temperature_bar, temp_shape);
