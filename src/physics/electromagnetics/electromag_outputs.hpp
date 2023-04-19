@@ -404,7 +404,6 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   // Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
    EMHeatSourceOutput(std::map<std::string, FiniteElementState> &fields,
                       mfem::Coefficient &rho,
                       StateCoefficient &sigma,

@@ -91,22 +91,7 @@ double calcOutput(DCLossFunctional &output, const MachInputs &inputs)
    double loss = pow(output.rms_current, 2) * R * sqrt(2);
 
    double volume = calcOutput(output.volume, inputs);
-   if (EOutputsGlobalVariableCounter < 10)
-   {
-      std::cout << "Ultimately remove EOutputsGlobalVariableCounter from "
-                   "electromag_outputs.cpp\n";
-      // std::cout << "rho = calcOutput(output.resistivity, inputs) = " << rho
-      // << "\n"; std::cout << "strand_area = M_PI * pow(output.strand_radius,
-      // 2) = PI * " << output.strand_radius << "^2 = " << strand_area << "\n";
-      // std::cout << "R = output.wire_length * rho / (strand_area *
-      // output.strands_in_hand) = " << output.wire_length << " * " << rho << "/
-      // (" << strand_area << "*" << output.strands_in_hand << ") = " << R <<
-      // "\n"; std::cout << "loss = sqrt(2) * pow(output.rms_current, 2) * R =
-      // sqrt(2) *" << output.rms_current << "^2 * " << R << " = " << loss <<
-      // "\n"; std::cout << "volume = calcOutput(output.volume, inputs) = " <<
-      // volume << "\n"; std::cout << "loss/volume = " << loss/volume << "\n";
-      EOutputsGlobalVariableCounter++;
-   }
+
    return loss / volume;
 }
 
@@ -133,7 +118,7 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       // double dc_loss = loss / volume;
       double dc_loss_dot = 1 / volume * loss_dot;
-      std::cout << "dc_loss_dot = " << dc_loss_dot << "\n";
+
       return dc_loss_dot;
    }
    else if (wrt.rfind("rms_current", 0) == 0)
@@ -151,6 +136,7 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       // double dc_loss = loss / volume;
       double dc_loss_dot = 1 / volume * loss_dot;
+
       return dc_loss_dot;
    }
    else if (wrt.rfind("strand_radius", 0) == 0)
@@ -173,6 +159,7 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       // double dc_loss = loss / volume;
       double dc_loss_dot = 1 / volume * loss_dot;
+
       return dc_loss_dot;
    }
    else if (wrt.rfind("strands_in_hand", 0) == 0)
@@ -194,6 +181,7 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       // double dc_loss = loss / volume;
       double dc_loss_dot = 1 / volume * loss_dot;
+
       return dc_loss_dot;
    }
    else if (wrt.rfind("mesh_coords", 0) == 0)
@@ -222,51 +210,7 @@ double jacobianVectorProduct(DCLossFunctional &output,
    }
    // Adding in w/r/t temperature for the future. Untested.
    else if (wrt.rfind("temperature", 0) == 0)
-   {
-      std::cout << "temperature_dot = " << wrt_dot(0) << "\n";
-
-      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho
-      // is linear in T, goes away
-
-      double strand_area = M_PI * pow(output.strand_radius, 2);
-      // double R =
-      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
-      double R_dot = output.wire_length /
-                     (strand_area * output.strands_in_hand) * wrt_dot(0);
-
-      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
-      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
-
-      double volume = calcOutput(output.volume, inputs);
-
-      // double dc_loss = loss / volume;
-      double dc_loss_dot = 1 / volume * loss_dot;
-      std::cout << "dc_loss_dot = " << dc_loss_dot << "\n";
-      return dc_loss_dot;
-   }
-   // Adding in w/r/t temperature field for the future. Untested.
-   else if (wrt.rfind("temperature_field", 0) == 0)
-   {
-      // double rho = calcOutput(output.resistivity, inputs);
-      /// TODO: Determine if rho_dot computes correctly
-      double rho_dot = jacobianVectorProduct(output.resistivity, wrt_dot, wrt);
-
-      double strand_area = M_PI * pow(output.strand_radius, 2);
-      // double R =
-      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
-      double R_dot =
-          output.wire_length / (strand_area * output.strands_in_hand) * rho_dot;
-
-      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
-      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
-
-      double volume = calcOutput(output.volume, inputs);
-
-      // double dc_loss = loss / volume;
-      double dc_loss_dot = 1 / volume * loss_dot;
-      std::cout << "dc_loss_dot = " << dc_loss_dot << "\n";
-      return dc_loss_dot;
-   }
+   { }
    else
    {
       return 0.0;
@@ -473,43 +417,8 @@ double vectorJacobianProduct(DCLossFunctional &output,
 
       return strands_in_hand_bar;
    }
-   // Adding in w/r/t temperature for the future. Untested.
    else if (wrt.rfind("temperature", 0) == 0)
-   {
-      // double rho = calcOutput(output.resistivity, inputs); //not needed, rho
-      // is linear in T, goes away
-
-      double strand_area = M_PI * pow(output.strand_radius, 2);
-      // double R = output.wire_length * rho / (strand_area *
-      // output.strands_in_hand);
-
-      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
-
-      double volume = calcOutput(output.volume, inputs);
-      // double dc_loss = loss / volume;
-
-      /// Start reverse pass...
-      double dc_loss_bar = out_bar(0);
-
-      /// double dc_loss = loss / volume;
-      double loss_bar = dc_loss_bar / volume;
-      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
-
-      /// double volume = calcOutput(output.volume, inputs);
-      // volume does not depend on any of the inputs except mesh coords
-
-      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
-      // double rms_current_bar = loss_bar * 2 * output.rms_current * R *
-      // sqrt(2);
-      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
-
-      /// double R = output.wire_length * rho / (strand_area *
-      /// output.strands_in_hand);
-      double wire_length_bar =
-          output.wire_length * R_bar / (strand_area * output.strands_in_hand);
-
-      return wire_length_bar;
-   }
+   { }
    else
    {
       return 0.0;
@@ -572,57 +481,8 @@ void vectorJacobianProduct(DCLossFunctional &output,
       mfem::Vector rho_bar_vec(&rho_bar, 1);
       vectorJacobianProduct(output.resistivity, rho_bar_vec, wrt, wrt_bar);
    }
-   // Adding in w/r/t temperature field for the future. Untested.
    else if (wrt.rfind("temperature_field", 0) == 0)
-   {
-      // double rho = calcOutput(output.resistivity, inputs);
-
-      double strand_area = M_PI * pow(output.strand_radius, 2);
-      // double R =
-      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
-
-      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
-
-      double volume = calcOutput(output.volume, inputs);
-      // double dc_loss = loss / volume;
-
-      /// Start reverse pass...
-      double dc_loss_bar = out_bar(0);
-
-      /// double dc_loss = loss / volume;
-      double loss_bar = dc_loss_bar / volume;
-      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
-
-      /// double volume = calcOutput(output.volume, inputs);
-      // mfem::Vector vol_bar_vec(&volume_bar, 1);
-      // vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
-
-      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
-      // double rms_current_bar =
-      //     loss_bar * 2 * output.rms_current * R * sqrt(2);
-      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
-
-      /// double R =
-      ///     output.wire_length * rho / (strand_area * output.strands_in_hand);
-      // double wire_length_bar =
-      //     R_bar * rho / (strand_area * output.strands_in_hand);
-      double rho_bar =
-          R_bar * output.wire_length / (strand_area * output.strands_in_hand);
-      // double strand_area_bar = -R_bar * output.wire_length * rho /
-      //                          (pow(strand_area, 2) *
-      //                          output.strands_in_hand);
-      // double strands_in_hand_bar =
-      //     -R_bar * output.wire_length * rho /
-      //     (strand_area * pow(output.strands_in_hand, 2));
-
-      /// double strand_area = M_PI * pow(output.strand_radius, 2);
-      // double strand_radius_bar =
-      //     strand_area_bar * M_PI * 2 * output.strand_radius;
-
-      /// double rho = calcOutput(output.resistivity, inputs);
-      mfem::Vector rho_bar_vec(&rho_bar, 1);
-      vectorJacobianProduct(output.resistivity, rho_bar_vec, wrt, wrt_bar);
-   }
+   { }
 }
 
 DCLossFunctional::DCLossFunctional(
@@ -1629,8 +1489,6 @@ void calcOutput(EMHeatSourceOutput &output,
                 "EMHeatSourceOutput\n";
 }
 
-/// TODO: Ensure implementation is complete and correct
-// Made sigma a StateCoefficient (was formerly an mfem::Coefficient)
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
     mfem::Coefficient &rho,
@@ -1646,45 +1504,8 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
    CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {
-   // Making the integrator see the peak flux field
-   const auto &peak_flux_iter =
-       fields.find("peak_flux");  // find where peak flux field is
-   mfem::GridFunction *peak_flux =
-       nullptr;  // default peak flux field to null pointer
-   if (peak_flux_iter != fields.end())
-   {
-      // If peak flux field exists, turn it into a grid function
-      /// TODO: Ultimately handle the case where there is no peak flux field
-      auto &flux_field = peak_flux_iter->second;
-      peak_flux = &flux_field.gridFunc();
-      /// TODO: Remove once done debugging
-      // std::cout << "peak_flux seen by EMHeatSourceOutput\n";
-      // std::cout << "peak_flux->Size() = " << peak_flux->Size() << "\n";
-      // std::cout << "peak_flux->Min() = " << peak_flux->Min() << "\n";
-      // std::cout << "peak_flux->Max() = " << peak_flux->Max() << "\n";
-      // std::cout << "peak_flux->Sum() = " << peak_flux->Sum() << "\n";
-   }
-
-   // Making the integrator see the temperature field
-   const auto &temp_field_iter =
-       fields.find("temperature");  // find where temperature field is
-   mfem::GridFunction *temperature_field =
-       nullptr;  // default temperature field to null pointer
-   if (temp_field_iter != fields.end())
-   {
-      // If temperature field exists, turn it into a grid function
-      auto &temp_field = temp_field_iter->second;
-      temperature_field = &temp_field.gridFunc();
-
-      /// TODO: Remove once done debugging
-      // std::cout << "Temperature field seen by EMHeatSourceOutput\n";
-      // std::cout << "temperature_field->Size() = " <<
-      // temperature_field->Size() << "\n"; std::cout <<
-      // "temperature_field->Min() = " << temperature_field->Min() << "\n";
-      // std::cout << "temperature_field->Max() = " << temperature_field->Max()
-      // << "\n"; std::cout << "temperature_field->Sum() = " <<
-      // temperature_field->Sum() << "\n";
-   }
+   auto &peak_flux = fields.at("peak_flux");
+   auto &temp = fields.at("temperature");
 
    std::vector<int> stator_attrs =
        components["stator"]["attrs"].get<std::vector<int>>();
@@ -1693,30 +1514,25 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    {
       lf.addDomainIntegrator(
           new CAL2CoreLossDistributionIntegrator(
-              rho, *CAL2_kh, *CAL2_ke, *peak_flux, temperature_field),
+              rho, *CAL2_kh, *CAL2_ke, peak_flux.gridFunc(), &temp.gridFunc()),
           stator_attrs);
-      std::cout << "(options.contains(\"UseCAL2forCoreLoss\") && "
-                   "options[\"UseCAL2forCoreLoss\"].get<bool>()) = TRUE\n";
    }
    else
    {
       lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
                                  rho, *k_s, *alpha, *beta, "stator"),
                              stator_attrs);
-      std::cout << "False, using Steinmetz\n";
    }
 
    std::vector<int> winding_attrs =
        components["windings"]["attrs"].get<std::vector<int>>();
-   lf.addDomainIntegrator(
-       new DCLossFunctionalDistributionIntegrator(sigma, temperature_field),
-       winding_attrs);  // DCLFI WITH a temperature field
-   lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
-                              *peak_flux, sigma, temperature_field),
-                          winding_attrs);  // ACLFI WITH a temperature field
 
-   // std::cout << "EMHeatSourceOutput::EMHeatSourceOutput has been
-   // constructed\n";
+   lf.addDomainIntegrator(
+       new DCLossDistributionIntegrator(sigma, temp.gridFunc()), winding_attrs);
+
+   lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
+                              peak_flux.gridFunc(), sigma, &temp.gridFunc()),
+                          winding_attrs);
 }
 
 void setOptions(PMDemagOutput &output, const nlohmann::json &options)
