@@ -1514,7 +1514,7 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    {
       lf.addDomainIntegrator(
           new CAL2CoreLossDistributionIntegrator(
-              rho, *CAL2_kh, *CAL2_ke, peak_flux.gridFunc(), &temp.gridFunc()),
+              rho, *CAL2_kh, *CAL2_ke, peak_flux.gridFunc(), temp.gridFunc()),
           stator_attrs);
    }
    else

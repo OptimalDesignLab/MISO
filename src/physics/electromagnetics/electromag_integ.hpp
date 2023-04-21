@@ -2393,12 +2393,11 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
 
-   CAL2CoreLossDistributionIntegrator(
-       mfem::Coefficient &rho,
-       ThreeStateCoefficient &CAL2_kh,
-       ThreeStateCoefficient &CAL2_ke,
-       mfem::GridFunction &peak_flux,
-       mfem::GridFunction *temperature_field = nullptr)
+   CAL2CoreLossDistributionIntegrator(mfem::Coefficient &rho,
+                                      ThreeStateCoefficient &CAL2_kh,
+                                      ThreeStateCoefficient &CAL2_ke,
+                                      mfem::GridFunction &peak_flux,
+                                      mfem::GridFunction &temperature_field)
     : rho(rho),
       CAL2_kh(CAL2_kh),
       CAL2_ke(CAL2_ke),
@@ -2407,30 +2406,139 @@ public:
    { }
 
 private:
-   // Density
+   /// Density
    mfem::Coefficient &rho;
    /// CAL2 Coefficients
    ThreeStateCoefficient &CAL2_kh;
    ThreeStateCoefficient &CAL2_ke;
 
-   // peak flux field
+   /// peak flux field
    mfem::GridFunction &peak_flux;
 
-   // temperature field
-   mfem::GridFunction *temperature_field;
+   /// temperature field
+   mfem::GridFunction &temperature_field;
 
    /// Electrical excitation frequency
    double freq = 1.0;
    /// Stack length
    double stack_length = 1.0;
 
-   /// TODO: Make code thread safe
 #ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
    mfem::Array<int> vdofs;
+   mfem::Vector flux_elfun;
    mfem::Vector temp_elfun;
    mfem::Vector flux_shape;
-   mfem::Vector flux_elfun;
+   mfem::Vector temp_shape;
+#endif
+
+   friend class CAL2CoreLossDistributionIntegratorMeshRevSens;
+   friend class CAL2CoreLossDistributionIntegratorPeakFluxRevSens;
+   friend class CAL2CoreLossDistributionIntegratorTemperatureRevSens;
+};
+
+class CAL2CoreLossDistributionIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   CAL2CoreLossDistributionIntegratorMeshRevSens(
+       mfem::GridFunction &adjoint,
+       CAL2CoreLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   CAL2CoreLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+class CAL2CoreLossDistributionIntegratorPeakFluxRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   CAL2CoreLossDistributionIntegratorPeakFluxRevSens(
+       mfem::GridFunction &adjoint,
+       CAL2CoreLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   CAL2CoreLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class CAL2CoreLossDistributionIntegratorTemperatureRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   CAL2CoreLossDistributionIntegratorTemperatureRevSens(
+       mfem::GridFunction &adjoint,
+       CAL2CoreLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   CAL2CoreLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
 #endif
 };
 

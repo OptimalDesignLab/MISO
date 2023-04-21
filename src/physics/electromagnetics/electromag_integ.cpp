@@ -4944,6 +4944,7 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    auto &flux_shape = integ.flux_shape;
    auto &temp_shape = integ.temp_shape;
 #endif
+
    psi.SetSize(adjoint_ndof);
    flux_shape.SetSize(flux_ndof);
    temp_shape.SetSize(temp_ndof);
@@ -7963,154 +7964,560 @@ void setInputs(CAL2CoreLossDistributionIntegrator &integ,
 ///  dP_CAL2Core/dVolume = \rho k_h\left(T,f,B_{\text{pk}}\right) f B_{pk}^2 +
 ///  \rho k_e\left(T,f,B_{\text{pk}}\right) f^2 B_{pk}^2
 void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
-    const mfem::FiniteElement &el,
+    const mfem::FiniteElement &temp_el,
     mfem::ElementTransformation &trans,
     mfem::Vector &elvect)
 {
-   // // Get the number of degrees of freedom
-   // int ndof = el.GetDof();
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#endif
 
-   // // Keeping the flux separate from the temperature. Establish element,
-   // trans,
-   // // etc.
-   // const int element = trans.ElementNo;
-   // const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
-   // auto &flux_trans =
-   // *peak_flux.FESpace()->GetElementTransformation(element); const int
-   // flux_ndof = flux_el.GetDof();
+   const int element = trans.ElementNo;
 
-   // // Transform the degrees of freedom fot the flux
-   // auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
-   // peak_flux.GetSubVector(vdofs, flux_elfun);
-   // if (dof_tr != nullptr)
-   // {
-   //    dof_tr->InvTransformPrimal(flux_elfun);
-   // }
+   // Obtain the finite element, DOFs, etc for peak flux field
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
 
-   // // Set the size of the shape functions
-   // shape.SetSize(ndof);
-   // flux_shape.SetSize(flux_ndof);
+   auto *dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
 
-   // // Deal with the temperature field, if it exists
-   // const FiniteElement *temp_el = nullptr;  // Default to a nullptr
-   // if (temperature_field != nullptr)
-   // {
-   //    temp_el = temperature_field->FESpace()->GetFE(element);
+   // Obtain correct element, DOFs, etc for temperature field
+   const int temp_ndof = temp_el.GetDof();
 
-   //    // Transform the degrees of freedom
-   //    auto *dof_tr =
-   //        temperature_field->FESpace()->GetElementVDofs(element, vdofs);
-   //    temperature_field->GetSubVector(vdofs, temp_elfun);
-   //    if (dof_tr != nullptr)
-   //    {
-   //       dof_tr->InvTransformPrimal(temp_elfun);
-   //    }
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
 
-   //    // Set the size of the shape functions
-   //    int ndof = temp_el->GetDof();
-   //    shape.SetSize(ndof);  // shape will pertain to temperature
-   // }
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#endif
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
 
-   // // Set the integration rule
-   // const IntegrationRule *ir = IntRule;
-   // if (ir == nullptr)
-   // {
-   //    int order = [&]()
-   //    {
-   //       if (el.Space() == FunctionSpace::Pk)
-   //       {
-   //          return 2 * el.GetOrder() - 1;
-   //       }
-   //       else
-   //       {
-   //          return 2 * el.GetOrder();
-   //       }
-   //    }();
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
 
-   //    ir = &IntRules.Get(el.GetGeomType(), order);
-   // }
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
 
-   // // Loop over all integration points to get element contributions to heat
-   // flux elvect.SetSize(ndof); elvect = 0.0; for (int i = 0; i <
-   // ir->GetNPoints(); i++)
-   // {
-   //    // Set the current integration point and quadrature weight
-   //    const IntegrationPoint &ip = ir->IntPoint(i);
-   //    trans.SetIntPoint(&ip);
-   //    const double trans_weight = trans.Weight();
-   //    const double w = ip.weight * trans_weight;
+   // Loop over all integration points to get element contributions to heat
+   // flux
+   elvect.SetSize(temp_ndof);
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
 
-   //    el.CalcPhysShape(trans, shape);  // calculate the shape functions
+      const double trans_weight = trans.Weight();
 
-   //    // Determine the temperature
-   //    double temperature;
+      const double w = ip.weight * trans_weight;
 
-   //    if (temperature_field != nullptr)
-   //    {
-   //       temp_el->CalcPhysShape(
-   //           trans, shape);  // calculate the values of the shape functions
-   //       temperature = shape * temp_elfun;  // Take dot product to get the
-   //       value
-   //                                          // at the integration point
-   //    }
-   //    else
-   //    {
-   //       /// TODO: Change default value of 100 if needed (be consistent
-   //       /// throughout)
-   //       temperature = 100 + 273.15;  // default value for temperature in
-   //                                    // absence of temperature field
-   //    }
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
 
-   //    // Compute the magnitude of the max/peak flux density (B_m or B_pk)
-   //    /// TODO: Move this temporary logic to higher level or remove entirely
-   //    /// once determine whether max flux value or peak flux field should be
-   //    /// used
-   //    double B_m;
-   //    if (UseMaxFluxValueAndNotPeakFluxField)
-   //    {
-   //       // Using the max flux value. Already was set in inputs
-   //       B_m = max_flux_mag;
-   //    }
-   //    else
-   //    {
-   //       // Using the peak flux field. Max/peak flux value will vary based on
-   //       // where you are in mesh
-   //       flux_el.CalcPhysShape(flux_trans, flux_shape);
-   //       B_m = flux_shape * flux_elfun;
-   //    }
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
 
-   //    // Compute the values of the variable hysteresis and eddy current loss
-   //    // coefficients at the integration point kh(f,T,Bm) and ke(f,T,Bm)
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
 
-   //    // std::cout << "CALCLI temperature = " << temperature << "; freq = "
-   //    <<
-   //    // freq << "; B_m = " << B_m << "\n";
+      // Evaluate the material density (constant)
+      auto rho_v = rho.Eval(trans, ip);
 
-   //    auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_m);
-   //    auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_m);
+      /// TODO: Ensure that the loss (the integrand) is consistent with
+      /// conservation of energy
+      // The core losses in the element are the local element heat flux
+      // contributions
+      double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+                    rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
 
-   //    // Evaluate the material density (constant)
-   //    auto rho_v = rho.Eval(trans, ip);
+      elvect.Add(loss * w, temp_shape);
+   }
+}
 
-   //    /// TODO: Need to ensure that energy is conserved w/r/t scaling by the
-   //    /// stack length
-   //    /// TODO: Ensure that the loss (the integrand) is consistent with
-   //    /// conservation of energy
-   //    // The core losses in the element are the local element heat flux
-   //    // contributions
-   //    double loss = rho_v * kh_v * freq * std::pow(B_m, 2) +
-   //                  rho_v * ke_v * std::pow(freq, 2) * std::pow(B_m, 2);
+void CAL2CoreLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = mesh_trans.GetSpaceDim();
 
-   //    // std::cout << "loss = rho_v * kh_v * freq * std::pow(B_m,2) + rho_v *
-   //    // ke_v * std::pow(freq,2) * std::pow(B_m,2) = " << rho_v << "*" <<
-   //    kh_v
-   //    // << "*" << freq << "*" << B_m << "^2 + " << rho_v << "*" << ke_v <<
-   //    "*"
-   //    // << freq << "^2 *" << B_m << "^2 = " << loss << "\n";
-   //    /// TODO: Need to determine a suitable test function in the domain.
-   //    /// Currently, it is the vector of shape functions
-   //    elvect.Add(loss * w, shape);
-   // }
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = mesh_trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector psi;
+   Vector flux_shape;
+   Vector temp_shape;
+   DenseMatrix PointMat_bar;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+   psi.SetSize(adjoint_ndof);
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(mesh_trans);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto &freq = integ.freq;
+   auto &stack_length = integ.stack_length;
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      mesh_trans.SetIntPoint(&ip);
+
+      const double trans_weight = mesh_trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(mesh_trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(mesh_trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      auto kh_v = CAL2_kh.Eval(mesh_trans, ip, temperature, freq, b_mag);
+      auto ke_v = CAL2_ke.Eval(mesh_trans, ip, temperature, freq, b_mag);
+
+      auto rho_v = rho.Eval(mesh_trans, ip);
+
+      double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+                    rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      // double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// const double w = ip.weight * trans_weight;
+      const double trans_weight_bar = w_bar * ip.weight;
+
+      /// const double trans_weight = mesh_trans.Weight();
+      PointMat_bar = 0.0;
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+         }
+      }
+   }
+}
+
+void CAL2CoreLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &flux_el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &flux_bar)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector psi;
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   psi.SetSize(adjoint_ndof);
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto &freq = integ.freq;
+   auto &stack_length = integ.stack_length;
+
+   flux_bar.SetSize(flux_ndof);
+   flux_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
+
+      auto rho_v = rho.Eval(trans, ip);
+
+      double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+                    rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
+      double ke_v_bar =
+          loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      double b_mag_bar = loss_bar * rho_v *
+                         (kh_v * freq + ke_v * std::pow(freq, 2)) * 2 * b_mag;
+
+      /// auto rho_v = rho.Eval(trans, ip);
+
+      /// auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v_dot = CAL2_ke.EvalDerivS3(trans, ip, temperature, freq, b_mag);
+      b_mag_bar += ke_v_bar * ke_v_dot;
+
+      /// auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto kh_v_dot = CAL2_kh.EvalDerivS3(trans, ip, temperature, freq, b_mag);
+      b_mag_bar += kh_v_bar * kh_v_dot;
+
+      /// const auto b_mag = flux_shape * flux_elfun;
+      flux_bar.Add(b_mag_bar, flux_shape);
+   }
+}
+
+void CAL2CoreLossDistributionIntegratorTemperatureRevSens::
+    AssembleRHSElementVect(const mfem::FiniteElement &temp_el,
+                           mfem::ElementTransformation &trans,
+                           mfem::Vector &temp_bar)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector psi;
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+   psi.SetSize(adjoint_ndof);
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto &freq = integ.freq;
+   auto &stack_length = integ.stack_length;
+
+   temp_bar.SetSize(temp_ndof);
+   temp_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
+
+      auto rho_v = rho.Eval(trans, ip);
+
+      double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+                    rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
+      double ke_v_bar =
+          loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+
+      /// auto rho_v = rho.Eval(trans, ip);
+
+      /// auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v_dot = CAL2_ke.EvalDerivS1(trans, ip, temperature, freq, b_mag);
+      double temperature_bar = ke_v_bar * ke_v_dot;
+
+      /// auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto kh_v_dot = CAL2_kh.EvalDerivS1(trans, ip, temperature, freq, b_mag);
+      temperature_bar += kh_v_bar * kh_v_dot;
+
+      /// const double temperature = temp_shape * temp_elfun;
+      temp_bar.Add(temperature_bar, temp_shape);
+   }
 }
 
 double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
