@@ -3009,6 +3009,253 @@ TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("ACLosslDistributionIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+   
+   // LinearCoefficient sigma(1.0);
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
+
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction flux(&flux_fes);
+         FunctionCoefficient pert(randState);
+         flux.ProjectCoefficient(pert);
+
+         GridFunction adjoint(&fes);
+         adjoint.ProjectCoefficient(pert);
+
+         GridFunction temp(&fes);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+         
+         LinearForm res(&fes);
+         auto *integ = new mach::ACLossDistributionIntegrator(flux, temp, sigma);
+         setInputs(*integ, {
+            {"freq", 100.0},
+            {"radius", 0.345},
+            {"stack_length", 0.41},
+            {"strands_in_hand", 1.0},
+            {"num_turns", 810.0},
+            {"num_slots", 24.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::ACLossDistributionIntegratorMeshRevSens(adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Update();
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Update();
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
+TEST_CASE("ACLosslDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+   
+   // LinearCoefficient sigma(1.0);
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
+
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction flux(&flux_fes);
+         FunctionCoefficient pert(randState);
+         flux.ProjectCoefficient(pert);
+
+         GridFunction adjoint(&fes);
+         adjoint.ProjectCoefficient(pert);
+
+         GridFunction temp(&fes);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+         
+         LinearForm res(&fes);
+         auto *integ = new mach::ACLossDistributionIntegrator(flux, temp, sigma);
+         setInputs(*integ, {
+            {"freq", 100.0},
+            {"radius", 0.345},
+            {"stack_length", 0.41},
+            {"strands_in_hand", 1.0},
+            {"num_turns", 810.0},
+            {"num_slots", 24.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&flux_fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&flux_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::ACLossDistributionIntegratorPeakFluxRevSens(adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         // GridFunction r(&fes);
+         flux.Add(delta, v);
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         flux.Add(-2 * delta, v);
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
+TEST_CASE("ACLosslDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+   
+   // LinearCoefficient sigma(1.0);
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
+
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction flux(&flux_fes);
+         FunctionCoefficient pert(randState);
+         flux.ProjectCoefficient(pert);
+
+         GridFunction adjoint(&fes);
+         adjoint.ProjectCoefficient(pert);
+
+         GridFunction temp(&fes);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+         
+         LinearForm res(&fes);
+         auto *integ = new mach::ACLossDistributionIntegrator(flux, temp, sigma);
+         setInputs(*integ, {
+            {"freq", 100.0},
+            {"radius", 0.345},
+            {"stack_length", 0.41},
+            {"strands_in_hand", 1.0},
+            {"num_turns", 810.0},
+            {"num_slots", 24.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&fes);
+         dfdx.AddDomainIntegrator(
+            new mach::ACLossDistributionIntegratorTemperatureRevSens(adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         // GridFunction r(&fes);
+         temp.Add(delta, v);
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         temp.Add(-2 * delta, v);
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
 ///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
 /*
 // Added test case for ACLossFunctionalDistributionIntegrator

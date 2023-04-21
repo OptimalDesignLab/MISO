@@ -1530,8 +1530,8 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    lf.addDomainIntegrator(
        new DCLossDistributionIntegrator(sigma, temp.gridFunc()), winding_attrs);
 
-   lf.addDomainIntegrator(new ACLossFunctionalDistributionIntegrator(
-                              peak_flux.gridFunc(), sigma, &temp.gridFunc()),
+   lf.addDomainIntegrator(new ACLossDistributionIntegrator(
+                              peak_flux.gridFunc(), temp.gridFunc(), sigma),
                           winding_attrs);
 }
 

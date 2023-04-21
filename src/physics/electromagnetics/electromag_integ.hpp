@@ -1405,7 +1405,6 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Array<int> vdofs;
    mfem::Vector psi;
-   mfem::DenseMatrix PointMat_bar;
 #endif
 };
 
@@ -1558,10 +1557,10 @@ inline void addDomainSensitivityIntegrator(
    }
 }
 
-class ACLossFunctionalDistributionIntegrator : public mfem::LinearFormIntegrator
+class ACLossDistributionIntegrator : public mfem::LinearFormIntegrator
 {
 public:
-   friend void setInputs(ACLossFunctionalDistributionIntegrator &integ,
+   friend void setInputs(ACLossDistributionIntegrator &integ,
                          const MachInputs &inputs);
 
    /// \param[in] el - the finite element
@@ -1571,30 +1570,19 @@ public:
                                mfem::ElementTransformation &trans,
                                mfem::Vector &elvect) override;
 
-   // Made sigma a StateCoefficient (formerly mfem::Coefficient)
-   // Added a grid function pointer for the temperature field to signature
-   ACLossFunctionalDistributionIntegrator(
-       mfem::GridFunction &peak_flux,
-       StateCoefficient &sigma,
-       mfem::GridFunction *temperature_field = nullptr,
-       std::string name = "")
-    : peak_flux(peak_flux),
-      sigma(sigma),
-      temperature_field(temperature_field),
-      name(std::move(name))
+   ACLossDistributionIntegrator(mfem::GridFunction &peak_flux,
+                                mfem::GridFunction &temperature_field,
+                                StateCoefficient &sigma)
+    : peak_flux(peak_flux), temperature_field(temperature_field), sigma(sigma)
    { }
 
 private:
+   /// Peak magnetic flux density field
    mfem::GridFunction &peak_flux;
-   /// Temperature dependent Electrical conductivity // Made sigma a
-   /// StateCoefficient (formerly mfem::Coefficient)
+   /// Temperature field
+   mfem::GridFunction &temperature_field;
+   /// Temperature dependent electrical conductivity
    StateCoefficient &sigma;
-
-   mfem::GridFunction
-       *temperature_field;  // pointer to temperature field (can be null)
-
-   // optional integrator name to differentiate setting inputs
-   std::string name;
 
    /// Electrical excitation frequency
    double freq = 1.0;
@@ -1608,17 +1596,123 @@ private:
    double num_turns = 1.0;
    /// Number of slots in motor
    double num_slots = 1.0;
+
 #ifndef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::Vector flux_shape;
    mfem::Array<int> vdofs;
-   mfem::Vector elfun;
+   mfem::Vector flux_elfun;
    mfem::Vector temp_elfun;
+   mfem::Vector flux_shape;
+   mfem::Vector temp_shape;
 #endif
-   /// class that implements mesh sensitivities for
-   /// ACLossFunctionalDistributionIntegrator
-   /// TODO: If necessary, define and implement this class
-   friend class ACLossFunctionalDistributionIntegratorMeshSens;
+
+   friend class ACLossDistributionIntegratorMeshRevSens;
+   friend class ACLossDistributionIntegratorPeakFluxRevSens;
+   friend class ACLossDistributionIntegratorTemperatureRevSens;
+};
+
+class ACLossDistributionIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorMeshRevSens(mfem::GridFunction &adjoint,
+                                           ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+class ACLossDistributionIntegratorPeakFluxRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorPeakFluxRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ACLossDistributionIntegratorTemperatureRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorTemperatureRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
 };
 
 /// NOTE: HybridACLossFunctionalIntegrator is a Dead class. Not putting any more
