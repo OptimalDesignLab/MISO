@@ -1,6 +1,7 @@
 #ifndef MACH_ELECTROMAG_OUTPUT
 #define MACH_ELECTROMAG_OUTPUT
 
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
@@ -284,6 +285,64 @@ private:
    MachInputs const *inputs = nullptr;
 };
 
+class DCLossDistribution final
+{
+public:
+   friend inline int getSize(const DCLossDistribution &output)
+   {
+      return getSize(output.output);
+   }
+
+   friend inline void setOptions(DCLossDistribution &output,
+                                 const nlohmann::json &options)
+   {
+      setOptions(output.output, options);
+      setOptions(output.volume, options);
+   }
+
+   friend inline void setInputs(DCLossDistribution &output,
+                                const MachInputs &inputs)
+   {
+      output.inputs = &inputs;
+      setInputs(output.output, inputs);
+      setInputs(output.volume, inputs);
+   }
+
+   friend inline double calcOutput(DCLossDistribution &output,
+                                   const MachInputs &inputs)
+   {
+      return NAN;
+   }
+
+   friend void calcOutput(DCLossDistribution &output,
+                          const MachInputs &inputs,
+                          mfem::Vector &out_vec);
+
+   friend void jacobianVectorProduct(DCLossDistribution &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
+
+   friend double vectorJacobianProduct(DCLossDistribution &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(DCLossDistribution &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
+   DCLossDistribution(std::map<std::string, FiniteElementState> &fields,
+                      StateCoefficient &sigma,
+                      const nlohmann::json &options);
+
+private:
+   MachLinearForm output;
+   VolumeFunctional volume;
+
+   MachInputs const *inputs = nullptr;
+};
+
 class ACLossFunctional final
 {
 public:
@@ -329,6 +388,64 @@ private:
    double num_slots = 1.0;
 
    MachInputs inputs;
+};
+
+class ACLossDistribution final
+{
+public:
+   friend inline int getSize(const ACLossDistribution &output)
+   {
+      return getSize(output.output);
+   }
+
+   friend inline void setOptions(ACLossDistribution &output,
+                                 const nlohmann::json &options)
+   {
+      setOptions(output.output, options);
+      setOptions(output.volume, options);
+   }
+
+   friend inline void setInputs(ACLossDistribution &output,
+                                const MachInputs &inputs)
+   {
+      output.inputs = &inputs;
+      setInputs(output.output, inputs);
+      setInputs(output.volume, inputs);
+   }
+
+   friend inline double calcOutput(ACLossDistribution &output,
+                                   const MachInputs &inputs)
+   {
+      return NAN;
+   }
+
+   friend void calcOutput(ACLossDistribution &output,
+                          const MachInputs &inputs,
+                          mfem::Vector &out_vec);
+
+   friend void jacobianVectorProduct(ACLossDistribution &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
+
+   friend double vectorJacobianProduct(ACLossDistribution &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(ACLossDistribution &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
+   ACLossDistribution(std::map<std::string, FiniteElementState> &fields,
+                      StateCoefficient &sigma,
+                      const nlohmann::json &options);
+
+private:
+   MachLinearForm output;
+   VolumeFunctional volume;
+
+   MachInputs const *inputs = nullptr;
 };
 
 class CoreLossFunctional final
@@ -381,6 +498,69 @@ private:
    MachInputs inputs;
 };
 
+class CAL2CoreLossDistribution final
+{
+public:
+   friend inline int getSize(const CAL2CoreLossDistribution &output)
+   {
+      return getSize(output.output);
+   }
+
+   friend inline void setOptions(CAL2CoreLossDistribution &output,
+                                 const nlohmann::json &options)
+   {
+      setOptions(output.output, options);
+   }
+
+   friend inline void setInputs(CAL2CoreLossDistribution &output,
+                                const MachInputs &inputs)
+   {
+      output.inputs = &inputs;
+      setInputs(output.output, inputs);
+   }
+
+   friend inline double calcOutput(CAL2CoreLossDistribution &output,
+                                   const MachInputs &inputs)
+   {
+      return NAN;
+   }
+
+   friend void calcOutput(CAL2CoreLossDistribution &output,
+                          const MachInputs &inputs,
+                          mfem::Vector &out_vec);
+
+   friend void jacobianVectorProduct(CAL2CoreLossDistribution &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
+
+   friend double vectorJacobianProduct(CAL2CoreLossDistribution &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(CAL2CoreLossDistribution &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
+   CAL2CoreLossDistribution(std::map<std::string, FiniteElementState> &fields,
+                            const nlohmann::json &components,
+                            const nlohmann::json &materials,
+                            const nlohmann::json &options);
+
+private:
+   MachLinearForm output;
+
+   /// mass density
+   std::unique_ptr<mfem::Coefficient> rho;
+
+   /// CAL2 Coefficients
+   std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
+   std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
+
+   MachInputs const *inputs = nullptr;
+};
+
 class EMHeatSourceOutput final
 {
 public:
@@ -403,6 +583,20 @@ public:
    friend void calcOutput(EMHeatSourceOutput &output,
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
+
+   friend void jacobianVectorProduct(EMHeatSourceOutput &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
+
+   friend double vectorJacobianProduct(EMHeatSourceOutput &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(EMHeatSourceOutput &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
 
    EMHeatSourceOutput(std::map<std::string, FiniteElementState> &fields,
                       mfem::Coefficient &rho,

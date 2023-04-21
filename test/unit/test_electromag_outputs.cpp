@@ -162,6 +162,189 @@ TEST_CASE("DCLossFunctional sensitivity wrt mesh_coords")
    }
 }
 
+TEST_CASE("DCLossDistribution::vectorJacobianProduct::mesh_coords")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         mach::DCLossDistribution distribution(fields, sigma, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         mfem::Vector mesh_pert_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.project(v_pert, mesh_pert_tv);
+         mesh_coords.distributeSharedDofs(mesh_coords_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
+         mesh_coords_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "mesh_coords", mesh_coords_bar);
+         auto ddist_dmesh_v = mesh_pert_tv * mesh_coords_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         mesh_coords_tv.Add(delta, mesh_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dmesh_v_fd = adjoint_tv * dist_output;
+
+         mesh_coords_tv.Add(-2 * delta, mesh_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dmesh_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dmesh_v_fd /= 2*delta;
+
+         std::cout << "ddist_dmesh_v: " << ddist_dmesh_v << " ddist_dmesh_v_fd: " << ddist_dmesh_v_fd << "\n";
+         REQUIRE(ddist_dmesh_v == Approx(ddist_dmesh_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("DCLossDistribution::vectorJacobianProduct::temperature")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         mach::DCLossDistribution distribution(fields, sigma, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         mfem::Vector temp_pert_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_pert_tv);
+         temp.distributeSharedDofs(temp_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector temperature_bar(temp.space().GetTrueVSize());
+         temperature_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "temperature", temperature_bar);
+         auto ddist_dtemp_v = temp_pert_tv * temperature_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         temp_tv.Add(delta, temp_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dtemp_v_fd = adjoint_tv * dist_output;
+
+         temp_tv.Add(-2 * delta, temp_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dtemp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dtemp_v_fd /= 2*delta;
+
+         std::cout << "ddist_dtemp_v: " << ddist_dtemp_v << " ddist_dtemp_v_fd: " << ddist_dtemp_v_fd << "\n";
+         REQUIRE(ddist_dtemp_v == Approx(ddist_dtemp_v_fd).margin(1e-8));
+      }
+   }
+}
+
 TEST_CASE("ACLossFunctional sensitivity wrt strand_radius")
 {
    using namespace mfem;
@@ -936,6 +1119,316 @@ TEST_CASE("ACLossFunctional sensitivity wrt peak_flux")
    }
 }
 
+TEST_CASE("ACLossDistribution::vectorJacobianProduct::mesh_coords")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         mach::ACLossDistribution distribution(fields, sigma, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         mfem::Vector mesh_pert_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.project(v_pert, mesh_pert_tv);
+         mesh_coords.distributeSharedDofs(mesh_coords_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
+         mesh_coords_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "mesh_coords", mesh_coords_bar);
+         auto ddist_dmesh_v = mesh_pert_tv * mesh_coords_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         mesh_coords_tv.Add(delta, mesh_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dmesh_v_fd = adjoint_tv * dist_output;
+
+         mesh_coords_tv.Add(-2 * delta, mesh_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dmesh_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dmesh_v_fd /= 2*delta;
+
+         std::cout << "ddist_dmesh_v: " << ddist_dmesh_v << " ddist_dmesh_v_fd: " << ddist_dmesh_v_fd << "\n";
+         REQUIRE(ddist_dmesh_v == Approx(ddist_dmesh_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ACLossDistribution::vectorJacobianProduct::peak_flux")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         mach::ACLossDistribution distribution(fields, sigma, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         mfem::Vector pert_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, pert_tv);
+         peak_flux.distributeSharedDofs(peak_flux_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector peak_flux_bar(peak_flux.space().GetTrueVSize());
+         peak_flux_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "peak_flux", peak_flux_bar);
+         auto ddist_dflux_v = pert_tv * peak_flux_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         peak_flux_tv.Add(delta, pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dflux_v_fd = adjoint_tv * dist_output;
+
+         peak_flux_tv.Add(-2 * delta, pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dflux_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dflux_v_fd /= 2*delta;
+
+         std::cout << "ddist_dflux_v: " << ddist_dflux_v << " ddist_dflux_v_fd: " << ddist_dflux_v_fd << "\n";
+         REQUIRE(ddist_dflux_v == Approx(ddist_dflux_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ACLossDistribution::vectorJacobianProduct::temperature")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         mach::ACLossDistribution distribution(fields, sigma, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         mfem::Vector temp_pert_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_pert_tv);
+         temp.distributeSharedDofs(temp_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector temperature_bar(temp.space().GetTrueVSize());
+         temperature_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "temperature", temperature_bar);
+         auto ddist_dtemp_v = temp_pert_tv * temperature_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         temp_tv.Add(delta, temp_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dtemp_v_fd = adjoint_tv * dist_output;
+
+         temp_tv.Add(-2 * delta, temp_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dtemp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dtemp_v_fd /= 2*delta;
+
+         std::cout << "ddist_dtemp_v: " << ddist_dtemp_v << " ddist_dtemp_v_fd: " << ddist_dtemp_v_fd << "\n";
+         REQUIRE(ddist_dtemp_v == Approx(ddist_dtemp_v_fd).margin(1e-8));
+      }
+   }
+}
+
 TEST_CASE("CoreLossFunctional sensitivity wrt frequency")
 {
    using namespace mfem;
@@ -1292,6 +1785,388 @@ TEST_CASE("CoreLossFunctional sensitivity wrt mesh_coords")
 
          REQUIRE(dfdp_fwd == Approx(dfdp_fd).margin(1e-8));
          REQUIRE(dfdp_rev == Approx(dfdp_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("CAL2CoreLossDistribution::vectorJacobianProduct::mesh_coords")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         mach::CAL2CoreLossDistribution distribution(fields, components, materials, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         mfem::Vector mesh_pert_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.project(v_pert, mesh_pert_tv);
+         mesh_coords.distributeSharedDofs(mesh_coords_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector mesh_coords_bar(mesh_coords.space().GetTrueVSize());
+         mesh_coords_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "mesh_coords", mesh_coords_bar);
+         auto ddist_dmesh_v = mesh_pert_tv * mesh_coords_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         mesh_coords_tv.Add(delta, mesh_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dmesh_v_fd = adjoint_tv * dist_output;
+
+         mesh_coords_tv.Add(-2 * delta, mesh_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dmesh_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dmesh_v_fd /= 2*delta;
+
+         std::cout << "ddist_dmesh_v: " << ddist_dmesh_v << " ddist_dmesh_v_fd: " << ddist_dmesh_v_fd << "\n";
+         REQUIRE(ddist_dmesh_v == Approx(ddist_dmesh_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("CAL2CoreLossDistribution::vectorJacobianProduct::peak_flux")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         mach::CAL2CoreLossDistribution distribution(fields, components, materials, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         mfem::Vector pert_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, pert_tv);
+         peak_flux.distributeSharedDofs(peak_flux_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector peak_flux_bar(peak_flux.space().GetTrueVSize());
+         peak_flux_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "peak_flux", peak_flux_bar);
+         auto ddist_dflux_v = pert_tv * peak_flux_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         peak_flux_tv.Add(delta, pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dflux_v_fd = adjoint_tv * dist_output;
+
+         peak_flux_tv.Add(-2 * delta, pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dflux_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dflux_v_fd /= 2*delta;
+
+         std::cout << "ddist_dflux_v: " << ddist_dflux_v << " ddist_dflux_v_fd: " << ddist_dflux_v_fd << "\n";
+         REQUIRE(ddist_dflux_v == Approx(ddist_dflux_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("CAL2CoreLossDistribution::vectorJacobianProduct::temperature")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto smesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         mach::CAL2CoreLossDistribution distribution(fields, components, materials, {});
+         mach::MachInputs inputs{
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         // initialize the vector that we use to perturb the mesh nodes
+         mfem::Vector temp_pert_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_pert_tv);
+         temp.distributeSharedDofs(temp_tv);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         mfem::Vector temperature_bar(temp.space().GetTrueVSize());
+         temperature_bar = 0.0;
+         vectorJacobianProduct(distribution, adjoint_tv, "temperature", temperature_bar);
+         auto ddist_dtemp_v = temp_pert_tv * temperature_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         temp_tv.Add(delta, temp_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dtemp_v_fd = adjoint_tv * dist_output;
+
+         temp_tv.Add(-2 * delta, temp_pert_tv);
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dtemp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dtemp_v_fd /= 2*delta;
+
+         std::cout << "ddist_dtemp_v: " << ddist_dtemp_v << " ddist_dtemp_v_fd: " << ddist_dtemp_v_fd << "\n";
+         REQUIRE(ddist_dtemp_v == Approx(ddist_dtemp_v_fd).margin(1e-8));
       }
    }
 }

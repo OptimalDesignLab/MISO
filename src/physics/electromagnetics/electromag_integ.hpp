@@ -1408,6 +1408,48 @@ private:
 #endif
 };
 
+inline void addDomainSensitivityIntegrator(
+    DCLossDistributionIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   auto &temperature_fes = fields.at("temperature").space();
+   rev_sens.emplace("temperature", &temperature_fes);
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new DCLossDistributionIntegratorMeshRevSens(
+              fields.at("adjoint").gridFunc(), primal_integ));
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new DCLossDistributionIntegratorTemperatureRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new DCLossDistributionIntegratorMeshRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new DCLossDistributionIntegratorTemperatureRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
+
 /// Functional integrator to compute AC copper losses based on Fatemi et al.
 /// hybrid approach
 class ACLossFunctionalIntegrator : public mfem::NonlinearFormIntegrator
@@ -1714,6 +1756,61 @@ private:
    mfem::Vector psi;
 #endif
 };
+
+inline void addDomainSensitivityIntegrator(
+    ACLossDistributionIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   auto &peak_flux_fes = fields.at("peak_flux").space();
+   rev_sens.emplace("peak_flux", &peak_flux_fes);
+
+   auto &temperature_fes = fields.at("temperature").space();
+   rev_sens.emplace("temperature", &temperature_fes);
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(new ACLossDistributionIntegratorMeshRevSens(
+              fields.at("adjoint").gridFunc(), primal_integ));
+
+      rev_sens.at("peak_flux")
+          .AddDomainIntegrator(new ACLossDistributionIntegratorPeakFluxRevSens(
+              fields.at("adjoint").gridFunc(), primal_integ));
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorTemperatureRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorMeshRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_sens.at("peak_flux")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorPeakFluxRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorTemperatureRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
 
 /// NOTE: HybridACLossFunctionalIntegrator is a Dead class. Not putting any more
 /// time into
@@ -2278,13 +2375,10 @@ private:
 
    /// implements frequency sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorFreqSens;
-
    /// implements peak flux sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorPeakFluxSens;
-
    /// implements temperature sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorTemperatureSens;
-
    /// implements mesh sensitivities for CAL2CoreLossIntegrator
    friend class CAL2CoreLossIntegratorMeshSens;
 };
@@ -2374,7 +2468,7 @@ private:
 #endif
 };
 
-/// Functional integrator to compute the spacial distribution of the heat flux
+/// Integrator to compute the spatial distribution of the heat flux
 /// for core losses based on the CAL2 core loss model, a two term loss
 /// separation model consisting of a term for hysteresis losses and a term for
 /// eddy current losses that assumes the hysteresis exponent for B to be
@@ -2541,6 +2635,64 @@ private:
    mfem::Vector psi;
 #endif
 };
+
+/// this will use the EM adjoint by default, need to be careful here
+inline void addDomainSensitivityIntegrator(
+    CAL2CoreLossDistributionIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   auto &peak_flux_fes = fields.at("peak_flux").space();
+   rev_sens.emplace("peak_flux", &peak_flux_fes);
+
+   auto &temperature_fes = fields.at("temperature").space();
+   rev_sens.emplace("temperature", &temperature_fes);
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorMeshRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ));
+
+      rev_sens.at("peak_flux")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorPeakFluxRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ));
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorTemperatureRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorMeshRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_sens.at("peak_flux")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorPeakFluxRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_sens.at("temperature")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorTemperatureRevSens(
+                  fields.at("adjoint").gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
 
 /// Functional integrator to determine values or distribution
 /// of Permanent Magnet Demagnetization constraint equation

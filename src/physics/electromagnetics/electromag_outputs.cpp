@@ -208,9 +208,6 @@ double jacobianVectorProduct(DCLossFunctional &output,
 
       return dc_loss_dot;
    }
-   // Adding in w/r/t temperature for the future. Untested.
-   else if (wrt.rfind("temperature", 0) == 0)
-   { }
    else
    {
       return 0.0;
@@ -417,8 +414,6 @@ double vectorJacobianProduct(DCLossFunctional &output,
 
       return strands_in_hand_bar;
    }
-   else if (wrt.rfind("temperature", 0) == 0)
-   { }
    else
    {
       return 0.0;
@@ -505,6 +500,73 @@ DCLossFunctional::DCLossFunctional(
       resistivity.addOutputDomainIntegrator(
           new DCLossFunctionalIntegrator(sigma, temp.gridFunc()));
       std::cout << "In the else\n";
+   }
+}
+
+void calcOutput(DCLossDistribution &output,
+                const MachInputs &inputs,
+                mfem::Vector &out_vec)
+{
+   auto winding_volume = calcOutput(output.volume, inputs);
+   setInputs(output.output, {{"volume", winding_volume}});
+   setInputs(output.output, inputs);
+   out_vec = 0.0;
+   addLoad(output.output, out_vec);
+}
+
+void vectorJacobianProduct(DCLossDistribution &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      // auto winding_volume = calcOutput(output.volume, inputs);
+      // setInputs(output.output, {{"volume", winding_volume}});
+
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+
+      double volume_bar =
+          vectorJacobianProduct(output.output, out_bar, "volume");
+      mfem::Vector vol_bar_vec(&volume_bar, 1);
+      vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+   }
+   else
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
+}
+
+DCLossDistribution::DCLossDistribution(
+    std::map<std::string, FiniteElementState> &fields,
+    StateCoefficient &sigma,
+    const nlohmann::json &options)
+ : output(fields.at("temperature").space(), fields), volume(fields, options)
+{
+   auto &temp = fields.at("temperature");
+
+   // std::vector<int> current_attributes;
+   // for (const auto &group : options["current"])
+   // {
+   //    for (const auto &source : group)
+   //    {
+   //       auto attrs = source.get<std::vector<int>>();
+   //       current_attributes.insert(
+   //           current_attributes.end(), attrs.begin(), attrs.end());
+   //    }
+   // }
+
+   if (options.contains("attributes"))
+   {
+      auto current_attributes = options["attributes"].get<std::vector<int>>();
+      output.addDomainIntegrator(
+          new DCLossDistributionIntegrator(sigma, temp.gridFunc()),
+          current_attributes);
+   }
+   else
+   {
+      output.addDomainIntegrator(
+          new DCLossDistributionIntegrator(sigma, temp.gridFunc()));
    }
 }
 
@@ -1325,8 +1387,6 @@ void vectorJacobianProduct(ACLossFunctional &output,
    }
 }
 
-// Made sigma a StateCoefficient (was formerly an mfem::coefficient)
-/// Also made this functional see the temperature field
 ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
@@ -1348,6 +1408,75 @@ ACLossFunctional::ACLossFunctional(
           new ACLossFunctionalIntegrator(sigma, temp.gridFunc()));
    }
    setOptions(*this, options);
+}
+
+void calcOutput(ACLossDistribution &output,
+                const MachInputs &inputs,
+                mfem::Vector &out_vec)
+{
+   auto winding_volume = calcOutput(output.volume, inputs);
+   setInputs(output.output, {{"volume", winding_volume}});
+   setInputs(output.output, inputs);
+   out_vec = 0.0;
+   addLoad(output.output, out_vec);
+}
+
+void vectorJacobianProduct(ACLossDistribution &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      // auto winding_volume = calcOutput(output.volume, inputs);
+      // setInputs(output.output, {{"volume", winding_volume}});
+
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+
+      double volume_bar =
+          vectorJacobianProduct(output.output, out_bar, "volume");
+      mfem::Vector vol_bar_vec(&volume_bar, 1);
+      vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+   }
+   else
+   {
+      vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+   }
+}
+
+ACLossDistribution::ACLossDistribution(
+    std::map<std::string, FiniteElementState> &fields,
+    StateCoefficient &sigma,
+    const nlohmann::json &options)
+ : output(fields.at("temperature").space(), fields), volume(fields, options)
+{
+   auto &peak_flux = fields.at("peak_flux");
+   auto &temp = fields.at("temperature");
+
+   // std::vector<int> current_attributes;
+   // for (const auto &group : options["current"])
+   // {
+   //    for (const auto &source : group)
+   //    {
+   //       auto attrs = source.get<std::vector<int>>();
+   //       current_attributes.insert(
+   //           current_attributes.end(), attrs.begin(), attrs.end());
+   //    }
+   // }
+
+   if (options.contains("attributes"))
+   {
+      auto current_attributes = options["attributes"].get<std::vector<int>>();
+      output.addDomainIntegrator(
+          new ACLossDistributionIntegrator(
+              peak_flux.gridFunc(), temp.gridFunc(), sigma),
+          current_attributes);
+   }
+   else
+   {
+      output.addDomainIntegrator(new ACLossDistributionIntegrator(
+          peak_flux.gridFunc(), temp.gridFunc(), sigma));
+   }
 }
 
 void setOptions(CoreLossFunctional &output, const nlohmann::json &options)
@@ -1461,6 +1590,51 @@ CoreLossFunctional::CoreLossFunctional(
              new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
          std::cout << "CoreLossFunctional using Steinmetz\n";
       }
+   }
+}
+
+void calcOutput(CAL2CoreLossDistribution &output,
+                const MachInputs &inputs,
+                mfem::Vector &out_vec)
+{
+   setInputs(output.output, inputs);
+   out_vec = 0.0;
+   addLoad(output.output, out_vec);
+}
+
+void vectorJacobianProduct(CAL2CoreLossDistribution &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
+}
+
+CAL2CoreLossDistribution::CAL2CoreLossDistribution(
+    std::map<std::string, FiniteElementState> &fields,
+    const nlohmann::json &components,
+    const nlohmann::json &materials,
+    const nlohmann::json &options)
+ : output(fields.at("temperature").space(), fields),
+   rho(constructMaterialCoefficient("rho", components, materials)),
+   CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
+   CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
+{
+   auto &peak_flux = fields.at("peak_flux");
+   auto &temp = fields.at("temperature");
+
+   if (options.contains("attributes"))
+   {
+      auto current_attributes = options["attributes"].get<std::vector<int>>();
+      output.addDomainIntegrator(
+          new CAL2CoreLossDistributionIntegrator(
+              *rho, *CAL2_kh, *CAL2_ke, peak_flux.gridFunc(), temp.gridFunc()),
+          current_attributes);
+   }
+   else
+   {
+      output.addDomainIntegrator(new CAL2CoreLossDistributionIntegrator(
+          *rho, *CAL2_kh, *CAL2_ke, peak_flux.gridFunc(), temp.gridFunc()));
    }
 }
 
