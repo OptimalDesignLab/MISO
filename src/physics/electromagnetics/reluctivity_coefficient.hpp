@@ -37,6 +37,7 @@ public:
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override;
 
    ReluctivityCoefficient(const nlohmann::json &nu_options,

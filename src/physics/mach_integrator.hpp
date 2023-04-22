@@ -144,7 +144,8 @@ inline void addDomainSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
-    mfem::Array<int> *attr_marker = nullptr)
+    mfem::Array<int> *attr_marker = nullptr,
+    std::string adjoint_name = "adjoint")
 { }
 
 /// Function meant to be overloaded to allow residual sensitivity integrators
@@ -168,7 +169,8 @@ inline void addInteriorFaceSensitivityIntegrator(
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    std::string adjoint_name = "adjoint")
 { }
 
 /// Function meant to be overloaded to allow residual sensitivity integrators
@@ -193,7 +195,8 @@ inline void addBdrSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
-    mfem::Array<int> *attr_marker = nullptr)
+    mfem::Array<int> *attr_marker = nullptr,
+    std::string adjoint_name = "adjoint")
 { }
 
 /// Function meant to be overloaded to allow output sensitivity integrators

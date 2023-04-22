@@ -305,16 +305,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
 
-      auto temp_degree = options["space-dis"]["degree"].get<int>();
-      auto temp_basis = options["space-dis"]["basis-type"].get<std::string>();
-      nlohmann::json temp_field_options{{"degree", temp_degree},
-                                        {"basis-type", temp_basis}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("temperature"),
-                     std::forward_as_tuple(mesh(), temp_field_options));
-
       EMHeatSourceOutput out(fields,
-                             rho,
                              sigma,
                              AbstractSolver2::options["components"],
                              materials,

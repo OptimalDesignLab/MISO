@@ -265,7 +265,7 @@ double vectorJacobianProduct(MachNonlinearForm &form,
    {
       /// Integrators added to rev_scalar_sens will reference the adjoint grid
       /// func so we update it here
-      auto &adjoint = form.nf_fields.at("adjoint");
+      auto &adjoint = form.nf_fields.at(form.adjoint_name);
       adjoint.distributeSharedDofs(res_bar);
 
       /// The state must have previously been distributed before calling this
@@ -310,7 +310,7 @@ void vectorJacobianProduct(MachNonlinearForm &form,
 
       /// Integrators added to rev_sens will reference the adjoint, grid func
       /// so we update it here
-      auto &adjoint = form.nf_fields.at("adjoint");
+      auto &adjoint = form.nf_fields.at(form.adjoint_name);
       adjoint.distributeSharedDofs(form.scratch);
 
       /// Integrators added to rev_sens will also reference the state grid func,

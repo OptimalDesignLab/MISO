@@ -53,6 +53,7 @@ public:
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override
    { }
 
@@ -101,6 +102,7 @@ public:
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override
    { }
 
@@ -330,9 +332,10 @@ double ReluctivityCoefficient::EvalState2ndDeriv(
 void ReluctivityCoefficient::EvalRevDiff(const double Q_bar,
                                          mfem::ElementTransformation &trans,
                                          const mfem::IntegrationPoint &ip,
+                                         double state,
                                          mfem::DenseMatrix &PointMat_bar)
 {
-   nu.EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   nu.EvalRevDiff(Q_bar, trans, ip, state, PointMat_bar);
 }
 
 ReluctivityCoefficient::ReluctivityCoefficient(const nlohmann::json &nu_options,

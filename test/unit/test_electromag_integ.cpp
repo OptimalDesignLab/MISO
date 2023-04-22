@@ -2294,7 +2294,7 @@ TEST_CASE("DCLossFunctionalIntegrator: Resistivity for Analytical Temperature Fi
    }
 }
 
-TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
+TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -2308,117 +2308,131 @@ TEST_CASE("DCLossFunctionalIntegratorMeshSens::AssembleRHSElementVect (2D)")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   /// Commented out the old function coefficient model for sigma
-   // mfem::FunctionCoefficient model(
-   //    [](const mfem::Vector &x)
-   //    {
-   //       double q = 0;
-   //       for (int i = 0; i < x.Size(); ++i)
-   //       {
-   //          q += pow(x(i), 2);
-   //          // q += sqrt(x(i));
-   //          // q += pow(x(i), 5);
-   //       }
-   //       return q;
-   //    },
-   //    [](const mfem::Vector &x, const double q_bar, mfem::Vector &x_bar)
-   //    {
-   //       for (int i = 0; i < x.Size(); ++i)
-   //       {
-   //          x_bar(i) += q_bar * 2 * x(i);
-   //          // x_bar(i) += q_bar * 0.5 / sqrt(x(i));
-   //          // x_bar(i) += q_bar * 5 * pow(x(i), 4);
-   //       }
-   //    });
+   NonLinearCoefficient sigma;
 
-   //Function Coefficient model Representing the Temperature Field
-   FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         // x will be the point in space
-         double T = 0;
-         for (int i = 0; i < x.Size(); ++i)
-         {
-            T += 18.5; //constant temperature throughout mesh (equal to 18.5*space_dims deg C)
-
-
-            // T = 37+273.15; //constant temperature throughout mesh
-            // T = 77*x(0)+273.15; // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1)+273.15; // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2)+273.15; // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1)+273.15; // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2) +273.15; // temperature quadratically dependent in both x(0) and x(1) directions
-
-         }
-         return T;
-      });
-
+   // Loop over various degrees of elements (1 to 4)
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         // mesh.SetCurvature(p);
+         H1_FECollection mvp_fec(p, dim);
+         FiniteElementSpace mvp_fes(&mesh, &mvp_fec);
 
-         H1_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
-
-         // initialize state
-         GridFunction a(&fes);
+         // initialize peak mvp state
+         GridFunction mvp(&mvp_fes);
          FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         mvp.ProjectCoefficient(pert);
 
-         GridFunction temp(&fes);
-         temp.ProjectCoefficient(model);
-         
-         NonLinearCoefficient sigma;
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
 
-         // Define the primal integrator (DCLossFunctionalIntegrator, resistivity)
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
          auto *integ = new mach::DCLossFunctionalIntegrator(sigma, temp);
-         NonlinearForm functional(&fes);
+         NonlinearForm functional(&mvp_fes);
          functional.AddDomainIntegrator(integ);
          
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = *mesh.GetNodes();
          auto &mesh_fes = *x_nodes.FESpace();
 
-         // create v displacement field
-         GridFunction v(&mesh_fes);
-         VectorFunctionCoefficient v_pert(dim, randVectorState);
-         v.ProjectCoefficient(v_pert);
-
          // initialize the vector that dJdx multiplies
          GridFunction p(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
          p.ProjectCoefficient(v_pert);
          
          // evaluate dJdx and compute its product with p
          LinearForm dJdx(&mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegratorMeshSens(a, *integ));
+            new mach::DCLossFunctionalIntegratorMeshSens(mvp, *integ));
          dJdx.Assemble();
          double dJdx_dot_p = dJdx * p;
-         std::cout << "dJdx_dot_p=" << dJdx_dot_p << "\n";
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(x_nodes);
          x_pert.Add(-delta, p);
          mesh.SetNodes(x_pert);
-         fes.Update();
-         double dJdx_dot_p_fd = -functional.GetEnergy(a);
+         double dJdx_dot_p_fd = -functional.GetEnergy(mvp);
          x_pert.Add(2 * delta, p);
          mesh.SetNodes(x_pert);
-         fes.Update();
-         dJdx_dot_p_fd += functional.GetEnergy(a);
+         dJdx_dot_p_fd += functional.GetEnergy(mvp);
          dJdx_dot_p_fd /= (2 * delta);
          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
-         fes.Update();
          
-         std::cout << "dJdx_dot_p_fd=" << dJdx_dot_p_fd << "\n";
          REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
       }
    }
 }
 
-TEST_CASE("DCLosslDistributionIntegratorMeshRevSens::AssembleRHSElementVect")
+TEST_CASE("DCLossFunctionalIntegratorTemperatureSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   // Loop over various degrees of elements (1 to 4)
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection mvp_fec(p, dim);
+         FiniteElementSpace mvp_fes(&mesh, &mvp_fec);
+
+         // initialize peak mvp state
+         GridFunction mvp(&mvp_fes);
+         FunctionCoefficient pert(randState);
+         mvp.ProjectCoefficient(pert);
+
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         auto *integ = new mach::DCLossFunctionalIntegrator(sigma, temp);
+         NonlinearForm functional(&mvp_fes);
+         functional.AddDomainIntegrator(integ);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&temp_fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with pert
+         LinearForm dJdu(&temp_fes);
+         dJdu.AddDomainIntegrator(
+            new mach::DCLossFunctionalIntegratorTemperatureSens(mvp, *integ));
+         dJdu.Assemble();
+         double dJdu_dot_p = dJdu * p;
+
+         // now compute the finite-difference approximation...
+         temp.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(mvp);
+         temp.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(mvp);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+
+      }
+   }
+}
+
+TEST_CASE("DCLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -2431,51 +2445,26 @@ TEST_CASE("DCLosslDistributionIntegratorMeshRevSens::AssembleRHSElementVect")
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
-   
-   // Not using the previous function coefficient model for sigma
 
-   //Function Coefficient model Representing the Temperature Field
-   FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         // x will be the point in space
-         double T = 0;
-         for (int i = 0; i < x.Size(); ++i)
-         {
-            T = 37; //constant temperature throughout mesh
-            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
-         }
-         return T;
-      });
+   NonLinearCoefficient sigma(1.0);
 
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         // mesh.SetCurvature(p);
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
 
-         H1_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
-
-         // initialize state
-         GridFunction a(&fes);
+         // initialize temp state
+         GridFunction temp(&temp_fes);
          FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
 
-         GridFunction adjoint(&fes);
+         GridFunction adjoint(&temp_fes);
          adjoint.ProjectCoefficient(pert);
-
-         // Create the temperature_field grid function by mapping the function coefficient to a grid function
-         GridFunction temp(&fes);
-         temp.ProjectCoefficient(model);
-
-         LinearCoefficient sigma(1.0);
          
-         LinearForm res(&fes);
+         LinearForm res(&temp_fes);
          auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
          setInputs(*integ, {
             {"wire_length", 1.0},
@@ -2503,29 +2492,23 @@ TEST_CASE("DCLosslDistributionIntegratorMeshRevSens::AssembleRHSElementVect")
 
          // now compute the finite-difference approximation...
          GridFunction x_pert(x_nodes);
-         GridFunction r(&fes);
          x_pert.Add(delta, v);
          mesh.SetNodes(x_pert);
-         fes.Update();
-         res.Update();
          res.Assemble();
          double dfdx_v_fd = adjoint * res;
          x_pert.Add(-2 * delta, v);
          mesh.SetNodes(x_pert);
-         fes.Update();
-         res.Update();
          res.Assemble();
          dfdx_v_fd -= adjoint * res;
          dfdx_v_fd /= (2 * delta);
          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
-         fes.Update();
 
          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }   
 }
 
-TEST_CASE("DCLosslDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect")
+TEST_CASE("DCLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -2538,51 +2521,26 @@ TEST_CASE("DCLosslDistributionIntegratorTemperatureRevSens::AssembleRHSElementVe
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
-   
-   // Not using the previous function coefficient model for sigma
 
-   //Function Coefficient model Representing the Temperature Field
-   FunctionCoefficient model(
-      [](const mfem::Vector &x)
-      {
-         // x will be the point in space
-         double T = 0;
-         for (int i = 0; i < x.Size(); ++i)
-         {
-            T = 37; //constant temperature throughout mesh
-            // T = 77*x(0); // temperature linearly dependent in the x(0) direction
-            // T = 63*x(1); // temperature linearly dependent in the x(1) direction
-            // T = 30*std::pow(x(0),2); // temperature quadratically dependent in the x(0) direction
-            // T = 77*x(0)+63*x(1); // temperature linearly dependent in both x(0) and x(1) directions
-            // T = 30*std::pow(x(0),2) + 3*std::pow(x(1),2); // temperature quadratically dependent in both x(0) and x(1) directions
-         }
-         return T;
-      });
+   NonLinearCoefficient sigma(1.0);
 
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION("...for degree p = " << p)
       {
-         // mesh.SetCurvature(p);
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
 
-         H1_FECollection fec(p, dim);
-         FiniteElementSpace fes(&mesh, &fec);
-
-         // initialize state
-         GridFunction a(&fes);
+         // initialize temp state
+         GridFunction temp(&temp_fes);
          FunctionCoefficient pert(randState);
-         a.ProjectCoefficient(pert);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
 
-         GridFunction adjoint(&fes);
+         GridFunction adjoint(&temp_fes);
          adjoint.ProjectCoefficient(pert);
-
-         // Create the temperature_field grid function by mapping the function coefficient to a grid function
-         GridFunction temp(&fes);
-         temp.ProjectCoefficient(model);
-
-         LinearCoefficient sigma(1.0);
          
-         LinearForm res(&fes);
+         LinearForm res(&temp_fes);
          auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
          setInputs(*integ, {
             {"wire_length", 1.0},
@@ -2592,24 +2550,303 @@ TEST_CASE("DCLosslDistributionIntegratorTemperatureRevSens::AssembleRHSElementVe
          });
          res.AddDomainIntegrator(integ);
 
-         // initialize the vector that we use to perturb the mesh nodes
-         GridFunction v(&fes);
+         // initialize the vector that we use to perturb the temp
+         GridFunction v(&temp_fes);
          v.ProjectCoefficient(pert);
 
          // evaluate d(psi^T R)/dx and contract with v
-         LinearForm dfdx(&fes);
+         LinearForm dfdx(&temp_fes);
          dfdx.AddDomainIntegrator(
             new mach::DCLossDistributionIntegratorTemperatureRevSens(adjoint, *integ));
          dfdx.Assemble();
          double dfdx_v = dfdx * v;
 
          // now compute the finite-difference approximation...
-         // GridFunction r(&fes);
          temp.Add(delta, v);
          res.Assemble();
          double dfdx_v_fd = adjoint * res;
 
          temp.Add(-2 * delta, v);
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
+TEST_CASE("DCLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         FunctionCoefficient pert(randState);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         GridFunction adjoint(&temp_fes);
+         adjoint.ProjectCoefficient(pert);
+         
+         LinearForm res(&temp_fes);
+         auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
+         setInputs(*integ, {
+            {"wire_length", 1.0},
+            {"rms_current", sqrt(1.0/sqrt(2.0))},
+            {"strand_radius", sqrt(1/M_PI)},
+            {"strands_in_hand", 1.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&temp_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::DCLossDistributionIntegratorStrandRadiusRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(temp) * v;
+
+         // now compute the finite-difference approximation...
+         setInputs(*integ, {
+            {"strand_radius", sqrt(1/M_PI) + delta * v}
+         });
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         setInputs(*integ, {
+            {"strand_radius", sqrt(1/M_PI) - delta * v}
+         });
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
+TEST_CASE("DCLossDistributionIntegratorWireLengthRevSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         FunctionCoefficient pert(randState);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         GridFunction adjoint(&temp_fes);
+         adjoint.ProjectCoefficient(pert);
+         
+         LinearForm res(&temp_fes);
+         auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
+         setInputs(*integ, {
+            {"wire_length", 1.0},
+            {"rms_current", sqrt(1.0/sqrt(2.0))},
+            {"strand_radius", sqrt(1/M_PI)},
+            {"strands_in_hand", 1.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&temp_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::DCLossDistributionIntegratorWireLengthRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(temp) * v;
+
+         // now compute the finite-difference approximation...
+         setInputs(*integ, {
+            {"wire_length", 1.0 + delta * v}
+         });
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         setInputs(*integ, {
+            {"wire_length", 1.0 - delta * v}
+         });
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
+TEST_CASE("DCLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         FunctionCoefficient pert(randState);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         GridFunction adjoint(&temp_fes);
+         adjoint.ProjectCoefficient(pert);
+         
+         LinearForm res(&temp_fes);
+         auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
+         setInputs(*integ, {
+            {"wire_length", 1.0},
+            {"rms_current", sqrt(1.0/sqrt(2.0))},
+            {"strand_radius", sqrt(1/M_PI)},
+            {"strands_in_hand", 1.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&temp_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::DCLossDistributionIntegratorStrandsInHandRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(temp) * v;
+
+         // now compute the finite-difference approximation...
+         setInputs(*integ, {
+            {"strands_in_hand", 1.0 + delta * v}
+         });
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         setInputs(*integ, {
+            {"strands_in_hand", 1.0 - delta * v}
+         });
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
+TEST_CASE("DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         FunctionCoefficient pert(randState);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         GridFunction adjoint(&temp_fes);
+         adjoint.ProjectCoefficient(pert);
+         
+         LinearForm res(&temp_fes);
+         auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
+         setInputs(*integ, {
+            {"wire_length", 1.0},
+            {"rms_current", sqrt(1.0/sqrt(2.0))},
+            {"strand_radius", sqrt(1/M_PI)},
+            {"strands_in_hand", 1.0}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&temp_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::DCLossDistributionIntegratorCurrentRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(temp) * v;
+
+         // now compute the finite-difference approximation...
+         setInputs(*integ, {
+            {"rms_current", sqrt(1.0/sqrt(2.0)) + delta * v}
+         });
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         setInputs(*integ, {
+            {"rms_current", sqrt(1.0/sqrt(2.0)) - delta * v}
+         });
          res.Assemble();
          dfdx_v_fd -= adjoint * res;
          dfdx_v_fd /= (2 * delta);
@@ -3005,6 +3242,73 @@ TEST_CASE("ACLossFunctionalIntegratorPeakFluxSens::AssembleRHSElementVect")
          dJdu_dot_p_fd /= (2 * delta);
 
          REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
+TEST_CASE("ACLossFunctionalIntegratorTemperatureSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   // auto mesh = Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
+   //                                   Element::TETRAHEDRON);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   // Loop over various degrees of elements (1 to 4)
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         L2_FECollection flux_fec(p, dim);
+         FiniteElementSpace flux_fes(&mesh, &flux_fec);
+
+         // initialize peak flux state
+         GridFunction flux(&flux_fes);
+         FunctionCoefficient pert(randState);
+         flux.ProjectCoefficient(pert);
+
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         auto *integ = new mach::ACLossFunctionalIntegrator(sigma, temp);
+         NonlinearForm functional(&flux_fes);
+         functional.AddDomainIntegrator(integ);
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&temp_fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with pert
+         LinearForm dJdu(&temp_fes);
+         dJdu.AddDomainIntegrator(
+            new mach::ACLossFunctionalIntegratorTemperatureSens(flux, *integ));
+         dJdu.Assemble();
+         double dJdu_dot_p = dJdu * p;
+
+         // now compute the finite-difference approximation...
+         temp.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(flux);
+         temp.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(flux);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+
       }
    }
 }

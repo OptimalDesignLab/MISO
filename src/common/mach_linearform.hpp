@@ -101,14 +101,15 @@ public:
    const mfem::Array<int> &getEssentialDofs() const { return ess_tdof_list; }
 
    MachLinearForm(mfem::ParFiniteElementSpace &pfes,
-                  std::map<std::string, FiniteElementState> &fields)
-    : lf(&pfes), scratch(0), lf_fields(&fields)
+                  std::map<std::string, FiniteElementState> &fields,
+                  std::string adjoint_name = "adjoint")
+    : lf(&pfes), scratch(0), lf_fields(&fields), adjoint_name(adjoint_name)
    {
-      if (lf_fields->count("adjoint") == 0)
+      if (lf_fields->count(adjoint_name) == 0)
       {
-         lf_fields->emplace(std::piecewise_construct,
-                            std::make_tuple("adjoint"),
-                            std::forward_as_tuple(*pfes.GetParMesh(), pfes));
+         lf_fields->emplace(
+             adjoint_name,
+             FiniteElementState(*pfes.GetParMesh(), pfes, adjoint_name));
       }
    }
 
@@ -139,6 +140,9 @@ private:
    /// map of external fields the linear form depends on
    std::map<std::string, FiniteElementState> *lf_fields;
 
+   /// name of the field that holds the adjoint for this linear form
+   std::string adjoint_name;
+
    /// map of linear forms that will compute (dF / dfield) * field_dot
    /// for each field the nonlinear form depends on
    std::map<std::string, mfem::ParLinearForm> fwd_sens;
@@ -165,7 +169,8 @@ void MachLinearForm::addDomainIntegrator(T *integrator)
                                   rev_scalar_sens,
                                   fwd_sens,
                                   fwd_scalar_sens,
-                                  nullptr);
+                                  nullptr,
+                                  adjoint_name);
 }
 
 template <typename T>
@@ -184,7 +189,8 @@ void MachLinearForm::addDomainIntegrator(T *integrator,
                                   rev_scalar_sens,
                                   fwd_sens,
                                   fwd_scalar_sens,
-                                  &marker);
+                                  &marker,
+                                  adjoint_name);
 }
 
 template <typename T>
@@ -198,7 +204,8 @@ void MachLinearForm::addBoundaryIntegrator(T *integrator)
                                rev_scalar_sens,
                                fwd_sens,
                                fwd_scalar_sens,
-                               nullptr);
+                               nullptr,
+                               adjoint_name);
 }
 
 template <typename T>
@@ -216,7 +223,8 @@ void MachLinearForm::addBoundaryIntegrator(
                                rev_scalar_sens,
                                fwd_sens,
                                fwd_scalar_sens,
-                               &marker);
+                               &marker,
+                               adjoint_name);
 }
 
 template <typename T>
@@ -230,7 +238,8 @@ void MachLinearForm::addBdrFaceIntegrator(T *integrator)
                                rev_scalar_sens,
                                fwd_sens,
                                fwd_scalar_sens,
-                               nullptr);
+                               nullptr,
+                               adjoint_name);
 }
 
 template <typename T>
@@ -248,7 +257,8 @@ void MachLinearForm::addBdrFaceIntegrator(
                                rev_scalar_sens,
                                fwd_sens,
                                fwd_scalar_sens,
-                               &marker);
+                               &marker,
+                               adjoint_name);
 }
 
 }  // namespace mach

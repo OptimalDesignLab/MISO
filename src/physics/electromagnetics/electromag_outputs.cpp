@@ -1,23 +1,26 @@
 #include <cmath>
 #include <string>
 
+#include "mach_residual.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "cal2_kh_coefficient.hpp"
+#include "cal2_ke_coefficient.hpp"
 #include "coefficient.hpp"
 #include "common_outputs.hpp"
 #include "data_logging.hpp"
 #include "electromag_integ.hpp"
 #include "functional_output.hpp"
 #include "mach_input.hpp"
-// #include "mach_integrator.hpp"
+#include "mach_output.hpp"
+
+#include "pm_demag_constraint_coeff.hpp"
 
 #include "electromag_outputs.hpp"
 
 namespace mach
 {
-
-double EOutputsGlobalVariableCounter = 0;
 
 void setOptions(ForceFunctional &output, const nlohmann::json &options)
 {
@@ -102,8 +105,6 @@ double jacobianVectorProduct(DCLossFunctional &output,
    const MachInputs &inputs = *output.inputs;
    if (wrt.rfind("wire_length", 0) == 0)
    {
-      std::cout << "wire_length_dot = " << wrt_dot(0) << "\n";
-
       double rho = calcOutput(output.resistivity, inputs);
 
       double strand_area = M_PI * pow(output.strand_radius, 2);
@@ -205,6 +206,30 @@ double jacobianVectorProduct(DCLossFunctional &output,
       // double dc_loss = loss / volume;
       double dc_loss_dot =
           loss_dot / volume - loss / pow(volume, 2) * volume_dot;
+
+      return dc_loss_dot;
+   }
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      // double rho = calcOutput(output.resistivity, inputs);
+      double rho_dot = jacobianVectorProduct(output.resistivity, wrt_dot, wrt);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      double R_dot =
+          output.wire_length / (strand_area * output.strands_in_hand) * rho_dot;
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      double loss_dot = pow(output.rms_current, 2) * sqrt(2) * R_dot;
+
+      double volume = calcOutput(output.volume, inputs);
+      // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+
+      // double dc_loss = loss / volume;
+      double dc_loss_dot =
+          loss_dot / volume;  // - loss / pow(volume, 2) * volume_dot;
 
       return dc_loss_dot;
    }
@@ -476,8 +501,56 @@ void vectorJacobianProduct(DCLossFunctional &output,
       mfem::Vector rho_bar_vec(&rho_bar, 1);
       vectorJacobianProduct(output.resistivity, rho_bar_vec, wrt, wrt_bar);
    }
-   else if (wrt.rfind("temperature_field", 0) == 0)
-   { }
+   else if (wrt.rfind("temperature", 0) == 0)
+   {
+      // double rho = calcOutput(output.resistivity, inputs);
+
+      double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double R =
+      //     output.wire_length * rho / (strand_area * output.strands_in_hand);
+
+      // double loss = pow(output.rms_current, 2) * R * sqrt(2);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double dc_loss = loss / volume;
+
+      /// Start reverse pass...
+      double dc_loss_bar = out_bar(0);
+
+      /// double dc_loss = loss / volume;
+      double loss_bar = dc_loss_bar / volume;
+      // double volume_bar = -dc_loss_bar * loss / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // mfem::Vector vol_bar_vec(&volume_bar, 1);
+      // vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+
+      /// double loss = pow(output.rms_current, 2) * R * sqrt(2);
+      // double rms_current_bar =
+      //     loss_bar * 2 * output.rms_current * R * sqrt(2);
+      double R_bar = loss_bar * pow(output.rms_current, 2) * sqrt(2);
+
+      /// double R =
+      ///     output.wire_length * rho / (strand_area * output.strands_in_hand);
+      // double wire_length_bar =
+      //     R_bar * rho / (strand_area * output.strands_in_hand);
+      double rho_bar =
+          R_bar * output.wire_length / (strand_area * output.strands_in_hand);
+      // double strand_area_bar = -R_bar * output.wire_length * rho /
+      //                          (pow(strand_area, 2) *
+      //                          output.strands_in_hand);
+      // double strands_in_hand_bar =
+      //     -R_bar * output.wire_length * rho /
+      //     (strand_area * pow(output.strands_in_hand, 2));
+
+      /// double strand_area = M_PI * pow(output.strand_radius, 2);
+      // double strand_radius_bar =
+      //     strand_area_bar * M_PI * 2 * output.strand_radius;
+
+      /// double rho = calcOutput(output.resistivity, inputs);
+      mfem::Vector rho_bar_vec(&rho_bar, 1);
+      vectorJacobianProduct(output.resistivity, rho_bar_vec, wrt, wrt_bar);
+   }
 }
 
 DCLossFunctional::DCLossFunctional(
@@ -499,7 +572,6 @@ DCLossFunctional::DCLossFunctional(
    {
       resistivity.addOutputDomainIntegrator(
           new DCLossFunctionalIntegrator(sigma, temp.gridFunc()));
-      std::cout << "In the else\n";
    }
 }
 
@@ -512,6 +584,21 @@ void calcOutput(DCLossDistribution &output,
    setInputs(output.output, inputs);
    out_vec = 0.0;
    addLoad(output.output, out_vec);
+}
+
+void jacobianVectorProduct(DCLossDistribution &output,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &out_dot)
+{
+   jacobianVectorProduct(output.output, wrt_dot, wrt, out_dot);
+}
+
+double vectorJacobianProduct(DCLossDistribution &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   return vectorJacobianProduct(output.output, out_bar, wrt);
 }
 
 void vectorJacobianProduct(DCLossDistribution &output,
@@ -541,7 +628,8 @@ DCLossDistribution::DCLossDistribution(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
- : output(fields.at("temperature").space(), fields), volume(fields, options)
+ : output(fields.at("temperature").space(), fields, "thermal_adjoint"),
+   volume(fields, options)
 {
    auto &temp = fields.at("temperature");
 
@@ -810,8 +898,6 @@ double jacobianVectorProduct(ACLossFunctional &output,
    else if (wrt.rfind("temperature", 0) == 0)
    {
       // double sigma_b2 = calcOutput(output.output, output.inputs);
-      /// TODO: Determine if the sigma_b2_dot defined below computes correctly.
-      /// Should equal sigma_b2/(alpha*(T-Tref)).
       double sigma_b2_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
 
       // double strand_loss = sigma_b2 * output.stack_length * M_PI *
@@ -1321,7 +1407,6 @@ void vectorJacobianProduct(ACLossFunctional &output,
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
    }
-   // Adding in w/r/t temperature for the future. Untested.
    else if (wrt.rfind("temperature", 0) == 0)
    {
       // double sigma_b2 = calcOutput(output.output, output.inputs);
@@ -1379,8 +1464,6 @@ void vectorJacobianProduct(ACLossFunctional &output,
       //                        M_PI * pow(output.radius, 4) * 2 * output.freq *
       //                        pow(2 * M_PI, 2) / 8.0;
 
-      /// TODO: Determine if the sigma_b2_bar defined below computes correctly.
-      /// That is, is vectorJacobianProduct in functional_output.cpp correct?
       ///  double sigma_b2 = calcOutput(output.output, output.inputs);
       mfem::Vector sigma_b2_bar_vec(&sigma_b2_bar, 1);
       vectorJacobianProduct(output.output, sigma_b2_bar_vec, wrt, wrt_bar);
@@ -1448,7 +1531,8 @@ ACLossDistribution::ACLossDistribution(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
- : output(fields.at("temperature").space(), fields), volume(fields, options)
+ : output(fields.at("temperature").space(), fields, "thermal_adjoint"),
+   volume(fields, options)
 {
    auto &peak_flux = fields.at("peak_flux");
    auto &temp = fields.at("temperature");
@@ -1556,40 +1640,40 @@ CoreLossFunctional::CoreLossFunctional(
 
    if (options.contains("attributes"))
    {
-      if (options.contains("UseCAL2forCoreLoss") &&
-          options["UseCAL2forCoreLoss"].get<bool>())
-      {
-         auto attributes = options["attributes"].get<std::vector<int>>();
-         output.addOutputDomainIntegrator(
-             new CAL2CoreLossIntegrator(
-                 *rho, *CAL2_kh, *CAL2_ke, *peak_flux, *temperature_field),
-             attributes);
-         std::cout << "CoreLossFunctional using CAL2\n";
-      }
-      else
-      {
-         auto attributes = options["attributes"].get<std::vector<int>>();
-         output.addOutputDomainIntegrator(
-             new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta, "stator"),
-             attributes);
-         std::cout << "CoreLossFunctional using Steinmetz\n";
-      }
+      // if (options.contains("UseCAL2forCoreLoss") &&
+      //     options["UseCAL2forCoreLoss"].get<bool>())
+      // {
+      auto attributes = options["attributes"].get<std::vector<int>>();
+      output.addOutputDomainIntegrator(
+          new CAL2CoreLossIntegrator(
+              *rho, *CAL2_kh, *CAL2_ke, *peak_flux, *temperature_field),
+          attributes);
+      //    std::cout << "CoreLossFunctional using CAL2\n";
+      // }
+      // else
+      // {
+      //    auto attributes = options["attributes"].get<std::vector<int>>();
+      //    output.addOutputDomainIntegrator(
+      //        new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta,
+      //        "stator"), attributes);
+      //    std::cout << "CoreLossFunctional using Steinmetz\n";
+      // }
    }
    else
    {
-      if (options.contains("UseCAL2forCoreLoss") &&
-          options["UseCAL2forCoreLoss"].get<bool>())
-      {
-         output.addOutputDomainIntegrator(new CAL2CoreLossIntegrator(
-             *rho, *CAL2_kh, *CAL2_ke, *peak_flux, *temperature_field));
-         std::cout << "CoreLossFunctional using CAL2\n";
-      }
-      else
-      {
-         output.addOutputDomainIntegrator(
-             new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
-         std::cout << "CoreLossFunctional using Steinmetz\n";
-      }
+      // if (options.contains("UseCAL2forCoreLoss") &&
+      //     options["UseCAL2forCoreLoss"].get<bool>())
+      // {
+      output.addOutputDomainIntegrator(new CAL2CoreLossIntegrator(
+          *rho, *CAL2_kh, *CAL2_ke, *peak_flux, *temperature_field));
+      //    std::cout << "CoreLossFunctional using CAL2\n";
+      // }
+      // else
+      // {
+      //    output.addOutputDomainIntegrator(
+      //        new SteinmetzLossIntegrator(*rho, *k_s, *alpha, *beta));
+      //    std::cout << "CoreLossFunctional using Steinmetz\n";
+      // }
    }
 }
 
@@ -1615,7 +1699,7 @@ CAL2CoreLossDistribution::CAL2CoreLossDistribution(
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
- : output(fields.at("temperature").space(), fields),
+ : output(fields.at("temperature").space(), fields, "thermal_adjoint"),
    rho(constructMaterialCoefficient("rho", components, materials)),
    CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
    CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
@@ -1638,76 +1722,40 @@ CAL2CoreLossDistribution::CAL2CoreLossDistribution(
    }
 }
 
-void setOptions(EMHeatSourceOutput &output, const nlohmann::json &options)
-{
-   setOptions(output.lf, options);
-}
-
-void setInputs(EMHeatSourceOutput &output, const MachInputs &inputs)
-{
-   setInputs(output.lf, inputs);
-}
-
 void calcOutput(EMHeatSourceOutput &output,
                 const MachInputs &inputs,
                 mfem::Vector &out_vec)
 {
    setInputs(output, inputs);
-
-   std::cout << "calcOutput in EMHeatSourceOutput\n";
-
    out_vec = 0.0;
-   addLoad(output.lf, out_vec);
+   calcOutput(output.dc_loss, inputs, out_vec);
+   calcOutput(output.ac_loss, inputs, output.scratch);
+   out_vec += output.scratch;
+   calcOutput(output.core_loss, inputs, output.scratch);
+   out_vec += output.scratch;
+}
 
-   std::cout << "Load has been added to out_vec in calcOutput in "
-                "EMHeatSourceOutput\n";
+void vectorJacobianProduct(EMHeatSourceOutput &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   vectorJacobianProduct(output.dc_loss, out_bar, wrt, wrt_bar);
+   vectorJacobianProduct(output.ac_loss, out_bar, wrt, wrt_bar);
+   vectorJacobianProduct(output.core_loss, out_bar, wrt, wrt_bar);
 }
 
 EMHeatSourceOutput::EMHeatSourceOutput(
     std::map<std::string, FiniteElementState> &fields,
-    mfem::Coefficient &rho,
     StateCoefficient &sigma,
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
- : lf(fields.at("temperature").space(), fields),
-   rho(constructMaterialCoefficient("rho", components, materials)),
-   k_s(constructMaterialCoefficient("ks", components, materials)),
-   alpha(constructMaterialCoefficient("alpha", components, materials)),
-   beta(constructMaterialCoefficient("beta", components, materials)),
-   CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
-   CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
-{
-   auto &peak_flux = fields.at("peak_flux");
-   auto &temp = fields.at("temperature");
-
-   std::vector<int> stator_attrs =
-       components["stator"]["attrs"].get<std::vector<int>>();
-   if (options.contains("UseCAL2forCoreLoss") &&
-       options["UseCAL2forCoreLoss"].get<bool>())
-   {
-      lf.addDomainIntegrator(
-          new CAL2CoreLossDistributionIntegrator(
-              rho, *CAL2_kh, *CAL2_ke, peak_flux.gridFunc(), temp.gridFunc()),
-          stator_attrs);
-   }
-   else
-   {
-      lf.addDomainIntegrator(new SteinmetzLossDistributionIntegrator(
-                                 rho, *k_s, *alpha, *beta, "stator"),
-                             stator_attrs);
-   }
-
-   std::vector<int> winding_attrs =
-       components["windings"]["attrs"].get<std::vector<int>>();
-
-   lf.addDomainIntegrator(
-       new DCLossDistributionIntegrator(sigma, temp.gridFunc()), winding_attrs);
-
-   lf.addDomainIntegrator(new ACLossDistributionIntegrator(
-                              peak_flux.gridFunc(), temp.gridFunc(), sigma),
-                          winding_attrs);
-}
+ : dc_loss(fields, sigma, options["dc_loss"]),
+   ac_loss(fields, sigma, options["ac_loss"]),
+   core_loss(fields, components, materials, options["core_loss"]),
+   scratch(getSize(dc_loss))
+{ }
 
 void setOptions(PMDemagOutput &output, const nlohmann::json &options)
 {

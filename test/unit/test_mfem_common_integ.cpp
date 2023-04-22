@@ -30,8 +30,6 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
 {
    using namespace mfem;
 
-   //Adapted from TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy") in test_electromag_integ
-
    // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
    int num_edge = 2;
    double x_length = 1.5;
@@ -43,12 +41,56 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
    const auto dim = mesh.SpaceDimension();
 
    //Function Coefficient model Representing the Temperature Field (elfun)
-   FunctionCoefficient Tfield_model(
+   FunctionCoefficient temp(
       [](const mfem::Vector &x)
       {
-         // T(x)=x(0)^2
-         return std::pow(x(0),2);
+         return std::pow(x(0),4);
       });
+   
+   // Set the conductivity kappa to be a constant 1
+   ConstantCoefficient kappa(1.0);
+
+   // double boundary_flux_exact = -2.0*(x_length*y_length); //2*the area for T(x)=x(0)^2
+   std::vector<double> boundary_flux_exact = {-11.8125, -24.890625, -26.60390625, -27.0};
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         // Create the finite element collection and finite element space for the current order
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         GridFunction temperature(&fes);
+         temperature.ProjectCoefficient(temp);
+
+         // Define the functional integrator that will be used to compute the BoundaryFlux
+         NonlinearForm functional(&fes);
+         functional.AddBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa));
+
+         double boundary_flux = functional.GetEnergy(temperature);
+
+         REQUIRE(boundary_flux == Approx(boundary_flux_exact[p-1]));
+      }
+   }
+}
+
+TEST_CASE("BoundaryNormalIntegrator::AssembleFaceVector")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   double x_length = 1.5;
+   double y_length = 2.0;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE, 
+                                     false, x_length, y_length);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
    
    for (int p = 1; p <= 4; ++p)
    {
@@ -58,13 +100,9 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
          H1_FECollection fec(p, dim);
          FiniteElementSpace fes(&mesh, &fec);
 
-         // extract mesh nodes and get their finite-element space
-         auto &x_nodes = *mesh.GetNodes();
-         auto &mesh_fes = *x_nodes.FESpace();
-
-         // Create the temperature_field grid function by mapping the function coefficient to a grid function
-         GridFunction temperature_field_test(&fes);
-         temperature_field_test.ProjectCoefficient(Tfield_model);
+         GridFunction temperature(&fes);
+         FunctionCoefficient pert(randState);
+         temperature.ProjectCoefficient(pert);
 
          // Set the conductivity kappa to be a constant 1
          ConstantCoefficient kappa(1.0);
@@ -73,13 +111,24 @@ TEST_CASE("BoundaryNormalIntegrator::GetFaceEnergy")
          NonlinearForm functional(&fes);
          functional.AddBdrFaceIntegrator(new mach::BoundaryNormalIntegrator(kappa));
 
-         // Compute the value of the boundary flux
-         double BoundaryFlux = functional.GetEnergy(temperature_field_test);
-         // std::cout << "BoundaryFlux = " << BoundaryFlux << "\n";
+         // initialize the vector that dJdu multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
 
-         /// TODO: Assert the computed boundary flux is correct
-         double expected_BoundaryFlux = 2.0*(x_length*y_length); //2*the area for T(x)=x(0)^2
-         //REQUIRE(BoundaryFlux == Approx(expected_BoundaryFlux)); // Assert the BoundaryNormalIntegrator is working as expected
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(&fes);
+         functional.Mult(temperature, dJdu);
+         double dJdu_dot_p = dJdu * p;
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(temperature);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
       }
    }
 }

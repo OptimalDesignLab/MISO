@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "mach_linearform.hpp"
+#include "mach_output.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -14,11 +15,6 @@
 #include "functional_output.hpp"
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
-
-// Needed for CoreLossFunctional or PMDemagOutput
-#include "cal2_kh_coefficient.hpp"
-#include "cal2_ke_coefficient.hpp"
-#include "pm_demag_constraint_coeff.hpp"
 
 namespace mach
 {
@@ -423,14 +419,14 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   friend void jacobianVectorProduct(ACLossDistribution &output,
-                                     const mfem::Vector &wrt_dot,
-                                     const std::string &wrt,
-                                     mfem::Vector &out_dot);
+   // friend void jacobianVectorProduct(ACLossDistribution &output,
+   //                                   const mfem::Vector &wrt_dot,
+   //                                   const std::string &wrt,
+   //                                   mfem::Vector &out_dot);
 
-   friend double vectorJacobianProduct(ACLossDistribution &output,
-                                       const mfem::Vector &out_bar,
-                                       const std::string &wrt);
+   // friend double vectorJacobianProduct(ACLossDistribution &output,
+   //                                     const mfem::Vector &out_bar,
+   //                                     const std::string &wrt);
 
    friend void vectorJacobianProduct(ACLossDistribution &output,
                                      const mfem::Vector &out_bar,
@@ -529,14 +525,14 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   friend void jacobianVectorProduct(CAL2CoreLossDistribution &output,
-                                     const mfem::Vector &wrt_dot,
-                                     const std::string &wrt,
-                                     mfem::Vector &out_dot);
+   // friend void jacobianVectorProduct(CAL2CoreLossDistribution &output,
+   //                                   const mfem::Vector &wrt_dot,
+   //                                   const std::string &wrt,
+   //                                   mfem::Vector &out_dot);
 
-   friend double vectorJacobianProduct(CAL2CoreLossDistribution &output,
-                                       const mfem::Vector &out_bar,
-                                       const std::string &wrt);
+   // friend double vectorJacobianProduct(CAL2CoreLossDistribution &output,
+   //                                     const mfem::Vector &out_bar,
+   //                                     const std::string &wrt);
 
    friend void vectorJacobianProduct(CAL2CoreLossDistribution &output,
                                      const mfem::Vector &out_bar,
@@ -566,13 +562,24 @@ class EMHeatSourceOutput final
 public:
    friend inline int getSize(const EMHeatSourceOutput &output)
    {
-      return getSize(output.lf);
+      return getSize(output.dc_loss);
    }
 
-   friend void setOptions(EMHeatSourceOutput &output,
-                          const nlohmann::json &options);
+   friend inline void setOptions(EMHeatSourceOutput &output,
+                                 const nlohmann::json &options)
+   {
+      setOptions(output.dc_loss, options);
+      setOptions(output.ac_loss, options);
+      setOptions(output.core_loss, options);
+   }
 
-   friend void setInputs(EMHeatSourceOutput &output, const MachInputs &inputs);
+   friend inline void setInputs(EMHeatSourceOutput &output,
+                                const MachInputs &inputs)
+   {
+      setInputs(output.dc_loss, inputs);
+      setInputs(output.ac_loss, inputs);
+      setInputs(output.core_loss, inputs);
+   }
 
    friend double calcOutput(EMHeatSourceOutput &output,
                             const MachInputs &inputs)
@@ -584,14 +591,14 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   friend void jacobianVectorProduct(EMHeatSourceOutput &output,
-                                     const mfem::Vector &wrt_dot,
-                                     const std::string &wrt,
-                                     mfem::Vector &out_dot);
+   // friend void jacobianVectorProduct(EMHeatSourceOutput &output,
+   //                                   const mfem::Vector &wrt_dot,
+   //                                   const std::string &wrt,
+   //                                   mfem::Vector &out_dot);
 
-   friend double vectorJacobianProduct(EMHeatSourceOutput &output,
-                                       const mfem::Vector &out_bar,
-                                       const std::string &wrt);
+   // friend double vectorJacobianProduct(EMHeatSourceOutput &output,
+   //                                     const mfem::Vector &out_bar,
+   //                                     const std::string &wrt);
 
    friend void vectorJacobianProduct(EMHeatSourceOutput &output,
                                      const mfem::Vector &out_bar,
@@ -599,26 +606,17 @@ public:
                                      mfem::Vector &wrt_bar);
 
    EMHeatSourceOutput(std::map<std::string, FiniteElementState> &fields,
-                      mfem::Coefficient &rho,
                       StateCoefficient &sigma,
                       const nlohmann::json &components,
                       const nlohmann::json &materials,
                       const nlohmann::json &options);
 
 private:
-   MachLinearForm lf;
+   DCLossDistribution dc_loss;
+   ACLossDistribution ac_loss;
+   CAL2CoreLossDistribution core_loss;
 
-   /// Density
-   std::unique_ptr<mfem::Coefficient> rho;
-
-   /// Steinmetz coefficients
-   std::unique_ptr<mfem::Coefficient> k_s;
-   std::unique_ptr<mfem::Coefficient> alpha;
-   std::unique_ptr<mfem::Coefficient> beta;
-
-   /// CAL2 Coefficients
-   std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
-   std::unique_ptr<ThreeStateCoefficient> CAL2_ke;
+   mfem::Vector scratch;
 };
 
 // Adding an output for the permanent magnet demagnetization constraint equation

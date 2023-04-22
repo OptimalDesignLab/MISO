@@ -47,6 +47,12 @@ public:
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
+   friend void finalizeAdjointSystem(ThermalResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const MachInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(ThermalResidual &residual,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);

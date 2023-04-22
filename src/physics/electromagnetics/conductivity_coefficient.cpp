@@ -51,10 +51,10 @@ public:
                             const mfem::IntegrationPoint &ip,
                             const double state) override;
 
-   /// TODO: Adapt EvalRevDiff as needed for conductivity
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override
    { }
 
@@ -215,13 +215,13 @@ double ConductivityCoefficient::EvalState2ndDeriv(
    return sigma.EvalState2ndDeriv(trans, ip, state);
 }
 
-/// TODO: Adapt if keeping, remove if not
 void ConductivityCoefficient::EvalRevDiff(const double Q_bar,
                                           mfem::ElementTransformation &trans,
                                           const mfem::IntegrationPoint &ip,
+                                          double state,
                                           mfem::DenseMatrix &PointMat_bar)
 {
-   sigma.EvalRevDiff(Q_bar, trans, ip, PointMat_bar);
+   sigma.EvalRevDiff(Q_bar, trans, ip, state, PointMat_bar);
 }
 
 /// TODO: Change sigma(std::make_unique<mfem::ConstantCoefficient>(58.14e6) line

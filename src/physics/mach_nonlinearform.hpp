@@ -125,19 +125,21 @@ public:
    /// \param[in] pfes - FEM space for the state (and possibly the adjoint)
    /// \param[in] fields - map of grid functions
    MachNonlinearForm(mfem::ParFiniteElementSpace &pfes,
-                     std::map<std::string, FiniteElementState> &fields)
+                     std::map<std::string, FiniteElementState> &fields,
+                     std::string adjoint_name = "adjoint")
     : nf(&pfes),
       scratch(0),
       nf_fields(fields),
+      adjoint_name(adjoint_name),
       jac(mfem::Operator::Hypre_ParCSR),
       jac_e(mfem::Operator::Hypre_ParCSR)
    {
-      if (nf_fields.count("adjoint") == 0)
+      if (nf_fields.count(adjoint_name) == 0)
       {
          // nf_fields.emplace("adjoint", {*pfes.GetParMesh(), pfes});
-         nf_fields.emplace(std::piecewise_construct,
-                           std::forward_as_tuple("adjoint"),
-                           std::forward_as_tuple(*pfes.GetParMesh(), pfes));
+         nf_fields.emplace(
+             adjoint_name,
+             FiniteElementState(*pfes.GetParMesh(), pfes, adjoint_name));
       }
    }
 
@@ -159,6 +161,9 @@ private:
 
    /// map of external fields that the nonlinear form depends on
    std::map<std::string, FiniteElementState> &nf_fields;
+
+   /// name of the field that holds the adjoint for this nonlinear form
+   std::string adjoint_name;
 
    /// map of linear forms that will compute (dF / dfield) * field_dot
    /// for each field the nonlinear form depends on
@@ -196,7 +201,8 @@ void MachNonlinearForm::addDomainIntegrator(T *integrator)
                                   rev_scalar_sens,
                                   fwd_sens,
                                   fwd_scalar_sens,
-                                  nullptr);
+                                  nullptr,
+                                  adjoint_name);
 }
 
 template <typename T>
@@ -216,7 +222,8 @@ void MachNonlinearForm::addDomainIntegrator(
                                   rev_scalar_sens,
                                   fwd_sens,
                                   fwd_scalar_sens,
-                                  &marker);
+                                  &marker,
+                                  adjoint_name);
 }
 
 template <typename T>
@@ -229,7 +236,8 @@ void MachNonlinearForm::addInteriorFaceIntegrator(T *integrator)
                                         rev_sens,
                                         rev_scalar_sens,
                                         fwd_sens,
-                                        fwd_scalar_sens);
+                                        fwd_scalar_sens,
+                                        adjoint_name);
 }
 
 template <typename T>
@@ -243,7 +251,8 @@ void MachNonlinearForm::addBdrFaceIntegrator(T *integrator)
                                rev_scalar_sens,
                                fwd_sens,
                                fwd_scalar_sens,
-                               nullptr);
+                               nullptr,
+                               adjoint_name);
 }
 
 template <typename T>
@@ -263,7 +272,8 @@ void MachNonlinearForm::addBdrFaceIntegrator(
                                rev_scalar_sens,
                                fwd_sens,
                                fwd_scalar_sens,
-                               &marker);
+                               &marker,
+                               adjoint_name);
 }
 
 }  // namespace mach

@@ -16,17 +16,80 @@ class VectorStateCoefficient;
 class BoundaryNormalIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   /// Constructs a boundary integrator with a given Coefficient QG
    BoundaryNormalIntegrator(mfem::Coefficient &kappa) : kappa(kappa) { }
 
    double GetFaceEnergy(const mfem::FiniteElement &el1,
                         const mfem::FiniteElement &el2,
                         mfem::FaceElementTransformations &trans,
-                        const mfem::Vector &elfun);
+                        const mfem::Vector &elfun) override;
+
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elfun_bar) override;
 
 private:
    mfem::Coefficient &kappa;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape1;
+   mfem::Vector dshape1dn;
+#endif
+
+   friend class BoundaryNormalIntegratorMeshSens;
 };
+
+class BoundaryNormalIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// \param[in] state - the state to use when evaluating df/dX
+   /// \param[in] integ - reference to primal integrator
+   BoundaryNormalIntegratorMeshSens(mfem::GridFunction &state,
+                                    BoundaryNormalIntegrator &integ)
+    : state(state), integ(integ)
+   { }
+
+private:
+   /// the state to use when evaluating df/dX
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   BoundaryNormalIntegrator &integ;
+#ifndef MFEM_THREAD_SAFE
+   mfem::DenseMatrix PointMat_bar;
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+};
+
+inline void addBdrSensitivityIntegrator(
+    BoundaryNormalIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new BoundaryNormalIntegratorMeshSens(
+              fields.at("state").gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new BoundaryNormalIntegratorMeshSens(
+                                   fields.at("state").gridFunc(), primal_integ),
+                               *attr_marker);
+   }
+}
 
 class VolumeIntegrator : public mfem::NonlinearFormIntegrator
 {
@@ -1117,7 +1180,8 @@ inline void addDomainSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
-    mfem::Array<int> *attr_marker)
+    mfem::Array<int> *attr_marker,
+    std::string adjoint_name)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
@@ -1126,14 +1190,14 @@ inline void addDomainSensitivityIntegrator(
    {
       rev_sens.at("mesh_coords")
           .AddDomainIntegrator(new DomainLFIntegratorMeshRevSens(
-              fields.at("adjoint").gridFunc(), primal_integ));
+              fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
    {
       rev_sens.at("mesh_coords")
           .AddDomainIntegrator(
-              new DomainLFIntegratorMeshRevSens(fields.at("adjoint").gridFunc(),
-                                                primal_integ),
+              new DomainLFIntegratorMeshRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
               *attr_marker);
    }
 }

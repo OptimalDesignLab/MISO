@@ -94,7 +94,7 @@ double vectorJacobianProduct(MachLinearForm &load,
    {
       /// Integrators added to rev_scalar_sens will reference the adjoint grid
       /// func so we update it here
-      auto &adjoint = load.lf_fields->at("adjoint");
+      auto &adjoint = load.lf_fields->at(load.adjoint_name);
       adjoint.distributeSharedDofs(load_bar);
 
       /// The state must have previously been distributed before calling this
@@ -119,7 +119,7 @@ void vectorJacobianProduct(MachLinearForm &load,
 
       /// Integrators added to rev_sens will reference the adjoint, grid func
       /// so we update it here
-      auto &adjoint = load.lf_fields->at("adjoint");
+      auto &adjoint = load.lf_fields->at(load.adjoint_name);
       adjoint.distributeSharedDofs(load.scratch);
 
       auto &wrt_rev_sens = load.rev_sens.at(wrt);

@@ -74,6 +74,15 @@ void setUpAdjointSystem(ThermalResidual &residual,
    setUpAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
 }
 
+void finalizeAdjointSystem(ThermalResidual &residual,
+                           mfem::Solver &adj_solver,
+                           const MachInputs &inputs,
+                           mfem::Vector &state_bar,
+                           mfem::Vector &adjoint)
+{
+   finalizeAdjointSystem(residual.res, adj_solver, inputs, state_bar, adjoint);
+}
+
 double jacobianVectorProduct(ThermalResidual &residual,
                              const mfem::Vector &wrt_dot,
                              const std::string &wrt)

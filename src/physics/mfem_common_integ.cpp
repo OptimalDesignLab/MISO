@@ -19,25 +19,20 @@ double BoundaryNormalIntegrator::GetFaceEnergy(
     mfem::FaceElementTransformations &trans,
     const mfem::Vector &elfun)
 {
-   // std::cout << "TODO: Ultimately remove these comments from
-   // mfem_common_integ.cpp\n";
-
-   // std::cout << "elfun=np.array([";
-   // for (int j = 0; j < elfun.Size(); j++) {std::cout << elfun.Elem(j) << ",
-   // ";} std::cout << "])\n";
-
-   int ndof1 = el1.GetDof();
-   // int dim = el1.GetDim()+1;
+   int ndof = el1.GetDof();
    int dim = el1.GetDim();
-   mfem::Vector nor(dim);
-   mfem::Vector ni(dim);
-   mfem::Vector nh(dim);
-   mfem::Vector shape1(ndof1);
-   mfem::DenseMatrix dshape1(ndof1, dim);
-   mfem::Vector dshape1dn(ndof1);
-   mfem::DenseMatrix adjJ(dim, dim);
 
-   // std::cout << "ndof=" << ndof1 << ", dim=" << dim << "\n";
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape1;
+   mfem::Vector dshape1dn;
+#endif
+   dshape1.SetSize(ndof, dim);
+   dshape1dn.SetSize(ndof);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+   double nh_buffer[3] = {};
+   mfem::Vector nh(nh_buffer, dim);
 
    const auto *ir = IntRule;
    if (ir == nullptr)
@@ -49,22 +44,17 @@ double BoundaryNormalIntegrator::GetFaceEnergy(
    }
 
    double heat_flux = 0.0;
-   for (int p = 0; p < ir->GetNPoints(); p++)
+   for (int i = 0; i < ir->GetNPoints(); i++)
    {
-      // std::cout << "heat_flux contribution before this next ip = " <<
-      // heat_flux << "\n";
-
-      const IntegrationPoint &ip = ir->IntPoint(p);
+      const IntegrationPoint &ip = ir->IntPoint(i);
 
       // Set the integration point in the face and the neighboring elements
       trans.SetAllIntPoints(&ip);
 
+      double w = ip.weight / trans.Elem1->Weight();
+
       // Access the neighboring elements' integration points
       const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
-      mfem::Vector integration_point;
-      trans.Transform(eip1, integration_point);
-      // std::cout << "integration_point = ";
-      // integration_point.Print();
 
       if (dim == 1)
       {
@@ -75,34 +65,89 @@ double BoundaryNormalIntegrator::GetFaceEnergy(
          CalcOrtho(trans.Jacobian(), nor);
       }
 
-      el1.CalcShape(eip1, shape1);
       el1.CalcDShape(eip1, dshape1);
+      trans.Elem1->AdjugateJacobian().Mult(nor, nh);
+      dshape1.Mult(nh, dshape1dn);
+
+      double kappa_v = kappa.Eval(*trans.Elem1, eip1);
+
+      heat_flux += -kappa_v * (dshape1dn * elfun) * w;
+   }
+   return heat_flux;
+}
+
+void BoundaryNormalIntegrator::AssembleFaceVector(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elfun_bar)
+{
+   int ndof = el1.GetDof();
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::DenseMatrix dshape1;
+   mfem::Vector dshape1dn;
+#endif
+   dshape1.SetSize(ndof, dim);
+   dshape1dn.SetSize(ndof);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+   double nh_buffer[3] = {};
+   mfem::Vector nh(nh_buffer, dim);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      // int order = el1.GetOrder() + el2.GetOrder() + trans.OrderW();
+      int order = el1.GetOrder() + trans.OrderW();
+      // ir = &mfem::IntRules.Get(el1.GetGeomType(), order);
+      ir = &IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elfun_bar.SetSize(ndof);
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      // Set the integration point in the face and the neighboring elements
+      trans.SetAllIntPoints(&ip);
+
       double w = ip.weight / trans.Elem1->Weight();
 
-      // std::cout << "kappa @ ip = " << kappa.Eval(*trans.Elem1, eip1);
+      // Access the neighboring elements' integration points
+      const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
 
-      // Negative sign because -k grad(T)
-      w *= -kappa.Eval(*trans.Elem1, eip1);
-      ni.Set(w, nor);
-
-      CalcAdjugate(trans.Elem1->Jacobian(), adjJ);
-      adjJ.Mult(ni, nh);
-
-      dshape1.Mult(nh, dshape1dn);
-      // std::cout << "dshape1dn=";
-      // dshape1dn.Print();
-      // std::cout << "elfun=";
-      // elfun.Print();
-      for (int j = 0; j < ndof1; j++)
+      if (dim == 1)
       {
-         heat_flux += dshape1dn(j) *
-                      elfun(j);  // elfun(j) is the value of the temperature at
-                                 // node j of the element state vector
-         // std::cout << "heat_flux = " << heat_flux << "\n";
+         nor(0) = 2 * eip1.x - 1.0;
       }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcDShape(eip1, dshape1);
+      trans.Elem1->AdjugateJacobian().Mult(nor, nh);
+      dshape1.Mult(nh, dshape1dn);
+
+      double kappa_v = kappa.Eval(*trans.Elem1, eip1);
+
+      // heat_flux += -kappa_v * (dshape1dn * elfun) * w;
+      elfun_bar.Add(-kappa_v * w, dshape1dn);
    }
-   // std::cout << "heat_flux for this edge = " << heat_flux << "\n";
-   return heat_flux;
+}
+
+void BoundaryNormalIntegratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   mfem_error(
+       "mesh sensitivities not implemented for BoundaryNormalIntegrator!\n");
 }
 
 double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
@@ -654,8 +699,8 @@ void IEAggregateIntegratorNumeratorMeshSens::AssembleRHSElementVect(
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int mesh_ndof = mesh_el.GetDof();
-   const int ndof = el.GetDof();
-   const int dim = el.GetDim();
+   // const int ndof = el.GetDof();
+   // const int dim = el.GetDim();
    const int space_dim = trans.GetSpaceDim();
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
@@ -687,8 +732,8 @@ void IEAggregateIntegratorNumeratorMeshSens::AssembleRHSElementVect(
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-      const double trans_weight = trans.Weight();
-      const double w = ip.weight * trans_weight;
+      // const double trans_weight = trans.Weight();
+      // const double w = ip.weight * trans_weight;
 
       el.CalcShape(ip, shape);
       const double g = shape * elfun;
@@ -817,8 +862,8 @@ void IEAggregateIntegratorDenominatorMeshSens::AssembleRHSElementVect(
    auto &trans = *state.FESpace()->GetElementTransformation(element);
 
    const int mesh_ndof = mesh_el.GetDof();
-   const int ndof = el.GetDof();
-   const int dim = el.GetDim();
+   // const int ndof = el.GetDof();
+   // const int dim = el.GetDim();
    const int space_dim = trans.GetSpaceDim();
 
    auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
@@ -850,8 +895,8 @@ void IEAggregateIntegratorDenominatorMeshSens::AssembleRHSElementVect(
    {
       const auto &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-      const double trans_weight = trans.Weight();
-      const double w = ip.weight * trans_weight;
+      // const double trans_weight = trans.Weight();
+      // const double w = ip.weight * trans_weight;
 
       el.CalcShape(ip, shape);
       const double g = shape * elfun;
@@ -1590,7 +1635,7 @@ double IEAggregateDemagIntegratorNumerator::GetElementEnergy(
 
    // Create the vector that will store the magnetization
    /// TODO: Determine if need mag_flux_buffer
-   double mag_flux_buffer[3] = {};
+   // double mag_flux_buffer[3] = {};
    int space_dim = trans.GetSpaceDim();
    // mfem::Vector M(mag_flux_buffer, space_dim);
    mfem::Vector M(space_dim);
@@ -1857,7 +1902,7 @@ double IEAggregateDemagIntegratorDenominator::GetElementEnergy(
 
    // Create the vector that will store the magnetization
    /// TODO: Determine if need mag_flux_buffer
-   double mag_flux_buffer[3] = {};
+   // double mag_flux_buffer[3] = {};
    int space_dim = trans.GetSpaceDim();
    // mfem::Vector M(mag_flux_buffer, space_dim);
    mfem::Vector M(space_dim);

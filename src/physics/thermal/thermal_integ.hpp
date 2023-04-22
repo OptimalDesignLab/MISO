@@ -139,23 +139,6 @@ private:
 #endif
 };
 
-// inline void addSensitivityIntegrator(
-//     ConvectionBCIntegrator &primal_integ,
-//     std::map<std::string, FiniteElementState> &fields,
-//     std::map<std::string, mfem::ParLinearForm> &rev_sens,
-//     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
-//     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-//     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
-// {
-//    auto &mesh_fes = fields.at("mesh_coords").space();
-//    rev_sens.emplace("mesh_coords", &mesh_fes);
-//    rev_sens.at("mesh_coords")
-//        .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
-//            fields.at("state").gridFunc(),
-//            fields.at("adjoint").gridFunc(),
-//            primal_integ));
-// }
-
 inline void addBdrSensitivityIntegrator(
     ConvectionBCIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -163,7 +146,8 @@ inline void addBdrSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
-    mfem::Array<int> *attr_marker)
+    mfem::Array<int> *attr_marker,
+    std::string adjoint_name)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
@@ -173,7 +157,7 @@ inline void addBdrSensitivityIntegrator(
       rev_sens.at("mesh_coords")
           .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
               fields.at("state").gridFunc(),
-              fields.at("adjoint").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
               primal_integ));
    }
    else
@@ -181,7 +165,7 @@ inline void addBdrSensitivityIntegrator(
       rev_sens.at("mesh_coords")
           .AddBoundaryIntegrator(new ConvectionBCIntegratorMeshRevSens(
                                      fields.at("state").gridFunc(),
-                                     fields.at("adjoint").gridFunc(),
+                                     fields.at(adjoint_name).gridFunc(),
                                      primal_integ),
                                  *attr_marker);
    }
@@ -259,7 +243,8 @@ inline void addBdrSensitivityIntegrator(
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
     std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
-    mfem::Array<int> *attr_marker)
+    mfem::Array<int> *attr_marker,
+    std::string adjoint_name)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
@@ -269,7 +254,7 @@ inline void addBdrSensitivityIntegrator(
       rev_sens.at("mesh_coords")
           .AddBoundaryIntegrator(new OutfluxBCIntegratorMeshRevSens(
               fields.at("state").gridFunc(),
-              fields.at("adjoint").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
               primal_integ));
    }
    else
@@ -277,7 +262,7 @@ inline void addBdrSensitivityIntegrator(
       rev_sens.at("mesh_coords")
           .AddBoundaryIntegrator(new OutfluxBCIntegratorMeshRevSens(
                                      fields.at("state").gridFunc(),
-                                     fields.at("adjoint").gridFunc(),
+                                     fields.at(adjoint_name).gridFunc(),
                                      primal_integ),
                                  *attr_marker);
    }
