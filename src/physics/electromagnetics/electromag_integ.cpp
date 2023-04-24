@@ -10163,8 +10163,9 @@ double CAL2CoreLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
       double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
       double ke_v_bar =
           loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
-      double freq_bar = loss_bar * rho_v *
-                         (kh_v * std::pow(b_mag, 2) + ke_v * 2 * freq * std::pow(b_mag, 2));
+      double freq_bar =
+          loss_bar * rho_v *
+          (kh_v * std::pow(b_mag, 2) + ke_v * 2 * freq * std::pow(b_mag, 2));
 
       /// auto rho_v = rho.Eval(trans, ip);
 

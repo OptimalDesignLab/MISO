@@ -3254,8 +3254,9 @@ inline void addDomainSensitivityIntegrator(
                   fields.at(adjoint_name).gridFunc(), primal_integ));
 
       rev_scalar_sens.at("frequency")
-          .AddDomainIntegrator(new CAL2CoreLossDistributionIntegratorFrequencyRevSens(
-              fields.at(adjoint_name).gridFunc(), primal_integ));
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorFrequencyRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
    {
