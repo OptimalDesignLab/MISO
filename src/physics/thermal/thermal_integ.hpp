@@ -94,6 +94,8 @@ private:
 #endif
 
    friend class ConvectionBCIntegratorMeshRevSens;
+   friend class ConvectionBCIntegratorHRevSens;
+   friend class ConvectionBCIntegratorFluidTempRevSens;
 };
 
 /// Integrator to assemble d(psi^T R)/dX for the ConvectionBCIntegrator
@@ -139,6 +141,61 @@ private:
 #endif
 };
 
+class ConvectionBCIntegratorHRevSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetFaceEnergy(const mfem::FiniteElement &el1,
+                        const mfem::FiniteElement &el2,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ConvectionBCIntegratorHRevSens(mfem::GridFunction &adjoint,
+                                  ConvectionBCIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ConvectionBCIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ConvectionBCIntegratorFluidTempRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetFaceEnergy(const mfem::FiniteElement &el1,
+                        const mfem::FiniteElement &el2,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ConvectionBCIntegratorFluidTempRevSens(mfem::GridFunction &adjoint,
+                                          ConvectionBCIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ConvectionBCIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
 inline void addBdrSensitivityIntegrator(
     ConvectionBCIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -152,6 +209,10 @@ inline void addBdrSensitivityIntegrator(
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
 
+   auto &state_fes = fields.at("state").space();
+   rev_scalar_sens.emplace("h", &state_fes);
+   rev_scalar_sens.emplace("fluid_temp", &state_fes);
+
    if (attr_marker == nullptr)
    {
       rev_sens.at("mesh_coords")
@@ -159,6 +220,14 @@ inline void addBdrSensitivityIntegrator(
               fields.at("state").gridFunc(),
               fields.at(adjoint_name).gridFunc(),
               primal_integ));
+
+      rev_scalar_sens.at("h").AddDomainIntegrator(
+          new ConvectionBCIntegratorHRevSens(fields.at(adjoint_name).gridFunc(),
+                                             primal_integ));
+
+      rev_scalar_sens.at("fluid_temp")
+          .AddDomainIntegrator(new ConvectionBCIntegratorFluidTempRevSens(
+              fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
    {
@@ -168,6 +237,17 @@ inline void addBdrSensitivityIntegrator(
                                      fields.at(adjoint_name).gridFunc(),
                                      primal_integ),
                                  *attr_marker);
+
+      rev_scalar_sens.at("h").AddDomainIntegrator(
+          new ConvectionBCIntegratorHRevSens(fields.at(adjoint_name).gridFunc(),
+                                             primal_integ),
+          *attr_marker);
+
+      rev_scalar_sens.at("fluid_temp")
+          .AddDomainIntegrator(
+              new ConvectionBCIntegratorFluidTempRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
    }
 }
 

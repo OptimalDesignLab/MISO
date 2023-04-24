@@ -209,6 +209,140 @@ TEST_CASE("ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("ConvectionBCIntegratorHRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::ConvectionBCIntegrator;
+         setInputs(*integ, {
+            {"h", 10.0}
+         });
+         res.AddBdrFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddBdrFaceIntegrator(
+         // dfdx.AddBoundaryIntegrator(
+            new mach::ConvectionBCIntegratorHRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"h", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"h", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ConvectionBCIntegratorFluidTempRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::ConvectionBCIntegrator;
+         setInputs(*integ, {
+            {"fluid_temp", 100.0}
+         });
+         res.AddBdrFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddBdrFaceIntegrator(
+         // dfdx.AddBoundaryIntegrator(
+            new mach::ConvectionBCIntegratorFluidTempRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"fluid_temp", 100 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"fluid_temp", 100 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
 TEST_CASE("OutfluxBCIntegrator::AssembleFaceGrad")
 {
    using namespace mfem;

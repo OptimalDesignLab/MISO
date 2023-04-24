@@ -336,6 +336,166 @@ void ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 }
 
+double ConvectionBCIntegratorHRevSens::GetFaceEnergy(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   const int state_elem_num = trans.Elem1->ElementNo;
+   const int ndof = el1.GetDof();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix shape;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(ndof);
+
+   const mfem::IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el1.GetOrder() + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   // auto &h = integ.h;
+   auto &theta_f = integ.theta_f;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = alpha * ip.weight * trans_weight;
+
+      // Access the neighboring element's integration point
+      const auto &eip = trans.GetElement1IntPoint();
+      el1.CalcShape(eip, shape);
+
+      // const double flux = h * ((elfun * shape) - theta_f);
+      const double adjoint = psi * shape;
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += adjoint * flux * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += adjoint * flux * w;
+      // double adjoint_bar = fun_bar * flux * w;
+      double flux_bar = fun_bar * adjoint * w;
+      // double w_bar = fun_bar * adjoint * flux;
+
+      /// const double adjoint = psi * shape;
+
+      /// const double flux = h * ((elfun * shape) - theta_f);
+      const double h_bar = flux_bar * ((elfun * shape) - theta_f);
+
+      /// const double w = alpha * ip.weight * trans_weight;
+
+      fun += h_bar;
+   }
+   return fun;
+}
+
+double ConvectionBCIntegratorFluidTempRevSens::GetFaceEnergy(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   const int state_elem_num = trans.Elem1->ElementNo;
+   const int ndof = el1.GetDof();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   DenseMatrix shape;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(ndof);
+
+   const mfem::IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el1.GetOrder() + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   auto &h = integ.h;
+   // auto &theta_f = integ.theta_f;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = alpha * ip.weight * trans_weight;
+
+      // Access the neighboring element's integration point
+      const auto &eip = trans.GetElement1IntPoint();
+      el1.CalcShape(eip, shape);
+
+      // const double flux = h * ((elfun * shape) - theta_f);
+      const double adjoint = psi * shape;
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += adjoint * flux * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += adjoint * flux * w;
+      // double adjoint_bar = fun_bar * flux * w;
+      double flux_bar = fun_bar * adjoint * w;
+      // double w_bar = fun_bar * adjoint * flux;
+
+      /// const double adjoint = psi * shape;
+
+      /// const double flux = h * ((elfun * shape) - theta_f);
+      const double theta_f_bar = -flux_bar * h;
+
+      /// const double w = alpha * ip.weight * trans_weight;
+
+      fun += theta_f_bar;
+   }
+   return fun;
+}
+
 void OutfluxBCIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,
     const mfem::FiniteElement &el2,
