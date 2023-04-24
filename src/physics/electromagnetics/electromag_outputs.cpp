@@ -1765,6 +1765,26 @@ void calcOutput(EMHeatSourceOutput &output,
    out_vec += output.scratch;
 }
 
+void jacobianVectorProduct(EMHeatSourceOutput &output,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &out_dot)
+{
+   jacobianVectorProduct(output.dc_loss, wrt_dot, wrt, out_dot);
+   jacobianVectorProduct(output.ac_loss, wrt_dot, wrt, out_dot);
+   jacobianVectorProduct(output.core_loss, wrt_dot, wrt, out_dot);
+}
+
+double vectorJacobianProduct(EMHeatSourceOutput &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   auto wrt_bar = vectorJacobianProduct(output.dc_loss, out_bar, wrt);
+   wrt_bar += vectorJacobianProduct(output.ac_loss, out_bar, wrt);
+   wrt_bar += vectorJacobianProduct(output.core_loss, out_bar, wrt);
+   return wrt_bar;
+}
+
 void vectorJacobianProduct(EMHeatSourceOutput &output,
                            const mfem::Vector &out_bar,
                            const std::string &wrt,

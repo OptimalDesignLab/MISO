@@ -4137,3 +4137,963 @@ TEST_CASE("EMHeatSourceOutput::vectorJacobianProduct::temperature")
       }
    }
 }
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt wire_length")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double wire_length = 1.0;
+         mach::MachInputs inputs{
+            {"wire_length", wire_length},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto wire_length_bar = vectorJacobianProduct(distribution, adjoint_tv, "wire_length");
+         auto ddist_dp_v = pert * wire_length_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["wire_length"] = wire_length + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["wire_length"] = wire_length - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt rms_current")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double rms_current = 1.0;
+         mach::MachInputs inputs{
+            {"rms_current", rms_current},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto rms_current_bar = vectorJacobianProduct(distribution, adjoint_tv, "rms_current");
+         auto ddist_dp_v = pert * rms_current_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["rms_current"] = rms_current + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["rms_current"] = rms_current - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt strand_radius")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double strand_radius = 1.0;
+         mach::MachInputs inputs{
+            {"strand_radius", strand_radius},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto strand_radius_bar = vectorJacobianProduct(distribution, adjoint_tv, "strand_radius");
+         auto ddist_dp_v = pert * strand_radius_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["strand_radius"] = strand_radius + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["strand_radius"] = strand_radius - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt strands_in_hand")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double strands_in_hand = 1.0;
+         mach::MachInputs inputs{
+            {"strands_in_hand", strands_in_hand},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto strands_in_hand_bar = vectorJacobianProduct(distribution, adjoint_tv, "strands_in_hand");
+         auto ddist_dp_v = pert * strands_in_hand_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["strands_in_hand"] = strands_in_hand + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["strands_in_hand"] = strands_in_hand - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt num_turns")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double num_turns = 1.0;
+         mach::MachInputs inputs{
+            {"num_turns", num_turns},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto num_turns_bar = vectorJacobianProduct(distribution, adjoint_tv, "num_turns");
+         auto ddist_dp_v = pert * num_turns_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["num_turns"] = num_turns + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["num_turns"] = num_turns - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt num_slots")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double num_slots = 1.0;
+         mach::MachInputs inputs{
+            {"num_slots", num_slots},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto num_slots_bar = vectorJacobianProduct(distribution, adjoint_tv, "num_slots");
+         auto ddist_dp_v = pert * num_slots_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["num_slots"] = num_slots + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["num_slots"] = num_slots - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("EMHeatSourceOutput sensitivity wrt frequency")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 1;
+   auto smesh = Mesh::MakeCartesian2D(num_edge,
+                                      num_edge,
+                                      Element::TRIANGLE);
+   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         mfem::H1_FECollection fec(p, dim);
+         mfem::ParFiniteElementSpace fes(&mesh, &fec);
+
+         std::map<std::string, mach::FiniteElementState> fields;
+         fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
+         fields.emplace("adjoint", mach::FiniteElementState(mesh, fes, "adjoint"));
+         auto &adjoint = fields.at("adjoint");
+
+         mfem::Vector adjoint_tv(adjoint.space().GetTrueVSize());
+         adjoint.project(randState, adjoint_tv);
+
+         auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
+         auto *mesh_fespace = mesh_gf.ParFESpace();
+         /// create new state vector copying the mesh's fe space
+         fields.emplace("mesh_coords",
+                        mach::FiniteElementState(mesh, *mesh_fespace, "mesh_coords"));
+         auto &mesh_coords = fields.at("mesh_coords");
+         /// set the values of the new GF to those of the mesh's old nodes
+         mesh_coords.gridFunc() = mesh_gf;
+         /// tell the mesh to use this GF for its Nodes
+         /// (and that it doesn't own it)
+         mesh.NewNodes(mesh_coords.gridFunc(), false);
+
+         mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
+         mesh_coords.setTrueVec(mesh_coords_tv);
+
+         fields.emplace("peak_flux",
+                        mach::FiniteElementState(mesh,
+                                                 {{"degree", p},
+                                                  {"basis-type", "dg"}},
+                                                 1,
+                                                 "peak_flux"));
+
+         auto &peak_flux = fields.at("peak_flux");
+         mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
+         peak_flux.project(randState, peak_flux_tv);
+
+         fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
+         auto &temp = fields.at("temperature");
+
+         mfem::Vector temp_tv(temp.space().GetTrueVSize());
+         temp.project(randState, temp_tv);
+         temp_tv += 10;
+
+         auto components = R"({
+            "test": {
+               "attrs": [1],
+               "material": {
+                  "name": "test",
+                  "core_loss": {
+                     "model": "CAL2",
+                     "T0": 293.15,
+                     "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                     "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                     "T1": 473.15,
+                     "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                     "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                  }
+               }
+            }
+         })"_json;
+
+         auto materials = R"({
+            "test": {
+               "rho": 1.0
+            }
+         })"_json;
+
+         auto options = R"({
+            "dc_loss": {
+               "attributes": [1]
+            },
+            "ac_loss": {
+               "attributes": [1]
+            },
+            "core_loss": {
+               "attributes": [1]
+            }
+         })"_json;
+
+         mach::EMHeatSourceOutput distribution(fields, sigma, components, materials, options);
+         double frequency = 1.0;
+         mach::MachInputs inputs{
+            {"frequency", frequency},
+            {"mesh_coords", mesh_coords_tv},
+            {"peak_flux", peak_flux_tv},
+            {"temperature", temp_tv}
+         };
+
+         double pert = randNumber();
+         mfem::Vector pert_vec(&pert, 1);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         setInputs(distribution, inputs);
+         auto frequency_bar = vectorJacobianProduct(distribution, adjoint_tv, "frequency");
+         auto ddist_dp_v = pert * frequency_bar;
+
+         // now compute the finite-difference approximation...
+         mfem::Vector dist_output(getSize(distribution));
+         inputs["frequency"] = frequency + delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         double ddist_dp_v_fd = adjoint_tv * dist_output;
+
+         inputs["frequency"] = frequency - delta * pert;
+         calcOutput(distribution, inputs, dist_output);
+         ddist_dp_v_fd -= adjoint_tv * dist_output;
+
+         ddist_dp_v_fd /= 2*delta;
+
+         REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
+      }
+   }
+}
+

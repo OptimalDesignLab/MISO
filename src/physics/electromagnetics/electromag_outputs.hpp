@@ -591,14 +591,14 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   // friend void jacobianVectorProduct(EMHeatSourceOutput &output,
-   //                                   const mfem::Vector &wrt_dot,
-   //                                   const std::string &wrt,
-   //                                   mfem::Vector &out_dot);
+   friend void jacobianVectorProduct(EMHeatSourceOutput &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
 
-   // friend double vectorJacobianProduct(EMHeatSourceOutput &output,
-   //                                     const mfem::Vector &out_bar,
-   //                                     const std::string &wrt);
+   friend double vectorJacobianProduct(EMHeatSourceOutput &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(EMHeatSourceOutput &output,
                                      const mfem::Vector &out_bar,
