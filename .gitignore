@@ -41,6 +41,7 @@
 # ignore build files except for config script
 build/*
 lib/*
+lib64/*
 include/*
 !build/mach_config.sh
 
