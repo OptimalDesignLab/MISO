@@ -1,11 +1,12 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
+#include "common_outputs.hpp"
 #include "mach_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "functional_output.hpp"
-#include "pde_solver.hpp"
 #include "thermal_residual.hpp"
+#include "pde_solver.hpp"
 
 #include "thermal.hpp"
 
@@ -64,8 +65,21 @@ void ThermalSolver::addOutput(const std::string &fun,
       }
       outputs.emplace(fun, std::move(out));
    }
-   else if (fun.rfind("pm_demag", 0) == 0)
-   { }
+   else if (fun.rfind("max_state", 0) == 0)
+   {
+      mfem::ParFiniteElementSpace *fes = nullptr;
+      if (options.contains("state"))
+      {
+         auto field_name = options["state"].get<std::string>();
+         fes = &fields.at(field_name).space();
+      }
+      else
+      {
+         fes = &PDESolver::fes();
+      }
+      IEAggregateFunctional out(*fes, fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
    else
    {
       throw MachException("Output with name " + fun +

@@ -2,20 +2,20 @@
 #include <string>
 #include <variant>
 
-#include "data_logging.hpp"
-#include "finite_element_state.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 #include "common_outputs.hpp"
+#include "data_logging.hpp"
 #include "electromag_integ.hpp"
 #include "electromag_outputs.hpp"
+#include "finite_element_state.hpp"
 #include "functional_output.hpp"
 #include "l2_transfer_operator.hpp"
+#include "pde_solver.hpp"
 
 #include "magnetostatic.hpp"
-#include "pde_solver.hpp"
 
 namespace
 {

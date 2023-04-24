@@ -372,6 +372,89 @@ class TestEMFunctionals(unittest.TestCase):
         # max_flux_data = data.pop("max_flux_magnitude")
         # assert_check_partials({"max_flux_magnitude": max_flux_data})
 
+class TestThermalFunctionals(unittest.TestCase):
+    square_options = {
+        "mesh": {
+            "file": "data/simple_square.mesh",
+            "refine": 0
+        },
+        "space-dis": {
+            "basis-type": "h1",
+            "degree": 1
+        },
+        "lin-solver": {
+            "type": "pcg",
+            "printlevel": 1,
+            "maxiter": 100,
+            "abstol": 1e-14,
+            "reltol": 1e-14
+        },
+        "nonlin-solver": {
+            "type": "newton",
+            "printlevel": 1,
+            "maxiter": 5,
+            "reltol": 1e-12,
+            "abstol": 1e-12
+        },
+        "components": {
+            "test": {
+                "attrs": [1],
+                "material": {
+                    "name": "test",
+                    "kappa": 1.0,
+                    "conductivity": {
+                        "model": "linear",
+                        "sigma_T_ref": 58.14e6,
+                        "T_ref": 293.15,
+                        "alpha_resistivity": 3.8e-3
+                    }
+                },
+            }
+        },
+        "bcs": {
+            "convection": [1, 2],
+            "outflux": [3, 4]
+        }
+    }
+
+    def test_max_temp(self):
+        prob = om.Problem()
+
+        thermal_solver = PDESolver(type="thermal",
+                                   solver_options=self.square_options,
+                                   comm=prob.comm)
+
+        state_size = thermal_solver.getFieldSize("state")
+        state = np.random.randn(state_size)
+
+        def field_func(x):
+            return x[0]**2 + x[1]**2
+        thermal_solver.setState(field_func, state)
+
+        ivc = prob.model.add_subsystem("ivc",
+                                       om.IndepVarComp(),
+                                       promotes_outputs=["state"])
+        ivc.add_output("state", val=state)
+
+        prob.model.add_subsystem("mesh",
+                                 MachMesh(solver=thermal_solver),
+                                 promotes_outputs=["*"])
+
+        max_temp = prob.model.add_subsystem("max_state",
+                                            MachFunctional(solver=thermal_solver,
+                                                           func="max_state",
+                                                           func_options={"rho": 10.0},
+                                                           check_partials=True,
+                                                           depends=["state", "mesh_coords"]),
+                                            promotes_inputs=[("mesh_coords", "x_conduct0"), "state"],
+                                            promotes_outputs=["max_state"])
+        max_temp.set_check_partial_options(wrt="*", directional=True)
+
+        prob.setup()
+        prob.run_model()
+
+        data = prob.check_partials(form="central")
+        assert_check_partials(data)
 
 if __name__ == "__main__":
     unittest.main()
