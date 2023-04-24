@@ -2856,6 +2856,77 @@ TEST_CASE("DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy")
    }   
 }
 
+TEST_CASE("DCLossDistributionIntegratorStackLengthRevSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh, simple 2D domain, 0<=x<=1, 0<=y<=1
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient sigma(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection temp_fec(p, dim);
+         FiniteElementSpace temp_fes(&mesh, &temp_fec);
+
+         // initialize temp state
+         GridFunction temp(&temp_fes);
+         FunctionCoefficient pert(randState);
+         temp.ProjectCoefficient(pert);
+         temp += 10.0;
+
+         GridFunction adjoint(&temp_fes);
+         adjoint.ProjectCoefficient(pert);
+         
+         LinearForm res(&temp_fes);
+         auto *integ = new mach::DCLossDistributionIntegrator(sigma, temp);
+         setInputs(*integ, {
+            {"wire_length", 1.0},
+            {"rms_current", sqrt(1.0/sqrt(2.0))},
+            {"strand_radius", sqrt(1/M_PI)},
+            {"strands_in_hand", 1.0},
+            {"stack_length", 0.34}
+         });
+         res.AddDomainIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&temp_fes);
+         dfdx.AddDomainIntegrator(
+            new mach::DCLossDistributionIntegratorStackLengthRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(temp) * v;
+
+         // now compute the finite-difference approximation...
+         setInputs(*integ, {
+            {"stack_length", 0.34 + delta * v}
+         });
+         res.Assemble();
+         double dfdx_v_fd = adjoint * res;
+
+         setInputs(*integ, {
+            {"stack_length", 0.34 - delta * v}
+         });
+         res.Assemble();
+         dfdx_v_fd -= adjoint * res;
+         dfdx_v_fd /= (2 * delta);
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }   
+}
+
 // Added test case for ACLossFunctionalIntegrator (sigma*B^2 value)
 TEST_CASE("ACLossFunctionalIntegrator::GetElementEnergy")
 {

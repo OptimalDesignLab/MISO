@@ -4868,6 +4868,133 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
    return fun;
 }
 
+double DCLossDistributionIntegratorStackLengthRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   const int element = trans.ElementNo;
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector temp_elfun;
+#else
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   auto &temperature_field = integ.temperature_field;
+
+   // Obtain correct element, DOFs, etc for temperature field
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector temp_shape;
+#else
+   auto &temp_shape = integ.temp_shape;
+#endif
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            // return 2 * el.GetOrder() - 1;
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &strand_radius = integ.strand_radius;
+   auto &wire_length = integ.wire_length;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &rms_current = integ.rms_current;
+   auto &stack_length = integ.stack_length;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double strand_area = M_PI * pow(strand_radius, 2);
+      double R = wire_length / (strand_area * strands_in_hand * sigma_v);
+
+      double loss = pow(rms_current, 2) * R;
+      // not sure about this... but it matches MotorCAD's values
+      loss *= 1.0 * sqrt(2);
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      loss /= (0.02314281 * stack_length);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= (0.02314281 * stack_length);
+      double stack_length_bar = -loss_bar * loss / stack_length;
+
+      /// loss *= 1.0 * sqrt(2);
+
+      /// double loss = pow(rms_current, 2) * R;
+
+      /// double R = wire_length / (strand_area * strands_in_hand * sigma_v);
+
+      /// double strand_area = M_PI * pow(strand_radius, 2);
+
+      fun += stack_length_bar;
+   }
+   return fun;
+}
+
 double ACLossFunctionalIntegrator::GetElementEnergy(
     const FiniteElement &el,
     ElementTransformation &trans,

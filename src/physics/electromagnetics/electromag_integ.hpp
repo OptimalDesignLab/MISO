@@ -1384,6 +1384,7 @@ private:
    friend class DCLossDistributionIntegratorWireLengthRevSens;
    friend class DCLossDistributionIntegratorStrandsInHandRevSens;
    friend class DCLossDistributionIntegratorCurrentRevSens;
+   friend class DCLossDistributionIntegratorStackLengthRevSens;
 };
 
 class DCLossDistributionIntegratorMeshRevSens
@@ -1568,6 +1569,34 @@ private:
 #endif
 };
 
+class DCLossDistributionIntegratorStackLengthRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   DCLossDistributionIntegratorStackLengthRevSens(
+       mfem::GridFunction &adjoint,
+       DCLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   DCLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
 inline void addDomainSensitivityIntegrator(
     DCLossDistributionIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -1589,6 +1618,7 @@ inline void addDomainSensitivityIntegrator(
    rev_scalar_sens.emplace("wire_length", &state_fes);
    rev_scalar_sens.emplace("strands_in_hand", &state_fes);
    rev_scalar_sens.emplace("rms_current", &state_fes);
+   rev_scalar_sens.emplace("stack_length", &state_fes);
 
    if (attr_marker == nullptr)
    {
@@ -1619,6 +1649,11 @@ inline void addDomainSensitivityIntegrator(
       rev_scalar_sens.at("rms_current")
           .AddDomainIntegrator(new DCLossDistributionIntegratorCurrentRevSens(
               fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("stack_length")
+          .AddDomainIntegrator(
+              new DCLossDistributionIntegratorStackLengthRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
    {
@@ -1655,6 +1690,12 @@ inline void addDomainSensitivityIntegrator(
       rev_scalar_sens.at("rms_current")
           .AddDomainIntegrator(
               new DCLossDistributionIntegratorCurrentRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("stack_length")
+          .AddDomainIntegrator(
+              new DCLossDistributionIntegratorStackLengthRevSens(
                   fields.at(adjoint_name).gridFunc(), primal_integ),
               *attr_marker);
    }
