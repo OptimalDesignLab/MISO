@@ -4936,7 +4936,6 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt num_slots")
          };
 
          double pert = randNumber();
-         mfem::Vector pert_vec(&pert, 1);
 
          // evaluate d(psi^T R)/dx and contract with v
          setInputs(distribution, inputs);

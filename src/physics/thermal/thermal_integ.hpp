@@ -221,12 +221,12 @@ inline void addBdrSensitivityIntegrator(
               fields.at(adjoint_name).gridFunc(),
               primal_integ));
 
-      rev_scalar_sens.at("h").AddDomainIntegrator(
+      rev_scalar_sens.at("h").AddBdrFaceIntegrator(
           new ConvectionBCIntegratorHRevSens(fields.at(adjoint_name).gridFunc(),
                                              primal_integ));
 
       rev_scalar_sens.at("fluid_temp")
-          .AddDomainIntegrator(new ConvectionBCIntegratorFluidTempRevSens(
+          .AddBdrFaceIntegrator(new ConvectionBCIntegratorFluidTempRevSens(
               fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
@@ -238,13 +238,13 @@ inline void addBdrSensitivityIntegrator(
                                      primal_integ),
                                  *attr_marker);
 
-      rev_scalar_sens.at("h").AddDomainIntegrator(
+      rev_scalar_sens.at("h").AddBdrFaceIntegrator(
           new ConvectionBCIntegratorHRevSens(fields.at(adjoint_name).gridFunc(),
                                              primal_integ),
           *attr_marker);
 
       rev_scalar_sens.at("fluid_temp")
-          .AddDomainIntegrator(
+          .AddBdrFaceIntegrator(
               new ConvectionBCIntegratorFluidTempRevSens(
                   fields.at(adjoint_name).gridFunc(), primal_integ),
               *attr_marker);
