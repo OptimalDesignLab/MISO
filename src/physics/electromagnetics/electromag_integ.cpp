@@ -5533,7 +5533,6 @@ void ACLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 
 #ifdef MFEM_THREAD_SAFE
-   Vector psi;
    Vector flux_shape;
    Vector temp_shape;
    DenseMatrix PointMat_bar;
@@ -5541,7 +5540,6 @@ void ACLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &flux_shape = integ.flux_shape;
    auto &temp_shape = integ.temp_shape;
 #endif
-   psi.SetSize(adjoint_ndof);
    flux_shape.SetSize(flux_ndof);
    temp_shape.SetSize(temp_ndof);
 
@@ -5690,7 +5688,6 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    }
 
 #ifdef MFEM_THREAD_SAFE
-   Vector psi;
    Vector flux_shape;
    Vector temp_shape;
 #else
@@ -5698,7 +5695,6 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    auto &temp_shape = integ.temp_shape;
 #endif
 
-   psi.SetSize(adjoint_ndof);
    flux_shape.SetSize(flux_ndof);
    temp_shape.SetSize(temp_ndof);
 
@@ -5842,14 +5838,12 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
    }
 
 #ifdef MFEM_THREAD_SAFE
-   Vector psi;
    Vector flux_shape;
    Vector temp_shape;
 #else
    auto &flux_shape = integ.flux_shape;
    auto &temp_shape = integ.temp_shape;
 #endif
-   psi.SetSize(adjoint_ndof);
    flux_shape.SetSize(flux_ndof);
    temp_shape.SetSize(temp_ndof);
 
@@ -5940,6 +5934,776 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
       /// const double temperature = temp_shape * temp_elfun;
       temp_bar.Add(temperature_bar, temp_shape);
    }
+}
+
+double ACLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &freq = integ.freq;
+   auto &radius = integ.radius;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &num_turns = integ.num_turns;
+   auto &num_slots = integ.num_slots;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double loss = M_PI * pow(radius, 4) * pow(2 * M_PI * freq * b_mag, 2) *
+                    sigma_v / 8.0;
+      loss *= 2 * strands_in_hand * num_turns * num_slots;
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      loss /= 0.02314281;
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= 0.02314281;
+      loss_bar /= 0.02314281;
+
+      /// loss *= 2 * strands_in_hand * num_turns * num_slots;
+      loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss = M_PI * pow(radius, 4) *
+      ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double freq_bar = loss_bar * M_PI * pow(radius, 4) * 2 * freq *
+                        pow(2 * M_PI * b_mag, 2) * sigma_v / 8.0;
+
+      fun += freq_bar;
+   }
+   return fun;
+}
+
+double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &freq = integ.freq;
+   auto &radius = integ.radius;
+   auto &stack_length = integ.stack_length;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &num_turns = integ.num_turns;
+   auto &num_slots = integ.num_slots;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double loss = stack_length * M_PI * pow(radius, 4) *
+                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      loss *= 2 * strands_in_hand * num_turns * num_slots;
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      loss *= 1 / (stack_length * 0.02314281);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss *= 1 / (stack_length * 0.02314281);
+      loss_bar *= 1 / (stack_length * 0.02314281);
+
+      /// loss *= 2 * strands_in_hand * num_turns * num_slots;
+      loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss = stack_length * M_PI * pow(radius, 4) *
+      ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double radius_bar = loss_bar * stack_length * M_PI * 4 * pow(radius, 3) *
+                          pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+
+      fun += radius_bar;
+   }
+   return fun;
+}
+
+double ACLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &freq = integ.freq;
+   auto &radius = integ.radius;
+   auto &stack_length = integ.stack_length;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &num_turns = integ.num_turns;
+   auto &num_slots = integ.num_slots;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double loss = M_PI * pow(radius, 4) * pow(2 * M_PI * freq * b_mag, 2) *
+                    sigma_v / 8.0;
+      // loss *= 2 * strands_in_hand * num_turns * num_slots;
+      double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      // loss /= 0.02314281;
+      double loss3 = loss2 / 0.02314281;
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= 0.02314281;
+      // loss_bar /= 0.02314281;
+      /// double loss3 = loss2 / 0.02314281;
+      double loss2_bar = loss_bar / 0.02314281;
+
+      /// loss *= 2 * strands_in_hand * num_turns * num_slots;
+      // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+      double strands_in_hand_bar = loss2_bar * loss * 2 * num_turns * num_slots;
+
+      // double num_slots_bar = loss_bar * loss / num_slots;
+
+      /// double loss = M_PI * pow(radius, 4) *
+      ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      // double radius_bar = loss_bar * M_PI * 4 * pow(radius, 3) *
+      //                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+
+      fun += strands_in_hand_bar;
+   }
+   return fun;
+}
+
+double ACLossDistributionIntegratorNumTurnsRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &freq = integ.freq;
+   auto &radius = integ.radius;
+   auto &stack_length = integ.stack_length;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &num_turns = integ.num_turns;
+   auto &num_slots = integ.num_slots;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double loss = M_PI * pow(radius, 4) * pow(2 * M_PI * freq * b_mag, 2) *
+                    sigma_v / 8.0;
+      // loss *= 2 * strands_in_hand * num_turns * num_slots;
+      double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      // loss /= 0.02314281;
+      double loss3 = loss2 / 0.02314281;
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= 0.02314281;
+      // loss_bar /= 0.02314281;
+      /// double loss3 = loss2 / 0.02314281;
+      double loss2_bar = loss_bar / 0.02314281;
+
+      /// loss *= 2 * strands_in_hand * num_turns * num_slots;
+      // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+      double num_turns_bar = loss2_bar * loss * 2 * strands_in_hand * num_slots;
+
+      // double num_slots_bar = loss_bar * loss / num_slots;
+
+      /// double loss = M_PI * pow(radius, 4) *
+      ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      // double radius_bar = loss_bar * M_PI * 4 * pow(radius, 3) *
+      //                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+
+      fun += num_turns_bar;
+   }
+   return fun;
+}
+
+double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &freq = integ.freq;
+   auto &radius = integ.radius;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &num_turns = integ.num_turns;
+   auto &num_slots = integ.num_slots;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double loss = M_PI * pow(radius, 4) * pow(2 * M_PI * freq * b_mag, 2) *
+                    sigma_v / 8.0;
+      // loss *= 2 * strands_in_hand * num_turns * num_slots;
+      double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      // loss /= 0.02314281;
+      double loss3 = loss2 / 0.02314281;
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= 0.02314281;
+      // loss_bar /= 0.02314281;
+      /// double loss3 = loss2 / 0.02314281;
+      double loss2_bar = loss_bar / 0.02314281;
+
+      /// loss *= 2 * strands_in_hand * num_turns * num_slots;
+      // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+      double num_slots_bar = loss2_bar * loss * 2 * strands_in_hand * num_turns;
+
+      // double num_slots_bar = loss_bar * loss / num_slots;
+
+      /// double loss = M_PI * pow(radius, 4) *
+      ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      // double radius_bar = loss_bar * M_PI * 4 * pow(radius, 3) *
+      //                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+
+      fun += num_slots_bar;
+   }
+   return fun;
 }
 
 /// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time
@@ -8707,7 +9471,6 @@ void setInputs(CAL2CoreLossDistributionIntegrator &integ,
                const MachInputs &inputs)
 {
    setValueFromInputs(inputs, "frequency", integ.freq);
-   setValueFromInputs(inputs, "stack_length", integ.stack_length);
 }
 
 /// TODO: Compute the spatial distribution of the heat flux due to CAL2 core
@@ -8910,7 +9673,6 @@ void CAL2CoreLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &CAL2_kh = integ.CAL2_kh;
    auto &CAL2_ke = integ.CAL2_ke;
    auto &freq = integ.freq;
-   auto &stack_length = integ.stack_length;
 
    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
    mesh_coords_bar = 0.0;
@@ -9023,7 +9785,6 @@ void CAL2CoreLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    }
 
 #ifdef MFEM_THREAD_SAFE
-   Vector psi;
    Vector flux_shape;
    Vector temp_shape;
 #else
@@ -9031,7 +9792,6 @@ void CAL2CoreLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    auto &temp_shape = integ.temp_shape;
 #endif
 
-   psi.SetSize(adjoint_ndof);
    flux_shape.SetSize(flux_ndof);
    temp_shape.SetSize(temp_ndof);
 
@@ -9057,7 +9817,6 @@ void CAL2CoreLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    auto &CAL2_kh = integ.CAL2_kh;
    auto &CAL2_ke = integ.CAL2_ke;
    auto &freq = integ.freq;
-   auto &stack_length = integ.stack_length;
 
    flux_bar.SetSize(flux_ndof);
    flux_bar = 0.0;
@@ -9210,7 +9969,6 @@ void CAL2CoreLossDistributionIntegratorTemperatureRevSens::
    auto &CAL2_kh = integ.CAL2_kh;
    auto &CAL2_ke = integ.CAL2_ke;
    auto &freq = integ.freq;
-   auto &stack_length = integ.stack_length;
 
    temp_bar.SetSize(temp_ndof);
    temp_bar = 0.0;
@@ -9271,6 +10029,156 @@ void CAL2CoreLossDistributionIntegratorTemperatureRevSens::
       /// const double temperature = temp_shape * temp_elfun;
       temp_bar.Add(temperature_bar, temp_shape);
    }
+}
+
+double CAL2CoreLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &rho = integ.rho;
+   auto &CAL2_kh = integ.CAL2_kh;
+   auto &CAL2_ke = integ.CAL2_ke;
+   auto &freq = integ.freq;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
+
+      auto rho_v = rho.Eval(trans, ip);
+
+      double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+                    rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
+      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
+      double ke_v_bar =
+          loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      double freq_bar = loss_bar * rho_v *
+                         (kh_v * std::pow(b_mag, 2) + ke_v * 2 * freq * std::pow(b_mag, 2));
+
+      /// auto rho_v = rho.Eval(trans, ip);
+
+      /// auto ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, b_mag);
+      auto ke_v_dot = CAL2_ke.EvalDerivS2(trans, ip, temperature, freq, b_mag);
+      freq_bar += ke_v_bar * ke_v_dot;
+
+      /// auto kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, b_mag);
+      auto kh_v_dot = CAL2_kh.EvalDerivS2(trans, ip, temperature, freq, b_mag);
+      freq_bar += kh_v_bar * kh_v_dot;
+
+      fun += freq_bar;
+   }
+   return fun;
 }
 
 double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,

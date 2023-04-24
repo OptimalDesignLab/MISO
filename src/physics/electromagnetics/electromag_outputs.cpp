@@ -1504,6 +1504,21 @@ void calcOutput(ACLossDistribution &output,
    addLoad(output.output, out_vec);
 }
 
+void jacobianVectorProduct(ACLossDistribution &output,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &out_dot)
+{
+   jacobianVectorProduct(output.output, wrt_dot, wrt, out_dot);
+}
+
+double vectorJacobianProduct(ACLossDistribution &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   return vectorJacobianProduct(output.output, out_bar, wrt);
+}
+
 void vectorJacobianProduct(ACLossDistribution &output,
                            const mfem::Vector &out_bar,
                            const std::string &wrt,
@@ -1684,6 +1699,21 @@ void calcOutput(CAL2CoreLossDistribution &output,
    setInputs(output.output, inputs);
    out_vec = 0.0;
    addLoad(output.output, out_vec);
+}
+
+void jacobianVectorProduct(CAL2CoreLossDistribution &output,
+                           const mfem::Vector &wrt_dot,
+                           const std::string &wrt,
+                           mfem::Vector &out_dot)
+{
+   jacobianVectorProduct(output.output, wrt_dot, wrt, out_dot);
+}
+
+double vectorJacobianProduct(CAL2CoreLossDistribution &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   return vectorJacobianProduct(output.output, out_bar, wrt);
 }
 
 void vectorJacobianProduct(CAL2CoreLossDistribution &output,

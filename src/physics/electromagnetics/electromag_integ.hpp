@@ -1909,6 +1909,11 @@ private:
    friend class ACLossDistributionIntegratorMeshRevSens;
    friend class ACLossDistributionIntegratorPeakFluxRevSens;
    friend class ACLossDistributionIntegratorTemperatureRevSens;
+   friend class ACLossDistributionIntegratorFrequencyRevSens;
+   friend class ACLossDistributionIntegratorStrandRadiusRevSens;
+   friend class ACLossDistributionIntegratorStrandsInHandRevSens;
+   friend class ACLossDistributionIntegratorNumTurnsRevSens;
+   friend class ACLossDistributionIntegratorNumSlotsRevSens;
 };
 
 class ACLossDistributionIntegratorMeshRevSens
@@ -2016,6 +2021,174 @@ private:
 #endif
 };
 
+class ACLossDistributionIntegratorFrequencyRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorFrequencyRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ACLossDistributionIntegratorStrandRadiusRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorStrandRadiusRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ACLossDistributionIntegratorStackLengthRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorStackLengthRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ACLossDistributionIntegratorStrandsInHandRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorStrandsInHandRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ACLossDistributionIntegratorNumTurnsRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorNumTurnsRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
+class ACLossDistributionIntegratorNumSlotsRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ACLossDistributionIntegratorNumSlotsRevSens(
+       mfem::GridFunction &adjoint,
+       ACLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ACLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
 inline void addDomainSensitivityIntegrator(
     ACLossDistributionIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -2035,6 +2208,13 @@ inline void addDomainSensitivityIntegrator(
    auto &temperature_fes = fields.at("temperature").space();
    rev_sens.emplace("temperature", &temperature_fes);
 
+   auto &state_fes = fields.at("state").space();
+   rev_scalar_sens.emplace("frequency", &state_fes);
+   rev_scalar_sens.emplace("strand_radius", &state_fes);
+   rev_scalar_sens.emplace("strands_in_hand", &state_fes);
+   rev_scalar_sens.emplace("num_turns", &state_fes);
+   rev_scalar_sens.emplace("num_slots", &state_fes);
+
    if (attr_marker == nullptr)
    {
       rev_sens.at("mesh_coords")
@@ -2049,6 +2229,28 @@ inline void addDomainSensitivityIntegrator(
           .AddDomainIntegrator(
               new ACLossDistributionIntegratorTemperatureRevSens(
                   fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("frequency")
+          .AddDomainIntegrator(new ACLossDistributionIntegratorFrequencyRevSens(
+              fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("strand_radius")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorStrandRadiusRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("strands_in_hand")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorStrandsInHandRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("num_turns")
+          .AddDomainIntegrator(new ACLossDistributionIntegratorNumTurnsRevSens(
+              fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("num_slots")
+          .AddDomainIntegrator(new ACLossDistributionIntegratorNumSlotsRevSens(
+              fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
    {
@@ -2067,6 +2269,36 @@ inline void addDomainSensitivityIntegrator(
       rev_sens.at("temperature")
           .AddDomainIntegrator(
               new ACLossDistributionIntegratorTemperatureRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("frequency")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorFrequencyRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("strand_radius")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorStrandRadiusRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("strands_in_hand")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorStrandsInHandRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("num_turns")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorNumTurnsRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("num_slots")
+          .AddDomainIntegrator(
+              new ACLossDistributionIntegratorNumSlotsRevSens(
                   fields.at(adjoint_name).gridFunc(), primal_integ),
               *attr_marker);
    }
@@ -2833,8 +3065,6 @@ private:
 
    /// Electrical excitation frequency
    double freq = 1.0;
-   /// Stack length
-   double stack_length = 1.0;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::Array<int> vdofs;
@@ -2847,6 +3077,7 @@ private:
    friend class CAL2CoreLossDistributionIntegratorMeshRevSens;
    friend class CAL2CoreLossDistributionIntegratorPeakFluxRevSens;
    friend class CAL2CoreLossDistributionIntegratorTemperatureRevSens;
+   friend class CAL2CoreLossDistributionIntegratorFrequencyRevSens;
 };
 
 class CAL2CoreLossDistributionIntegratorMeshRevSens
@@ -2955,6 +3186,34 @@ private:
 #endif
 };
 
+class CAL2CoreLossDistributionIntegratorFrequencyRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   CAL2CoreLossDistributionIntegratorFrequencyRevSens(
+       mfem::GridFunction &adjoint,
+       CAL2CoreLossDistributionIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   CAL2CoreLossDistributionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+#endif
+};
+
 inline void addDomainSensitivityIntegrator(
     CAL2CoreLossDistributionIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -2974,6 +3233,9 @@ inline void addDomainSensitivityIntegrator(
    auto &temperature_fes = fields.at("temperature").space();
    rev_sens.emplace("temperature", &temperature_fes);
 
+   auto &state_fes = fields.at("state").space();
+   rev_scalar_sens.emplace("frequency", &state_fes);
+
    if (attr_marker == nullptr)
    {
       rev_sens.at("mesh_coords")
@@ -2990,6 +3252,10 @@ inline void addDomainSensitivityIntegrator(
           .AddDomainIntegrator(
               new CAL2CoreLossDistributionIntegratorTemperatureRevSens(
                   fields.at(adjoint_name).gridFunc(), primal_integ));
+
+      rev_scalar_sens.at("frequency")
+          .AddDomainIntegrator(new CAL2CoreLossDistributionIntegratorFrequencyRevSens(
+              fields.at(adjoint_name).gridFunc(), primal_integ));
    }
    else
    {
@@ -3008,6 +3274,12 @@ inline void addDomainSensitivityIntegrator(
       rev_sens.at("temperature")
           .AddDomainIntegrator(
               new CAL2CoreLossDistributionIntegratorTemperatureRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at("frequency")
+          .AddDomainIntegrator(
+              new CAL2CoreLossDistributionIntegratorFrequencyRevSens(
                   fields.at(adjoint_name).gridFunc(), primal_integ),
               *attr_marker);
    }

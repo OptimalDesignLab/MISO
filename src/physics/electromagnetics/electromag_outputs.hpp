@@ -419,14 +419,14 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   // friend void jacobianVectorProduct(ACLossDistribution &output,
-   //                                   const mfem::Vector &wrt_dot,
-   //                                   const std::string &wrt,
-   //                                   mfem::Vector &out_dot);
+   friend void jacobianVectorProduct(ACLossDistribution &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
 
-   // friend double vectorJacobianProduct(ACLossDistribution &output,
-   //                                     const mfem::Vector &out_bar,
-   //                                     const std::string &wrt);
+   friend double vectorJacobianProduct(ACLossDistribution &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(ACLossDistribution &output,
                                      const mfem::Vector &out_bar,
@@ -525,14 +525,14 @@ public:
                           const MachInputs &inputs,
                           mfem::Vector &out_vec);
 
-   // friend void jacobianVectorProduct(CAL2CoreLossDistribution &output,
-   //                                   const mfem::Vector &wrt_dot,
-   //                                   const std::string &wrt,
-   //                                   mfem::Vector &out_dot);
+   friend void jacobianVectorProduct(CAL2CoreLossDistribution &output,
+                                     const mfem::Vector &wrt_dot,
+                                     const std::string &wrt,
+                                     mfem::Vector &out_dot);
 
-   // friend double vectorJacobianProduct(CAL2CoreLossDistribution &output,
-   //                                     const mfem::Vector &out_bar,
-   //                                     const std::string &wrt);
+   friend double vectorJacobianProduct(CAL2CoreLossDistribution &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(CAL2CoreLossDistribution &output,
                                      const mfem::Vector &out_bar,
