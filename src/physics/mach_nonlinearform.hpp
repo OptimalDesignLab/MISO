@@ -1,6 +1,7 @@
 #ifndef MACH_NONLINEAR_FORM
 #define MACH_NONLINEAR_FORM
 
+#include <memory>
 #include <vector>
 #include <list>
 
@@ -186,6 +187,13 @@ private:
 
    /// Holds the transpose of the Jacobian, needed for solving for the adjoint
    std::unique_ptr<mfem::Operator> jac_trans;
+   /// Holds the transpose of the eliminated entries from the Jacobian,
+   /// needed for solving for the adjoint
+   std::unique_ptr<mfem::Operator> jac_e_trans;
+
+   /// Holds the sum of jac_trans and jac_e_trans
+   /// This is given to the adjoint linear solver
+   std::unique_ptr<mfem::Operator> adjoint_jac_trans;
 
    mfem::Vector adj_work1, adj_work2;
 };

@@ -215,7 +215,8 @@ inline void addDomainSensitivityIntegrator(
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
-    mfem::Array<int> *attr_marker = nullptr)
+    mfem::Array<int> *attr_marker = nullptr,
+    std::string state_name = "state")
 { }
 
 /// Function meant to be overloaded to allow output sensitivity integrators
@@ -231,7 +232,8 @@ inline void addInteriorFaceSensitivityIntegrator(
     T &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    std::string state_name = "state")
 { }
 
 /// Function meant to be overloaded to allow output sensitivity integrators
@@ -250,7 +252,8 @@ inline void addBdrSensitivityIntegrator(
     std::map<std::string, FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
-    mfem::Array<int> *attr_marker)
+    mfem::Array<int> *attr_marker,
+    std::string state_name = "state")
 { }
 
 }  // namespace mach

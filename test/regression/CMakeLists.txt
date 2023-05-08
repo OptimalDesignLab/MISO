@@ -28,6 +28,7 @@ set(REGRESSION_TEST_SRCS
    # test_2d_magnet_in_box
    test_magnetostatic_residual
    test_thermal_residual
+   test_weak_boundary
 )
 
 create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)

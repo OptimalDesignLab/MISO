@@ -580,7 +580,7 @@ void calcOutput(DCLossDistribution &output,
                 mfem::Vector &out_vec)
 {
    auto winding_volume = calcOutput(output.volume, inputs);
-   setInputs(output.output, {{"volume", winding_volume}});
+   setInputs(output.output, {{"winding_volume", winding_volume}});
    setInputs(output.output, inputs);
    out_vec = 0.0;
    addLoad(output.output, out_vec);
@@ -614,7 +614,7 @@ void vectorJacobianProduct(DCLossDistribution &output,
       vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
 
       double volume_bar =
-          vectorJacobianProduct(output.output, out_bar, "volume");
+          vectorJacobianProduct(output.output, out_bar, "winding_volume");
       mfem::Vector vol_bar_vec(&volume_bar, 1);
       vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
    }
@@ -667,7 +667,7 @@ void setOptions(ACLossFunctional &output, const nlohmann::json &options)
 void setInputs(ACLossFunctional &output, const MachInputs &inputs)
 {
    output.inputs = inputs;
-   output.inputs["state"] = inputs.at("peak_flux");
+   // output.inputs["state"] = inputs.at("peak_flux");
 
    setValueFromInputs(inputs, "strand_radius", output.radius);
    setValueFromInputs(inputs, "frequency", output.freq);
@@ -1474,7 +1474,7 @@ ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
- : output(fields.at("peak_flux").space(), fields), volume(fields, options)
+ : output(fields.at("peak_flux").space(), fields, "peak_flux"), volume(fields, options)
 {
    auto &temp = fields.at("temperature");
 
@@ -1498,7 +1498,7 @@ void calcOutput(ACLossDistribution &output,
                 mfem::Vector &out_vec)
 {
    auto winding_volume = calcOutput(output.volume, inputs);
-   setInputs(output.output, {{"volume", winding_volume}});
+   setInputs(output.output, {{"winding_volume", winding_volume}});
    setInputs(output.output, inputs);
    out_vec = 0.0;
    addLoad(output.output, out_vec);
@@ -1532,7 +1532,7 @@ void vectorJacobianProduct(ACLossDistribution &output,
       vectorJacobianProduct(output.output, out_bar, wrt, wrt_bar);
 
       double volume_bar =
-          vectorJacobianProduct(output.output, out_bar, "volume");
+          vectorJacobianProduct(output.output, out_bar, "winding_volume");
       mfem::Vector vol_bar_vec(&volume_bar, 1);
       vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
    }
@@ -1759,10 +1759,14 @@ void calcOutput(EMHeatSourceOutput &output,
    setInputs(output, inputs);
    out_vec = 0.0;
    calcOutput(output.dc_loss, inputs, out_vec);
+   output.scratch = 0.0;
    calcOutput(output.ac_loss, inputs, output.scratch);
    out_vec += output.scratch;
+   output.scratch = 0.0;
    calcOutput(output.core_loss, inputs, output.scratch);
+   // std::cout << "output.scratch norml2 " << output.scratch.Norml2() << "\n"; 
    out_vec += output.scratch;
+   // std::cout << "out_vec norml2 " << out_vec.Norml2() << "\n"; 
 }
 
 void jacobianVectorProduct(EMHeatSourceOutput &output,

@@ -129,6 +129,57 @@ class TestEMFunctionals(unittest.TestCase):
         }
     }
 
+    heat_source_options = {
+        "mesh": {
+            "file": "data/simple_square.mesh",
+            "refine": 0
+        },
+        "space-dis": {
+            "basis-type": "h1",
+            "degree": 1
+        },
+        "lin-solver": {
+            "type": "pcg",
+            "printlevel": 1,
+            "maxiter": 100,
+            "abstol": 1e-14,
+            "reltol": 1e-14
+        },
+        "nonlin-solver": {
+            "type": "newton",
+            "printlevel": 1,
+            "maxiter": 5,
+            "reltol": 1e-6,
+            "abstol": 1e-6
+        },
+        "components": {
+            "test": {
+               "attrs": [1],
+               "material": {
+                    "name": "test",
+                    "core_loss": {
+                        "model": "CAL2",
+                        "T0": 293.15,
+                        "kh_T0": [5.97783049251564E-02, -6.58569751792524E-02, 3.52052785575931E-02, -6.54762513683037E-03],
+                        "ke_T0": [3.83147202762929E-05, -4.19965038193089E-05, 2.09788988466414E-05, -3.88567697029196E-06],
+                        "T1": 473.15,
+                        "kh_T1": [5.78728253280150E-02, -7.94684973286488E-02, 5.09165213772802E-02, -1.11117379956941E-02],
+                        "ke_T1": [3.20525407302126E-05, -1.43502199723297E-05, -3.74786590271071E-06, 2.68517704958978E-06]
+                    },
+                    "rho": 1.0
+                }
+            }
+        },
+        "bcs": {
+            "essential": "all"
+        },
+        "current": {
+            "test": {
+                "z": [1]
+            }
+        }
+    }
+
     def test_coulomb_forward(self):
         prob = om.Problem()
 
@@ -371,6 +422,80 @@ class TestEMFunctionals(unittest.TestCase):
         # assert_check_partials({"average_flux_magnitude": avg_flux_data})
         # max_flux_data = data.pop("max_flux_magnitude")
         # assert_check_partials({"max_flux_magnitude": max_flux_data})
+
+    def test_heat_source(self):
+        prob = om.Problem()
+
+        emSolver = PDESolver(type="magnetostatic",
+                             solver_options=self.heat_source_options,
+                             comm=prob.comm)
+
+        state_size = emSolver.getFieldSize("state")
+        state = np.random.randn(state_size)
+
+        def field_func(x):
+            return x[0]**2 + x[1]**2
+        emSolver.setState(field_func, state)
+
+        print(f"state: {state}")
+
+        ivc = prob.model.add_subsystem("ivc",
+                                       om.IndepVarComp(),
+                                       promotes_outputs=["state"])
+        ivc.add_output("state", val=state)
+
+        prob.model.add_subsystem("mesh",
+                                 MachMesh(solver=emSolver),
+                                 promotes_outputs=["*"])
+
+        heat_source_inputs = [("mesh_coords", "x_em0"),
+                              "temperature",
+                              "frequency",
+                              "wire_length",
+                              "rms_current",
+                              "strand_radius",
+                              "strands_in_hand",
+                              "stack_length",
+                              "peak_flux",
+                              "model_depth",
+                              "num_turns",
+                              "num_slots"]
+
+        prob.model.add_subsystem("heat_source",
+                                 MachFunctional(solver=emSolver,
+                                              func="heat_source",
+                                              func_options={
+                                                  "dc_loss": {
+                                                      "attributes": [1]
+                                                  },
+                                                  "ac_loss": {
+                                                      "attributes": [1]
+                                                  },
+                                                  "core_loss": {
+                                                      "attributes": [1]
+                                                  },
+                                              },
+                                              depends=heat_source_inputs,
+                                              check_partials=True),
+                               promotes_inputs=heat_source_inputs,
+                               promotes_outputs=[("heat_source", "thermal_load")])
+
+        prob.setup()
+
+        temp_size = emSolver.getFieldSize("temperature")
+        prob["temperature"][:] = 100 + np.random.randn(temp_size)
+
+        flux_size = emSolver.getFieldSize("peak_flux")
+        prob["peak_flux"][:] = np.random.randn(flux_size)**2
+
+        prob["rms_current"] = 10
+
+        prob.run_model()
+
+        print(f"heat_source: {prob['thermal_load']}")
+
+        data = prob.check_partials(form="central")
+        assert_check_partials(data)
 
 class TestThermalFunctionals(unittest.TestCase):
     square_options = {

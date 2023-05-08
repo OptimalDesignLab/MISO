@@ -78,6 +78,8 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 // mag_coeff(diff_stack, options["magnets"], materials, 2),
 // B_knee(options, materials)
 {
+   std::cout << "state size: " << state().gridFunc().Size() << "\n";
+
    options["time-dis"]["type"] = "steady";
 
    if (auto temp_iter = fields.find("temperature"); temp_iter == fields.end())

@@ -35,6 +35,14 @@ std::unique_ptr<mfem::Solver> constructPreconditioner(
       amg->SetPrintLevel(prec_options["printlevel"].get<int>());
       return amg;
    }
+   else if (prec_type == "hypreilu")
+   {
+      auto ilu = std::make_unique<mfem::HypreILU>();
+      HYPRE_ILUSetType(*ilu, prec_options["ilu-type"]);
+      HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"]);
+      HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"]);
+      HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"]);
+   }
    return nullptr;
 }
 
@@ -42,6 +50,20 @@ std::vector<int> getCurrentAttributes(const nlohmann::json &options)
 {
    std::vector<int> attributes;
    for (const auto &group : options["current"])
+   {
+      for (const auto &source : group)
+      {
+         auto attrs = source.get<std::vector<int>>();
+         attributes.insert(attributes.end(), attrs.begin(), attrs.end());
+      }
+   }
+   return attributes;
+}
+
+std::vector<int> getMagnetAttributes(const nlohmann::json &options)
+{
+   std::vector<int> attributes;
+   for (const auto &group : options["magnets"])
    {
       for (const auto &source : group)
       {
@@ -219,6 +241,7 @@ MagnetostaticResidual::MagnetostaticResidual(
     const nlohmann::json &materials,
     StateCoefficient &nu)
  : res(fes, fields),
+   g(std::make_unique<mfem::ConstantCoefficient>(0.0)),
    // load(diff_stack, fes, fields, options, materials, nu),
    prec(constructPreconditioner(fes, options["lin-prec"]))
 {
@@ -234,6 +257,9 @@ MagnetostaticResidual::MagnetostaticResidual(
    else if (space_dim == 2)
    {
       res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
+
+      // /// weakly impose boundary conditions
+      // res.addBdrFaceIntegrator(new NonlinearDGDiffusionIntegrator(nu, *g, 1e8));
 
       MachLinearForm linear_form(fes, fields);
       if (options.contains("current"))
@@ -272,8 +298,10 @@ MagnetostaticResidual::MagnetostaticResidual(
 
          auto &temp_field = temp_field_iter->second;
 
+         auto magnet_attrs = getMagnetAttributes(options);
          linear_form.addDomainIntegrator(new MagnetizationSource2DIntegrator(
-             *nuM, temp_field.gridFunc(), 1.0));
+                                             *nuM, temp_field.gridFunc(), 1.0),
+                                         magnet_attrs);
       }
 
       load = std::make_unique<MachLoad>(std::move(linear_form));

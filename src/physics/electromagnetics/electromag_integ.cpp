@@ -161,6 +161,11 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
       pointflux *= w * model_val;
 
       dshapedxt.AddMult(pointflux, elvect);
+
+      if (!isfinite(elvect.Norml2()))
+      {
+         std::cout << "nan!\n";
+      }
    }
 }
 
@@ -256,6 +261,10 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
       point_flux_2_dot *= w;
 
       AddMultABt(dshapedxt, point_flux_2_dot, elmat);
+      if (!isfinite(elmat.FNorm()))
+      {
+         std::cout << "nan!\n";
+      }
    }
 }
 
@@ -433,6 +442,449 @@ void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 }
 
+void NonlinearDGDiffusionIntegrator::AssembleFaceVector(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   int ndof = el1.GetDof();
+
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::DenseMatrix dshape;
+   mfem::DenseMatrix dshapedxt;
+   mfem::Vector dshapedn;
+#endif
+   shape.SetSize(ndof);
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, dim);
+   dshapedn.SetSize(ndof);
+
+   double pointflux_buffer[3] = {};
+   Vector pointflux(pointflux_buffer, dim);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   double nh_buffer[3] = {};
+   mfem::Vector nh(nh_buffer, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = [&]()
+      {
+         if (el1.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el1.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el1.GetOrder() + el1.GetDim() - 1;
+         }
+      }();
+      ir = &IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elvect.SetSize(ndof);
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      // Set the integration point in the face and the neighboring elements
+      trans.SetAllIntPoints(&ip);
+      const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+
+      double w = alpha * ip.weight / el1_trans_weight;
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape);
+      el1.CalcDShape(eip1, dshape);
+
+      Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+      dshapedxt.MultTranspose(elfun, pointflux);
+      const double pointflux_norm = pointflux.Norml2();
+      const double pointflux_mag = pointflux_norm / el1_trans_weight;
+
+      double model_val = model.Eval(trans, eip1, pointflux_mag);
+
+      trans.Elem1->AdjugateJacobian().Mult(nor, nh);
+      dshape.Mult(nh, dshapedn);
+
+      double bc_val = g.Eval(trans, eip1);
+
+      elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
+      elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
+
+      const double w_q = w * (nor * nor) * mu;
+      elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
+   }
+}
+
+void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   int ndof = el1.GetDof();
+
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::DenseMatrix dshape;
+   mfem::DenseMatrix dshapedxt;
+   mfem::Vector dshapedn;
+   mfem::Vector pointflux_norm_dot;
+#endif
+   shape.SetSize(ndof);
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, dim);
+   dshapedn.SetSize(ndof);
+   pointflux_norm_dot.SetSize(ndof);
+
+   double pointflux_buffer[3] = {};
+   Vector pointflux(pointflux_buffer, dim);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   double nh_buffer[3] = {};
+   mfem::Vector nh(nh_buffer, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = [&]()
+      {
+         if (el1.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el1.GetOrder() - 2;
+         }
+         else
+         {
+            return 2 * el1.GetOrder() + el1.GetDim() - 1;
+         }
+      }();
+      ir = &IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elmat.SetSize(ndof);
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+
+      // Set the integration point in the face and the neighboring elements
+      trans.SetAllIntPoints(&ip);
+      const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+
+      double w = alpha * ip.weight / el1_trans_weight;
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape);
+      el1.CalcDShape(eip1, dshape);
+
+      Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+
+      dshapedxt.MultTranspose(elfun, pointflux);
+      /// pointflux_dot = dshapedxt.Transpose()
+
+      const double pointflux_norm = pointflux.Norml2();
+      pointflux_norm_dot = 0.0;
+      if (abs(pointflux_norm) > 1e-14)
+      {
+         dshapedxt.AddMult_a(1.0 / pointflux_norm, pointflux, pointflux_norm_dot);
+      }
+
+      const double pointflux_mag = pointflux_norm / el1_trans_weight;
+      pointflux_norm_dot /= el1_trans_weight;
+
+      double model_val = model.Eval(trans, eip1, pointflux_mag);
+
+      double model_deriv = model.EvalStateDeriv(trans, ip, pointflux_mag);
+      pointflux_norm_dot *= model_deriv;
+
+      trans.Elem1->AdjugateJacobian().Mult(nor, nh);
+      dshape.Mult(nh, dshapedn);
+
+      double bc_val = g.Eval(trans, eip1);
+
+      // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
+      AddMult_a_VWt(-model_val * w, dshapedn, shape, elmat);
+      AddMult_a_VWt(-(dshapedn * elfun) * w, shape, pointflux_norm_dot, elmat);
+
+      // elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
+      AddMult_a_VWt(-model_val * w, shape, dshapedn, elmat);
+      AddMult_a_VWt(
+          -((shape * elfun) - bc_val) * w, dshapedn, pointflux_norm_dot, elmat);
+
+      const double w_q = w * (nor * nor) * mu;
+      // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
+      AddMult_a_VVt(model_val * w_q, shape, elmat);
+      AddMult_a_VWt(
+          ((shape * elfun) - bc_val) * w_q, shape, pointflux_norm_dot, elmat);
+   }
+}
+
+void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &mesh_trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int element = mesh_trans.ElementNo;
+   auto &trans =
+       *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
+   const int state_elem_num = trans.Elem1->ElementNo;
+   const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
+   int dim = el1.GetDim();
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el1.GetDof();
+   const int space_dim = trans.GetSpaceDim();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::Vector psi;
+#endif
+   auto *dof_tr = state.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::DenseMatrix dshape;
+   mfem::DenseMatrix dshapedxt;
+   mfem::Vector dshapedn;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix dshapedxt_bar,
+   mfem::DenseMatrix dshapedn_bar;
+#else
+   auto &shape = integ.shape;
+   auto &dshape = integ.dshape;
+   auto &dshapedxt = integ.dshapedxt;
+   auto &dshapedn = integ.dshapedn;
+#endif
+   shape.SetSize(ndof);
+   dshape.SetSize(ndof, dim);
+   dshapedxt.SetSize(ndof, dim);
+   dshapedn.SetSize(ndof);
+
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+   dshapedxt_bar.SetSize(ndof, dim);
+   dshapedn_bar.SetSize(ndof);
+
+   double pointflux_buffer[3] = {};
+   Vector pointflux(pointflux_buffer, dim);
+
+   double pointflux_bar_buffer[3] = {};
+   Vector pointflux_bar(pointflux_bar_buffer, dim);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   double nor_bar_buffer[3] = {};
+   mfem::Vector nor_bar(nor_bar_buffer, dim);
+
+   double nh_buffer[3] = {};
+   mfem::Vector nh(nh_buffer, dim);
+
+   double nh_bar_buffer[3] = {};
+   mfem::Vector nh_bar(nh_bar_buffer, dim);
+
+   double adj_jac_bar_buffer[9] = {};
+   mfem::DenseMatrix adj_jac_bar(dim);
+
+   double jac_bar_buffer[9] = {};
+   mfem::DenseMatrix jac_bar(dim);
+
+   const mfem::IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el1.GetOrder() + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   // for (int i = 0; i < ir->GetNPoints(); i++)
+   // {
+   //    const IntegrationPoint &ip = ir->IntPoint(i);
+
+   //    // Set the integration point in the face and the neighboring elements
+   //    trans.SetAllIntPoints(&ip);
+   //    const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
+
+   //    double el1_trans_weight = trans.Elem1->Weight();
+
+   //    double w = alpha * ip.weight / el1_trans_weight;
+
+   //    if (dim == 1)
+   //    {
+   //       nor(0) = 2 * eip1.x - 1.0;
+   //    }
+   //    else
+   //    {
+   //       CalcOrtho(trans.Jacobian(), nor);
+   //    }
+
+   //    el1.CalcShape(eip1, shape);
+   //    el1.CalcDShape(eip1, dshape);
+
+   //    Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+   //    dshapedxt.MultTranspose(elfun, pointflux);
+   //    const double pointflux_norm = pointflux.Norml2();
+   //    const double pointflux_mag = pointflux_norm / el1_trans_weight;
+
+   //    double model_val = model.Eval(trans, eip1, pointflux_mag);
+
+   //    trans.Elem1->AdjugateJacobian().Mult(nor, nh);
+   //    dshape.Mult(nh, dshapedn);
+
+   //    double bc_val = g.Eval(trans, eip1);
+
+   //    // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
+   //    double term1 = -(dshapedn * elfun) * model_val * w * (psi * shape);
+   //    // elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
+   //    double term2 = -((shape * elfun) - bc_val) * model_val * w * (psi * dshapedn);
+
+   //    const double w_q = w * (nor * nor) * mu;
+   //    // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
+   //    double term3 = ((shape * elfun) - bc_val) * model_val * w_q * (psi * shape);
+
+   //    /// dummy functional for adjoint-weighted residual
+   //    // fun += term1 + term2 + term3;
+
+   //    /// start reverse pass
+   //    const double fun_bar = 1.0;
+
+   //    /// fun += term1 + term2 + term3;
+   //    const double term1_bar = fun_bar;
+   //    const double term2_bar = fun_bar;
+   //    const double term3_bar = fun_bar;
+
+   //    /// double term3 = ((shape * elfun) - bc_val) * model_val * w_q * (psi * shape);
+   //    double w_q_bar = term3_bar * ((shape * elfun) - bc_val) * model_val * (psi * shape);
+   //    double model_val_bar = term3_bar * ((shape * elfun) - bc_val) * w_q * (psi * shape);
+
+   //    /// const double w_q = w * (nor * nor) * mu;
+   //    double w_bar = w_q_bar * (nor * nor) * mu;
+   //    nor_bar = 0.0;
+   //    nor_bar.Add(2 * w_q_bar * w * mu, nor);
+
+   //    /// double term2 = -((shape * elfun) - bc_val) * model_val * w * (psi * dshapedn);
+   //    w_bar += term2_bar * -((shape * elfun) - bc_val) * model_val * (psi * dshapedn);
+   //    model_val_bar += term2_bar * -((shape * elfun) - bc_val) * w * (psi * dshapedn);
+   //    dshapedn_bar = 0.0;
+   //    dshapedn_bar.Add(term2_bar * -((shape * elfun) - bc_val) * w, psi);
+
+   //    /// double term1 = -(dshapedn * elfun) * model_val * w * (psi * shape);
+   //    w_bar += term1_bar * -(dshapedn * elfun) * model_val * (psi * shape);
+   //    model_val_bar += term1_bar * -(dshapedn * elfun) * w * (psi * shape);
+   //    dshapedn_bar.Add(term1_bar * -model_val * w * (psi * shape), elfun);
+
+   //    /// double bc_val = g.Eval(trans, eip1);
+
+   //    /// dshape.Mult(nh, dshapedn);
+   //    dshape.MultTranspose(dshapedn_bar, nh_bar);
+
+   //    /// trans.Elem1->AdjugateJacobian().Mult(nor, nh);
+   //    trans.Elem1->AdjugateJacobian().AddMultTranspose(nh_bar, nor_bar);
+   //    MultVWt(nh_bar, nor, adj_jac_bar);
+
+   //    /// double model_val = model.Eval(trans, eip1, pointflux_mag);
+   //    const double model_val_dot =
+   //        model.EvalStateDeriv(trans, ip, pointflux_mag);
+   //    double pointflux_mag_bar = model_val_bar * model_val_dot;
+
+   //    /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
+   //    double pointflux_norm_bar = pointflux_mag_bar / el1_trans_weight;
+   //    double el1_trans_weight_bar = -pointflux_mag_bar * pointflux_norm / pow(el1_trans_weight, 2);
+
+   //    /// const double pointflux_norm = pointflux.Norml2();
+   //    pointflux_bar = 0.0;
+   //    add(pointflux_bar,
+   //        pointflux_norm_bar / pointflux_norm,
+   //        pointflux,
+   //        pointflux_bar);
+
+   //    /// dshapedxt.MultTranspose(elfun, pointflux);
+   //    AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
+
+   //    /// Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+   //    AddMultAtB(dshape, dshapedxt_bar, adj_jac_bar);
+
+   //    PointMat_bar = 0.0;
+   //    isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
+
+   //    if (dim == 1)
+   //    {
+   //       /// nor(0) = 2 * eip1.x - 1.0;
+   //    }
+   //    else
+   //    {
+   //       /// CalcOrtho(trans.Jacobian(), nor);
+   //       jac_bar = 0.0;
+   //       CalcOrthoRevDiff(trans.Jacobian, nor_bar, jac_bar);
+   //       isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+   //    }
+
+   //    /// double w = alpha * ip.weight / el1_trans_weight;
+   //    el1_trans_weight_bar -= w_bar * alpha * ip.weight / pow(el1_trans_weight, 2);
+
+   //    /// double el1_trans_weight = trans.Elem1->Weight();
+   //    isotrans.WeightRevDiff(el1_trans_weight_bar, PointMat_bar);
+
+   //    // code to insert PointMat_bar into mesh_coords_bar;
+   //    for (int j = 0; j < mesh_ndof; ++j)
+   //    {
+   //       for (int k = 0; k < space_dim; ++k)
+   //       {
+   //          mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+   //       }
+   //    }
+   // }
+}
+
 void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -489,7 +941,7 @@ void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 1;
          }
          else
          {
@@ -614,7 +1066,7 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 1;
          }
          else
          {
@@ -793,7 +1245,7 @@ void MagnetizationSource2DIntegratorTemperatureSens::AssembleRHSElementVect(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 1;
          }
          else
          {
@@ -3920,6 +4372,7 @@ void setInputs(DCLossDistributionIntegrator &integ, const MachInputs &inputs)
    setValueFromInputs(inputs, "strand_radius", integ.strand_radius);
    setValueFromInputs(inputs, "strands_in_hand", integ.strands_in_hand);
    setValueFromInputs(inputs, "stack_length", integ.stack_length);
+   setValueFromInputs(inputs, "winding_volume", integ.winding_volume);
 }
 
 /// Compute the spatial distribution of the heat flux due to DC losses.
@@ -4002,8 +4455,7 @@ void DCLossDistributionIntegrator::AssembleRHSElementVect(
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
-      /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       elvect.Add(loss * w, temp_shape);
    }
@@ -4091,6 +4543,7 @@ void DCLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
    mesh_coords_bar = 0.0;
@@ -4118,7 +4571,7 @@ void DCLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4226,6 +4679,7 @@ void DCLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    temp_bar.SetSize(temp_ndof);
    temp_bar = 0.0;
@@ -4253,7 +4707,7 @@ void DCLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4270,8 +4724,8 @@ void DCLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
       // double psi_dot_temp_bar = fun_bar * loss * w;
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
-      /// loss *= 1 / (0.02314281 * stack_length);
-      loss_bar *= 1 / (0.02314281 * stack_length);
+      /// loss *= 1 / (winding_volume * stack_length);
+      loss_bar *= 1 / (winding_volume * stack_length);
 
       /// loss *= 1.0 * sqrt(2);
       loss_bar *= 1.0 * sqrt(2);
@@ -4372,6 +4826,7 @@ double DCLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -4398,7 +4853,7 @@ double DCLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4416,7 +4871,7 @@ double DCLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (0.02314281 * stack_length);
-      loss_bar *= 1 / (0.02314281 * stack_length);
+      loss_bar *= 1 / (winding_volume * stack_length);
 
       /// loss *= 1.0 * sqrt(2);
       loss_bar *= 1.0 * sqrt(2);
@@ -4513,6 +4968,7 @@ double DCLossDistributionIntegratorWireLengthRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -4539,7 +4995,7 @@ double DCLossDistributionIntegratorWireLengthRevSens::GetElementEnergy(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4557,7 +5013,7 @@ double DCLossDistributionIntegratorWireLengthRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (0.02314281 * stack_length);
-      loss_bar *= 1 / (0.02314281 * stack_length);
+      loss_bar *= 1 / (winding_volume * stack_length);
 
       /// loss *= 1.0 * sqrt(2);
       loss_bar *= 1.0 * sqrt(2);
@@ -4654,6 +5110,7 @@ double DCLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -4680,7 +5137,7 @@ double DCLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4698,7 +5155,7 @@ double DCLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (0.02314281 * stack_length);
-      loss_bar *= 1 / (0.02314281 * stack_length);
+      loss_bar *= 1 / (winding_volume * stack_length);
 
       /// loss *= 1.0 * sqrt(2);
       loss_bar *= 1.0 * sqrt(2);
@@ -4795,6 +5252,7 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -4821,7 +5279,7 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (0.02314281 * stack_length);
+      loss *= 1 / (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4839,7 +5297,7 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (0.02314281 * stack_length);
-      loss_bar *= 1 / (0.02314281 * stack_length);
+      loss_bar *= 1 / (winding_volume * stack_length);
 
       /// loss *= 1.0 * sqrt(2);
       loss_bar *= 1.0 * sqrt(2);
@@ -4936,6 +5394,7 @@ double DCLossDistributionIntegratorStackLengthRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &rms_current = integ.rms_current;
    auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -4962,7 +5421,7 @@ double DCLossDistributionIntegratorStackLengthRevSens::GetElementEnergy(
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss /= (0.02314281 * stack_length);
+      loss /= (winding_volume * stack_length);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -4991,6 +5450,134 @@ double DCLossDistributionIntegratorStackLengthRevSens::GetElementEnergy(
       /// double strand_area = M_PI * pow(strand_radius, 2);
 
       fun += stack_length_bar;
+   }
+   return fun;
+}
+
+double DCLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   const int element = trans.ElementNo;
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector temp_elfun;
+#else
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   auto &temperature_field = integ.temperature_field;
+
+   // Obtain correct element, DOFs, etc for temperature field
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector temp_shape;
+#else
+   auto &temp_shape = integ.temp_shape;
+#endif
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            // return 2 * el.GetOrder() - 1;
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &strand_radius = integ.strand_radius;
+   auto &wire_length = integ.wire_length;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &rms_current = integ.rms_current;
+   auto &stack_length = integ.stack_length;
+   auto &winding_volume = integ.winding_volume;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double strand_area = M_PI * pow(strand_radius, 2);
+      double R = wire_length / (strand_area * strands_in_hand * sigma_v);
+
+      double loss = pow(rms_current, 2) * R;
+      // not sure about this... but it matches MotorCAD's values
+      loss *= 1.0 * sqrt(2);
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      loss /= (winding_volume * stack_length);
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= (winding_volume * stack_length);
+      double winding_volume_bar = -loss_bar * loss / winding_volume;
+
+      /// loss *= 1.0 * sqrt(2);
+
+      /// double loss = pow(rms_current, 2) * R;
+
+      /// double R = wire_length / (strand_area * strands_in_hand * sigma_v);
+
+      /// double strand_area = M_PI * pow(strand_radius, 2);
+
+      fun += winding_volume_bar;
    }
    return fun;
 }
@@ -5496,10 +6083,11 @@ void setInputs(ACLossDistributionIntegrator &integ, const MachInputs &inputs)
 {
    setValueFromInputs(inputs, "frequency", integ.freq);
    setValueFromInputs(inputs, "strand_radius", integ.radius);
-   setValueFromInputs(inputs, "stack_length", integ.stack_length);
+   // setValueFromInputs(inputs, "stack_length", integ.stack_length);
    setValueFromInputs(inputs, "strands_in_hand", integ.strands_in_hand);
    setValueFromInputs(inputs, "num_turns", integ.num_turns);
    setValueFromInputs(inputs, "num_slots", integ.num_slots);
+   setValueFromInputs(inputs, "winding_volume", integ.winding_volume);
 }
 
 /// TODO: Compute the spatial distribution of the heat flux due to AC losses.
@@ -5589,14 +6177,17 @@ void ACLossDistributionIntegrator::AssembleRHSElementVect(
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
 
-      double loss = stack_length * M_PI * pow(radius, 4) *
+      // double loss = stack_length * M_PI * pow(radius, 4) *
+      //               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double loss = M_PI * pow(radius, 4) *
                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (stack_length * 0.02314281);
+      // loss *= 1 / (winding_volume * stack_length);
+      loss *= 1 / (winding_volume);
 
       elvect.Add(loss * w, temp_shape);
    }
@@ -5696,10 +6287,11 @@ void ACLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &sigma = integ.sigma;
    auto &freq = integ.freq;
    auto &radius = integ.radius;
-   auto &stack_length = integ.stack_length;
+   // auto &stack_length = integ.stack_length;
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
    mesh_coords_bar = 0.0;
@@ -5720,14 +6312,18 @@ void ACLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       const double sigma_v = sigma.Eval(mesh_trans, ip, temperature);
 
-      double loss = stack_length * M_PI * pow(radius, 4) *
+      // double loss = stack_length * M_PI * pow(radius, 4) *
+      //               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double loss =  M_PI * pow(radius, 4) *
                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (stack_length * 0.02314281);
+      // loss *= 1 / (winding_volume * stack_length);
+      loss *= 1 / (winding_volume);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -5846,10 +6442,11 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
    auto &sigma = integ.sigma;
    auto &freq = integ.freq;
    auto &radius = integ.radius;
-   auto &stack_length = integ.stack_length;
+   // auto &stack_length = integ.stack_length;
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    flux_bar.SetSize(flux_ndof);
    flux_bar = 0.0;
@@ -5870,14 +6467,17 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
 
-      double loss = stack_length * M_PI * pow(radius, 4) *
+      // double loss = stack_length * M_PI * pow(radius, 4) *
+      //               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double loss = M_PI * pow(radius, 4) *
                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (stack_length * 0.02314281);
+      // loss *= 1 / (winding_volume * stack_length);
+      loss *= 1 / (winding_volume);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -5895,14 +6495,17 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (stack_length * 0.02314281);
-      loss_bar *= 1 / (stack_length * 0.02314281);
+      // loss_bar *= 1 / (winding_volume * stack_length);
+      loss_bar *= 1 / (winding_volume);
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
 
       /// double loss = stack_length * M_PI * pow(radius, 4) *
       ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
-      double b_mag_bar = loss_bar * stack_length * M_PI * pow(radius, 4) * 2 *
+      // double b_mag_bar = loss_bar * stack_length * M_PI * pow(radius, 4) * 2 *
+      //                    pow(2 * M_PI * freq, 2) * b_mag * sigma_v / 8.0;
+      double b_mag_bar = loss_bar * M_PI * pow(radius, 4) * 2 *
                          pow(2 * M_PI * freq, 2) * b_mag * sigma_v / 8.0;
 
       /// const auto b_mag = flux_shape * flux_elfun;
@@ -5995,10 +6598,11 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
    auto &sigma = integ.sigma;
    auto &freq = integ.freq;
    auto &radius = integ.radius;
-   auto &stack_length = integ.stack_length;
+   // auto &stack_length = integ.stack_length;
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    temp_bar.SetSize(temp_ndof);
    temp_bar = 0.0;
@@ -6019,14 +6623,17 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
 
-      double loss = stack_length * M_PI * pow(radius, 4) *
+      // double loss = stack_length * M_PI * pow(radius, 4) *
+      //               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double loss = M_PI * pow(radius, 4) *
                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (stack_length * 0.02314281);
+      // loss *= 1 / (winding_volume * stack_length);
+      loss *= 1 / (winding_volume);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -6044,14 +6651,17 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (stack_length * 0.02314281);
-      loss_bar *= 1 / (stack_length * 0.02314281);
+      // loss_bar *= 1 / (winding_volume * stack_length);
+      loss_bar *= 1 / (winding_volume);
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
 
       /// double loss = stack_length * M_PI * pow(radius, 4) *
       ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
-      double sigma_v_bar = loss_bar * stack_length * M_PI * pow(radius, 4) *
+      // double sigma_v_bar = loss_bar * stack_length * M_PI * pow(radius, 4) *
+      //                      pow(2 * M_PI * freq * b_mag, 2) / 8.0;
+      double sigma_v_bar = loss_bar * M_PI * pow(radius, 4) *
                            pow(2 * M_PI * freq * b_mag, 2) / 8.0;
 
       /// const double sigma_v = sigma.Eval(trans, ip, temperature);
@@ -6152,6 +6762,7 @@ double ACLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -6177,8 +6788,7 @@ double ACLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
-      /// TODO: Find a way to not hard-code the volume
-      loss /= 0.02314281;
+      loss /= winding_volume;
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -6196,7 +6806,7 @@ double ACLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss /= 0.02314281;
-      loss_bar /= 0.02314281;
+      loss_bar /= winding_volume;
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
@@ -6297,10 +6907,11 @@ double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
    auto &sigma = integ.sigma;
    auto &freq = integ.freq;
    auto &radius = integ.radius;
-   auto &stack_length = integ.stack_length;
+   // auto &stack_length = integ.stack_length;
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -6320,14 +6931,16 @@ double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
 
       const double sigma_v = sigma.Eval(trans, ip, temperature);
 
-      double loss = stack_length * M_PI * pow(radius, 4) *
+      // double loss = stack_length * M_PI * pow(radius, 4) *
+      //               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double loss = M_PI * pow(radius, 4) *
                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
-      /// TODO: Find a way to not hard-code the volume
-      loss *= 1 / (stack_length * 0.02314281);
+      // loss *= 1 / (winding_volume * stack_length);
+      loss *= 1 / (winding_volume);
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -6345,14 +6958,17 @@ double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// loss *= 1 / (stack_length * 0.02314281);
-      loss_bar *= 1 / (stack_length * 0.02314281);
+      // loss_bar *= 1 / (winding_volume * stack_length);
+      loss_bar *= 1 / (winding_volume);
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
 
       /// double loss = stack_length * M_PI * pow(radius, 4) *
       ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
-      double radius_bar = loss_bar * stack_length * M_PI * 4 * pow(radius, 3) *
+      // double radius_bar = loss_bar * stack_length * M_PI * 4 * pow(radius, 3) *
+      //                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+      double radius_bar = loss_bar * M_PI * 4 * pow(radius, 3) *
                           pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
 
       fun += radius_bar;
@@ -6446,10 +7062,11 @@ double ACLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
    auto &sigma = integ.sigma;
    auto &freq = integ.freq;
    auto &radius = integ.radius;
-   auto &stack_length = integ.stack_length;
+   // auto &stack_length = integ.stack_length;
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -6476,9 +7093,8 @@ double ACLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
 
       // Scale the loss by 1/volume that DCLF uses and also divide by the stack
       // length to account for the fact don't have 1m depth (W -> W/m)
-      /// TODO: Find a way to not hard-code the volume
       // loss /= 0.02314281;
-      double loss3 = loss2 / 0.02314281;
+      double loss3 = loss2 / winding_volume;
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -6498,7 +7114,7 @@ double ACLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
       /// loss /= 0.02314281;
       // loss_bar /= 0.02314281;
       /// double loss3 = loss2 / 0.02314281;
-      double loss2_bar = loss_bar / 0.02314281;
+      double loss2_bar = loss_bar / winding_volume;
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
@@ -6604,10 +7220,11 @@ double ACLossDistributionIntegratorNumTurnsRevSens::GetElementEnergy(
    auto &sigma = integ.sigma;
    auto &freq = integ.freq;
    auto &radius = integ.radius;
-   auto &stack_length = integ.stack_length;
+   // auto &stack_length = integ.stack_length;
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -6636,7 +7253,7 @@ double ACLossDistributionIntegratorNumTurnsRevSens::GetElementEnergy(
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss /= 0.02314281;
-      double loss3 = loss2 / 0.02314281;
+      double loss3 = loss2 / winding_volume;
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -6656,7 +7273,7 @@ double ACLossDistributionIntegratorNumTurnsRevSens::GetElementEnergy(
       /// loss /= 0.02314281;
       // loss_bar /= 0.02314281;
       /// double loss3 = loss2 / 0.02314281;
-      double loss2_bar = loss_bar / 0.02314281;
+      double loss2_bar = loss_bar / winding_volume;
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
@@ -6765,6 +7382,7 @@ double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
    auto &strands_in_hand = integ.strands_in_hand;
    auto &num_turns = integ.num_turns;
    auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -6793,7 +7411,7 @@ double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
       // length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss /= 0.02314281;
-      double loss3 = loss2 / 0.02314281;
+      double loss3 = loss2 / winding_volume;
 
       // elvect.Add(loss * w, temp_shape);
 
@@ -6813,7 +7431,7 @@ double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
       /// loss /= 0.02314281;
       // loss_bar /= 0.02314281;
       /// double loss3 = loss2 / 0.02314281;
-      double loss2_bar = loss_bar / 0.02314281;
+      double loss2_bar = loss_bar / winding_volume;
 
       /// loss *= 2 * strands_in_hand * num_turns * num_slots;
       // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
@@ -6829,6 +7447,158 @@ double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
       //                    pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
 
       fun += num_slots_bar;
+   }
+   return fun;
+}
+
+double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector psi;
+   mfem::Vector flux_elfun;
+   mfem::Vector temp_elfun;
+#else
+   auto &flux_elfun = integ.flux_elfun;
+   auto &temp_elfun = integ.temp_elfun;
+#endif
+
+   const int element = trans.ElementNo;
+
+   // Obtain the finite element, element transformation, and degrees of freedom
+   // for the adjoint
+   const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
+   const int adjoint_ndof = adjoint_el.GetDof();
+   auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+   // Obtain the finite element, DOFs, etc for peak flux field
+   auto &peak_flux = integ.peak_flux;
+
+   const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
+   const int flux_ndof = flux_el.GetDof();
+
+   dof_tr = peak_flux.FESpace()->GetElementVDofs(element, vdofs);
+   peak_flux.GetSubVector(vdofs, flux_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(flux_elfun);
+   }
+
+   // Obtain correct element, DOFs, etc for temperature field
+   auto &temperature_field = integ.temperature_field;
+   const auto &temp_el = *temperature_field.FESpace()->GetFE(element);
+   const int temp_ndof = temp_el.GetDof();
+
+   dof_tr = temperature_field.FESpace()->GetElementVDofs(element, vdofs);
+   temperature_field.GetSubVector(vdofs, temp_elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(temp_elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector flux_shape;
+   Vector temp_shape;
+#else
+   auto &flux_shape = integ.flux_shape;
+   auto &temp_shape = integ.temp_shape;
+#endif
+
+   flux_shape.SetSize(flux_ndof);
+   temp_shape.SetSize(temp_ndof);
+
+   // Integration Rule
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (temp_el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * temp_el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * temp_el.GetOrder();
+         }
+      }();
+      ir = &IntRules.Get(temp_el.GetGeomType(), order);
+   }
+
+   auto &sigma = integ.sigma;
+   auto &freq = integ.freq;
+   auto &radius = integ.radius;
+   auto &strands_in_hand = integ.strands_in_hand;
+   auto &num_turns = integ.num_turns;
+   auto &num_slots = integ.num_slots;
+   auto &winding_volume = integ.winding_volume;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+
+      const double w = ip.weight * trans_weight;
+
+      flux_el.CalcPhysShape(trans, flux_shape);
+      const auto b_mag = flux_shape * flux_elfun;
+
+      temp_el.CalcPhysShape(trans, temp_shape);
+      const double temperature = temp_shape * temp_elfun;
+
+      const double sigma_v = sigma.Eval(trans, ip, temperature);
+
+      double loss = M_PI * pow(radius, 4) * pow(2 * M_PI * freq * b_mag, 2) *
+                    sigma_v / 8.0;
+      // loss *= 2 * strands_in_hand * num_turns * num_slots;
+      double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+
+      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
+      // length to account for the fact don't have 1m depth (W -> W/m)
+      /// TODO: Find a way to not hard-code the volume
+      // loss /= 0.02314281;
+      double loss3 = loss2 / winding_volume;
+
+      // elvect.Add(loss * w, temp_shape);
+
+      const double psi_dot_temp = (psi * temp_shape);
+
+      /// dummy functional for adjoint-weighted residual
+      // fun += loss * psi_dot_temp * w;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += loss * psi_dot_temp * w;
+      double loss_bar = fun_bar * psi_dot_temp * w;
+      // double psi_dot_temp_bar = fun_bar * loss * w;
+      // const double w_bar = fun_bar * loss * psi_dot_temp;
+
+      /// loss /= 0.02314281;
+      // loss_bar /= 0.02314281;
+      /// double loss3 = loss2 / winding_volume;
+      double winding_volume_bar = -loss_bar * loss2 / pow(winding_volume, 2);
+      /// loss *= 2 * strands_in_hand * num_turns * num_slots;
+      // loss_bar *= 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
+
+      /// double loss = M_PI * pow(radius, 4) *
+      ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
+
+      fun += winding_volume_bar;
    }
    return fun;
 }

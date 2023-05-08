@@ -61,7 +61,9 @@ TEST_CASE("DCLossFunctional sensitivity wrt mesh_coords")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossFunctional fun(fields, sigma, {});
          mach::MachInputs inputs{
@@ -194,7 +196,9 @@ TEST_CASE("DCLossFunctional sensitivity wrt temperature")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossFunctional fun(fields, sigma, {});
          mach::MachInputs inputs{
@@ -297,7 +301,9 @@ TEST_CASE("DCLossFunctional sensitivity wrt wire_length")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossFunctional fun(fields, sigma, {});
 
@@ -389,7 +395,9 @@ TEST_CASE("DCLossFunctional sensitivity wrt rms_current")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossFunctional fun(fields, sigma, {});
 
@@ -481,7 +489,9 @@ TEST_CASE("DCLossFunctional sensitivity wrt strand_radius")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossFunctional fun(fields, sigma, {});
 
@@ -573,7 +583,9 @@ TEST_CASE("DCLossFunctional sensitivity wrt strands_in_hand")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossFunctional fun(fields, sigma, {});
 
@@ -661,7 +673,8 @@ TEST_CASE("DCLossDistribution::vectorJacobianProduct::mesh_coords")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
          mach::MachInputs inputs{
@@ -753,7 +766,8 @@ TEST_CASE("DCLossDistribution::vectorJacobianProduct::temperature")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
          mach::MachInputs inputs{
@@ -845,7 +859,8 @@ TEST_CASE("DCLossDistribution sensitivity wrt wire_length")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
 
@@ -935,7 +950,8 @@ TEST_CASE("DCLossDistribution sensitivity wrt rms_current")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
 
@@ -1025,7 +1041,8 @@ TEST_CASE("DCLossDistribution sensitivity wrt strand_radius")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
 
@@ -1115,7 +1132,8 @@ TEST_CASE("DCLossDistribution sensitivity wrt strands_in_hand")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
 
@@ -1205,7 +1223,8 @@ TEST_CASE("DCLossDistribution sensitivity wrt stack_length")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::DCLossDistribution distribution(fields, sigma, {});
 
@@ -1298,7 +1317,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt strand_radius")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
 
@@ -1391,7 +1412,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt frequency")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
 
@@ -1485,7 +1508,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt stack_length")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
 
@@ -1578,7 +1603,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt strands_in_hand")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
 
@@ -1671,7 +1698,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt num_turns")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
 
@@ -1764,7 +1793,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt num_slots")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
 
@@ -1860,7 +1891,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt mesh_coords")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
          mach::MachInputs inputs{
@@ -1969,7 +2002,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt peak_flux")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
          mach::MachInputs inputs{
@@ -2078,7 +2113,9 @@ TEST_CASE("ACLossFunctional sensitivity wrt temperature")
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
-         temp_tv = 300;
+         temp.project(randState, temp_tv);
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossFunctional fun(fields, sigma, {});
          mach::MachInputs inputs{
@@ -2188,7 +2225,8 @@ TEST_CASE("ACLossDistribution::vectorJacobianProduct::mesh_coords")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
          mach::MachInputs inputs{
@@ -2292,7 +2330,8 @@ TEST_CASE("ACLossDistribution::vectorJacobianProduct::peak_flux")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
          mach::MachInputs inputs{
@@ -2395,7 +2434,8 @@ TEST_CASE("ACLossDistribution::vectorJacobianProduct::temperature")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
          mach::MachInputs inputs{
@@ -2499,7 +2539,8 @@ TEST_CASE("ACLossDistribution sensitivity wrt frequency")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
 
@@ -2600,7 +2641,8 @@ TEST_CASE("ACLossDistribution sensitivity wrt strand_radius")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
 
@@ -2701,7 +2743,8 @@ TEST_CASE("ACLossDistribution sensitivity wrt strands_in_hand")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
 
@@ -2802,7 +2845,8 @@ TEST_CASE("ACLossDistribution sensitivity wrt num_turns")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
 
@@ -2903,7 +2947,8 @@ TEST_CASE("ACLossDistribution sensitivity wrt num_slots")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          mach::ACLossDistribution distribution(fields, sigma, {});
 
@@ -2998,7 +3043,8 @@ TEST_CASE("CoreLossFunctional sensitivity wrt frequency")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          // mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
          // mesh_coords.setTrueVec(mesh_coords_tv);
@@ -3246,7 +3292,8 @@ TEST_CASE("CoreLossFunctional sensitivity wrt mesh_coords")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "box1": {
@@ -3372,7 +3419,8 @@ TEST_CASE("CAL2CoreLossDistribution::vectorJacobianProduct::mesh_coords")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -3500,7 +3548,8 @@ TEST_CASE("CAL2CoreLossDistribution::vectorJacobianProduct::peak_flux")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -3625,7 +3674,8 @@ TEST_CASE("CAL2CoreLossDistribution::vectorJacobianProduct::temperature")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -3751,7 +3801,8 @@ TEST_CASE("CAL2CoreLossDistribution sensitivity wrt frequency")
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -3868,13 +3919,16 @@ TEST_CASE("EMHeatSourceOutput::vectorJacobianProduct::mesh_coords")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4008,13 +4062,15 @@ TEST_CASE("EMHeatSourceOutput::vectorJacobianProduct::peak_flux")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4147,13 +4203,15 @@ TEST_CASE("EMHeatSourceOutput::vectorJacobianProduct::temperature")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4287,13 +4345,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt wire_length")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4424,13 +4484,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt rms_current")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4497,6 +4559,7 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt rms_current")
 
          ddist_dp_v_fd /= 2*delta;
 
+         std::cout << "current fd: " << ddist_dp_v << ", " << ddist_dp_v_fd << "\n";
          REQUIRE(ddist_dp_v == Approx(ddist_dp_v_fd).margin(1e-8));
       }
    }
@@ -4561,13 +4624,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt strand_radius")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4698,13 +4763,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt strands_in_hand")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4835,13 +4902,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt num_turns")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -4972,13 +5041,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt num_slots")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -5108,13 +5179,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt frequency")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
@@ -5245,13 +5318,15 @@ TEST_CASE("EMHeatSourceOutput sensitivity wrt stack_length")
          auto &peak_flux = fields.at("peak_flux");
          mfem::Vector peak_flux_tv(peak_flux.space().GetTrueVSize());
          peak_flux.project(randState, peak_flux_tv);
+         peak_flux_tv += 2.0;
 
          fields.emplace("temperature", mach::FiniteElementState(mesh, {.order=p}));
          auto &temp = fields.at("temperature");
 
          mfem::Vector temp_tv(temp.space().GetTrueVSize());
          temp.project(randState, temp_tv);
-         temp_tv += 10;
+         temp_tv *= 25;
+         temp_tv += 200;
 
          auto components = R"({
             "test": {
