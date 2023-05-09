@@ -287,6 +287,75 @@ inline void addBdrSensitivityIntegrator(
    }
 }
 
+class TestBoundaryIntegrator: public mfem::NonlinearFormIntegrator
+{
+public:
+   TestBoundaryIntegrator(double a = 1.0)
+    : alpha(a)
+   { }
+
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
+
+private:
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::DenseMatrix dshape;
+   mfem::DenseMatrix dshapedxt;
+   mfem::Vector dshapedn;
+   mfem::Vector pointflux_norm_dot;
+#endif
+
+   friend class TestBoundaryIntegratorMeshRevSens;
+};
+
+class TestBoundaryIntegratorMeshRevSens: public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   TestBoundaryIntegratorMeshRevSens(
+       mfem::GridFunction &state,
+       mfem::GridFunction &adjoint,
+       TestBoundaryIntegrator &integ)
+    : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   TestBoundaryIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix dshapedxt_bar;
+   mfem::DenseMatrix dshapedn_bar;
+#endif
+};
+
 class MagnetizationSource2DIntegrator : public mfem::LinearFormIntegrator
 {
 public:
