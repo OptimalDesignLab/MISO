@@ -209,15 +209,15 @@ class MachState(om.ImplicitComponent):
                 if "state" in d_residuals:
                     if "state" in d_outputs:
                         if np.linalg.norm(d_outputs["state"], 2) != 0.0:
-                            print(f"{solver_type} solver jacobianVectorProduct wrt state")
+                            # print(f"{solver_type} solver jacobianVectorProduct wrt state")
                             solver.jacobianVectorProduct(
                                 wrt_dot=d_outputs["state"],
                                 wrt="state",
                                 res_dot=d_residuals["state"],
                             )
-                        else:
-                            print(f"{solver_type} solver jacobianVectorProduct wrt state zero res_dot")
-                            print("zero wrt_dot!")
+                        # else:
+                            # print(f"{solver_type} solver jacobianVectorProduct wrt state zero res_dot")
+                            # print("zero wrt_dot!")
 
                     for input in d_inputs:
                         if np.linalg.norm(d_inputs[input], 2) != 0.0:
@@ -225,20 +225,20 @@ class MachState(om.ImplicitComponent):
                             solver.jacobianVectorProduct(
                                 wrt_dot=d_inputs[input],
                                 wrt=input,
-                                res_dot=d_residuals["state"],
-                            )
+                                res_dot=d_residuals["state"])
                         else:
-                            print(f"{solver_type} solver jacobianVectorProduct wrt {input} zero res_dot")
-                            print("zero wrt_dot!")
+                            pass
+                            # print(f"{solver_type} solver jacobianVectorProduct wrt {input} zero res_dot")
+                            # print("zero wrt_dot!")
 
             elif mode == "rev":
                 if "state" in d_residuals:
                     if np.linalg.norm(d_residuals["state"], 2) != 0.0:
-                        print(f"{solver_type} solver adjoint norm: {np.linalg.norm(d_residuals['state'], 2)}")
+                        # print(f"{solver_type} solver adjoint norm: {np.linalg.norm(d_residuals['state'], 2)}")
 
 
                         if "state" in d_outputs:
-                            print(f"{solver_type} solver vectorJacobianProduct wrt state")
+                            # print(f"{solver_type} solver vectorJacobianProduct wrt state")
                             solver.vectorJacobianProduct(
                                 res_bar=d_residuals["state"],
                                 wrt="state",
@@ -246,14 +246,14 @@ class MachState(om.ImplicitComponent):
                             )
 
                         for input in d_inputs:
-                            print(f"{solver_type} solver vectorJacobianProduct wrt {input}")
+                            # print(f"{solver_type} solver vectorJacobianProduct wrt {input}")
                             solver.vectorJacobianProduct(
                                 res_bar=d_residuals["state"],
                                 wrt=input,
                                 wrt_bar=d_inputs[input],
                             )
-                    else:
-                        print(f"{solver_type} solver zero adjoint!")
+                    # else:
+                    #     print(f"{solver_type} solver zero adjoint!")
                         # print("zero res_bar!")
 
         except Exception as err:
@@ -292,15 +292,15 @@ class MachState(om.ImplicitComponent):
                 solver_type = "EM"
 
             # print("!!!!!!! Solving for adjoint !!!!!!!")
-            print(f"{solver_type} solver solving for adjoint!")
+            # print(f"{solver_type} solver solving for adjoint!")
             if np.linalg.norm(d_outputs["state"], 2) != 0.0:
                 input_dict = self.linear_inputs
                 solver.solveForAdjoint(
                     input_dict, d_outputs["state"], d_residuals["state"]
                 )
-                print(f"adjoint norm: {np.linalg.norm(d_residuals['state'])}")
+                # print(f"adjoint norm: {np.linalg.norm(d_residuals['state'])}")
                 # solver.solveForAdjoint(input_dict,
                 #                        state_bar,
                 #                        d_residuals["state"])
-            else:
-                print("zero fun_bar!")
+            # else:
+            #     print("zero fun_bar!")

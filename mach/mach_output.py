@@ -147,7 +147,7 @@ class MachFunctional(om.ExplicitComponent):
                             func_dot = np.zeros_like(d_outputs[func])
                             func_dot = np.zeros_like(d_outputs[func])
 
-                            print(f"output {func} jacobianVectorProduct wrt {input}")
+                            # print(f"output {func} jacobianVectorProduct wrt {input}")
                             # print(f"wrt_dot for input {input}: {d_inputs[input]} for fun {func}")
                             solver.outputJacobianVectorProduct(of=func,
                                                               inputs=input_dict,
@@ -179,18 +179,18 @@ class MachFunctional(om.ExplicitComponent):
                                 # Recommended to make sure your code can run without MPI too, for testing.
                                 func_bar = d_outputs[func]
 
-                            print(f"output {func} vectorJacobianProduct wrt {input}")
-                            if np.linalg.norm(func_bar, 2) != 0.0:
-                                print(f"func_bar norm: {np.linalg.norm(func_bar, 2)}, func_bar shape: {func_bar.shape}")
-                            else:
-                                print("zero func_bar!")
+                            # print(f"output {func} vectorJacobianProduct wrt {input}")
+                            # if np.linalg.norm(func_bar, 2) != 0.0:
+                            #     print(f"func_bar norm: {np.linalg.norm(func_bar, 2)}, func_bar shape: {func_bar.shape}")
+                            # else:
+                            #     print("zero func_bar!")
 
                             solver.outputVectorJacobianProduct(of=func,
                                                                inputs=input_dict,
                                                                out_bar=func_bar,
                                                                wrt=input,
                                                                wrt_bar=d_inputs[input])
-                            print(f"wrt_bar norm: {np.linalg.norm(d_inputs[input], 2)}")
+                            # print(f"wrt_bar norm: {np.linalg.norm(d_inputs[input], 2)}")
                             
         except Exception as err:
             if isinstance(err, NotImplementedError):

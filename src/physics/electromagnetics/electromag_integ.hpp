@@ -242,8 +242,9 @@ public:
 
    /// This signature is for sensitivity wrt mesh element
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                              mfem::FaceElementTransformations &trans,
-                              mfem::Vector &mesh_coords_bar) override;
+                               mfem::FaceElementTransformations &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
 private:
    /// the state to use when evaluating d(psi^T R)/dX
    mfem::GridFunction &state;
@@ -257,7 +258,7 @@ private:
    mfem::Vector elfun, psi;
    mfem::DenseMatrix PointMat_bar;
    mfem::DenseMatrix dshapedxt_bar;
-   mfem::DenseMatrix dshapedn_bar;
+   mfem::Vector dshapedn_bar;
 #endif
 };
 

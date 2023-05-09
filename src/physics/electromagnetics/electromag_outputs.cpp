@@ -1474,7 +1474,8 @@ ACLossFunctional::ACLossFunctional(
     std::map<std::string, FiniteElementState> &fields,
     StateCoefficient &sigma,
     const nlohmann::json &options)
- : output(fields.at("peak_flux").space(), fields, "peak_flux"), volume(fields, options)
+ : output(fields.at("peak_flux").space(), fields, "peak_flux"),
+   volume(fields, options)
 {
    auto &temp = fields.at("temperature");
 
@@ -1764,9 +1765,9 @@ void calcOutput(EMHeatSourceOutput &output,
    out_vec += output.scratch;
    output.scratch = 0.0;
    calcOutput(output.core_loss, inputs, output.scratch);
-   // std::cout << "output.scratch norml2 " << output.scratch.Norml2() << "\n"; 
+   // std::cout << "output.scratch norml2 " << output.scratch.Norml2() << "\n";
    out_vec += output.scratch;
-   // std::cout << "out_vec norml2 " << out_vec.Norml2() << "\n"; 
+   // std::cout << "out_vec norml2 " << out_vec.Norml2() << "\n";
 }
 
 void jacobianVectorProduct(EMHeatSourceOutput &output,

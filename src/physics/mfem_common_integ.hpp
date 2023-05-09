@@ -86,9 +86,10 @@ inline void addBdrSensitivityIntegrator(
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new BoundaryNormalIntegratorMeshSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new BoundaryNormalIntegratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
    }
 }
 
@@ -167,9 +168,10 @@ inline void addDomainSensitivityIntegrator(
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new VolumeIntegratorMeshSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new VolumeIntegratorMeshSens(fields.at(state_name).gridFunc(),
+                                           primal_integ),
+              *attr_marker);
    }
 }
 
@@ -260,9 +262,10 @@ inline void addDomainSensitivityIntegrator(
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new MagnitudeCurlStateIntegratorMeshSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new MagnitudeCurlStateIntegratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
    }
 }
 
@@ -275,9 +278,7 @@ public:
    friend void setInputs(IEAggregateIntegratorNumerator &integ,
                          const MachInputs &inputs);
 
-   IEAggregateIntegratorNumerator(const double rho)
-    : rho(rho)
-   { }
+   IEAggregateIntegratorNumerator(const double rho) : rho(rho) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,
@@ -369,9 +370,7 @@ public:
    friend void setInputs(IEAggregateIntegratorDenominator &integ,
                          const MachInputs &inputs);
 
-   IEAggregateIntegratorDenominator(const double rho)
-    : rho(rho)
-   { }
+   IEAggregateIntegratorDenominator(const double rho) : rho(rho) { }
 
    double GetElementEnergy(const mfem::FiniteElement &el,
                            mfem::ElementTransformation &trans,

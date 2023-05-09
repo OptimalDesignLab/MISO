@@ -168,7 +168,8 @@ IEAggregateFunctional::IEAggregateFunctional(
     mfem::ParFiniteElementSpace &fes,
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options)
- : numerator(fes, fields, options.value("state", "state")), denominator(fes, fields, options.value("state", "state"))
+ : numerator(fes, fields, options.value("state", "state")),
+   denominator(fes, fields, options.value("state", "state"))
 {
    auto rho = options.value("rho", 1.0);
    // auto state_name = options.value("state", "state");

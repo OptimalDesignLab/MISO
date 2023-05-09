@@ -141,8 +141,12 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddDomainIntegrator(integrator);
-   addDomainSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens, nullptr, state_name);
+   addDomainSensitivityIntegrator(*integrator,
+                                  *func_fields,
+                                  output_sens,
+                                  output_scalar_sens,
+                                  nullptr,
+                                  state_name);
 }
 
 template <typename T>
@@ -157,8 +161,12 @@ void FunctionalOutput::addOutputDomainIntegrator(
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
-   addDomainSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens, &marker, state_name);
+   addDomainSensitivityIntegrator(*integrator,
+                                  *func_fields,
+                                  output_sens,
+                                  output_scalar_sens,
+                                  &marker,
+                                  state_name);
 }
 
 template <typename T>
@@ -175,8 +183,12 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddBdrFaceIntegrator(integrator);
-   addBdrSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens, nullptr, state_name);
+   addBdrSensitivityIntegrator(*integrator,
+                               *func_fields,
+                               output_sens,
+                               output_scalar_sens,
+                               nullptr,
+                               state_name);
 }
 
 template <typename T>
@@ -191,8 +203,12 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    attrVecToArray(bdr_attr_marker, marker);
 
    output.AddBdrFaceIntegrator(integrator, marker);
-   addBdrSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens, &marker, state_name);
+   addBdrSensitivityIntegrator(*integrator,
+                               *func_fields,
+                               output_sens,
+                               output_scalar_sens,
+                               &marker,
+                               state_name);
 }
 
 }  // namespace mach

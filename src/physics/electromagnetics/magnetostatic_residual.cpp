@@ -258,8 +258,8 @@ MagnetostaticResidual::MagnetostaticResidual(
    {
       res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
 
-      // /// weakly impose boundary conditions
-      // res.addBdrFaceIntegrator(new NonlinearDGDiffusionIntegrator(nu, *g, 1e8));
+      /// weakly impose boundary conditions
+      res.addBdrFaceIntegrator(new NonlinearDGDiffusionIntegrator(nu, *g, 1e8));
 
       MachLinearForm linear_form(fes, fields);
       if (options.contains("current"))

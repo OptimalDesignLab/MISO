@@ -222,7 +222,8 @@ double LinearTempDepRemnantFluxCoefficient::Eval(
    // B_r_T_ref << "*" << "(1+(" << alpha_B_r << "/100)*(" << T << "-" << T_ref
    // << "))= " << B_r << "\n";
 
-   // double B_r = B_r_T_ref * log(1 + exp((1 + (alpha_B_r / 100) * (T - T_ref))));
+   // double B_r = B_r_T_ref * log(1 + exp((1 + (alpha_B_r / 100) * (T -
+   // T_ref))));
 
    // if (B_r < 0.0)
    // {
@@ -240,7 +241,8 @@ double LinearTempDepRemnantFluxCoefficient::EvalStateDeriv(
    // double T=state; // assuming the state is the temperature
    // Evaluate the derivative of B_r with respect to the state (temperature)
    double dB_rdT = B_r_T_ref * (alpha_B_r / 100);
-   // double dB_rdT = (alpha_B_r/100 * B_r_T_ref)*(1 - 1/(1 + exp((1 + (alpha_B_r / 100) * (T - T_ref)))));
+   // double dB_rdT = (alpha_B_r/100 * B_r_T_ref)*(1 - 1/(1 + exp((1 +
+   // (alpha_B_r / 100) * (T - T_ref)))));
    return dB_rdT;
 }
 

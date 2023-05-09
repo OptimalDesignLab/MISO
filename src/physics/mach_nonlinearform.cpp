@@ -121,7 +121,8 @@ mfem::Operator &getJacobian(MachNonlinearForm &form,
    //        "setUpAdjointSystem (MachNonlinearForm) only supports "
    //        "Jacobian matrices assembled to a HypreParMatrix!\n");
    // }
-   // form.jac_e_trans = std::unique_ptr<mfem::Operator>(hypre_jac_e->Transpose());
+   // form.jac_e_trans =
+   // std::unique_ptr<mfem::Operator>(hypre_jac_e->Transpose());
 
    // reset our essential BCs to what they used to be
    form.nf.SetEssentialTrueDofs(ess_tdof_list);
@@ -153,6 +154,7 @@ mfem::Operator &getJacobianTranspose(MachNonlinearForm &form,
       }
 
       form.jac_trans = std::unique_ptr<mfem::Operator>(hypre_jac->Transpose());
+      // form.jac_trans = std::make_unique<mfem::HypreParMatrix>(*hypre_jac);
    }
    return *form.jac_trans;
 }
@@ -163,7 +165,7 @@ void setUpAdjointSystem(MachNonlinearForm &form,
                         mfem::Vector &state_bar,
                         mfem::Vector &adjoint)
 {
-   std::cout << "Setting up adjoint system!\n";
+   // std::cout << "Setting up adjoint system!\n";
 
    auto &jac_trans = getJacobianTranspose(form, inputs, "state");
    adj_solver.SetOperator(jac_trans);
@@ -214,12 +216,16 @@ void finalizeAdjointSystem(MachNonlinearForm &form,
                            mfem::Vector &state_bar,
                            mfem::Vector &adjoint)
 {
-   const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
-   if (ess_tdof_list.Size() == 0)
-   {
-      return;
-   }
-   adjoint.SetSubVector(ess_tdof_list, 0.0);
+   // const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+   // if (ess_tdof_list.Size() == 0)
+   // {
+   //    return;
+   // }
+   // // adjoint.SetSubVector(ess_tdof_list, 0.0);
+   // mfem::Vector test;
+   // adjoint.GetSubVector(ess_tdof_list, test);
+
+   // std::cout << "test norm: " << test.Norml2() << "\n";
 
    /// Approach 2
    // adjoint.SetSubVector(ess_tdof_list, form.scratch);
