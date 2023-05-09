@@ -214,7 +214,8 @@ private:
    friend class NonlinearDGDiffusionIntegratorMeshRevSens;
 };
 
-class NonlinearDGDiffusionIntegratorMeshRevSens : public mfem::LinearFormIntegrator
+class NonlinearDGDiffusionIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
 {
 public:
    /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
@@ -287,12 +288,10 @@ inline void addBdrSensitivityIntegrator(
    }
 }
 
-class TestBoundaryIntegrator: public mfem::NonlinearFormIntegrator
+class TestBoundaryIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
-   TestBoundaryIntegrator(double a = 1.0)
-    : alpha(a)
-   { }
+   TestBoundaryIntegrator(double a = 1.0) : alpha(a) { }
 
    void AssembleFaceVector(const mfem::FiniteElement &el1,
                            const mfem::FiniteElement &el2,
@@ -315,16 +314,15 @@ private:
    friend class TestBoundaryIntegratorMeshRevSens;
 };
 
-class TestBoundaryIntegratorMeshRevSens: public mfem::LinearFormIntegrator
+class TestBoundaryIntegratorMeshRevSens : public mfem::LinearFormIntegrator
 {
 public:
    /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
-   TestBoundaryIntegratorMeshRevSens(
-       mfem::GridFunction &state,
-       mfem::GridFunction &adjoint,
-       TestBoundaryIntegrator &integ)
+   TestBoundaryIntegratorMeshRevSens(mfem::GridFunction &state,
+                                     mfem::GridFunction &adjoint,
+                                     TestBoundaryIntegrator &integ)
     : state(state), adjoint(adjoint), integ(integ)
    { }
 
@@ -337,6 +335,10 @@ public:
    /// MUST be the mesh's nodal finite element space
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::FaceElementTransformations &trans,
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
@@ -1067,9 +1069,10 @@ inline void addDomainSensitivityIntegrator(
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new MagneticEnergyIntegratorMeshSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new MagneticEnergyIntegratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
    }
 }
 
@@ -1521,14 +1524,16 @@ inline void addDomainSensitivityIntegrator(
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new DCLossFunctionalIntegratorMeshSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new DCLossFunctionalIntegratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
 
       output_sens.at("temperature")
-          .AddDomainIntegrator(new DCLossFunctionalIntegratorTemperatureSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new DCLossFunctionalIntegratorTemperatureSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
    }
 }
 
@@ -2799,9 +2804,10 @@ inline void addDomainSensitivityIntegrator(
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new ForceIntegratorMeshSens3(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new ForceIntegratorMeshSens3(fields.at(state_name).gridFunc(),
+                                           primal_integ),
+              *attr_marker);
    }
 }
 
@@ -3084,9 +3090,10 @@ inline void addDomainSensitivityIntegrator(
               *attr_marker);
 
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new SteinmetzLossIntegratorMeshSens(
-                                   fields.at(state_name).gridFunc(), primal_integ),
-                               *attr_marker);
+          .AddDomainIntegrator(
+              new SteinmetzLossIntegratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
    }
 }
 

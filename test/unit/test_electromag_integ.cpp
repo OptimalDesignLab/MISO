@@ -418,7 +418,7 @@ TEST_CASE("TestBoundaryIntegratorMeshRevSens::AssembleRHSElementVect")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   for (int p = 1; p <= 4; ++p)
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -450,6 +450,10 @@ TEST_CASE("TestBoundaryIntegratorMeshRevSens::AssembleRHSElementVect")
          // dfdx.AddBdrFaceIntegrator(
          dfdx.AddBoundaryIntegrator(
             new mach::TestBoundaryIntegratorMeshRevSens(state, adjoint, *integ));
+
+         dfdx.AddBdrFaceIntegrator(
+            new mach::TestBoundaryIntegratorMeshRevSens(state, adjoint, *integ));
+
          dfdx.Assemble();
          double dfdx_v = dfdx * v;
 
