@@ -235,10 +235,15 @@ public:
    /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
    /// \note the LinearForm that assembles this integrator's FiniteElementSpace
    /// MUST be the mesh's nodal finite element space
+   /// \note this signature is for sensitivity wrt mesh face
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
                                mfem::Vector &mesh_coords_bar) override;
 
+   /// This signature is for sensitivity wrt mesh element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                              mfem::FaceElementTransformations &trans,
+                              mfem::Vector &mesh_coords_bar) override;
 private:
    /// the state to use when evaluating d(psi^T R)/dX
    mfem::GridFunction &state;
@@ -308,7 +313,6 @@ private:
    mfem::DenseMatrix dshape;
    mfem::DenseMatrix dshapedxt;
    mfem::Vector dshapedn;
-   mfem::Vector pointflux_norm_dot;
 #endif
 
    friend class TestBoundaryIntegratorMeshRevSens;
@@ -354,7 +358,7 @@ private:
    mfem::Vector elfun, psi;
    mfem::DenseMatrix PointMat_bar;
    mfem::DenseMatrix dshapedxt_bar;
-   mfem::DenseMatrix dshapedn_bar;
+   mfem::Vector dshapedn_bar;
 #endif
 };
 
