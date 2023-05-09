@@ -340,13 +340,13 @@ TEST_CASE("NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   LinearCoefficient one_sc(1.0);
-   // NonLinearCoefficient one_sc;
+   // LinearCoefficient one_sc(1.0);
+   NonLinearCoefficient one_sc;
    ConstantCoefficient bc_val(10.0);
    double sigma = -1.0;
    double mu = 10;
 
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {

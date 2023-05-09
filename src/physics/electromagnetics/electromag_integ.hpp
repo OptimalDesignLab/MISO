@@ -282,6 +282,11 @@ inline void addBdrSensitivityIntegrator(
               fields.at("state").gridFunc(),
               fields.at(adjoint_name).gridFunc(),
               primal_integ));
+      rev_sens.at("mesh_coords")
+          .AddBdrFaceIntegrator(new NonlinearDGDiffusionIntegratorMeshRevSens(
+              fields.at("state").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
+              primal_integ));
    }
    else
    {
@@ -291,6 +296,13 @@ inline void addBdrSensitivityIntegrator(
                                      fields.at(adjoint_name).gridFunc(),
                                      primal_integ),
                                  *attr_marker);
+
+      rev_sens.at("mesh_coords")
+          .AddBdrFaceIntegrator(new NonlinearDGDiffusionIntegratorMeshRevSens(
+                                    fields.at("state").gridFunc(),
+                                    fields.at(adjoint_name).gridFunc(),
+                                    primal_integ),
+                                *attr_marker);
    }
 }
 

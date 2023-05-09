@@ -1108,7 +1108,8 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       MultVWt(dshapedn_bar, nor, dshapedxt_bar);
 
       /// double model_val = model.Eval(trans, eip1, pointflux_mag);
-      const double model_val_dot = model.EvalStateDeriv(trans, ip, pointflux_mag);
+      const double model_val_dot =
+          model.EvalStateDeriv(trans, ip, pointflux_mag);
       double pointflux_mag_bar = model_val_bar * model_val_dot;
 
       /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
