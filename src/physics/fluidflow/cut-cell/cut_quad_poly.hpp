@@ -333,11 +333,12 @@ public:
       std::vector<uvector<double, N>> xbnd;
       std::vector<uvector<double, N>> nor;
       std::vector<uvector<double, N - 1>> kappa;
-      const int npts = 200;
+      const int npts = 51;
       const int nbnd = 2 * npts - 3;
       double tc = 0.12;
       uvector<double, npts - 1> beta;
-      double beta_max = M_PI / 1.02;
+      // double beta_max = M_PI / 1.02;
+      double beta_max = 0.936*M_PI;
       double dbeta = beta_max / (npts - 2);
       beta(0) = beta_max;
       for (int i = 1; i < npts - 1; ++i)
