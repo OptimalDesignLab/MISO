@@ -11,7 +11,7 @@ using namespace std;
 using namespace algoim;
 namespace mach
 {
-#if 0
+#if 1
 template <int N>
 struct LevelSetF
 {
@@ -47,6 +47,7 @@ struct LevelSetF
    }
 };
 #endif
+#if 0
 template <int N>
 struct LevelSetF
 {
@@ -201,7 +202,7 @@ struct LevelSetF
       return lsign * phi_bar;
    }
 };
-
+#endif
 template <int N, int ls>
 class CutCell
 {
@@ -266,17 +267,17 @@ public:
       {
          double xc = Xc.at(i)(0);
          double yt = tc *
-                   ((a0 * sqrt(xc)) + (a1 * xc) + (a2 * (pow(xc, 2))) +
-                    (a3 * (pow(xc, 3))) + (a4 * (pow(xc, 4)))) /
-                   (0.2);
+                     ((a0 * sqrt(xc)) + (a1 * xc) + (a2 * (pow(xc, 2))) +
+                      (a3 * (pow(xc, 3))) + (a4 * (pow(xc, 4)))) /
+                     (0.2);
          double dytdx = tc *
-                      ((0.5 * a0 / sqrt(xc)) + a1 + (2.0 * a2 * xc) +
-                       (3.0 * a3 * pow(xc, 2)) + (4.0 * a4 * pow(xc, 3))) /
-                      (0.2);
+                        ((0.5 * a0 / sqrt(xc)) + a1 + (2.0 * a2 * xc) +
+                         (3.0 * a3 * pow(xc, 2)) + (4.0 * a4 * pow(xc, 3))) /
+                        (0.2);
          double d2ytdx = tc *
-                       ((-0.25 * a0 / pow(xc, 1.5)) + (2.0 * a2) +
-                        (6.0 * a3 * xc) + (12.0 * a4 * pow(xc, 2))) /
-                       0.2;
+                         ((-0.25 * a0 / pow(xc, 1.5)) + (2.0 * a2) +
+                          (6.0 * a3 * xc) + (12.0 * a4 * pow(xc, 2))) /
+                         0.2;
          double ysu = yt * cos(theta);
          double dydx = dytdx * cos(theta);
          double d2ydx = d2ytdx * cos(theta);
@@ -299,7 +300,7 @@ public:
       }
       return kappa;
    }
-#if 0
+#if 1
    /// construct exact levelset
    LevelSetF<2> constructLevelSet() const
    {
@@ -325,7 +326,7 @@ public:
       return phi_ls;
    }
 #endif
-#if 1
+#if 0
    /// construct approximate levelset for an airfoil
    LevelSetF<2> constructLevelSet() const
    {
@@ -356,7 +357,6 @@ public:
       {
          a4 = -0.1036;
       }
-      /// upper boundary
       /// upper boundary
       for (int i = 0; i < npts; ++i)
       {

@@ -779,6 +779,7 @@ protected:
    std::unique_ptr<GridFunType> dudt;
    /// adjoint variable
    std::unique_ptr<GridFunType> adj;
+   std::unique_ptr<GDGridFunType> adj_gd;
    /// prior adjoint variable (forward in time)
    std::unique_ptr<GridFunType> adj_old;
    /// derivative of L = J + psi^T res, with respect to mesh nodes

@@ -1,7 +1,6 @@
 #ifndef MACH_EULER_DG_CUT
 #define MACH_EULER_DG_CUT
 
-//#include <fstream>
 
 #include "mfem.hpp"
 #include "solver.hpp"
@@ -14,7 +13,6 @@
 #include "utils.hpp"
 #include "euler_dg.hpp"
 #include <chrono>
-// using adept::adouble;
 
 namespace mach
 {

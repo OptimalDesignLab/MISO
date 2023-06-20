@@ -377,9 +377,492 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
+      
+/// trying to construct mesh smoother
+#if 0 
+      double Vmin = 1e+300;
+      double Vmax = -1e+300;
+      for (int i = 0; i < smesh->GetNE(); ++i)
+      {
+         Vector cent;
+         ElementTransformation *eltransf;
+         eltransf = smesh->GetElementTransformation(i);
+         double Vel = smesh->GetElementSize(i);
+         if (Vel < Vmin)
+         {
+            Vmin = Vel;
+         }
+         if (Vel > Vmax)
+         {
+            Vmax = Vel;
+         }
+      }
+      cout << "Vmax: " << Vmax << endl;
+      cout << "Vmin: " << Vmin << endl;
+      double r0 = 1.0;
+      mfem::Array<int> marked_elements1;
+      for (int i = 0; i < smesh->GetNE(); ++i)
+      {
+         Vector cent;
+         double Vel = smesh->GetElementSize(i);
+         cut_init.GetElementCenter(i, cent);
+         uvector<double, 2> x_c;
+         x_c(0) = cent(0);
+         x_c(1) = cent(1);
+         uvector<double, 2> x_diff;
+         x_diff = x_c - airfoil_cent;
+         double dist = norm(x_diff);
+         double r_r0 = dist / r0;
+         cout << "r/r0: " << r_r0 << endl;
+         double f = -2.0 * (pow(r_r0, 3)) + (3.0 * pow(r_r0, 2));
+         double Vl = f * Vmax + (1.0 - f) * Vmin;
+         cout << "Vel, " << "Vl: " << Vel << " , " << Vl << endl;
+         if (Vel < Vl && cut_init.insideBoundary(i) == 0)
+         {
+            marked_elements1.Append(i);
+         }
+      }
+      smesh->GeneralRefinement(marked_elements1, 1, 1);
+#endif
 /// use this criteria for an airfoil geometry
-#if 1
-      uvector<double, 2> airfoil_cent;
+/// ref criteria #1
+#if 0
+      ref_dist = 15.0;
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < ref_dist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      ref_dist *= 0.6;
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 12.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      ref_dist *= 0.6;
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 10.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      ref_dist *= 0.6;
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 8.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      ref_dist *= 0.7;
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 4.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      ref_dist *= 0.8;
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 2.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      double rdist = 0.3;
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_le;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_te;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      rdist *= 0.5;
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_le;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_te;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+#endif
+/// ref criteria #2
+#if 0
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 16.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 12.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 8.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 4.00 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 2.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_cent;
+            double dist = norm(x_diff);
+            if (abs(dist) < 1.0 && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      double rdist = 0.3;
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_le;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_te;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      rdist *= 0.5;
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_le;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+      for (int k = 0; k < ncr_bdr; ++k)
+      {
+         mfem::Array<int> marked_elements1;
+         for (int i = 0; i < smesh->GetNE(); ++i)
+         {
+            Vector cent;
+            cut_init.GetElementCenter(i, cent);
+            uvector<double, 2> x_c;
+            x_c(0) = cent(0);
+            x_c(1) = cent(1);
+            double lsv = phi_init(x_c);
+            uvector<double, 2> x_diff;
+            x_diff = x_c - airfoil_te;
+            double dist = norm(x_diff);
+            if (abs(dist) < rdist && cut_init.insideBoundary(i) == 0)
+            {
+               marked_elements1.Append(i);
+            }
+         }
+         smesh->GeneralRefinement(marked_elements1, 1, 1);
+      }
+#endif
+#if 0
+uvector<double, 2> airfoil_cent;
       uvector<double, 2> airfoil_le;
       uvector<double, 2> airfoil_te;
       airfoil_cent(0) = 20.0;
@@ -397,7 +880,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
       int ncr = options["mesh"]["ncr"].template get<int>();
       int ncr_bdr = options["mesh"]["ncr2"].template get<int>();
       double ref_dist = 14.0;
-      /// ref criteria #1
+      /// ref criteria #3
       for (int k = 0; k < ncr; ++k)
       {
          mfem::Array<int> marked_elements1;
@@ -668,7 +1151,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
 // }
 #endif
 /// use this criteria for circle geometry
-#if 0
+#if 1
       uvector<double, 2> circle_cent;
       circle_cent(0) = 5.0;
       circle_cent(1) = 5.0;
@@ -2490,52 +2973,79 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
 }
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
-   // double time_beg = NAN;
-   // double time_end = NAN;
-   // time_beg = MPI_Wtime();
+   #if 0 
+  double time_beg, time_end;
+   if (0==rank)
+   {
+      time_beg = MPI_Wtime();
+   }
 
-   // // Step 0: allocate the adjoint variable
-   // adj.reset(new GridFunType(fes.get()));
-   // *adj = 0.0;
+   // Step 0: allocate the adjoint variable
+   adj_gd.reset(new GDGridFunType(fes_gd.get()));
 
-   // // Step 1: get the right-hand side vector, dJdu, and make an appropriate
-   // // alias to it, the state, and the adjoint
-   // std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+   // alias to it, the state, and the adjoint
+   std::unique_ptr<GDGridFunType> dJdu(new GDGridFunType(fes_gd.get()));
+#ifdef MFEM_USE_MPI
+   HypreParVector *state = u_gd->GetTrueDofs();
+   HypreParVector *dJ = dJdu->GetTrueDofs();
+   HypreParVector *adjoint = adj_gd->GetTrueDofs();
+#else
+   GDGridFunType *state = u_gd.get();
+   GDGridFunType *dJ = dJdu.get();
+   GDGridFunType *adjoint = adj_gd.get();
+#endif
+   outputs.at(fun).Mult(*state, *dJ);
 
-   // HypreParVector *u_true = u->GetTrueDofs();
-   // HypreParVector *dJdu_true = dJdu->GetTrueDofs();
-   // HypreParVector *adj_true = adj->GetTrueDofs();
-   // output.at(fun).Mult(*u_true, *dJdu_true);
+   // Step 2: get the Jacobian and transpose it
+   // TODO: need #define guards to handle serial case
+   Operator *jac = &res->GetGradient(*state);
+   const HypreParMatrix *jac_trans = dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
+   MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
 
-   // // Step 2: get the Jacobian and transpose it
-   // Operator *jac = &res->GetGradient(*u_true);
-   // const Operator *jac_trans =
-   //     dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
-   // MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
+   // Step 3: Solve the adjoint problem
+   *out << "Solving adjoint problem:\n"
+        << "\tsolver: HypreGMRES\n"
+        << "\tprec. : Euclid ILU" << endl;
+   prec.reset(new HypreEuclid(fes_gd->GetComm()));
+   double reltol = options["adj-solver"]["reltol"].get<double>();
+   int maxiter = options["adj-solver"]["maxiter"].get<int>();
+   int ptl = options["adj-solver"]["printlevel"].get<int>();
+   solver.reset(new HypreGMRES(fes_gd->GetComm()));
+   solver->SetOperator(*jac_trans);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(reltol);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
+   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
+   solver->Mult(*dJ, *adjoint);
 
-   // // Step 3: Solve the adjoint problem
-   // *out << "Solving adjoint problem" << endl;
-   // unique_ptr<Solver> adj_prec =
-   // constructPreconditioner(options["adj-prec"]); unique_ptr<Solver>
-   // adj_solver =
-   //     constructLinearSolver(options["adj-solver"], *adj_prec);
-   // adj_solver->SetOperator(*jac_trans);
-   // adj_solver->Mult(*dJdu_true, *adj_true);
+   // check that adjoint residual is small
+   std::unique_ptr<GDGridFunType> adj_res(new GDGridFunType(fes_gd.get()));
+   double res_norm = 0;
+#ifdef MFEM_USE_MPI
+   HypreParVector *adj_res_true = adj_res->GetTrueDofs();
+   jac_trans->Mult(*adjoint, *adj_res_true);
+   *adj_res_true -= *dJ;
+   double loc_norm = (*adj_res_true)*(*adj_res_true);
+   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+#else
+   jac_trans.Mult(*adjoint, *adj_res);
+   *adj_res -= *dJ;
+   res_norm = (*adj_res)*(*adj_res);
+#endif
+   res_norm = sqrt(res_norm);
+   *out << "Adjoint residual norm = " << res_norm << endl;
 
-   // // check that adjoint residual is small
-   // std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
-   // double res_norm = 0;
-   // HypreParVector *adj_res_true = adj_res->GetTrueDofs();
-   // jac_trans->Mult(*adj_true, *adj_res_true);
-   // *adj_res_true -= *dJdu_true;
-   // double loc_norm = (*adj_res_true) * (*adj_res_true);
-   // MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-   // res_norm = sqrt(res_norm);
-   // *out << "Adjoint residual norm = " << res_norm << endl;
-   // adj->SetFromTrueDofs(*adj_true);
-
-   // time_end = MPI_Wtime();
-   // *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+#ifdef MFEM_USE_MPI
+   adj_gd->SetFromTrueDofs(*adjoint);
+#endif
+   if (0==rank)
+   {
+      time_end = MPI_Wtime();
+      *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   }
+    fes_gd->GetProlongationMatrix()->Mult(adj_gd, adj);
+    #endif
 }
 
 unique_ptr<Solver> AbstractSolver::constructLinearSolver(
