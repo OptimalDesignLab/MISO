@@ -27,8 +27,8 @@
    "mesh": {
       "file": "airfoil_steady.mesh",
       "refine": -1,
-      "ncr": -1,
-      "ncr2": -1
+      "ncr": 1,
+      "ncr2": 1
    },
    "bcs": {
       "slip-wall": [0, 0, 1, 1],

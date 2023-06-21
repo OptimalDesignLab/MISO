@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
           createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
       solver->setInitialCondition(uexact);
       solver->printSolution("airfoil-steady-dg-cut-mms-init", 0);
-      solver->checkJacobian(pert);
+      // solver->checkJacobian(pert);
       // solver->printResidual("residual-init", 0);
       mfem::out << "\ninitial residual norm = " << solver->calcResidualNorm()
                 << endl;
@@ -78,13 +78,15 @@ int main(int argc, char *argv[])
                 << endl;
       l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
                       .calcConservativeVarsL2Error(uexact, 1));
-      *out << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+      *out << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+           << endl;
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      *out << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-      // auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
-      // solver->createOutput("drag", drag_opts);
-      // double drag = abs(solver->calcOutput("drag"));
-      // mfem::out << "\nDrag error = " << drag << endl;
+      *out << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+           << endl;
+      auto drag_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
+      solver->createOutput("drag", drag_opts);
+      double drag = abs(solver->calcOutput("drag"));
+      mfem::out << "\nDrag error = " << drag << endl;
    }
 
    catch (MachException &exception)
@@ -112,7 +114,7 @@ void pert(const Vector &x, Vector &p)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 1.0, 1.0, true);
+       N, N, Element::QUADRILATERAL, true, 40.0, 40.0, true);
    return mesh;
 }
 
@@ -127,24 +129,27 @@ void uexact(const Vector &x, Vector &q)
    const double up = 0.05;
    const double T0 = 1.0;
    const double Tp = 0.05;
-   const double scale = 1.0;
-   const double trans = 0.0;
+   const double scale = 40.0;
+   const double xc = 0.0;
+   const double yc = 0.0;
    /// define the exact solution
-   double rho = rho0 + rhop * pow(sin(M_PI * (x(0) - trans) / scale), 2) *
-                           sin(M_PI * ((x(1)- trans) / scale));
-   double ux =
-       4.0 * u0 * ((x(1)-trans) / scale) * (1.0 - (x(1)-trans)/scale ) +
-       (up * sin(2.0 * M_PI * (x(1)-trans) / scale) * pow(sin(M_PI * (x(0)-trans) / scale), 2));
-   double uy =
-       -up * pow(sin(2.0 * M_PI * (x(0)-trans) / scale), 2) * sin(M_PI * (x(1)-trans) / scale);
-   double T = T0 + Tp * (pow((x(0)-trans) / scale, 4) - (2.0 * pow((x(0)-trans) / scale, 3)) +
-                         pow((x(0)-trans) / scale, 2) + pow((x(1)-trans) / scale, 4) -
-                         (2.0 * pow((x(1)-trans) / scale, 3)) + pow((x(1)-trans) / scale, 2));
+   double rho = rho0 + rhop * pow(sin(M_PI * (x(0) - xc) / scale), 2) *
+                           sin(M_PI * ((x(1) - yc) / scale));
+   double ux = 4.0 * u0 * ((x(1) - yc) / scale) * (1.0 - (x(1) - yc) / scale) +
+               (up * sin(2.0 * M_PI * (x(1) - yc) / scale) *
+                pow(sin(M_PI * (x(0) - xc) / scale), 2));
+   double uy = -up * pow(sin(2.0 * M_PI * (x(0) - xc) / scale), 2) *
+               sin(M_PI * (x(1) - yc) / scale);
+   double T =
+       T0 +
+       Tp * (pow((x(0) - xc) / scale, 4) - (2.0 * pow((x(0) - xc) / scale, 3)) +
+             pow((x(0) - xc) / scale, 2) + pow((x(1) - yc) / scale, 4) -
+             (2.0 * pow((x(1) - yc) / scale, 3)) + pow((x(1) - yc) / scale, 2));
    double p = rho * T;
    double e = (p / (euler::gamma - 1)) + 0.5 * rho * (ux * ux + uy * uy);
    u(0) = rho;
-   u(1) = rho*ux;  // multiply by rho ?
-   u(2) = rho*uy;
+   u(1) = rho * ux;  
+   u(2) = rho * uy;
    u(3) = e;
    if (entvar == false)
    {

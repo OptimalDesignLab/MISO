@@ -62,42 +62,27 @@ int main(int argc, char *argv[])
       string opt_file_name(options_file);
       auto solver =
           createSolver<CutEulerDGSolver<2, entvar>>(opt_file_name, move(smesh));
-      // Vector qfar(4);
-      // static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
-      //     ->getFreeStreamState(qfar);
-      // qfar.Print();
+      Vector qfar(4);
+      static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
+          ->getFreeStreamState(qfar);
       out->precision(15);
       // Vector wfar(4);
       // TODO: I do not like that we have to perform this conversion outside the
       // solver...
       // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      // solver->setInitialCondition(qfar);
-      solver->setInitialCondition(uexact);
-      solver->printSolution("ellipse-steady-dg-cut-potential-init", 0);
+      solver->setInitialCondition(qfar);
+      solver->printSolution("airfoil-steady-dg-cut-init", 0);
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
       solver->createOutput("drag", drag_opts);
       double drag;
       *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
            << endl;
-      // get the initial density error
-      double l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 0));
-      double l2_error_rho_u = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 1));
       double res_error = solver->calcResidualNorm();
-      *out << "Initial || rho_h - rho ||_{L^2} = " << l2_error << endl;
-      *out << "Initial || rho_u_h - rho_u ||_{L^2} = " << l2_error_rho_u<< endl;
       *out << "\ninitial residual norm = " << res_error << endl;
       solver->solveForState();
-      solver->printSolution("ellipse-steady-dg-cut-potential-final", -1);
+      solver->printSolution("airfoil-steady-dg-cut-final", -1);
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
-      l2_error = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                      .calcConservativeVarsL2Error(uexact, 0));
-      l2_error_rho_u = (static_cast<CutEulerDGSolver<2, entvar> &>(*solver)
-                      .calcConservativeVarsL2Error(uexact, 1));
-      *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      *out << "\n|| rho_u_h - rho_u ||_{L^2} = " << l2_error_rho_u<< endl;
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
    }
 
@@ -216,6 +201,6 @@ void uexact(const Vector &x, Vector &q)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 20.0, 20.0, true);
+       N, N, Element::QUADRILATERAL, true, 40.0, 40.0, true);
    return mesh;
 }

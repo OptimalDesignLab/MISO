@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
    cout << "#elements before nc refinement " << smesh->GetNE() << endl;
    CutCell<2, 1> cutcell(smesh.get());
    circle<2> phi;
-   phi = cutcell.constructLevelSet();
+   // phi = cutcell.constructLevelSet();
 
    /// find the elements to refine
    for (int k = 0; k < -1; ++k)

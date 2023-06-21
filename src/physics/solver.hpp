@@ -845,6 +845,7 @@ protected:
    // Members associated with cut-cell
    /// the vector of embedded elements 
    std::vector<bool> embeddedElements;
+   std::vector<bool> cutElements;
    //--------------------------------------------------------------------------
    // Members associated with boundary conditions and outputs
    /// Array that marks boundaries as essential

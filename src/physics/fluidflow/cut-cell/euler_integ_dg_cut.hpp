@@ -87,7 +87,7 @@ public:
    CutDGIsentropicVortexBC(adept::Stack &diff_stack,
                            const mfem::FiniteElementCollection *fe_coll,
                            std::map<int, IntegrationRule *> cutSegmentIntRules,
-                           /*Algoim::LevelSet<2> */  circle<2> phi,
+                           Algoim::LevelSet<2> /*circle<2>*/ phi,
                            double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGIsentropicVortexBC<dim, entvar>>(
           diff_stack,
@@ -155,7 +155,7 @@ public:
    CutDGSlipWallBC(adept::Stack &diff_stack,
                    const mfem::FiniteElementCollection *fe_coll,
                    std::map<int, IntegrationRule *> cutSegmentIntRules,
-                   /*Algoim::LevelSet<2> */  circle<2> phi,
+                   Algoim::LevelSet<2> /*circle<2>*/ phi,
                    double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipWallBC<dim, entvar>>(
           diff_stack,
@@ -225,7 +225,7 @@ public:
    CutDGSlipFarFieldBC(adept::Stack &diff_stack,
                        const mfem::FiniteElementCollection *fe_coll,
                        std::map<int, IntegrationRule *> cutSegmentIntRules,
-                       /*Algoim::LevelSet<2> */  circle<2> phi,
+                       Algoim::LevelSet<2> /*circle<2>*/phi,
                        const mfem::Vector &q_far,
                        double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGSlipFarFieldBC<dim, entvar>>(
@@ -604,7 +604,7 @@ public:
                       const mfem::FiniteElementCollection *fe_coll,
                       const mfem::Vector &force_dir,
                       std::map<int, IntegrationRule *> cutSegmentIntRules,
-                      /*Algoim::LevelSet<2> */  circle<2> phi)
+                      Algoim::LevelSet<2> /*circle<2>*/ phi)
     : CutDGInviscidBoundaryIntegrator<CutDGPressureForce<dim, entvar>>(
           diff_stack,
           fe_coll,
@@ -789,7 +789,7 @@ public:
    CutDGInviscidExactBC(adept::Stack &diff_stack,
                         const mfem::FiniteElementCollection *fe_coll,
                         std::map<int, IntegrationRule *> cutSegmentIntRules,
-                        /*Algoim::LevelSet<2> */  circle<2> phi,
+                        Algoim::LevelSet<2> /*circle<2>*/ phi,
                         void (*fun)(const mfem::Vector &, mfem::Vector &),
                         double a = 1.0)
     : CutDGInviscidBoundaryIntegrator<CutDGInviscidExactBC<dim, entvar>>(

@@ -4,10 +4,16 @@
 //#include <fstream>
 
 #include "mfem.hpp"
-#include "cut_quad.hpp"
 #include "solver.hpp"
 #include "euler_integ_dg.hpp"
 #include "euler_integ_dg_cut.hpp"
+#include "diag_mass_integ.hpp"
+#include "euler_integ.hpp"
+#include "functional_output.hpp"
+#include "sbp_fe.hpp"
+#include "utils.hpp"
+#include "euler_dg.hpp"
+#include <chrono>
 // using adept::adouble;
 
 namespace mach
@@ -114,6 +120,8 @@ protected:
    std::map<int, IntegrationRule *> cutBdrFaceIntRules_outer;
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
+   /// cut elements boolean vector
+   std::vector<bool> cutElements;
    // vector of cut interior faces
    std::vector<int> cutInteriorFaces;
      // vector of cut interior faces by outer circle
@@ -132,11 +140,11 @@ protected:
    vector<int> cutBdrFaces_outer;
    /// levelset to calculate normal vectors
    // Algoim::LevelSet<2> phi_e;
-   circle<2> phi;
-   circle<2> phi_outer;
+   // LevelSetF<2> phi;
+   // LevelSetF<2> phi_outer;
    bool vortex = false;
-   // Algoim::LevelSet<2> phi;
-   // Algoim::LevelSet<2> phi_outer;
+   Algoim::LevelSet<2> phi;
+   Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem

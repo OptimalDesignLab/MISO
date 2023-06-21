@@ -84,11 +84,11 @@ public:
          double ds = 1.0 / sqrt((nx * nx) + (ny * ny));
          nsurf(0) = nx * ds;
          nsurf(1) = ny * ds;
-         if (i == nbnd - 1)
-         {
-            nsurf(0) = 1.0;
-            nsurf(1) = 0.0;
-         }
+         // if (i == 0 || i == nbnd - 1)
+         // {
+         //    nsurf(0) = 1.0;
+         //    nsurf(1) = 0.0;
+         // }
          nor.push_back(nsurf);
       }
       return nor;
@@ -102,7 +102,11 @@ public:
       double a1 = -0.126;
       double a2 = -0.3516;
       double a3 = 0.2843;
-      double a4 = -0.1036;  // -0.1036 for closed te
+      double a4 = -0.1015;
+      if (cte)
+      {
+         a4 = -0.1036;
+      }
       double tc = 0.12;
       double theta = 0.0;
       // thickness
@@ -130,19 +134,19 @@ public:
             double rle = 0.5 * pow(a0 * tc / 0.20, 2);
             kappa.push_back(1.0 / rle);
          }
-         else if (i == 0 || i == nbnd - 1 || i == nbnd - 2)
-         {
-            kappa.push_back(0.0);
-         }
+         // else if (i == 0 || i == 1 || i == nbnd - 1 || i == nbnd - 2)
+         // {
+         //    kappa.push_back(0.0);
+         // }
          else
          {
             kappa.push_back(1.0 / roc);
          }
-         // kappa.push_back(0.0);
+         kappa.push_back(0.0);
       }
       return kappa;
    }
-#if 1
+#if 0
    /// construct exact levelset
    circle<2> constructLevelSet() const
    {
@@ -168,7 +172,7 @@ public:
       return phi_ls;
    }
 #endif
-#if 0
+#if 1
    /// construct levelset using given geometry points
    Algoim::LevelSet<2> constructLevelSet() const
    {
@@ -178,6 +182,8 @@ public:
       int nel = mesh->GetNE();
       int nbnd;
       nbnd =  sqrt(nel) ; //128;
+      // int nbnd;
+      // nbnd =  sqrt(nel) ; //128;
       /// parameters
       double delta = 1e-10;
       double xc = 5.0;
@@ -195,6 +201,7 @@ public:
          b = 3.0;
       }
 /// use this if reading from file
+#if 0
 #if 0
       const char *geometry_file = "NACA_0012_200pts.dat";
       ifstream file;
@@ -222,6 +229,66 @@ public:
       double rho = 10 * nbnd;
 /// use this if not reading from file
 #if 1
+/// define the airfoil geometry using NACA airfoil equation
+#if 1
+      const int npts = 101;
+      const int nbnd = 2 * npts - 3;
+      cout << "nbnd " << nbnd << endl;
+      /// calculate boundary coordinates
+      double tc = 0.12;
+      TinyVector<double, npts - 1> beta;
+      // double beta_max = M_PI / 1.022;
+      double beta_max = 0.936*M_PI;
+      double dbeta = beta_max / (npts - 2);
+      beta(0) = beta_max;
+      for (int i = 1; i < npts; ++i)
+      {
+         beta(i) = beta(i - 1) - dbeta;
+      }
+      TinyVector<double, nbnd> xb;
+      TinyVector<double, nbnd> yb;
+      constexpr bool cte = true;
+      double a0 = 0.2969;
+      double a1 = -0.126;
+      double a2 = -0.3516;
+      double a3 = 0.2843;
+      double a4 = -0.1015;
+      if (cte)
+      {
+         a4 = -0.1036;
+      }
+      /// upper boundary
+      for (int i = 0; i < npts; ++i)
+      {
+         xb(i) = (1.0 - cos(beta(i))) / 2.0;
+         double term1 =
+             (a0 * pow(xb(i), 0.5)) + (a1 * xb(i)) + (a2 * (pow(xb(i), 2)));
+         double term2 = (a3 * (pow(xb(i), 3))) + (a4 * (pow(xb(i), 4)));
+         yb(i) = 5.0 * tc * (term1 + term2);
+      }
+      /// lower boundary
+      for (int i = 0; i < npts - 2; ++i)
+      {
+         xb(i + npts - 1) = xb(npts - 3 - i);
+         yb(i + npts -1) = -yb(npts - 3 - i);
+      }
+      for (int i = 0; i < nbnd; ++i)
+      {
+         TinyVector<double, N> x;
+         x(0) = xb(i);
+         x(1) = yb(i);
+         cout << "xb " << xb(i) << " , "  << yb(i) << endl;
+         Xc.push_back(x);
+      }
+      double ratio = 10.0;
+      double rho = ratio * nbnd;
+      /// construct the normal vector for all boundary points
+      nor = constructNormal(Xc);
+      /// get the curvature vector for all boundary points
+      kappa = getCurvature(Xc);
+#endif
+/// use this if not reading from file (other than airfoil)
+#if 0
       for (int k = 0; k < nbnd; ++k)
       {
          double theta = k * 2.0 * M_PI / nbnd;
@@ -262,6 +329,8 @@ public:
       TinyVector<double, N> xcent;
       xcent(0) = 5.0;
       xcent(1) = 5.0;
+      xcent(0) = 19.5;
+      xcent(1) = 20.0;
       std::vector<TinyVector<double, N>> Xcoord;
       for (int k = 0; k < nbnd; ++k)
       {
@@ -279,14 +348,14 @@ public:
       phi_ls.min_x = 0.0;
       phi_ls.min_y = 0.0;
       TinyVector<double, 2> xle, xte;
-      // xle(0) = 19.5;
-      // xle(1) = 20.0;
-      // xte(0) = 19.997592;
-      // xte(1) = 20.0;
-      xle(0) = 4.5;
-      xle(1) = 5.0;
-      xte(0) = 5.5;
-      xte(1) = 5.0;
+      xle(0) = 19.5;
+      xle(1) = 20.0;
+      xte(0) = 20.5;
+      xte(1) = 20.0;
+      // xle(0) = 6.0;
+      // xle(1) = 10.0;
+      // xte(0) = 14.0;
+      // xte(1) = 10.0;
       // xle(0) = 1.5;
       // xle(1) = 2.0;
       // xte(0) = 2.5;
@@ -300,7 +369,8 @@ public:
       return phi_ls;
    }
 #endif
-   /// function that checks if an element is `cut` by `embedded geometry` or not
+   /// function that checks if an element is `cut` by `embedded geometry` or
+   /// not
    bool cutByGeom(int &elemid) const
    {
       Element *el = mesh->GetElement(elemid);
@@ -345,8 +415,8 @@ public:
          return true;
       }
    }
-   /// function that checks if an element is inside the `embedded geometry` or
-   /// not
+   /// function that checks if an element is inside the `embedded geometry`
+   /// or not
    bool insideBoundary(int &elemid) const
    {
       Element *el = mesh->GetElement(elemid);
@@ -530,8 +600,10 @@ public:
          }
          cutSquareIntRules[elemid] = ir;
       }
-      std::ofstream f("element_quad_rule_ls_bnds_outer.vtp");
+      std::ofstream f("cut_element_quad_rule.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
+      std::cout << "  scheme.vtp file written for cut cells, containing "
+                << qp.nodes.size() << " quadrature points\n";
       std::cout << "  scheme.vtp file written for cut cells, containing "
                 << qp.nodes.size() << " quadrature points\n";
    }
@@ -544,6 +616,9 @@ public:
        std::map<int, IntegrationRule *> &cutSegmentIntRules,
        std::map<int, IntegrationRule *> &cutInteriorFaceIntRules)
    {
+      const char *segment_quad_file = "quad_points_segment.dat";
+      ofstream file;
+      file.open(segment_quad_file);
       QuadratureRule<N> qp, qface;
       for (int k = 0; k < cutelems.size(); ++k)
       {
@@ -595,6 +670,7 @@ public:
                 ip.weight > 0,
                 "integration point weight is negative in curved surface "
                 "int rule from Saye's method");
+            file << pt.x(0) << " " << pt.x(1) << " " << pt.w << " \n";
          }
          cutSegmentIntRules[elemid] = ir;
          mfem::Array<int> orient;
@@ -751,12 +827,15 @@ public:
             }
          }
       }  /// loop over cut elements
-      std::ofstream f("cut_segment_quad_rule_ls_bnds_outer.vtp");
+      file.close();
+      std::ofstream f("cut_segment_quad_rule.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qp, f);
       std::cout << "  scheme.vtp file written for cut segments, containing "
                 << qp.nodes.size() << " quadrature points\n";
+      std::cout << "  scheme.vtp file written for cut segments, containing "
+                << qp.nodes.size() << " quadrature points\n";
       /// quad rule for faces
-      std::ofstream face("cut_face_quad_rule_ls_bnds_outer.vtp");
+      std::ofstream face("cut_face_quad_rule.vtp");
       Algoim::outputQuadratureRuleAsVtpXML(qface, face);
       std::cout << "  scheme.vtp file written for interior faces, containing "
                 << qface.nodes.size() << " quadrature points\n";
@@ -947,8 +1026,10 @@ public:
 protected:
    mfem::Mesh *mesh;
    // mutable circle<N> phi_c;
-   //Algoim::LevelSet<N> phi;
-   circle<N> phi;
+   Algoim::LevelSet<N> phi;
+   /// closed/open trailing edge for airfoil
+   bool cte = true;
+   // circle<N> phi;
 };
 }  // namespace mach
 

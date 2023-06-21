@@ -79,7 +79,12 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       {
          cutelems.push_back(i);
          cutelems_inner.push_back(i);
+         cutElements.push_back(true);
          cout << "cut element inner id " << i << endl;
+      }
+      else
+      {
+         cutElements.push_back(false);
       }
       if (vortex)
       {
@@ -209,7 +214,9 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    double radius = 0.3;
    /// int rule for cut elements
    auto elint_start = high_resolution_clock::now();
+
    cutcell.GetCutElementIntRule(cutelems, deg_vol, radius, cutSquareIntRules);
+
    auto elint_stop = high_resolution_clock::now();
    auto elint_duration = duration_cast<seconds>(elint_stop - elint_start);
    cout << " ---- Time taken to get cut elements int rules  ---- " << endl;
@@ -218,6 +225,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    // get interior face int rule that is cut by the embedded geometry
    auto segint_start = high_resolution_clock::now();
    cout << "#interior faces " << cutInteriorFaces.size() << endl;
+   /// int rule for cut segments and interior faces
    cutcell.GetCutSegmentIntRule(cutelems,
                                 cutInteriorFaces,
                                 deg_surf,
@@ -265,6 +273,7 @@ void CutEulerDGSolver<dim, entvar>::setGDSpace(int fe_order)
    fes_gd.reset(new GDSpaceType(mesh.get(),
                                 fec.get(),
                                 embeddedElements,
+                                cutElements,
                                 num_state,
                                 Ordering::byVDIM,
                                 fe_order,
