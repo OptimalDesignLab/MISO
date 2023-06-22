@@ -67,6 +67,25 @@ void evaluate(MachNonlinearForm &form,
    mfem::Vector state;
    setVectorFromInputs(inputs, "state", state, false, true);
    form.nf.Mult(state, res_vec);
+
+   const auto &ess_tdof_list = form.getEssentialDofs();
+   if (ess_tdof_list.Size() == 0)
+   {
+      return;
+   }
+
+   if (auto bc_iter = form.nf_fields.find("dirichlet_bc");
+       bc_iter != form.nf_fields.end())
+   {
+      auto &dirichlet_bc = bc_iter->second;
+      dirichlet_bc.setTrueVec(form.scratch);
+
+      for (int i = 0; i < ess_tdof_list.Size(); ++i)
+      {
+         res_vec(ess_tdof_list[i]) =
+             state(ess_tdof_list[i]) - form.scratch(ess_tdof_list[i]);
+      }
+   }
 }
 
 void linearize(MachNonlinearForm &form, const MachInputs &inputs)
@@ -178,11 +197,16 @@ void setUpAdjointSystem(MachNonlinearForm &form,
    // *hypre_jac_trans, 1.0, *hypre_jac_e_trans));
    // adj_solver.SetOperator(*form.adjoint_jac_trans);
 
-   const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+   const auto &ess_tdof_list = form.getEssentialDofs();
    if (ess_tdof_list.Size() == 0)
    {
       return;
    }
+
+   /// New approach
+   state_bar.GetSubVector(ess_tdof_list, form.scratch);
+   state_bar.SetSubVector(ess_tdof_list, 0.0);
+   adjoint.SetSubVector(ess_tdof_list, 0.0);
 
    /// Approach 1
    // adj_solver.Mult(state_bar, adjoint);
@@ -216,11 +240,25 @@ void finalizeAdjointSystem(MachNonlinearForm &form,
                            mfem::Vector &state_bar,
                            mfem::Vector &adjoint)
 {
-   // const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
-   // if (ess_tdof_list.Size() == 0)
-   // {
-   //    return;
-   // }
+   const auto &ess_tdof_list = form.getEssentialDofs();
+   if (ess_tdof_list.Size() == 0)
+   {
+      return;
+   }
+
+   /// New approach
+   adjoint.SetSubVector(ess_tdof_list, form.scratch);
+
+   auto *hypre_jac_e = form.jac_e.As<mfem::HypreParMatrix>();
+   if (hypre_jac_e == nullptr)
+   {
+      throw MachException(
+          "setUpAdjointSystem (MachNonlinearForm) only supports "
+          "Jacobian matrices assembled to a HypreParMatrix!\n");
+   }
+
+   hypre_jac_e->MultTranspose(1.0, adjoint, -1.0, adjoint);
+
    // // adjoint.SetSubVector(ess_tdof_list, 0.0);
    // mfem::Vector test;
    // adjoint.GetSubVector(ess_tdof_list, test);
@@ -279,7 +317,7 @@ void jacobianVectorProduct(MachNonlinearForm &form,
    if (wrt == "state")
    {
       form.scratch = wrt_dot;
-      const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+      const auto &ess_tdof_list = form.getEssentialDofs();
       form.scratch.SetSubVector(ess_tdof_list, 0.0);
 
       auto *hypre_jac = form.jac.As<mfem::HypreParMatrix>();
@@ -349,7 +387,7 @@ void vectorJacobianProduct(MachNonlinearForm &form,
    if (wrt == "state")
    {
       form.scratch = res_bar;
-      const auto &ess_tdof_list = form.nf.GetEssentialTrueDofs();
+      const auto &ess_tdof_list = form.getEssentialDofs();
       form.scratch.SetSubVector(ess_tdof_list, 0.0);
 
       auto *hypre_jac = form.jac.As<mfem::HypreParMatrix>();

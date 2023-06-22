@@ -109,6 +109,15 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
        "residual",
        dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
 
+   auto state_degree =
+       AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   nlohmann::json dg_field_options{{"degree", state_degree},
+                                   {"basis-type", "DG"}};
+   fields.emplace(std::piecewise_construct,
+                  std::forward_as_tuple("peak_flux"),
+                  std::forward_as_tuple(mesh(), dg_field_options));
+   paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+
    const auto &temp_field_iter = fields.find("temperature");
    if (temp_field_iter != fields.end())
    {
@@ -199,8 +208,8 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
       // mach::ParaViewLogger paraview("flux_magnitude", &mesh());
       // paraview.registerField("flux_magnitude",
-      // fields.at("flux_magnitude").gridFunc()); addLogger(std::move(paraview),
-      // {});
+      // fields.at("flux_magnitude").gridFunc());
+      // addLogger(std::move(paraview), {});
 
       auto &[logger, logger_opts] = loggers.back();
       if (std::holds_alternative<mach::ParaViewLogger>(logger))
@@ -266,6 +275,14 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
 
+      auto &[logger, logger_opts] = loggers.back();
+      if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      {
+         std::cout << "adding peak flux to logger!\n";
+         auto &paraview = std::get<mach::ParaViewLogger>(logger);
+         paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+      }
+
       auto ac_loss_options = options;
       ac_loss_options["attributes"] =
           getCurrentAttributes(AbstractSolver2::options);
@@ -281,6 +298,14 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       fields.emplace(std::piecewise_construct,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
+
+      auto &[logger, logger_opts] = loggers.back();
+      if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      {
+         std::cout << "adding peak flux to logger!\n";
+         auto &paraview = std::get<mach::ParaViewLogger>(logger);
+         paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+      }
 
       CoreLossFunctional out(
           fields, AbstractSolver2::options["components"], materials, options);
@@ -306,6 +331,14 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
       fields.emplace(std::piecewise_construct,
                      std::forward_as_tuple("peak_flux"),
                      std::forward_as_tuple(mesh(), dg_field_options));
+
+      auto &[logger, logger_opts] = loggers.back();
+      if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      {
+         std::cout << "adding peak flux to logger!\n";
+         auto &paraview = std::get<mach::ParaViewLogger>(logger);
+         paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+      }
 
       EMHeatSourceOutput out(fields,
                              sigma,

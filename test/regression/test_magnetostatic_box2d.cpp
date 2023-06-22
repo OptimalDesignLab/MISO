@@ -19,7 +19,8 @@ auto options = R"(
    "problem": "box",
    "space-dis": {
       "basis-type": "h1",
-      "degree": 1
+      "degree": 1,
+      "sipg-penalty": 1e10
    },
    "time-dis": {
       "steady": true,
@@ -31,7 +32,7 @@ auto options = R"(
       "max-iter": 5
    },
    "lin-solver": {
-      "type": "minres",
+      "type": "gmres",
       "printlevel": 1,
       "maxiter": 100,
       "abstol": 1e-14,
@@ -44,7 +45,7 @@ auto options = R"(
    "nonlin-solver": {
       "type": "newton",
       "printlevel": 1,
-      "maxiter": 15,
+      "maxiter": 1,
       "reltol": 1e-10,
       "abstol": 1e-9
    },
@@ -71,9 +72,11 @@ auto options = R"(
       }
    },
    "bcs": {
-      "essential": "all"
+      "weak-essential": [1, 2, 3, 4]
    }
 })"_json;
+
+            // "mu_r": 795774.7154594767
 
 /// \brief Exact solution for magnetic vector potential
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -157,10 +160,226 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
    }
 }
 
+// TEST_CASE("2D Magnetostatic Solver MMS solution error wrt mesh size")
+// {
+//    const bool verbose = true; // set to true for some output 
+//    std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+//    using namespace mfem;
+//    using namespace mach;
+
+//    std::vector<int> orders = {1, 2, 3, 4};
+//    std::vector<int> mesh_nxy = {2, 4, 8, 16, 32, 64};
+
+//    std::vector<std::vector<double>> sol_error(orders.size());
+//    for (int i = 0; i < orders.size(); ++i)
+//    {
+//       sol_error[i].resize(mesh_nxy.size());
+//    }
+
+//    for (const auto &p : orders)
+//    {
+//       for (int i = 0; i < mesh_nxy.size(); ++i)
+//       {
+//          auto options = R"(
+//          {
+//             "print-options": false,
+//             "space-dis": {
+//                "basis-type": "H1",
+//                "degree": 1,
+//                "sipg-penalty": 100.0
+//             },
+//             "lin-solver": {
+//                "type": "gmres",
+//                "reltol": 1e-12,
+//                "abstol": 0.0,
+//                "printlevel": -1,
+//                "maxiter": 500,
+//                "kdim": 500
+//             },
+//             "nonlin-solver": {
+//                "type": "relaxednewton",
+//                "linesearch": {
+//                   "type": "backtracking",
+//                   "maxiter": 3
+//                },
+//                "maxiter": 1,
+//                "printlevel": 1
+//             },
+//             "components": {
+//                "box1": {
+//                   "attrs": [1],
+//                   "material": {
+//                      "name": "box1",
+//                      "mu_r": 795774.7154594767
+//                   }
+//                },
+//                "box2": {
+//                   "attrs": [2],
+//                   "material": {
+//                      "name": "box2",
+//                      "mu_r": 795774.7154594767
+//                   }
+//                }
+//             },
+//             "current": {
+//                "box": {
+//                   "box1": [1],
+//                   "box2": [2]
+//                }
+//             },
+//             "bcs": {
+//                "weak-essential": [1, 2, 3, 4]
+//             }
+//          })"_json;
+
+//          options["space-dis"]["degree"] = p;
+//          options["space-dis"]["sipg-penalty"] = pow(p+1, 2);
+
+//          int nxy = mesh_nxy[i];
+//          unique_ptr<Mesh> smesh = buildMesh(nxy);
+
+//          // Create solver and solve for the state 
+//          MagnetostaticSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
+//          mfem::Vector state_tv(solver.getStateSize());
+
+//          solver.setState(aexact, state_tv);
+
+//          solver.solveForState(state_tv);
+
+//          // Check that solution is accurate
+//          auto error = solver.calcStateError(aexact, state_tv);
+
+//          sol_error[p-1][i] = error;
+//       }
+//    }
+
+//    for (const auto &p_err : sol_error)
+//    {
+//       for (const auto &err : p_err)
+//       {
+//          std::cout << err << ", ";
+//       }
+//       std::cout << "\n";
+//    }
+
+//    for (const auto &nxy : mesh_nxy)
+//    {
+//       std::cout << nxy << ", ";
+//    }
+//    std::cout << "\n";
+
+// }
+
+// TEST_CASE("2D Magnetostatic Solver MMS residual")
+// {
+//    const bool verbose = true; // set to true for some output 
+//    std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+//    using namespace mfem;
+//    using namespace mach;
+
+//    auto options = R"(
+//    {
+//       "print-options": false,
+//       "space-dis": {
+//          "basis-type": "H1",
+//          "degree": 1,
+//          "sipg-penalty": 100.0
+//       },
+//       "lin-solver": {
+//          "type": "gmres",
+//          "reltol": 1e-12,
+//          "abstol": 0.0,
+//          "printlevel": -1,
+//          "maxiter": 500,
+//          "kdim": 500
+//       },
+//       "nonlin-solver": {
+//          "type": "relaxednewton",
+//          "linesearch": {
+//             "type": "backtracking",
+//             "maxiter": 3
+//          },
+//          "maxiter": 1,
+//          "printlevel": 1
+//       },
+//       "components": {
+//          "box1": {
+//             "attrs": [1],
+//             "material": {
+//                "name": "box1",
+//                "mu_r": 795774.7154594767
+//             }
+//          },
+//          "box2": {
+//             "attrs": [2],
+//             "material": {
+//                "name": "box2",
+//                "mu_r": 795774.7154594767
+//             }
+//          }
+//       },
+//       "current": {
+//          "box": {
+//             "box1": [1],
+//             "box2": [2]
+//          }
+//       },
+//       "bcs": {
+//          "weak-essential": [1, 2, 3, 4]
+//       }
+//    })"_json;
+
+//    options["space-dis"]["degree"] = 3;
+//    options["space-dis"]["sipg-penalty"] = 1e2;
+
+//    int nxy = 2;
+//    unique_ptr<Mesh> smesh = buildMesh(nxy);
+
+//    // Create solver and solve for the state 
+//    MagnetostaticSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
+//    mfem::Vector state_tv(solver.getStateSize());
+//    solver.setState(aexact, state_tv);
+
+//    auto error = solver.calcStateError(aexact, state_tv);
+//    std::cout << "exact sol error: " << error << "\n";
+
+//    mfem::Vector residual_vec(solver.getStateSize());
+//    solver.calcResidual(state_tv, residual_vec);
+
+//    auto res_norm = solver.calcResidualNorm(state_tv);
+//    std::cout << "exact sol res_norm: " << res_norm << "\n";
+
+//    auto &state = solver.getState();
+//    auto &res = solver.getResVec();
+//    res.distributeSharedDofs(residual_vec);
+
+//    mach::ParaViewLogger paraview("magnetostatic_box2d", &res.mesh());
+//    paraview.registerField("state", state.gridFunc());
+//    paraview.registerField(
+//        "residual",
+//        dynamic_cast<mfem::ParGridFunction &>(res.localVec()));
+
+//    paraview.saveState(state_tv, "state", 0, 0, 0);
+//    paraview.saveState(residual_vec, "residual", 0, 0, 0);
+
+//    solver.solveForState(state_tv);
+//    solver.calcResidual(state_tv, residual_vec);
+
+//    paraview.saveState(state_tv, "state", 1, 1, 0);
+//    paraview.saveState(residual_vec, "residual", 1, 1, 0);
+
+//    error = solver.calcStateError(aexact, state_tv);
+//    std::cout << "exact sol error: " << error << "\n";
+
+//    res_norm = solver.calcResidualNorm(state_tv);
+//    std::cout << "exact sol res_norm: " << res_norm << "\n";
+
+// }
+
 double aexact(const Vector &x)
 {
    double y = x(1) - 0.5;
-   if ( x(1) <= .5)
+   if ( y <= 0.0)
    {
       return y*y*y;
    }

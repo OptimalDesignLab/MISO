@@ -45,6 +45,10 @@ private:
    /// Map of dual vectors used by the solver
    std::map<std::string, FiniteElementDual> duals;
 
+   mfem::Array<int> surface_indices;
+   mfem::Vector surf_coords;
+   mfem::Vector vol_coords;
+
    /// Reference to solver state vector
    FiniteElementState &state() { return fields.at("state"); }
    const FiniteElementState &state() const { return fields.at("state"); }
@@ -53,9 +57,9 @@ private:
    mfem::ParFiniteElementSpace &fes() { return state().space(); }
    const mfem::ParFiniteElementSpace &fes() const { return state().space(); }
 
-   mfem::Array<int> surface_indices;
-   mfem::Vector surf_coords;
-   mfem::Vector vol_coords;
+   // void setState_(std::any function,
+   //                const std::string &name,
+   //                mfem::Vector &state) override;
 };
 
 }  // namespace mach

@@ -241,7 +241,8 @@ MagnetostaticResidual::MagnetostaticResidual(
     const nlohmann::json &materials,
     StateCoefficient &nu)
  : res(fes, fields),
-   g(std::make_unique<mfem::ConstantCoefficient>(0.0)),
+   g(std::make_unique<mfem::GridFunctionCoefficient>(
+       &fields.at("dirichlet_bc").gridFunc())),
    // load(diff_stack, fes, fields, options, materials, nu),
    prec(constructPreconditioner(fes, options["lin-prec"]))
 {
@@ -258,8 +259,59 @@ MagnetostaticResidual::MagnetostaticResidual(
    {
       res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
 
-      /// weakly impose boundary conditions
-      res.addBdrFaceIntegrator(new NonlinearDGDiffusionIntegrator(nu, *g, 1e8));
+      if (options.contains("bcs"))
+      {
+         const auto &bcs = options["bcs"];
+         // weakly imposed dirichlet boundary condition
+         if (bcs.contains("weak-essential"))
+         {
+            std::vector<int> bdr_attr_marker(
+                fes.GetParMesh()->bdr_attributes.Max());
+
+            if (bcs["weak-essential"].is_string())
+            {
+               auto tmp = bcs["weak-essential"].get<std::string>();
+               if (tmp == "all")
+               {
+                  // std::fill(bdr_attr_marker.begin(), bdr_attr_marker.end(),
+                  // 1);
+                  for (int i = 0; i < bdr_attr_marker.size(); ++i)
+                  {
+                     bdr_attr_marker[i] = i + 1;
+                  }
+               }
+               // else if (tmp == "none")
+               // {
+               //    std::fill(bdr_attr_marker.begin(), bdr_attr_marker.end(),
+               //    0);
+               // }
+               else
+               {
+                  throw MachException("Unrecognized string for boundary!");
+               }
+            }
+            else if (bcs["weak-essential"].is_array())
+            {
+               bdr_attr_marker = bcs["weak-essential"].get<std::vector<int>>();
+            }
+            else
+            {
+               throw MachException("Unrecognized JSON value for boundary!");
+            }
+
+            auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+            if (mu < 0)
+            {
+               auto degree = options["space-dis"]["degree"].get<double>();
+               mu = pow(degree + 1, 3);
+            }
+
+            std::cout << "mu: " << mu << "\n";
+            res.addBdrFaceIntegrator(
+                new NonlinearDGDiffusionIntegrator(nu, *g, -mu),
+                bdr_attr_marker);
+         }
+      }
 
       MachLinearForm linear_form(fes, fields);
       if (options.contains("current"))

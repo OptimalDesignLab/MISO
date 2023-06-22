@@ -616,6 +616,7 @@ private:
    ACLossDistribution ac_loss;
    CAL2CoreLossDistribution core_loss;
 
+   std::map<std::string, FiniteElementState> &fields;
    mfem::Vector scratch;
 };
 

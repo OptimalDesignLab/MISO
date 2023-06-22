@@ -119,7 +119,7 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 1;
          }
          else
          {
@@ -204,7 +204,7 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 1;
          }
          else
          {
@@ -265,6 +265,8 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
       {
          std::cout << "nan!\n";
       }
+
+      // elmat.Print(mfem::out, 20);
    }
 }
 
@@ -338,7 +340,7 @@ void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 2;
+            return 2 * el.GetOrder() - 1;
          }
          else
          {
@@ -480,11 +482,11 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceVector(
       {
          if (el1.Space() == FunctionSpace::Pk)
          {
-            return 2 * el1.GetOrder() - 2;
+            return 2 * el1.GetOrder();
          }
          else
          {
-            return 2 * el1.GetOrder() + el1.GetDim() - 1;
+            return 2 * el1.GetOrder() + el1.GetDim();
          }
       }();
       ir = &IntRules.Get(trans.GetGeometryType(), order);
@@ -521,14 +523,14 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceVector(
       const double pointflux_norm = pointflux.Norml2();
       const double pointflux_mag = pointflux_norm / el1_trans_weight;
 
-      double model_val = model.Eval(trans, eip1, pointflux_mag);
+      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
 
       // trans.Elem1->AdjugateJacobian().Mult(nor, nh);
       // dshape.Mult(nh, dshapedn);
 
       dshapedxt.Mult(nor, dshapedn);
 
-      double bc_val = g.Eval(trans, eip1);
+      double bc_val = g.Eval(*trans.Elem1, eip1);
 
       elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
       elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
@@ -578,11 +580,11 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
       {
          if (el1.Space() == FunctionSpace::Pk)
          {
-            return 2 * el1.GetOrder() - 2;
+            return 2 * el1.GetOrder();
          }
          else
          {
-            return 2 * el1.GetOrder() + el1.GetDim() - 1;
+            return 2 * el1.GetOrder() + el1.GetDim();
          }
       }();
       ir = &IntRules.Get(trans.GetGeometryType(), order);
@@ -630,15 +632,16 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
       const double pointflux_mag = pointflux_norm / el1_trans_weight;
       pointflux_norm_dot /= el1_trans_weight;
 
-      double model_val = model.Eval(trans, eip1, pointflux_mag);
+      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
 
-      double model_deriv = model.EvalStateDeriv(trans, ip, pointflux_mag);
+      double model_deriv =
+          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
       pointflux_norm_dot *= model_deriv;
 
       trans.Elem1->AdjugateJacobian().Mult(nor, nh);
       dshape.Mult(nh, dshapedn);
 
-      double bc_val = g.Eval(trans, eip1);
+      double bc_val = g.Eval(*trans.Elem1, eip1);
 
       // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
       AddMult_a_VWt(-model_val * w, dshapedn, shape, elmat);
@@ -741,7 +744,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    const mfem::IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = 2 * el1.GetOrder() - 1;
+      int order = 2 * el1.GetOrder();
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
@@ -781,11 +784,11 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       const double pointflux_norm = pointflux.Norml2();
       const double pointflux_mag = pointflux_norm / el1_trans_weight;
 
-      double model_val = model.Eval(trans, eip1, pointflux_mag);
+      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
 
       dshapedxt.Mult(nor, dshapedn);
 
-      double bc_val = g.Eval(trans, eip1);
+      double bc_val = g.Eval(*trans.Elem1, eip1);
 
       double elfun_shape = elfun * shape;
       double elfun_dshapedn = elfun * dshapedn;
@@ -854,7 +857,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// double model_val = model.Eval(trans, eip1, pointflux_mag);
       const double model_val_dot =
-          model.EvalStateDeriv(trans, ip, pointflux_mag);
+          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
       double pointflux_mag_bar = model_val_bar * model_val_dot;
 
       /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
@@ -996,7 +999,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    const mfem::IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = 2 * el1.GetOrder() - 1;
+      int order = 2 * el1.GetOrder();
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
@@ -1036,11 +1039,11 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       const double pointflux_norm = pointflux.Norml2();
       const double pointflux_mag = pointflux_norm / el1_trans_weight;
 
-      double model_val = model.Eval(trans, eip1, pointflux_mag);
+      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
 
       dshapedxt.Mult(nor, dshapedn);
 
-      double bc_val = g.Eval(trans, eip1);
+      double bc_val = g.Eval(*trans.Elem1, eip1);
 
       double elfun_shape = elfun * shape;
       double elfun_dshapedn = elfun * dshapedn;
@@ -1109,7 +1112,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// double model_val = model.Eval(trans, eip1, pointflux_mag);
       const double model_val_dot =
-          model.EvalStateDeriv(trans, ip, pointflux_mag);
+          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
       double pointflux_mag_bar = model_val_bar * model_val_dot;
 
       /// const double pointflux_mag = pointflux_norm / el1_trans_weight;

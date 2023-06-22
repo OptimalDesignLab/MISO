@@ -1768,6 +1768,11 @@ void calcOutput(EMHeatSourceOutput &output,
    // std::cout << "output.scratch norml2 " << output.scratch.Norml2() << "\n";
    out_vec += output.scratch;
    // std::cout << "out_vec norml2 " << out_vec.Norml2() << "\n";
+
+   auto &peak_flux = output.fields.at("peak_flux");
+   mach::ParaViewLogger paraview("peak_flux", &peak_flux.mesh());
+   paraview.registerField("peak_flux", peak_flux.gridFunc());
+   paraview.saveState(peak_flux.gridFunc(), "peak_flux", 0, 0, 0);
 }
 
 void jacobianVectorProduct(EMHeatSourceOutput &output,
@@ -1809,6 +1814,7 @@ EMHeatSourceOutput::EMHeatSourceOutput(
  : dc_loss(fields, sigma, options["dc_loss"]),
    ac_loss(fields, sigma, options["ac_loss"]),
    core_loss(fields, components, materials, options["core_loss"]),
+   fields(fields),
    scratch(getSize(dc_loss))
 { }
 

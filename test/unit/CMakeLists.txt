@@ -77,6 +77,8 @@ set(EM_MPI_TEST_SRCS
    test_mach_nonlinearform
    test_mach_linearform
    test_reluctivity_coeff
+   # test_diffusion_solver
+   # test_mfem_diffusion_solver
 )
 
 create_tests("${FLUID_TEST_SRCS}" euler_test_data.cpp)

@@ -368,6 +368,10 @@ PDESolver::PDESolver(MPI_Comm incomm,
        "state",
        FiniteElementState(mesh(), options["space-dis"], num_states, "state"));
    fields.emplace(
+       "dirichlet_bc",
+       FiniteElementState(
+           mesh(), options["space-dis"], num_states, "dirichlet_bc"));
+   fields.emplace(
        "adjoint",
        FiniteElementState(mesh(), options["space-dis"], num_states, "adjoint"));
    duals.emplace(
@@ -395,6 +399,9 @@ PDESolver::PDESolver(
    int ns = num_states(solver_options, mesh().SpaceDimension());
    fields.emplace(
        "state", FiniteElementState(mesh(), options["space-dis"], ns, "state"));
+   fields.emplace(
+       "dirichlet_bc",
+       FiniteElementState(mesh(), options["space-dis"], ns, "dirichlet_bc"));
    fields.emplace(
        "adjoint",
        FiniteElementState(mesh(), options["space-dis"], ns, "adjoint"));
@@ -465,6 +472,11 @@ void PDESolver::setState_(std::any function,
        { fields.at(name).project(vec_fun, state); },
        [&](mfem::VectorCoefficient *vec_coeff)
        { fields.at(name).project(*vec_coeff, state); });
+
+   if (name == "state")
+   {
+      PDESolver::setState_(function, "dirichlet_bc", state);
+   }
 }
 
 double PDESolver::calcStateError_(std::any ex_sol,

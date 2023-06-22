@@ -217,9 +217,9 @@ TEST_CASE("NonlinearDGDiffusionIntegrator::AssembleFaceVector")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   LinearCoefficient one_sc(1.0);
-   ConstantCoefficient one(1.0);
-   ConstantCoefficient bc_val(10.0);
+   LinearCoefficient one_sc(10.0);
+   ConstantCoefficient one(10.0);
+   ConstantCoefficient bc_val(-10.0);
    double sigma = -1.0;
    double mu = 10;
 
@@ -237,19 +237,19 @@ TEST_CASE("NonlinearDGDiffusionIntegrator::AssembleFaceVector")
          NonlinearForm res(&fes);
          res.AddBdrFaceIntegrator(new mach::NonlinearDGDiffusionIntegrator(one_sc, bc_val, mu));
 
-         // // initialize pert vector
-         // GridFunction v(&fes);
-         // v.ProjectCoefficient(pert);
-
          GridFunction res_vec(&fes);
          res.Mult(state, res_vec);
 
          BilinearForm blf(&fes);
-         blf.AddBdrFaceIntegrator(new DGDiffusionIntegrator(one, sigma, mu));
+         auto *blfi = new DGDiffusionIntegrator(one, sigma, mu);
+         blfi->SetIntRule(&IntRules.Get(Geometry::SEGMENT, 2*p));
+         blf.AddBdrFaceIntegrator(blfi);
          blf.Assemble();
 
          LinearForm lf(&fes);
-         lf.AddBdrFaceIntegrator(new DGDirichletLFIntegrator(bc_val, one, sigma, mu));
+         auto *lfi = new DGDirichletLFIntegrator(bc_val, one, sigma, mu);
+         lfi->SetIntRule(&IntRules.Get(Geometry::SEGMENT, 2*p));
+         lf.AddBdrFaceIntegrator(lfi);
          lf.Assemble();
 
          GridFunction blf_res(&fes);

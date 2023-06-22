@@ -135,7 +135,7 @@ private:
    std::list<mfem::Array<int>> domain_markers;
 
    /// Collection of boundary markers for boundary integrators
-   std::vector<mfem::Array<int>> bdr_marker;
+   std::vector<mfem::Array<int>> bdr_markers;
 
    /// map of external fields the linear form depends on
    std::map<std::string, FiniteElementState> *lf_fields;
@@ -214,9 +214,11 @@ void MachLinearForm::addBoundaryIntegrator(
     const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   auto &marker = bdr_marker.emplace_back(bdr_attr_marker);
+   auto mesh_attr_size = lf.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
-   lf.AddBoundaryIntegrator(integrator, bdr_marker.back());
+
+   lf.AddBoundaryIntegrator(integrator, marker);
    addBdrSensitivityIntegrator(*integrator,
                                *lf_fields,
                                rev_sens,
@@ -248,9 +250,11 @@ void MachLinearForm::addBdrFaceIntegrator(
     const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
-   auto &marker = bdr_marker.emplace_back(bdr_attr_marker);
+   auto mesh_attr_size = lf.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
    attrVecToArray(bdr_attr_marker, marker);
-   lf.AddBdrFaceIntegrator(integrator, bdr_marker.back());
+
+   lf.AddBdrFaceIntegrator(integrator, marker);
    addBdrSensitivityIntegrator(*integrator,
                                *lf_fields,
                                rev_sens,

@@ -262,6 +262,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
          fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
          auto &state = fields.at("state");
 
+         fields.emplace("dirichlet_bc", mach::FiniteElementState(mesh, fes, "dirichlet_bc"));
+         auto &bc = fields.at("dirichlet_bc");
+
          auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
          auto *mesh_fespace = mesh_gf.ParFESpace();
          /// create new state vector copying the mesh's fe space
@@ -279,9 +282,11 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
          auto &temp = fields.at("temperature");
 
          mfem::Vector state_tv(state.space().GetTrueVSize());
+         mfem::Vector bc_tv(bc.space().GetTrueVSize());
          for (int i = 0; i < state_tv.Size(); ++i)
          {
             state_tv(i) = uniform_rand(gen);
+            bc_tv(i) = state_tv(i);
          }
 
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
@@ -348,6 +353,7 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
          double current_density = 1.0;
          mach::MachInputs inputs{
             {"state", state_tv},
+            {"dirichlet_bc", bc_tv},
             {"mesh_coords", mesh_coords_tv},
             {"current_density:box1", current_density},
             {"current_density:box2", -current_density},
@@ -448,6 +454,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
          fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
          auto &state = fields.at("state");
 
+         fields.emplace("dirichlet_bc", mach::FiniteElementState(mesh, fes, "dirichlet_bc"));
+         auto &bc = fields.at("dirichlet_bc");
+
          auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
          auto *mesh_fespace = mesh_gf.ParFESpace();
          /// create new state vector copying the mesh's fe space
@@ -465,9 +474,11 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
          auto &temp = fields.at("temperature");
 
          mfem::Vector state_tv(state.space().GetTrueVSize());
+         mfem::Vector bc_tv(bc.space().GetTrueVSize());
          for (int i = 0; i < state_tv.Size(); ++i)
          {
             state_tv(i) = uniform_rand(gen);
+            bc_tv(i) = state_tv(i);
          }
 
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
@@ -544,6 +555,7 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
          double current_density = 1.0;
          mach::MachInputs inputs{
             {"state", state_tv},
+            {"dirichlet_bc", bc_tv},
             {"mesh_coords", mesh_coords_tv},
             {"current_density:box1", current_density},
             {"current_density:box2", -current_density},
@@ -622,6 +634,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt temperature")
          fields.emplace("state", mach::FiniteElementState(mesh, fes, "state"));
          auto &state = fields.at("state");
 
+         fields.emplace("dirichlet_bc", mach::FiniteElementState(mesh, fes, "dirichlet_bc"));
+         auto &bc = fields.at("dirichlet_bc");
+
          auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
          auto *mesh_fespace = mesh_gf.ParFESpace();
          /// create new state vector copying the mesh's fe space
@@ -639,9 +654,11 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt temperature")
          auto &temp = fields.at("temperature");
 
          mfem::Vector state_tv(state.space().GetTrueVSize());
+         mfem::Vector bc_tv(bc.space().GetTrueVSize());
          for (int i = 0; i < state_tv.Size(); ++i)
          {
             state_tv(i) = uniform_rand(gen);
+            bc_tv(i) = state_tv(i);
          }
 
          mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
@@ -718,6 +735,7 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt temperature")
          double current_density = 1.0;
          mach::MachInputs inputs{
             {"state", state_tv},
+            {"dirichlet_bc", bc_tv},
             {"mesh_coords", mesh_coords_tv},
             {"current_density:box1", current_density},
             {"current_density:box2", -current_density},

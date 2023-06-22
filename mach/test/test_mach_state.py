@@ -189,9 +189,9 @@ class TestEMState2D(unittest.TestCase):
                 },
             }
         },
-        "bcs": {
-            "essential": "all"
-        },
+        # "bcs": {
+        #     "essential": "all"
+        # },
         "current": {
             "test": {
                 "z": [1]
