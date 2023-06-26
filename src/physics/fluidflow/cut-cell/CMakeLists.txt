@@ -1,11 +1,15 @@
 target_sources(mach
    PRIVATE
       euler_integ_def_dg_cut.hpp
+      euler_integ_def_dg_cut_sens.hpp
       euler_integ_dg_cut.hpp
+      euler_integ_dg_cut_sens.hpp
       euler_dg_cut.cpp
       euler_dg_cut.hpp 
       inviscid_integ_def_dg_cut.hpp
+      inviscid_integ_def_dg_cut_sens.hpp
       inviscid_integ_dg_cut.hpp
+      inviscid_integ_dg_cut_sens.hpp
       cut_quad.hpp
       cut_quad_poly.hpp
       cut_quad_indicator.hpp

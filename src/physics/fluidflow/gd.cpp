@@ -517,13 +517,13 @@ void ParGalerkinDifference::BuildGDProlongation()
                              V);  // old stencil approach
                                   // if (i == 365 || i == 716 || i == 429)
                                   // {
-         cout << " =================================================== "
-              << endl;
-         cout << "#elements in final stencil " << stencil_elid.Size() << endl;
-         cout << "Elements id(s) in stencil of " << i << ": " << endl;
-         stencil_elid.Print(cout, stencil_elid.Size());
-         cout << " =================================================== "
-              << endl;
+         // cout << " =================================================== "
+         //      << endl;
+         // cout << "#elements in final stencil " << stencil_elid.Size() << endl;
+         // cout << "Elements id(s) in stencil of " << i << ": " << endl;
+         // stencil_elid.Print(cout, stencil_elid.Size());
+         // cout << " =================================================== "
+         //      << endl;
          // }
 
          // 2. build the quadrature and barycenter coordinate matrices

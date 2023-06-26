@@ -6,6 +6,7 @@
 #include "solver.hpp"
 #include "euler_integ_dg.hpp"
 #include "euler_integ_dg_cut.hpp"
+#include "euler_integ_dg_cut_sens.hpp"
 #include "diag_mass_integ.hpp"
 #include "euler_integ.hpp"
 #include "functional_output.hpp"
@@ -110,12 +111,19 @@ protected:
    std::map<int, IntegrationRule *> cutSegmentIntRules_outer;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules;
+   // interior face int rule sensitivities
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_sens;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules_outer;
    // boundary face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutBdrFaceIntRules;
    // boundary face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutBdrFaceIntRules_outer;
+   /// int rule senstivities
+   // cut elements
+   std::map<int, IntegrationRule *> cutSquareIntRules_sens;
+   // embedded boundary
+   std::map<int, IntegrationRule *> cutSegmentIntRules_sens;
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
    /// cut elements boolean vector
@@ -138,8 +146,8 @@ protected:
    vector<int> cutBdrFaces_outer;
    /// levelset to calculate normal vectors
    // Algoim::LevelSet<2> phi_e;
-   LevelSetF<2> phi;
-   LevelSetF<2> phi_outer;
+   LevelSetF<double, 2> phi;
+   LevelSetF<double, 2> phi_outer;
    bool vortex = false;
    // Algoim::LevelSet<2> phi;
    // Algoim::LevelSet<2> phi_outer;

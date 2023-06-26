@@ -1157,8 +1157,8 @@ uvector<double, 2> airfoil_cent;
       circle_cent(1) = 5.0;
       /// let us see if this works
       /// find the elements to refine
-      CutCell<2, 1> cut_init(smesh.get());
-      /*Algoim::LevelSet<2> */  LevelSetF<2> phi_init = cut_init.constructLevelSet();
+      CutCell<double, 2, 1> cut_init(smesh.get());
+      /*Algoim::LevelSet<2> */  LevelSetF<double, 2> phi_init = cut_init.constructLevelSet<double>();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
       int ncr = options["mesh"]["ncr"].template get<int>();
@@ -2091,9 +2091,9 @@ void AbstractSolver::printAbsError(
    {
       absSolerr(i) = std::log(abs(absSolerr(i)));
    }
-   CutCell<2, 1> cut_init(mesh.get());
-   /*Algoim::LevelSet<2> */ LevelSetF<2> phi_init =
-       cut_init.constructLevelSet();
+   CutCell<double, 2, 1> cut_init(mesh.get());
+   /*Algoim::LevelSet<2> */ LevelSetF<double, 2> phi_init =
+       cut_init.constructLevelSet<double>();
    for (int i = 0; i < fes->GetNE(); i++)
    {
       if (cut_init.insideBoundary(i) == true)
@@ -2971,81 +2971,116 @@ void AbstractSolver::solveUnsteady(ParCentGridFunction &state)
    cout << "solution written " << endl;
    // TODO: These mfem functions do not appear to be parallelized
 }
+
 void AbstractSolver::solveSteadyAdjoint(const std::string &fun)
 {
-   #if 0 
-  double time_beg, time_end;
-   if (0==rank)
+   double time_beg = NAN;
+   double time_end = NAN;
+   time_beg = MPI_Wtime();
+   if (gd)
    {
-      time_beg = MPI_Wtime();
-   }
+      // Step 0: allocate the adjoint variable
+      adj_gd.reset(new GDGridFunType(fes_gd.get()));
+      *adj_gd = 0.0;
+      adj.reset(new GridFunType(fes.get()));
+      *adj =0.0;
+      // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+      // alias to it, the state, and the adjoint
+      std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+      std::unique_ptr<GDGridFunType> dJdu_gd(new GDGridFunType(fes_gd.get()));
+      HypreParVector *u_true = u->GetTrueDofs();
+      HypreParVector *u_true_gd = u_gd->GetTrueDofs();
+      HypreParVector *dJdu_true = dJdu->GetTrueDofs();
+      HypreParVector *dJdu_true_gd = dJdu_gd->GetTrueDofs();
+      HypreParVector *adj_true = adj->GetTrueDofs();
+      HypreParVector *adj_true_gd = adj_gd->GetTrueDofs();
 
-   // Step 0: allocate the adjoint variable
-   adj_gd.reset(new GDGridFunType(fes_gd.get()));
+      cout << "before dJdu " << endl;
+      mach::calcOutputPartial(
+          outputs.at(fun), "state", {{"state", u_true->GetData()}}, *dJdu_true);
+      fes_gd->GetProlongationMatrix()->MultTranspose(*dJdu_true, *dJdu_true_gd);
 
-   // Step 1: get the right-hand side vector, dJdu, and make an appropriate
-   // alias to it, the state, and the adjoint
-   std::unique_ptr<GDGridFunType> dJdu(new GDGridFunType(fes_gd.get()));
-#ifdef MFEM_USE_MPI
-   HypreParVector *state = u_gd->GetTrueDofs();
-   HypreParVector *dJ = dJdu->GetTrueDofs();
-   HypreParVector *adjoint = adj_gd->GetTrueDofs();
-#else
-   GDGridFunType *state = u_gd.get();
-   GDGridFunType *dJ = dJdu.get();
-   GDGridFunType *adjoint = adj_gd.get();
-#endif
-   outputs.at(fun).Mult(*state, *dJ);
-
-   // Step 2: get the Jacobian and transpose it
-   // TODO: need #define guards to handle serial case
-   Operator *jac = &res->GetGradient(*state);
-   const HypreParMatrix *jac_trans = dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
-   MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
-
-   // Step 3: Solve the adjoint problem
-   *out << "Solving adjoint problem:\n"
-        << "\tsolver: HypreGMRES\n"
-        << "\tprec. : Euclid ILU" << endl;
-   prec.reset(new HypreEuclid(fes_gd->GetComm()));
-   double reltol = options["adj-solver"]["reltol"].get<double>();
-   int maxiter = options["adj-solver"]["maxiter"].get<int>();
-   int ptl = options["adj-solver"]["printlevel"].get<int>();
-   solver.reset(new HypreGMRES(fes_gd->GetComm()));
-   solver->SetOperator(*jac_trans);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetTol(reltol);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetMaxIter(maxiter);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPrintLevel(ptl);
-   dynamic_cast<mfem::HypreGMRES *>(solver.get())->SetPreconditioner(*dynamic_cast<HypreSolver *>(prec.get()));
-   solver->Mult(*dJ, *adjoint);
-
-   // check that adjoint residual is small
-   std::unique_ptr<GDGridFunType> adj_res(new GDGridFunType(fes_gd.get()));
-   double res_norm = 0;
-#ifdef MFEM_USE_MPI
-   HypreParVector *adj_res_true = adj_res->GetTrueDofs();
-   jac_trans->Mult(*adjoint, *adj_res_true);
-   *adj_res_true -= *dJ;
-   double loc_norm = (*adj_res_true)*(*adj_res_true);
-   MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
-#else
-   jac_trans.Mult(*adjoint, *adj_res);
-   *adj_res -= *dJ;
-   res_norm = (*adj_res)*(*adj_res);
-#endif
-   res_norm = sqrt(res_norm);
-   *out << "Adjoint residual norm = " << res_norm << endl;
-
-#ifdef MFEM_USE_MPI
-   adj_gd->SetFromTrueDofs(*adjoint);
-#endif
-   if (0==rank)
-   {
+      cout << "after dJdu " << endl;
+      // Step 2: get the Jacobian and transpose it
+      Operator *jac = &res->GetGradient(*u_true_gd);
+      const Operator *jac_trans =
+          dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
+      MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
+      // Step 3: Solve the adjoint problem
+      *out << "Solving adjoint problem" << endl;
+      unique_ptr<Solver> adj_prec =
+          constructPreconditioner(options["adj-prec"]);
+      unique_ptr<Solver> adj_solver =
+          constructLinearSolver(options["adj-solver"], *adj_prec);
+      adj_solver->SetOperator(*jac_trans);
+      adj_solver->Mult(*dJdu_true_gd, *adj_true_gd);
+      // check that adjoint residual is small
+      std::unique_ptr<GDGridFunType> adj_res(new GDGridFunType(fes_gd.get()));
+      double res_norm = 0;
+      HypreParVector *adj_res_true = adj_res->GetTrueDofs();
+      jac_trans->Mult(*adj_true_gd, *adj_res_true);
+      *adj_res_true -= *dJdu_true_gd;
+      double loc_norm = (*adj_res_true) * (*adj_res_true);
+      MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+      res_norm = sqrt(res_norm);
+      *out << "Adjoint residual norm = " << res_norm << endl;
+      // adj_gd->SetFromTrueDofs(*adj_true);
+      //adj_gd->Print();
+      *adj_gd = *adj_true_gd;
+      cout << " ================================ " << endl;
+      // adj_gd->Print();
+      /// get the DG adjoint solution 
+      fes_gd->GetProlongationMatrix()->Mult(*adj_gd, *adj);
+      cout << "prolongated to DG sol " << endl;
       time_end = MPI_Wtime();
       *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
    }
-    fes_gd->GetProlongationMatrix()->Mult(adj_gd, adj);
-    #endif
+   else
+   {
+      // Step 0: allocate the adjoint variable
+      adj.reset(new GridFunType(fes.get()));
+      *adj = 0.0;
+      // Step 1: get the right-hand side vector, dJdu, and make an appropriate
+      // alias to it, the state, and the adjoint
+      std::unique_ptr<GridFunType> dJdu(new GridFunType(fes.get()));
+      HypreParVector *u_true = u->GetTrueDofs();
+      HypreParVector *dJdu_true = dJdu->GetTrueDofs();
+      HypreParVector *adj_true = adj->GetTrueDofs();
+      mach::calcOutputPartial(
+          outputs.at(fun), "state", {{"state", u_true->GetData()}}, *dJdu_true);
+      // Step 2: get the Jacobian and transpose it
+      Operator *jac = &res->GetGradient(*u_true);
+      const Operator *jac_trans =
+          dynamic_cast<const HypreParMatrix *>(jac)->Transpose();
+      MFEM_VERIFY(jac_trans, "Jacobian must be a HypreParMatrix!");
+
+      // Step 3: Solve the adjoint problem
+      *out << "Solving adjoint problem" << endl;
+      unique_ptr<Solver> adj_prec =
+          constructPreconditioner(options["adj-prec"]);
+      unique_ptr<Solver> adj_solver =
+          constructLinearSolver(options["adj-solver"], *adj_prec);
+      adj_solver->SetOperator(*jac_trans);
+      adj_solver->Mult(*dJdu_true, *adj_true);
+
+      // check that adjoint residual is small
+      std::unique_ptr<GridFunType> adj_res(new GridFunType(fes.get()));
+      double res_norm = 0;
+      HypreParVector *adj_res_true = adj_res->GetTrueDofs();
+      jac_trans->Mult(*adj_true, *adj_res_true);
+      *adj_res_true -= *dJdu_true;
+      double loc_norm = (*adj_res_true) * (*adj_res_true);
+      MPI_Allreduce(&loc_norm, &res_norm, 1, MPI_DOUBLE, MPI_SUM, comm);
+      res_norm = sqrt(res_norm);
+      *out << "Adjoint residual norm = " << res_norm << endl;
+      adj->Print();
+      //adj->SetFromTrueDofs(*adj_true);
+      *adj = *adj_true;
+      cout << "============================================================" << endl;
+      adj->Print();
+      time_end = MPI_Wtime();
+      *out << "Time for solving adjoint is " << (time_end - time_beg) << endl;
+   }
 }
 
 unique_ptr<Solver> AbstractSolver::constructLinearSolver(

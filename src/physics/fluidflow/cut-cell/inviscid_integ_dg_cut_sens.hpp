@@ -1,5 +1,5 @@
-#ifndef MACH_INVISCID_INTEG_DG_CUT
-#define MACH_INVISCID_INTEG_DG_CUT
+#ifndef MACH_INVISCID_INTEG_DG_CUT_SENS
+#define MACH_INVISCID_INTEG_DG_CUT_SENS
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -10,7 +10,7 @@ namespace mach
 /// Integrator for one-point inviscid flux functions
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
-class CutDGInviscidIntegrator : public mfem::NonlinearFormIntegrator
+class CutDGSensitivityInviscidIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Construct an integrator for "inviscid" type fluxes
@@ -23,9 +23,10 @@ public:
    /// states used by, nor the number of fluxes returned by, `flux`.
    /// For example, there may be 5 states for the 2D RANS equations, but
    /// `flux` may use only the first 4.
-   CutDGInviscidIntegrator(
+   CutDGSensitivityInviscidIntegrator(
        adept::Stack &diff_stack,
        std::map<int, mfem::IntegrationRule *> _cutSquareIntRules,
+       std::map<int, mfem::IntegrationRule *> _cutSquareIntRules_sens,
        std::vector<bool> _embeddedElements,
        int num_state_vars = 1,
        double a = 1.0)
@@ -33,6 +34,7 @@ public:
       alpha(a),
       stack(diff_stack),
       cutSquareIntRules(_cutSquareIntRules),
+      cutSquareIntRules_sens(_cutSquareIntRules_sens),
       embeddedElements(_embeddedElements)
    { }
 
@@ -54,15 +56,6 @@ public:
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
 
-   /// Construct the element local Jacobian
-   /// \param[in] el - the finite element whose Jacobian we want
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - element local state function
-   /// \param[out] elmat - element local Jacobian
-   void AssembleElementGrad(const mfem::FiniteElement &el,
-                            mfem::ElementTransformation &trans,
-                            const mfem::Vector &elfun,
-                            mfem::DenseMatrix &elmat) override;
 
 protected:
    /// number of states
@@ -92,6 +85,8 @@ protected:
    mfem::DenseMatrix elres;
    /// cut-cell int rule
    std::map<int, IntegrationRule *> cutSquareIntRules;
+   /// cut-cell int rule sensitivities
+   std::map<int, IntegrationRule *> cutSquareIntRules_sens;
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
 #endif
@@ -143,161 +138,11 @@ protected:
       static_cast<Derived *>(this)->calcFluxJacDir(dir, u, flux_jac);
    }
 };
-/// Integrator for inviscid boundary fluxes (fluxes that do not need gradient)
-/// \tparam Derived - a class Derived from this one (needed for CRTP)
-template <typename Derived>
-class CutDGEulerBoundaryIntegrator : public mfem::NonlinearFormIntegrator
-{
-public:
-   /// Constructs a boundary integrator based on a given boundary flux
-   /// \param[in] diff_stack - for algorithmic differentiation
-   /// \param[in] fe_coll - used to determine the face elements
-   /// \param[in] _cutBdrFaceIntRules - integration rule for cut boundary faces
-   /// \param[in] _embeddedElements - elements completely inside geometry
-   /// \param[in] num_state_vars - the number of state variables
-   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   CutDGEulerBoundaryIntegrator(
-       adept::Stack &diff_stack,
-       const mfem::FiniteElementCollection *fe_coll,
-       std::map<int, IntegrationRule *> _cutBdrFaceIntRules,
-       std::vector<bool> _embeddedElements,
-       int num_state_vars = 1,
-       double a = 1.0)
-    : num_states(num_state_vars),
-      alpha(a),
-      stack(diff_stack),
-      fec(fe_coll),
-      cutBdrFaceIntRules(_cutBdrFaceIntRules),
-      embeddedElements(_embeddedElements)
-   { }
 
-   /// Construct the contribution to a functional from the boundary element
-   /// \param[in] el_bnd - boundary element that contribute to the functional
-   /// \param[in] el_unused - dummy element that is not used for boundaries
-   /// \param[in] trans - hold geometry and mapping information about the face
-   /// \param[in] elfun - element local state function
-   /// \return element local contribution to functional
-   double GetFaceEnergy(const mfem::FiniteElement &el_bnd,
-                        const mfem::FiniteElement &el_unused,
-                        mfem::FaceElementTransformations &trans,
-                        const mfem::Vector &elfun) override;
-
-   /// Construct the contribution to the element local residual
-   /// \param[in] el_bnd - the finite element whose residual we want to update
-   /// \param[in] el_unused - dummy element that is not used for boundaries
-   /// \param[in] trans - holds geometry and mapping information about the face
-   /// \param[in] elfun - element local state function
-   /// \param[out] elvect - element local residual
-   void AssembleFaceVector(const mfem::FiniteElement &el_bnd,
-                           const mfem::FiniteElement &el_unused,
-                           mfem::FaceElementTransformations &trans,
-                           const mfem::Vector &elfun,
-                           mfem::Vector &elvect) override;
-
-   /// Construct the element local Jacobian
-   /// \param[in] el_bnd - the finite element whose residual we want to update
-   /// \param[in] el_unused - dummy element that is not used for boundaries
-   /// \param[in] trans - hold geometry and mapping information about the face
-   /// \param[in] elfun - element local state function
-   /// \param[out] elmat - element local Jacobian
-   void AssembleFaceGrad(const mfem::FiniteElement &el_bnd,
-                         const mfem::FiniteElement &el_unused,
-                         mfem::FaceElementTransformations &trans,
-                         const mfem::Vector &elfun,
-                         mfem::DenseMatrix &elmat) override;
-
-protected:
-   /// number of states
-   int num_states;
-   /// scales the terms; can be used to move to rhs/lhs
-   double alpha;
-   /// stack used for algorithmic differentiation
-   adept::Stack &stack;
-   /// used to select the appropriate face element
-   const mfem::FiniteElementCollection *fec;
-#ifndef MFEM_THREAD_SAFE
-   /// used to reference the state at face node
-   mfem::Vector u_face;
-   /// store the physical location of a node
-   mfem::Vector x;
-   /// the outward pointing (scaled) normal to the boundary at a node
-   mfem::Vector nrm;
-   /// stores the shape vector
-   mfem::Vector shape;
-   /// stores the flux evaluated by `bnd_flux`
-   mfem::Vector flux_face;
-   /// stores the jacobian of the flux with respect to the state at `u_face`
-   mfem::DenseMatrix flux_jac_face;
-   /// map of (cut) boundary face int rules
-   std::map<int, IntegrationRule *> cutBdrFaceIntRules;
-   /// vector that determiens if element is embedded or not
-   std::vector<bool> embeddedElements;
-#endif
-
-   /// Compute a scalar boundary function
-   /// \param[in] x - coordinate location at which function is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the function
-   /// \returns fun - value of the function
-   /// \note `x` can be ignored depending on the function
-   /// \note This uses the CRTP, so it wraps a call to `calcFunction` in
-   /// Derived.
-   double bndryFun(const mfem::Vector &x,
-                   const mfem::Vector &dir,
-                   const mfem::Vector &u)
-   {
-      return static_cast<Derived *>(this)->calcBndryFun(x, dir, u);
-   }
-
-   /// Compute a boundary flux function
-   /// \param[in] x - coordinate location at which flux is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_vec - value of the flux
-   /// \note `x` can be ignored depending on the flux
-   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
-   void flux(const mfem::Vector &x,
-             const mfem::Vector &dir,
-             const mfem::Vector &u,
-             mfem::Vector &flux_vec)
-   {
-      static_cast<Derived *>(this)->calcFlux(x, dir, u, flux_vec);
-   }
-
-   /// Compute the Jacobian of the boundary flux function w.r.t. `u`
-   /// \param[in] x - coordinate location at which flux is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `u`
-   /// \note `x` can be ignored depending on the flux
-   /// \note This uses the CRTP, so it wraps a call a func. in Derived.
-   void fluxJacState(const mfem::Vector &x,
-                     const mfem::Vector &dir,
-                     const mfem::Vector &u,
-                     mfem::DenseMatrix &flux_jac)
-   {
-      static_cast<Derived *>(this)->calcFluxJacState(x, dir, u, flux_jac);
-   }
-
-   /// Compute the Jacobian of the boundary flux function w.r.t. `dir`
-   /// \param[in] x - coordinate location at which flux is evaluated
-   /// \param[in] dir - vector normal to the boundary at `x`
-   /// \param[in] u - state at which to evaluate the flux
-   /// \param[out] flux_dir - Jacobian of `flux` w.r.t. `dir`
-   /// \note `x` can be ignored depending on the flux
-   /// \note This uses the CRTP, so it wraps a call to a func. in Derived.
-   void fluxJacDir(const mfem::Vector &x,
-                   const mfem::Vector &nrm,
-                   const mfem::Vector &u,
-                   mfem::DenseMatrix &flux_dir)
-   {
-      static_cast<Derived *>(this)->calcFluxJacDir(x, nrm, u, flux_dir);
-   }
-};
 /// Integrator for cut boubdary faces
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
-class CutDGInviscidBoundaryIntegrator : public mfem::NonlinearFormIntegrator
+class CutDGSensitivityInviscidBoundaryIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Constructs a boundary integrator based on a given boundary flux
@@ -307,10 +152,11 @@ public:
    /// \param[in] _phi - level-set function
    /// \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   CutDGInviscidBoundaryIntegrator(
+   CutDGSensitivityInviscidBoundaryIntegrator(
        adept::Stack &diff_stack,
        const mfem::FiniteElementCollection *fe_coll,
        std::map<int, IntegrationRule *> _cutSegmentIntRules,
+       std::map<int, IntegrationRule *> _cutSegmentIntRules_sens,
       /*Algoim::LevelSet<2> */  LevelSetF<double, 2> _phi,
        int num_state_vars = 1,
        double a = 1.0)
@@ -319,6 +165,7 @@ public:
       stack(diff_stack),
       fec(fe_coll),
       cutSegmentIntRules(_cutSegmentIntRules),
+      cutSegmentIntRules_sens(_cutSegmentIntRules_sens),
       phi(_phi)
    { }
 
@@ -340,15 +187,12 @@ public:
                               const mfem::Vector &elfun,
                               mfem::Vector &elvect) override;
 
-   /// Construct the element local Jacobian
-   /// \param[in] el - the finite element whose Jacobian we want
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - element local state function
-   /// \param[out] elmat - element local Jacobian
-   void AssembleElementGrad(const mfem::FiniteElement &el,
-                            mfem::ElementTransformation &trans,
-                            const mfem::Vector &elfun,
-                            mfem::DenseMatrix &elmat) override;
+   void calcNormalVec(Vector x, Vector &nrm);
+
+   void calcNormalSens(const mfem::FiniteElement &el_bnd,
+                       mfem::ElementTransformation &trans,
+                       const IntegrationPoint &ip,
+                       mfem::DenseMatrix &dndxq);
 
 protected:
    /// number of states
@@ -372,8 +216,12 @@ protected:
    mfem::Vector flux_face;
    /// stores the jacobian of the flux with respect to the state at `u_face`
    mfem::DenseMatrix flux_jac_face;
+   /// stores the jacobian of the flux with respect to the dir at `u_face`
+   mfem::DenseMatrix flux_jac_dir;
    /// integration rule for embedded geom boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
+   /// integration rule sensitivity for embedded geom boundary
+   std::map<int, IntegrationRule *> cutSegmentIntRules_sens;
    /// levelset to calculate normal vectors
    LevelSetF<double, 2> phi;
    //Algoim::LevelSet<2> phi;
@@ -439,11 +287,10 @@ protected:
       static_cast<Derived *>(this)->calcFluxJacDir(x, nrm, u, flux_dir);
    }
 };
-
 /// Integrator for inviscid interface fluxes (fluxes that do not need gradient)
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
 template <typename Derived>
-class CutDGInviscidFaceIntegrator : public mfem::NonlinearFormIntegrator
+class CutDGSensitivityInviscidFaceIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    /// Constructs a face integrator based on a given interface flux
@@ -453,11 +300,12 @@ public:
    /// \param[in] _cutInteriorFaceIntRules - integration rule for cut interior
    /// faces \param[in] num_state_vars - the number of state variables
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   CutDGInviscidFaceIntegrator(
+   CutDGSensitivityInviscidFaceIntegrator(
        adept::Stack &diff_stack,
        const mfem::FiniteElementCollection *fe_coll,
        std::map<int, bool> _immersedFaces,
        std::map<int, IntegrationRule *> _cutInteriorFaceIntRules,
+       std::map<int, IntegrationRule *> _cutInteriorFaceIntRules_sens,
        int num_state_vars = 1,
        double a = 1.0)
     : num_states(num_state_vars),
@@ -465,7 +313,8 @@ public:
       stack(diff_stack),
       fec(fe_coll),
       immersedFaces(_immersedFaces),
-      cutInteriorFaceIntRules(_cutInteriorFaceIntRules)
+      cutInteriorFaceIntRules(_cutInteriorFaceIntRules),
+      cutInteriorFaceIntRules_sens(_cutInteriorFaceIntRules_sens)
    { }
 
    /// Get the contribution from the interface to a functional
@@ -490,17 +339,22 @@ public:
                            const mfem::Vector &elfun,
                            mfem::Vector &elvect) override;
 
-   /// Construct the element local Jacobian
-   /// \param[in] el_left - "left" element whose residual we want to update
-   /// \param[in] el_right - "right" element whose residual we want to update
-   /// \param[in] trans - holds geometry and mapping information about the face
-   /// \param[in] elfun - element local state function
-   /// \param[out] elmat - element local Jacobian
-   void AssembleFaceGrad(const mfem::FiniteElement &el_left,
-                         const mfem::FiniteElement &el_right,
-                         mfem::FaceElementTransformations &trans,
-                         const mfem::Vector &elfun,
-                         mfem::DenseMatrix &elmat) override;
+   // /// Construct the element local Jacobian
+   // /// \param[in] el_left - "left" element whose residual we want to update
+   // /// \param[in] el_right - "right" element whose residual we want to update
+   // /// \param[in] trans - holds geometry and mapping information about the face
+   // /// \param[in] elfun - element local state function
+   // /// \param[out] elmat - element local Jacobian
+   // void AssembleFaceGrad(const mfem::FiniteElement &el_left,
+   //                       const mfem::FiniteElement &el_right,
+   //                       mfem::FaceElementTransformations &trans,
+   //                       const mfem::Vector &elfun,
+   //                       mfem::DenseMatrix &elmat) override;
+   void calcFaceNormalSens(const mfem::FiniteElement &el_left,
+                           const mfem::FiniteElement &el_right,
+                           mfem::FaceElementTransformations &trans,
+                           const IntegrationPoint &ip,
+                           mfem::DenseMatrix &dndxq);
 
 protected:
    /// number of states
@@ -526,12 +380,16 @@ protected:
    mfem::DenseMatrix flux_jac_left;
    /// stores the jacobian of the flux with respect to the right state
    mfem::DenseMatrix flux_jac_right;
+   /// stores the jacobian of the flux with respect to the direction
+   mfem::DenseMatrix flux_jac_dir;
    // vector of cut interior faces
    std::vector<int> cutInteriorFaces;
    // tells if face is immersed
    std::map<int, bool> immersedFaces;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules;
+   // interior face int rule sensitivities that is cut by the embedded geometry
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_sens;
 #endif
 
    /// Compute a scalar interface function
@@ -594,171 +452,8 @@ protected:
           dir, u_left, u_right, flux_dir);
    }
 };
-/// Integrator for method-of-manufactured solution (MMS) sources
-/// \tparam Derived - a class Derived from this one (needed for CRTP)
-/// \note This probably does not need to be a nonlinear integrator, but this
-/// makes it easier to incorporate directly into the nonlinear form.
-template <int dim>
-class CutEulerDiffusionIntegrator : public mfem::NonlinearFormIntegrator
-{
-public:
-   /// Construct an integrator for MMS sources
-   /// \param[in] num_state_vars - the number of state variables
-   /// \param[in] a - factor, usually used to move terms to rhs
-   /// \note `num_state_vars` is not necessarily the same as the number of
-   /// states used by, nor the number of fluxes returned by, `source`.
-   /// For example, there may be 5 states for the 2D RANS equations, but
-   /// `source` may use only the first 4.
-   CutEulerDiffusionIntegrator(
-       std::map<int, mfem::IntegrationRule *> _cutSquareIntRules,
-       std::vector<bool> _embeddedElements,
-       double &visc_coeff,
-       double a = 1.0)
-    : diff_coeff(visc_coeff),
-      cutSquareIntRules(_cutSquareIntRules),
-      embeddedElements(_embeddedElements),
-      num_states(dim + 2),
-      alpha(a)
-   {}
-
-   /// Get the contribution of this element to a functional
-   /// \param[in] el - the finite element whose contribution we want
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - element local state function
-   double GetElementEnergy(const mfem::FiniteElement &el,
-                           mfem::ElementTransformation &trans,
-                           const mfem::Vector &elfun)
-   {
-      return 0.0;
-   }
-
-   /// Construct the element local residual
-   /// \param[in] el - the finite element whose residual we want
-   /// \param[in] trans - defines the reference to physical element mapping
-   /// \param[in] elfun - element local state function
-   /// \param[out] elvect - element local residual
-   void AssembleElementVector(const mfem::FiniteElement &el,
-                              mfem::ElementTransformation &trans,
-                              const mfem::Vector &elfun,
-                              mfem::Vector &elvect)
-   {
-      // cout << "diff_coeff: " << *diff_coeff << endl;
-      using namespace mfem;
-      using namespace std;
-      const int num_nodes = el.GetDof();
-      elvect.SetSize(num_states * num_nodes);
-      elvect = 0.0;
-      if (embeddedElements.at(trans.ElementNo) == true)
-      {
-         elvect = 0.0;
-      }
-      else
-      {
-         DenseMatrix u_mat(elfun.GetData(), num_nodes, num_states);
-         DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-         dshape.SetSize(num_nodes, dim);
-         pelmat.SetSize(num_states, dim);
-         pelmat2.SetSize(num_states, dim);
-         gshape.SetSize(dim);
-         Jinv.SetSize(dim);
-         const IntegrationRule *ir;
-         ir = cutSquareIntRules[trans.ElementNo];
-         if (ir == NULL)
-         {
-            ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));
-         }
-         for (int i = 0; i < ir->GetNPoints(); i++)
-         {
-            const IntegrationPoint &ip = ir->IntPoint(i);
-
-            trans.SetIntPoint(&ip);
-            double w = ip.weight / trans.Weight();
-            w *= diff_coeff;
-            CalcAdjugate(trans.Jacobian(), Jinv);
-            MultAAt(Jinv, gshape);
-            gshape *= w;
-
-            el.CalcDShape(ip, dshape);
-
-            MultAtB(u_mat, dshape, pelmat);
-            MultABt(pelmat, gshape, pelmat2);
-            AddMultABt(dshape, pelmat2, res);
-         }
-         res *= alpha;
-      }
-   }
-
-   /// Construct the element local Jacobian
-   /// \param[in] el - the finite element whose Jacobian we want
-   /// \param[in] trans - defines the reference to physical element
-   /// mapping \param[in] elfun - element local state function \param[out]
-   /// elmat - element local Jacobian
-   void AssembleElementGrad(const mfem::FiniteElement &el,
-                            mfem::ElementTransformation &trans,
-                            const mfem::Vector &elfun,
-                            mfem::DenseMatrix &elmat)
-   {
-      using namespace mfem;
-      using namespace std;
-      const int num_nodes = el.GetDof();
-      int ndof = elfun.Size();
-      elmat.SetSize(ndof);
-      elmat = 0.0;
-      if (embeddedElements.at(trans.ElementNo) == true)
-      {
-         elmat = 0.0;
-      }
-      else
-      {
-         dshape.SetSize(num_nodes, dim);
-         pelmat.SetSize(num_nodes, dim);
-         gshape.SetSize(dim);
-         Jinv.SetSize(dim);
-         elmat1.SetSize(num_nodes);
-         const IntegrationRule *ir;
-         ir = cutSquareIntRules[trans.ElementNo];
-         if (ir == NULL)
-         {
-            int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
-            ir = &IntRules.Get(el.GetGeomType(), intorder);
-         }
-         for (int i = 0; i < ir->GetNPoints(); i++)
-         {
-            const IntegrationPoint &ip = ir->IntPoint(i);
-            trans.SetIntPoint(&ip);
-            double w = ip.weight / trans.Weight();
-            w *= diff_coeff;
-            CalcAdjugate(trans.Jacobian(), Jinv);
-            MultAAt(Jinv, gshape);
-            gshape *= w;
-            el.CalcDShape(ip, dshape);
-            MultABt(dshape, gshape, pelmat);
-            MultABt(dshape, pelmat, elmat1);
-            for (int m = 0; m < dim + 2; ++m)
-            {
-               elmat.AddMatrix(elmat1, m * num_nodes, m * num_nodes);
-            }
-         }
-      }
-   }
-protected:
-   /// number of states
-   int num_states;
-   /// scales the terms; can be used to move to rhs/lhs
-   double alpha;
-   /// viscosity coefficient
-   double &diff_coeff;
-
-private:
-   DenseMatrix dshape, dshapedxt, pelmat, pelmat2;
-   DenseMatrix Jinv, gshape, elmat1;
-   /// cut-cell int rule
-   std::map<int, IntegrationRule *> cutSquareIntRules;
-   /// embedded elements boolean vector
-   std::vector<bool> embeddedElements;
-};
 }  // namespace mach
 
-#include "inviscid_integ_def_dg_cut.hpp"
+#include "inviscid_integ_def_dg_cut_sens.hpp"
 
 #endif

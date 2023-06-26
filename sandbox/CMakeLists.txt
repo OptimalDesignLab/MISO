@@ -28,7 +28,7 @@ set(SANDBOX_SRCS
    airfoil_steady_dg_cut
    airfoil_steady_dg_mms_cut
    airfoil_chaotic
-   exLaplace_cut
+   # exLaplace_cut
    gd_interpolation
    ellipse_potential_flow
    potential_flow_cylinder_cut

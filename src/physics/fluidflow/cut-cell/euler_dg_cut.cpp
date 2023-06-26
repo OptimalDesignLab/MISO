@@ -52,12 +52,14 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    // deg_surf = max(10, 2 * order);
    // deg_vol = 2*order;
    // deg_surf = 2*order;
-   CutCell<2, 1> cutcell(mesh.get());
-   CutCell<2, 2> cutcell2(mesh.get());
-   phi = cutcell.constructLevelSet();
+   deg_vol = 3;
+   int poly_deg = 3;
+   CutCell<duald, 2, 1> cutcell(mesh.get());
+   CutCell<double, 2, 2> cutcell2(mesh.get());
+   phi = cutcell.constructLevelSet<double>();
    if (vortex)
    {
-      phi_outer = cutcell2.constructLevelSet();
+      phi_outer = cutcell2.constructLevelSet<double>();
    }
    vector<int> cutelems_inner;
    vector<int> solid_elements;
@@ -203,8 +205,8 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    double radius = 0.3;
    /// int rule for cut elements
    auto elint_start = high_resolution_clock::now();
-   cutcell.GetCutElementIntRule(cutelems, deg_vol, cutSquareIntRules, cutSegmentIntRules);
-   cutcell.GetCutInterfaceIntRule(cutelems, cutInteriorFaces, deg_vol, cutInteriorFaceIntRules);
+   cutcell.GetCutElementIntRule(cutelems, deg_vol, poly_deg, cutSquareIntRules, cutSquareIntRules_sens, cutSegmentIntRules, cutSegmentIntRules_sens);
+   cutcell.GetCutInterfaceIntRule(cutelems, cutInteriorFaces, deg_vol, cutInteriorFaceIntRules, cutInteriorFaceIntRules_sens);
    auto elint_stop = high_resolution_clock::now();
    auto elint_duration = duration_cast<seconds>(elint_stop - elint_start);
    cout << " ---- Time taken to get cut elements int rules  ---- " << endl;
@@ -267,6 +269,7 @@ void CutEulerDGSolver<dim, entvar>::constructForms()
    if (gd)
    {
       res.reset(new NonlinearFormType(fes_gd.get()));
+      res_sens_cut.reset(new NonlinearFormType(fes_gd.get()));
       if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
       {
          nonlinear_mass.reset(new NonlinearFormType(fes_gd.get()));
@@ -282,6 +285,7 @@ void CutEulerDGSolver<dim, entvar>::constructForms()
    else
    {
       res.reset(new NonlinearFormType(fes.get()));
+      res_sens_cut.reset(new NonlinearFormType(fes.get()));
       if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
       {
          nonlinear_mass.reset(new NonlinearFormType(fes.get()));
@@ -317,6 +321,12 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
 #if 1
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
+   res_sens_cut->AddDomainIntegrator(new CutEulerDGSensitivityIntegrator<dim>(
+       diff_stack, cutSquareIntRules, cutSquareIntRules_sens, embeddedElements, alpha));
+   ParCentGridFunction x(fes_gd.get());
+   double area = res_sens_cut->GetEnergy(x);
+   cout << "area " << area << endl;
+
    // res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
    //     cutSquareIntRules, embeddedElements, diff_coeff, alpha));
    auto &bcs = options["bcs"];
@@ -336,8 +346,12 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
       cout << "slip-wall bc are present " << endl;
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+      res_sens_cut->AddDomainIntegrator(new CutDGSensitivitySlipWallBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules,cutSegmentIntRules_sens,  phi, alpha));
    }
-
+   double peri = res->GetEnergy(x);
+   double peri_sens = res_sens_cut->GetEnergy(x);
+   cout << "peri_sens " << peri_sens << endl;
    if (options["flow-param"]["inviscid-mms"].template get<bool>())
    {
       if (dim != 2)
@@ -363,6 +377,9 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
       }
       res->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
           diff_stack, cutSquareIntRules, embeddedElements, -alpha));
+      res_sens_cut->AddDomainIntegrator(
+          new CutSensitivityPotentialMMSIntegrator<dim, entvar>(
+              diff_stack, cutSquareIntRules, cutSquareIntRules_sens, embeddedElements, -alpha));
    }
 
 #endif
@@ -529,6 +546,16 @@ void CutEulerDGSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
                                                  immersedFaces,
                                                  cutInteriorFaceIntRules,
                                                  alpha));
+   res_sens_cut->AddInteriorFaceIntegrator(
+       new CutDGSensitivityInterfaceIntegrator<dim, entvar>(diff_stack,
+                                                 diss_coeff,
+                                                 fec.get(),
+                                                 immersedFaces,
+                                                 cutInteriorFaceIntRules,
+                                                 cutInteriorFaceIntRules_sens,
+                                                 alpha));
+   ParCentGridFunction x(fes_gd.get());
+   res_sens_cut->GetEnergy(x);
 }
 
 template <int dim, bool entvar>

@@ -177,10 +177,10 @@ inline xdouble entropy(const xdouble *q)
 template <typename xdouble, int dim>
 void calcEulerFlux(const xdouble *dir, const xdouble *q, xdouble *flux)
 {
-   if (!StateIsPhysical<xdouble, dim>(q))
-   {
-      throw MachException("State is not physical!\n");
-   }
+   // if (!StateIsPhysical<xdouble, dim>(q))
+   // {
+   //    throw MachException("State is not physical!\n");
+   // }
    auto press = pressure<xdouble, dim>(q);
    auto U = dot<xdouble, dim>(q + 1, dir);
    flux[0] = U;
@@ -722,14 +722,14 @@ void calcLaxFriedrichsFlux(const xdouble *dir,
    xdouble fluxR[dim + 2];
    xdouble q_ave[dim + 2];
    xdouble q_diff[dim + 2];
-   if (!StateIsPhysical<xdouble, dim>(qL))
-   {
-      throw MachException("qL is not physical in LF!\n");
-   }
-   if (!StateIsPhysical<xdouble, dim>(qR))
-   {
-      throw MachException("qR is not physical in LF!\n");
-   }
+   // if (!StateIsPhysical<xdouble, dim>(qL))
+   // {
+   //    throw MachException("qL is not physical in LF!\n");
+   // }
+   // if (!StateIsPhysical<xdouble, dim>(qR))
+   // {
+   //    throw MachException("qR is not physical in LF!\n");
+   // }
    calcEulerFlux<xdouble, dim>(dir, qL, fluxL);
    calcEulerFlux<xdouble, dim>(dir, qR, fluxR);
    for (int i = 0; i < dim + 2; i++)

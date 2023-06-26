@@ -779,6 +779,7 @@ protected:
    std::unique_ptr<GridFunType> dudt;
    /// adjoint variable
    std::unique_ptr<GridFunType> adj;
+    /// adjoint variable
    std::unique_ptr<GDGridFunType> adj_gd;
    /// prior adjoint variable (forward in time)
    std::unique_ptr<GridFunType> adj_old;
@@ -797,6 +798,7 @@ protected:
    //std::unique_ptr<HypreParMatrix> mass_matrix_gd;
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
+   std::unique_ptr<NonlinearFormType> res_sens_cut;
    /// the spatial residual /* only for demonstration */
    std::unique_ptr<MachResidual> new_res;
    /// the stiffness matrix bilinear form
@@ -825,7 +827,6 @@ protected:
    /// \psi^T \frac{\partial R}{\partial scalar}
    /// for each scalar the residual depends on
    std::map<std::string, mfem::ParNonlinearForm> res_scalar_sens;
-
    /// storage for algorithmic differentiation (shared by all solvers)
    static adept::Stack diff_stack;
 

@@ -109,6 +109,8 @@ int main(int argc, char *argv[])
 
       *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
       *out << "\ncl value = " << abs(solver->calcOutput("lift")) << endl;
+      solver->solveForAdjoint("drag");
+      // solver->printAdjoint("adjoint-cylinder-steady-dg-cut-potential", 3);
    }
 
    catch (MachException &exception)

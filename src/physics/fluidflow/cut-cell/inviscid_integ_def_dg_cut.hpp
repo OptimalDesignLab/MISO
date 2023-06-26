@@ -409,6 +409,7 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
    {
       return fun;
    }
+
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    // IntegrationPoint el_ip;
    for (int i = 0; i < ir->GetNPoints(); i++)

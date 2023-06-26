@@ -6,26 +6,30 @@
 #include <list>
 #include "quadrature_multipoly.hpp"
 #include "quadrature_general.hpp"
+#include "duals/dual"
+using duals::duald;
+using namespace duals::literals;
 using namespace mfem;
 using namespace std;
 using namespace algoim;
+
 namespace mach
 {
 #if 1
-template <int N>
+template <typename xdouble, int N>
 struct LevelSetF
 {
    double xscale;
    double yscale;
    double min_x;
    double min_y;
-   double a;  // semi-major
-   double b;  // semi-minor
+   xdouble a;  // semi-major
+   xdouble b;  // semi-minor
    double xc;
    double yc;
    int lsign;
 
-   double operator()(const uvector<double, 2> &x) const
+   xdouble operator()(const uvector<xdouble, 2> &x) const
    {
       // level-set function for reference elements
       return lsign * (((((x(0) * xscale) + min_x - xc) *
@@ -33,16 +37,16 @@ struct LevelSetF
                        (a * a)) +
                       ((((x(1) * yscale) + min_y - yc) *
                         ((x(1) * yscale) + min_y - yc)) /
-                       (b * b)) -
+                       (a * a)) -
                       (1.0));
    }
-   uvector<double, N> grad(const uvector<double, 2> &x) const
+   uvector<xdouble, N> grad(const uvector<double, 2> &x) const
    {
       uvector<double, N> phi_x;
       phi_x(0) =
           lsign * (2.0 * xscale * ((x(0) * xscale) + min_x - xc)) / (a * a);
       phi_x(1) =
-          lsign * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)) / (b * b);
+          lsign * (2.0 * yscale * ((x(1) * yscale) + min_y - yc)) / (a * a);
       return phi_x;
    }
 };
@@ -203,11 +207,11 @@ struct LevelSetF
    }
 };
 #endif
-template <int N, int ls>
+template <typename xdouble, int N, int ls>
 class CutCell
 {
 public:
-   CutCell(mfem::Mesh *_mesh) : mesh(_mesh) { phi = constructLevelSet(); }
+   CutCell(mfem::Mesh *_mesh) : mesh(_mesh) { phi = constructLevelSet<xdouble>(); }
 
    std::vector<uvector<double, N>> constructNormal(
        std::vector<uvector<double, N>> Xc) const
@@ -302,9 +306,10 @@ public:
    }
 #if 1
    /// construct exact levelset
-   LevelSetF<2> constructLevelSet() const
+   template <typename xxdouble>
+   LevelSetF<xxdouble, 2> constructLevelSet() const
    {
-      LevelSetF<2> phi_ls;
+      LevelSetF<xxdouble, 2> phi_ls;
       phi_ls.xscale = 1.0;
       phi_ls.yscale = 1.0;
       phi_ls.min_x = 0.0;
@@ -314,7 +319,15 @@ public:
       if (ls == 1)
       {
          phi_ls.lsign = -1.0;
-         phi_ls.a = 0.5;
+         if constexpr (std::is_same_v<double, xxdouble>)
+         {
+            phi_ls.a = 0.5;
+         }
+         else
+         {
+            phi_ls.a = 0.5 + 1_e;
+         }
+
          phi_ls.b = 0.5;
       }
       else
@@ -328,7 +341,7 @@ public:
 #endif
 #if 0
    /// construct approximate levelset for an airfoil
-   LevelSetF<2> constructLevelSet() const
+   LevelSetF<xdouble, 2> constructLevelSet() const
    {
       std::vector<uvector<double, N>> Xc;
       std::vector<uvector<double, N>> xbnd;
@@ -410,7 +423,7 @@ public:
       int ratio = 10;
       double rho = ratio * nbnd;
       /// construct levelset
-      LevelSetF<2> phi_ls;
+      LevelSetF<xdouble, 2> phi_ls;
       phi_ls.xbnd = xbnd;
       phi_ls.norm = nor;
       phi_ls.kappa = kappa;
@@ -452,7 +465,15 @@ public:
          x(0) = coord[0];
          x(1) = coord[1];
          Vector lvsval(v.Size());
-         lvsval(i) = -phi(x);
+         if constexpr (std::is_same_v<double, xdouble>)
+         {
+            lvsval(i) = -phi(x);
+         }
+         else
+         {
+            lvsval(i) = -phi(x).rpart();
+         }
+
          if ((lvsval(i) < 0) && (abs(lvsval(i)) > 1e-16))
          {
             k = k + 1;
@@ -499,11 +520,25 @@ public:
          x(1) = coord[1];
          if (ls == 1)
          {
-            lvsval(i) = -phi(x);
+            if constexpr (std::is_same_v<double, xdouble>)
+            {
+               lvsval(i) = -phi(x);
+            }
+            else
+            {
+               lvsval(i) = -phi(x).rpart();
+            }
          }
          else
          {
-            lvsval(i) = -phi(x);
+            if constexpr (std::is_same_v<double, xdouble>)
+            {
+               lvsval(i) = -phi(x);
+            }
+            else
+            {
+               lvsval(i) = -phi(x).rpart();
+            }
          }
          if ((lvsval(i) < 0) || (lvsval(i) == 0) || (abs(lvsval(i)) <= 1e-16))
          {
@@ -533,13 +568,27 @@ public:
       xv1(1) = v1coord[1];
       xv2(0) = v2coord[0];
       xv2(1) = v2coord[1];
-      if (phi(xv1) >= 0.0 && phi(xv2) >= 0.0)
+      if constexpr (std::is_same_v<double, xdouble>)
       {
-         return true;
+         if (phi(xv1) >= 0.0 && phi(xv2) >= 0.0)
+         {
+            return true;
+         }
+         else
+         {
+            return false;
+         }
       }
       else
       {
-         return false;
+         if (phi(xv1).rpart() >= 0.0 && phi(xv2).rpart() >= 0.0)
+         {
+            return true;
+         }
+         else
+         {
+            return false;
+         }
       }
    }
    /// function to get element center
@@ -659,35 +708,45 @@ public:
        uvector<double, N> xmax,
        const uvector<int, N> &P,
        int q,
-       std::vector<uvector<double, N + 1>> &surf,
-       std::vector<uvector<double, N + 1>> &phase0) const
+       std::vector<uvector<xdouble, N + 1>> &surf,
+       std::vector<uvector<xdouble, N + 1>> &phase0, xdouble &peri, xdouble &area) const
    {
       // Construct phi by mapping [0,1] onto bounding box [xmin,xmax]
-      xarray<double, N> phi(nullptr, P);
-      algoim_spark_alloc(double, phi);
-      bernstein::bernsteinInterpolate<N>(
+      xarray<xdouble, N> phi(nullptr, P);
+      algoim_spark_alloc(xdouble, phi);
+      bernstein::bernsteinInterpolate<xdouble, N>(
           [&](const uvector<double, N> &x)
           { return fphi(xmin + x * (xmax - xmin)); },
           phi);
       // Build quadrature hierarchy
-      ImplicitPolyQuadrature<2> ipquad(phi);
+      ImplicitPolyQuadrature<xdouble, 2> ipquad(phi);
+      auto integrand = [](const uvector<xdouble, 2> &x) { return 1.0; };
       // Compute quadrature scheme and record the nodes & weights; phase0
       // corresponds to {phi < 0}, and surf corresponds to {phi == 0}.
+      area = 0.0;
       ipquad.integrate(AutoMixed,
                        q,
-                       [&](const uvector<double, N> &x, double w)
+                       [&](const uvector<xdouble, N> &x, xdouble w)
                        {
                           if (bernstein::evalBernsteinPoly(phi, x) < 0)
                           {
                              phase0.push_back(add_component(x, N, w));
+                             cout << "w " << w << endl;
+                             area += w * integrand(xmin + x * (xmax - xmin));
                           }
                        });
+      area *= pow(xmax(0) - xmin(0), N);
+      peri = 0.0;
       ipquad.integrate_surf(AutoMixed,
                             q,
-                            [&](const uvector<double, N> &x,
-                                double w,
-                                const uvector<double, N> &wn)
-                            { surf.push_back(add_component(x, N, w)); });
+                            [&](const uvector<xdouble, N> &x,
+                                xdouble w,
+                                const uvector<xdouble, N> &wn)
+                            {
+                               surf.push_back(add_component(x, N, w));
+                               peri += w * integrand(xmin + x * (xmax - xmin));
+                            });
+      peri *= pow(xmax(0) - xmin(0), N - 1);
    }
 
    /// get volume and surface quadrature rule on cut elements
@@ -697,22 +756,22 @@ public:
                                   uvector<double, N - 1> xmax,
                                   const uvector<int, N - 1> &P,
                                   int q,
-                                  std::vector<uvector<double, N>> &phase0) const
+                                  std::vector<uvector<xdouble, N>> &phase0) const
    {
       // Construct phi_local by mapping [0,1] onto bounding box [xmin,xmax]
-      xarray<double, N - 1> phi_local(nullptr, P);
-      algoim_spark_alloc(double, phi_local);
-      bernstein::bernsteinInterpolate<N - 1>(
+      xarray<xdouble, N - 1> phi_local(nullptr, P);
+      algoim_spark_alloc(xdouble, phi_local);
+      bernstein::bernsteinInterpolate<xdouble, N - 1>(
           [&](const uvector<double, N - 1> &x)
           { return fphi(xmin + x * (xmax - xmin)); },
           phi_local);
       // Build quadrature hierarchy
-      ImplicitPolyQuadrature<N - 1> ipquad(phi_local);
+      ImplicitPolyQuadrature<xdouble, N - 1> ipquad(phi_local);
       // Compute quadrature scheme and record the nodes & weights; phase0
       // corresponds to {phi_local < 0}
       ipquad.integrate(AlwaysGL,
                        q,
-                       [&](const uvector<double, N - 1> &x, double w)
+                       [&](const uvector<xdouble, N - 1> &x, xdouble w)
                        {
                           if (bernstein::evalBernsteinPoly(phi_local, x) < 0)
                           {
@@ -725,17 +784,23 @@ public:
    void GetCutElementIntRule(
        vector<int> cutelems,
        int order,
+       int polydeg,
        std::map<int, IntegrationRule *> &cutSquareIntRules,
-       std::map<int, IntegrationRule *> &cutSegmentIntRules) const
+       std::map<int, IntegrationRule *> &cutSquareIntRules_sens,
+       std::map<int, IntegrationRule *> &cutSegmentIntRules, 
+       std::map<int, IntegrationRule *> &cutSegmentIntRules_sens) const
    {
       auto LSF = [&](const uvector<double, 2> &x) { return phi(x); };
       cout << "#cut elements " << cutelems.size() << endl;
       double tol = 1e-14;
-      std::vector<uvector<double, N + 1>> qVol, qSurf;
+      std::vector<uvector<xdouble, N + 1>> qVol, qSurf;
+      xdouble peri, area;
       for (int k = 0; k < cutelems.size(); ++k)
       {
          IntegrationRule *ir = NULL;
+         IntegrationRule *ir_sens = NULL;
          IntegrationRule *irSurf = NULL;
+         IntegrationRule *irSurf_sens = NULL;
          uvector<double, N> xmin;
          uvector<double, N> xmax;
          uvector<double, N> xupper;
@@ -744,6 +809,7 @@ public:
          // xlower = {0, 0};
          // xupper = {1, 1};
          int elemid = cutelems.at(k);
+         cout << "cut cell: "<< elemid << endl;
          ElementTransformation *trans = mesh->GetElementTransformation(elemid);
          findBoundingBox(elemid, xmin, xmax);
          double xscale = xmax(0) - xmin(0);
@@ -752,27 +818,60 @@ public:
          xlower(1) = xmin(1);
          xupper(0) = xmax(0);
          xupper(1) = xmax(1);
-         std::vector<uvector<double, N + 1>> surf;
-         std::vector<uvector<double, N + 1>> vol;
-         GetCutElementQuadScheme(LSF, xmin, xmax, 13, order, surf, vol);
+         std::vector<uvector<xdouble, N + 1>> surf;
+         std::vector<uvector<xdouble, N + 1>> vol;
+         xdouble peri_c, area_c;
+         GetCutElementQuadScheme(LSF, xmin, xmax, polydeg, order, surf, vol, peri_c, area_c);
+         peri += peri_c;
+         area += area_c;
          int i = 0;
          if (vol.size() > 0)
          {
             ir = new IntegrationRule(vol.size());
+            ir_sens = new IntegrationRule(vol.size());
+            ir->SetSize(vol.size());
             for (const auto &pt : vol)
             {
                IntegrationPoint &ip = ir->IntPoint(i);
+               IntegrationPoint &ip_sens = ir_sens->IntPoint(i);
                // ip.x = (pt.x[0] - xmin[0]) / xscale;
                // ip.y = (pt.x[1] - xmin[1]) / yscale;
                //   ip.weight = pt.w / trans->Weight();
                trans->SetIntPoint(&ip);
-               ip.x = pt(0);
-               ip.y = pt(1);
-               ip.weight = pt(2);
+               double x_q;
+               double y_q;
+               double w_q;
+               double xq_a;
+               double yq_a;
+               double wq_a;
+               if constexpr (std::is_same_v<double, xdouble>)
+               {
+                  x_q = pt(0);
+                  y_q = pt(1);
+                  w_q = pt(2);
+                  xq_a = 0.0;
+                  yq_a = 0.0;
+                  wq_a = 0.0;
+               }
+               else
+               {
+                  x_q = pt(0).rpart();
+                  y_q = pt(1).rpart();
+                  w_q = pt(2).rpart();
+                  xq_a = pt(0).dpart();
+                  yq_a = pt(1).dpart();
+                  wq_a = pt(2).dpart();
+               }
+               ip.x = x_q;
+               ip.y = y_q;
+               ip.weight = w_q;
+               ip_sens.x = xq_a;
+               ip_sens.y = yq_a;
+               ip_sens.weight = wq_a;
                uvector<double, N + 1> xp;
-               xp(0) = (pt(0) * xscale) + xmin(0);
-               xp(1) = (pt(1) * yscale) + xmin(1);
-               xp(2) = pt(2) * trans->Weight();
+               xp(0) = (x_q * xscale) + xmin(0);
+               xp(1) = (y_q * yscale) + xmin(1);
+               xp(2) = w_q * trans->Weight();
                qVol.push_back(xp);
                i = i + 1;
                MFEM_ASSERT(ip.weight > 0,
@@ -780,32 +879,60 @@ public:
                            "integration from Saye's method");
                // MFEM_ASSERT(
                //     (phi(xp) < tol),
-               //     " phi = "
-               //         << phi(xp) << " : "
-               //         << " levelset function positive at the quadrature
-               //         point "
-               //            "domain integration (Saye's method)");
+               //     " phi = " << phi(xp) << " : "
+               //               << " levelset function positive at the quadrature
+               //         point domain integration (Saye's method)");
             }
             cutSquareIntRules[elemid] = ir;
+            cutSquareIntRules_sens[elemid] = ir_sens;
          }
          i = 0;
          if (surf.size() > 0)
          {
             irSurf = new IntegrationRule(surf.size());
+            irSurf_sens = new IntegrationRule(surf.size());
             for (const auto &pt : surf)
             {
                IntegrationPoint &ip = irSurf->IntPoint(i);
+               IntegrationPoint &ip_sens = irSurf_sens->IntPoint(i);
                // ip.x = (pt.x[0] - xmin[0]) / xscale;
                // ip.y = (pt.x[1] - xmin[1]) / yscale;
                //   ip.weight = pt.w / trans->Weight();
                trans->SetIntPoint(&ip);
-               ip.x = pt(0);
-               ip.y = pt(1);
-               ip.weight = pt(2);
+               double xs_q;
+               double ys_q;
+               double ws_q;
+               double xsq_a;
+               double ysq_a;
+               double wsq_a;
+               if constexpr (std::is_same_v<double, xdouble>)
+               {
+                  xs_q = pt(0);
+                  ys_q = pt(1);
+                  ws_q = pt(2);
+                  xsq_a = 0.0;
+                  ysq_a = 0.0;
+                  wsq_a = 0.0;
+               }
+               else
+               {
+                  xs_q = pt(0).rpart();
+                  ys_q = pt(1).rpart();
+                  ws_q = pt(2).rpart();
+                  xsq_a = pt(0).dpart();
+                  ysq_a = pt(1).dpart();
+                  wsq_a = pt(2).dpart();
+               }
+               ip.x = xs_q;
+               ip.y = ys_q;
+               ip.weight = ws_q;
+               ip_sens.x = xsq_a;
+               ip_sens.y = ysq_a;
+               ip_sens.weight = wsq_a;
                uvector<double, N + 1> xp;
-               xp(0) = (pt(0) * xscale) + xmin(0);
-               xp(1) = (pt(1) * yscale) + xmin(1);
-               xp(2) = pt(2) * trans->Weight();
+               xp(0) = (xs_q * xscale) + xmin(0);
+               xp(1) = (ys_q * yscale) + xmin(1);
+               xp(2) = ws_q * trans->Weight();
                qSurf.push_back(xp);
                i = i + 1;
                MFEM_ASSERT(ip.weight > 0,
@@ -815,19 +942,22 @@ public:
                //     (phi(xp) < tol),
                //     " phi = "
                //         << phi(xp) << " : "
-               //         << " levelset function positive at the quadrature
-               //         point "
+               //         << " levelset function positive at the
+               //         quadrature point "
                //            "domain integration (Saye's method)");
             }
             cutSegmentIntRules[elemid] = irSurf;
+            cutSegmentIntRules_sens[elemid] = irSurf_sens;
          }
       }
-      std::string fvol = "cut-element-quadrature.vtp";
-      outputQuadratureRuleAsVtp(qVol, fvol);
+      cout << "perimeter: " << peri << endl;
+      cout << "area: " << area << endl;
+      // std::string fvol = "cut-element-quadrature.vtp";
+      // outputQuadratureRuleAsVtp(qVol, fvol);
       std::cout << "  scheme.vtp file written for cut cells, containing "
                 << qVol.size() << " quadrature points\n";
-      std::string fsurf = "cut-segment-quadrature.vtp";
-      outputQuadratureRuleAsVtp(qSurf, fsurf);
+      // std::string fsurf = "cut-segment-quadrature.vtp";
+      // outputQuadratureRuleAsVtp(qSurf, fsurf);
       std::cout << "  scheme.vtp file written for cut segments, containing "
                 << qSurf.size() << " quadrature points\n";
    }
@@ -835,12 +965,14 @@ public:
        vector<int> cutelems,
        vector<int> cutinteriorFaces,
        int order,
-       std::map<int, IntegrationRule *> &cutInteriorFaceIntRules)
+       std::map<int, IntegrationRule *> &cutInteriorFaceIntRules, 
+       std::map<int, IntegrationRule *> &cutInteriorFaceIntRules_sens)
    {
       std::vector<uvector<double, N + 1>> qface_all;
       for (int k = 0; k < cutelems.size(); ++k)
       {
          IntegrationRule *ir = NULL;
+         IntegrationRule *ir_sens = NULL;
          uvector<double, N> xmin;
          uvector<double, N> xmax;
          uvector<double, N> xupper;
@@ -879,7 +1011,7 @@ public:
                   v1coord = mesh->GetVertex(v[0]);
                   v2coord = mesh->GetVertex(v[1]);
                   double xlim, ylim;
-                  std::vector<uvector<double, N>> qface;
+                  std::vector<uvector<xdouble, N>> qface;
                   if (abs(v1coord[0] - v2coord[0]) < 1e-15)
                   {
                      dir = 0;
@@ -929,10 +1061,26 @@ public:
                   }
                   int i = 0;
                   ir = new IntegrationRule(qface.size());
+                  ir_sens = new IntegrationRule(qface.size());
                   for (const auto &pt : qface)
                   {
+                     double x_q;
+                     double xq_a;
+                     double yq_a;
+                     double wq_a;
+                     if constexpr (std::is_same_v<double, xdouble>)
+                     {
+                        x_q = pt(0);
+                     }
+                     else
+                     {
+                        x_q = pt(0).rpart();
+                        xq_a = pt(0).dpart();
+                     }
                      IntegrationPoint &ip = ir->IntPoint(i);
+                     IntegrationPoint &ip_sens = ir_sens->IntPoint(i);
                      ip.y = 0.0;
+                     ip_sens.y = 0.0;
                      uvector<double, N + 1> xp;
                      if (dir == 0)
                      {
@@ -941,12 +1089,12 @@ public:
                            if (-1 == orient[c])
                            {
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                              ip.x = 1 - pt(0);
+                              ip.x = 1 - x_q;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
-                              ip.x = pt(0);
+                              ip.x = x_q;
                            }
                         }
                         else
@@ -954,16 +1102,16 @@ public:
                            if (1 == orient[c])
                            {
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
-                              ip.x = 1 - pt(0);
+                              ip.x = 1 - x_q;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
-                              ip.x = pt(0);
+                              ip.x = x_q;
                            }
                         }
                         xp(0) = xlim;
-                        xp(1) = (pt(0) * yscale) + xmin(1);
+                        xp(1) = (x_q * yscale) + xmin(1);
                      }
                      else if (dir == 1)
                      {
@@ -972,13 +1120,13 @@ public:
                            if (-1 == orient[c])
                            {
                               // ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
-                              ip.x = 1 - pt(0);
+                              ip.x = 1 - x_q;
                               // cout << "pt.x[0] " << pt.x[0] << endl;
                               // cout << "ip.x " << ip.x << endl;
                            }
                            else
                            {
-                              ip.x = pt(0);
+                              ip.x = x_q;
                               // ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
@@ -986,21 +1134,30 @@ public:
                         {
                            if (1 == orient[c])
                            {
-                              ip.x = 1 - pt(0);
+                              ip.x = 1 - x_q;
                               // ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
-                              ip.x = pt(0);
+                              ip.x = x_q;
                               // ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
-                        xp(0) = (pt(0) * xscale) + xmin(0);
+                        xp(0) = (x_q * xscale) + xmin(0);
                         xp(1) = ylim;
                      }
                      trans->SetIntPoint(&ip);
-                     ip.weight = pt(1);
-                     xp(2) = pt(1) * trans->Weight();
+                     ip_sens.x = xq_a;
+                     if constexpr (std::is_same_v<double, xdouble>)
+                     {
+                        ip.weight = pt(1);
+                     }
+                     else
+                     {
+                        ip.weight = pt(1).rpart();
+                        ip_sens.weight = pt(1).dpart();;
+                     }
+                     xp(2) = ip.weight * trans->Weight();
                      i = i + 1;
                      qface_all.push_back(xp);
                      MFEM_ASSERT(
@@ -1026,21 +1183,21 @@ public:
                          "(Saye's rule)");
                   }
                   cutInteriorFaceIntRules[fid] = ir;
+                  cutInteriorFaceIntRules_sens[fid] = ir_sens;
                }
             }
          }
       }  /// loop over cut elements
       /// quad rule for faces
       std::string face = "cut-interface-quadrature.vtp";
-      outputQuadratureRuleAsVtp(qface_all, face);
+      // outputQuadratureRuleAsVtp(qface_all, face);
       std::cout << "  scheme.vtp file written for interior faces, containing "
                 << qface_all.size() << " quadrature points\n";
    }
-
 protected:
    mfem::Mesh *mesh;
    // Algoim::LevelSet<N> phi;
-   LevelSetF<N> phi;
+   LevelSetF<xdouble, N> phi;
 };
 }  // namespace mach
 
