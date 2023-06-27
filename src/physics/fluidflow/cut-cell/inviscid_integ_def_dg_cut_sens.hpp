@@ -34,21 +34,24 @@ double CutDGSensitivityInviscidIntegrator<Derived>::GetElementEnergy(
       // u_mat.Print();
       DenseMatrix res(elvect.GetData(), num_nodes, num_states);
       DenseMatrix adjJ_i, elflux, dshape, dshapedx, hessian;
-      Vector shape, dxidx, dshapedxi, fluxi, u;
+      Vector shape, dxidx, dshapedxi, fluxi, u, d2shapedxi, dshapedxik;
       u.SetSize(num_states);
       dxidx.SetSize(dim);
       fluxi.SetSize(num_states);
       flux_jaci.SetSize(num_states);
       dshapedxi.SetSize(num_nodes);
+      d2shapedxi.SetSize(num_nodes);
+      dshapedxik.SetSize(num_nodes);
       shape.SetSize(num_nodes);
       dshape.SetSize(num_nodes, dim);
       dshapedx.SetSize(num_nodes, dim);
-      int size = (dim * (dim + 1)) / 2;
+      int size = dim + 1;
       hessian.SetSize(num_nodes, size);
       elflux.SetSize(num_states, dim);
       adjJ_i.SetSize(dim);
-      Vector dxqi, flux_jacqi;
+      Vector dxqi, flux_jacqi, dudxqik;
       dxqi.SetSize(dim);
+      dudxqik.SetSize(num_states);
       flux_jacqi.SetSize(num_states);
       int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
       const IntegrationRule *ir;  // = IntRule;
@@ -74,11 +77,13 @@ double CutDGSensitivityInviscidIntegrator<Derived>::GetElementEnergy(
             el.CalcShape(ip, shape);
             // Compute the physical gradient
             el.CalcDShape(ip, dshape);
-            // el.CalcHessian(ip, hessian);
+            el.CalcHessian(ip, hessian);
             // Mult(dshape, trans.AdjugateJacobian(), dshapedx);
             u_mat.MultTranspose(shape, u);
             CalcAdjugate(trans.Jacobian(), adjJ_i);
             double dwda_i = ip_a.weight;
+            /// first term 
+            // x (dwda)
             for (int di = 0; di < dim; ++di)
             {
                adjJ_i.GetRow(di, dxidx);
@@ -86,43 +91,39 @@ double CutDGSensitivityInviscidIntegrator<Derived>::GetElementEnergy(
                dshape.GetColumn(di, dshapedxi);
                AddMult_a_VWt(-dwda_i, dshapedxi, fluxi, res);
             }
+            /// second term 
+            // (dshape x [dFdxq x dxqda +  dFdyq x dyqda])
             dxqi(0) = ip_a.x;
             dxqi(1) = ip_a.y;
-            /// evaluate flux jac w.r.t design variables
-            // in `x` dir
-            int dir = 0;
-            for (int di = 0; di < dim; ++di)
+            for (int dik = 0; dik < dim; ++dik)
             {
-               adjJ_i.GetRow(dir, dxidx);
-               fluxJacState(dxidx, u, flux_jaci);
-               dshape.GetColumn(di, dshapedxi);
-               u_mat.MultTranspose(dshapedxi, u);
-               flux_jaci.MultTranspose(u, flux_jacqi);
-               AddMult_a_VWt(-dxqi(di) * ip.weight, dshapedxi, flux_jacqi, res);
+               dshape.GetColumn(dik, dshapedxik);
+               for (int di = 0; di < dim; ++di)
+               {
+                  adjJ_i.GetRow(di, dxidx);
+                  fluxJacState(dxidx, u, flux_jaci);
+                  dshape.GetColumn(di, dshapedxi);
+                  u_mat.MultTranspose(dshapedxik, dudxqik);
+                  flux_jaci.MultTranspose(dudxqik, flux_jacqi);
+                  AddMult_a_VWt(
+                      -dxqi(dik) * ip.weight, dshapedxi, flux_jacqi, res);
+               }
             }
-            // in `y` dir
-            dir = 1;
-            for (int di = 0; di < dim; ++di)
+            /// third term 
+            // ([d2shape(0) x Fx + d2shape(1) x Fy] dxqda +
+            // [d2shape(1) x Fx + d2shape(2) x Fy] dyqda)
+            for (int dik = 0; dik < dim; ++dik)
             {
-               adjJ_i.GetRow(dir, dxidx);
-               fluxJacState(dxidx, u, flux_jaci);
-               dshape.GetColumn(di, dshapedxi);
-               u_mat.MultTranspose(dshapedxi, u);
-               flux_jaci.MultTranspose(u, flux_jacqi);
-               AddMult_a_VWt(-dxqi(di) * ip.weight, dshapedxi, flux_jacqi, res);
-            }
-            // cout << "w_a: " << dwda_i << endl;
-            dir = 0;
-            for (int di = 0; di < dim; ++di)
-            {
-               adjJ_i.GetRow(dir, dxidx);
-               flux(dxidx, u, fluxi);
-               dshape.GetColumn(di, dshapedxi);
-               // Compute the physical gradient
-               el.CalcDShape(ip, dshape);
-               u_mat.MultTranspose(dshapedxi, u);
-               flux_jaci.MultTranspose(u, flux_jacqi);
-               AddMult_a_VWt(-dxqi(di) * ip.weight, dshapedxi, flux_jacqi, res);
+               int dir = dik;
+               for (int di = 0; di < dim; ++di)
+               {
+                  adjJ_i.GetRow(di, dxidx);
+                  flux(dxidx, u, fluxi);
+                  hessian.GetColumn(dir, d2shapedxi);
+                  flux_jaci.MultTranspose(u, flux_jacqi);
+                  AddMult_a_VWt(-dxqi(dik) * ip.weight, d2shapedxi, fluxi, res);
+                  ++dir;
+               }
             }
          }
          res *= alpha;
@@ -150,23 +151,30 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
    }
    else
    {
-      // cout << "elem id: " << trans.ElementNo << endl;
+     // cout << "elem id: " << trans.ElementNo << endl;
       DenseMatrix u_mat(elfun.GetData(), num_nodes, num_states);
+      // cout << "u_mat " << endl;
+      // u_mat.Print();
       DenseMatrix res(elvect.GetData(), num_nodes, num_states);
-      DenseMatrix adjJ_i, elflux, dshape, dshapedx;
-      Vector shape, dxidx, dshapedxi, fluxi, u;
+      DenseMatrix adjJ_i, elflux, dshape, dshapedx, hessian;
+      Vector shape, dxidx, dshapedxi, fluxi, u, d2shapedxi, dshapedxik;
       u.SetSize(num_states);
       dxidx.SetSize(dim);
       fluxi.SetSize(num_states);
       flux_jaci.SetSize(num_states);
       dshapedxi.SetSize(num_nodes);
+      d2shapedxi.SetSize(num_nodes);
+      dshapedxik.SetSize(num_nodes);
       shape.SetSize(num_nodes);
       dshape.SetSize(num_nodes, dim);
       dshapedx.SetSize(num_nodes, dim);
+      int size = dim + 1;
+      hessian.SetSize(num_nodes, size);
       elflux.SetSize(num_states, dim);
       adjJ_i.SetSize(dim);
-      Vector dxqi, flux_jacqi;
+      Vector dxqi, flux_jacqi, dudxqik;
       dxqi.SetSize(dim);
+      dudxqik.SetSize(num_states);
       flux_jacqi.SetSize(num_states);
       int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
       const IntegrationRule *ir;  // = IntRule;
@@ -178,10 +186,11 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
       //               "match for a scalar design variable");
       if (ir == NULL)
       {
-         elvect = 0.0;
+         return ;
       }
       else
       {
+         double delta = 1e-05;
          for (int i = 0; i < ir->GetNPoints(); i++)
          {
             const IntegrationPoint &ip = ir->IntPoint(i);
@@ -191,10 +200,13 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
             el.CalcShape(ip, shape);
             // Compute the physical gradient
             el.CalcDShape(ip, dshape);
+            el.CalcHessian(ip, hessian);
             // Mult(dshape, trans.AdjugateJacobian(), dshapedx);
             u_mat.MultTranspose(shape, u);
             CalcAdjugate(trans.Jacobian(), adjJ_i);
             double dwda_i = ip_a.weight;
+            /// first term 
+            // x (dwda)
             for (int di = 0; di < dim; ++di)
             {
                adjJ_i.GetRow(di, dxidx);
@@ -202,32 +214,40 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
                dshape.GetColumn(di, dshapedxi);
                AddMult_a_VWt(-dwda_i, dshapedxi, fluxi, res);
             }
+            /// second term 
+            // (dshape x [dFdxq x dxqda +  dFdyq x dyqda])
             dxqi(0) = ip_a.x;
             dxqi(1) = ip_a.y;
-            /// evaluate flux jac w.r.t design variables
-            // in `x` dir
-            int dir = 0;
-            for (int di = 0; di < dim; ++di)
+            for (int dik = 0; dik < dim; ++dik)
             {
-               adjJ_i.GetRow(dir, dxidx);
-               fluxJacState(dxidx, u, flux_jaci);
-               dshape.GetColumn(di, dshapedxi);
-               u_mat.MultTranspose(dshapedxi, u);
-               flux_jaci.MultTranspose(u, flux_jacqi);
-               AddMult_a_VWt(-dxqi(di) * ip.weight, dshapedxi, flux_jacqi, res);
+               dshape.GetColumn(dik, dshapedxik);
+               for (int di = 0; di < dim; ++di)
+               {
+                  adjJ_i.GetRow(di, dxidx);
+                  fluxJacState(dxidx, u, flux_jaci);
+                  dshape.GetColumn(di, dshapedxi);
+                  u_mat.MultTranspose(dshapedxik, dudxqik);
+                  flux_jaci.MultTranspose(dudxqik, flux_jacqi);
+                  AddMult_a_VWt(
+                      -dxqi(dik) * ip.weight, dshapedxi, flux_jacqi, res);
+               }
             }
-            // in `y` dir
-            dir = 1;
-            for (int di = 0; di < dim; ++di)
+            /// third term 
+            // ([d2shape(0) x Fx + d2shape(1) x Fy] dxqda +
+            // [d2shape(1) x Fx + d2shape(2) x Fy] dyqda)
+            for (int dik = 0; dik < dim; ++dik)
             {
-               adjJ_i.GetRow(dir, dxidx);
-               fluxJacState(dxidx, u, flux_jaci);
-               dshape.GetColumn(di, dshapedxi);
-               u_mat.MultTranspose(dshapedxi, u);
-               flux_jaci.MultTranspose(u, flux_jacqi);
-               AddMult_a_VWt(-dxqi(di) * ip.weight, dshapedxi, flux_jacqi, res);
+               int dir = dik;
+               for (int di = 0; di < dim; ++di)
+               {
+                  adjJ_i.GetRow(di, dxidx);
+                  flux(dxidx, u, fluxi);
+                  hessian.GetColumn(dir, d2shapedxi);
+                  flux_jaci.MultTranspose(u, flux_jacqi);
+                  AddMult_a_VWt(-dxqi(dik) * ip.weight, d2shapedxi, fluxi, res);
+                  ++dir;
+               }
             }
-            // cout << "w_a: " << dwda_i << endl;
          }
          res *= alpha;
       }
@@ -567,12 +587,7 @@ void CutDGSensitivityInviscidBoundaryIntegrator<Derived>::AssembleElementVector(
          nrm(1) = ny / ds;
          // Interpolate elfun at the point
          u.MultTranspose(shape, u_face);
-         // cout << "u_face " << endl;
-         // u_face.Print();
          flux(x, nrm, u_face, flux_face);
-         // cout << "flux " << endl;
-         // flux_face.Print();
-         // multiply by test function
          /// first term (dwda)
          for (int n = 0; n < num_states; ++n)
          {
@@ -1036,6 +1051,7 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
          }
       }
       // cout << "3rd term done " << endl;
+      #if 0
       /// fourth term (dFdn x dnda)
       calcFaceNormalSens(el_left, el_right, trans, ip, dndxq);
       fluxJacDir(nrm, u_face_left, u_face_right, flux_jac_dir);
@@ -1052,6 +1068,7 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
             elvect2_mat(s, k) -= flux_jac_norai(k) * ip.weight * shape2(s);
          }
       }
+      #endif
       // cout << "4th term done " << endl;
       elvect *= alpha;
    }

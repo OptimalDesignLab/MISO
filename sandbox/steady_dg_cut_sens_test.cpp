@@ -9,7 +9,7 @@ constexpr bool entvar = false;
 
 #include "mfem.hpp"
 
-#include "euler_dg_cut_sens.hpp"
+#include "euler_dg_cut_sens_test.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -32,7 +32,7 @@ void uexact(const Vector &x, Vector &u);
 Mesh buildMesh(int N);
 int main(int argc, char *argv[])
 {
-   const char *options_file = "potential_flow_cylinder_cut_options.json";
+   const char *options_file = "steady_dg_cut_sens_test_options.json";
    // Initialize MPI
    int num_procs, rank;
    MPI_Init(&argc, &argv);
@@ -62,21 +62,12 @@ int main(int argc, char *argv[])
       sol_ofs.precision(14);
       smesh->PrintVTK(sol_ofs, 0);
       string opt_file_name(options_file);
-      auto solver =
-          createSolver<CutEulerDGSensitivitySolver<2, entvar>>(opt_file_name, move(smesh));
-      //   Vector qfar(4);
-      //   static_cast<CutEulerDGSolver<2, entvar> *>(solver.get())
-      //       ->getFreeStreamState(qfar);
-      // qfar.Print();
+      auto solver = createSolver<CutEulerDGSensitivityTestSolver<2, entvar>>(
+          opt_file_name, move(smesh));
       out->precision(15);
-      // Vector wfar(4);
-      // TODO: I do not like that we have to perform this conversion outside the
-      // solver...
-      // calcEntropyVars<double, 2>(qfar.GetData(), wfar.GetData());
-      // solver->setInitialCondition(qfar);
       solver->setInitialCondition(uexact);
       solver->printSolution("cylinder-steady-dg-cut-potential-init", 0);
-      solver->printAbsError("cylinder-steady-dg-cut-potential-sol-error-init", uexact, -1);
+      solver->testSensIntegrators();
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
       auto lift_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
@@ -84,33 +75,13 @@ int main(int argc, char *argv[])
       double drag;
       *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
            << endl;
-      *out << "\nexact cl value = " << (circ / M) << endl;
-      *out << "\nInitial cl value = " << abs(solver->calcOutput("lift"))
-           << endl;
       // get the initial density error
-      double l2_error = (static_cast<CutEulerDGSensitivitySolver<2, entvar> &>(*solver)
+      double l2_error = (static_cast<CutEulerDGSensitivityTestSolver<2, entvar> &>(*solver)
                              .calcConservativeVarsL2Error(uexact, 1));
       double res_error = solver->calcResidualNorm();
       // *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "Initial \n|| (rho.u)_h - (rho.u) ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
-      solver->solveForState();
-      solver->printSolution("cylinder-steady-dg-cut-potential-final", -1);
-      solver->printAbsError("cylinder-steady-dg-cut-potential-sol-error-final", uexact, -1);
-      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
-                << endl;
-
-      *out << "\n|| rho_h - rho ||_{L^2} = "
-           << (static_cast<CutEulerDGSensitivitySolver<2, entvar> &>(*solver)
-                   .calcConservativeVarsL2Error(uexact, 0));
-      l2_error = (static_cast<CutEulerDGSensitivitySolver<2, entvar> &>(*solver)
-                      .calcConservativeVarsL2Error(uexact, 1));
-      *out << "\n|| (rho.u)_h - (rho.u) ||_{L^2}  = " << l2_error << endl;
-
-      *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
-      *out << "\ncl value = " << abs(solver->calcOutput("lift")) << endl;
-      solver->solveForAdjoint("drag");
-      // solver->printAdjoint("adjoint-cylinder-steady-dg-cut-potential", 3);
    }
 
    catch (MachException &exception)

@@ -4,7 +4,8 @@
       "aoa": 0.0,
       "roll-axis": 0,
       "pitch-axis": 1,
-      "inviscid-mms": false
+      "inviscid-mms": false,
+      "potential-mms": true
    },
    "space-dis": {
       "GD": true,
@@ -29,7 +30,7 @@
    "mesh": {
       "file": "airfoil_steady.mesh",
       "refine": -1,
-      "ncr": -1,
+      "ncr": 1,
       "ncr2": -1
    },
    "bcs": {

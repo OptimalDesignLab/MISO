@@ -14,6 +14,7 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
+   steady_dg_cut_sens_test
    steady_vortex
    steady_vortex_dg
    steady_vortex_dg_cut

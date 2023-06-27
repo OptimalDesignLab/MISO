@@ -1,5 +1,5 @@
-#ifndef MACH_EULER_DG_CUT
-#define MACH_EULER_DG_CUT
+#ifndef MACH_EULER_DG_CUT_SENS
+#define MACH_EULER_DG_CUT_SENS
 
 
 #include "mfem.hpp"
@@ -21,7 +21,7 @@ namespace mach
 /// dim - number of spatial dimensions (1, 2, or 3)
 /// entvar - if true, the entropy variables are used in the integrators
 template <int dim, bool entvar = false>
-class CutEulerDGSolver : public AbstractSolver
+class CutEulerDGSensitivitySolver : public AbstractSolver
 {
 public:
    /// Find the global time step size
@@ -101,18 +101,26 @@ protected:
    /// related to cut-cell integrators
    // int rule for cut elements
    std::map<int, IntegrationRule *> cutSquareIntRules;
+   std::map<int, IntegrationRule *> cutSquareIntRules_p;
+   std::map<int, IntegrationRule *> cutSquareIntRules_m;
    /// for vortex case  
    // int rule for cut elements by outer circle
    std::map<int, IntegrationRule *> cutSquareIntRules_outer;
    // int rule for embedded boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules;
+   std::map<int, IntegrationRule *> cutSegmentIntRules_p;
+   std::map<int, IntegrationRule *> cutSegmentIntRules_m;
    /// for vortex case
    std::map<int, IntegrationRule *> cutSegmentIntRules_inner;
    std::map<int, IntegrationRule *> cutSegmentIntRules_outer;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules;
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_p;
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_m;
    // interior face int rule sensitivities
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules_sens;
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_sens_p;
+   std::map<int, IntegrationRule *> cutInteriorFaceIntRules_sens_m;
    // interior face int rule that is cut by the embedded geometry
    std::map<int, IntegrationRule *> cutInteriorFaceIntRules_outer;
    // boundary face int rule that is cut by the embedded geometry
@@ -122,20 +130,37 @@ protected:
    /// int rule senstivities
    // cut elements
    std::map<int, IntegrationRule *> cutSquareIntRules_sens;
+   std::map<int, IntegrationRule *> cutSquareIntRules_sens_p;
+   std::map<int, IntegrationRule *> cutSquareIntRules_sens_m;
    // embedded boundary
    std::map<int, IntegrationRule *> cutSegmentIntRules_sens;
+   std::map<int, IntegrationRule *> cutSegmentIntRules_sens_p;
+   std::map<int, IntegrationRule *> cutSegmentIntRules_sens_m;
    /// embedded elements boolean vector
    std::vector<bool> embeddedElements;
+   std::vector<bool> embeddedElements_p;
+   std::vector<bool> embeddedElements_m;
    /// cut elements boolean vector
    std::vector<bool> cutElements;
+   std::vector<bool> cutElements_p;
+   std::vector<bool> cutElements_m;
    // vector of cut interior faces
    std::vector<int> cutInteriorFaces;
-     // vector of cut interior faces by outer circle
+   std::vector<int> cutInteriorFaces_p;
+   std::vector<int> cutInteriorFaces_m;
+   // vector of cut interior faces by outer circle
    std::vector<int> cutInteriorFaces_outer;
    // tells if face is immersed
    std::map<int, bool> immersedFaces;
+   // tells if face is immersed
+   std::map<int, bool> immersedFaces_p;
+   std::map<int, bool> immersedFaces_m;
    // find the elements cut by geometry
    std::vector<int> cutelems;
+   // find the elements cut by geometry
+   std::vector<int> cutelems_p;
+   // find the elements cut by geometry
+   std::vector<int> cutelems_m;
     // find the elements cut by geometry
    std::vector<int> cutelems_outer;
    /// domain boundary faces cut by geometry  
@@ -152,12 +177,16 @@ protected:
    LevelSetF<double, 2> phi_p;
    LevelSetF<double, 2> phi_m;
    bool vortex = false;
+   std::unique_ptr<GDSpaceType> fes_gd_p;
+   std::unique_ptr<GDSpaceType> fes_gd_m;
+   std::unique_ptr<NonlinearFormType> res_p;
+   std::unique_ptr<NonlinearFormType> res_m;
    // Algoim::LevelSet<2> phi;
    // Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)
    /// \param[in] json_options - json object containing the options
    /// \param[in] smesh - if provided, defines the mesh for the problem
-   CutEulerDGSolver(const nlohmann::json &json_options,
+   CutEulerDGSensitivitySolver(const nlohmann::json &json_options,
                     std::unique_ptr<mfem::Mesh> smesh,
                     MPI_Comm comm);
 
@@ -248,7 +277,7 @@ protected:
                      double t_final,
                      const mfem::ParGridFunction &state) override;
 
-   friend SolverPtr createSolver<CutEulerDGSolver<dim, entvar>>(
+   friend SolverPtr createSolver<CutEulerDGSensitivitySolver<dim, entvar>>(
        const nlohmann::json &json_options,
        std::unique_ptr<mfem::Mesh> smesh,
        MPI_Comm comm);

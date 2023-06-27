@@ -988,7 +988,7 @@ void calcSlipWallFlux(const xdouble *x,
    //calcIsentropicVortexFlux<xdouble>(x, dir, q, flux);
 #endif
    xdouble press;
-   xdouble press_g = 1.0 / euler::gamma;
+   // xdouble press_g = 1.0 / euler::gamma;
    if (entvar)
    {
       auto Vel2 = dot<xdouble, dim>(q + 1, q + 1);
@@ -1003,7 +1003,7 @@ void calcSlipWallFlux(const xdouble *x,
       xdouble yc = 5.0;
       xdouble circ = 0.0;
       xdouble rad = 0.5;
-      xdouble press_e;
+      // xdouble press_e;
       theta = atan2(x[1] - yc, x[0] - xc);
       if (abs(x[0] - xc) < 1e-14)
       {
@@ -1018,8 +1018,8 @@ void calcSlipWallFlux(const xdouble *x,
           -Ma * (1.0 + rinv * rinv) * sin(theta) - circ / (M_PI * rtilde);
       xdouble ux = Vr * cos(theta) - (Vth * sin(theta));
       xdouble uy = Vr * sin(theta) + (Vth * cos(theta));
-      xdouble p_bern =
-          1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 * (ux * ux + uy * uy);
+      // xdouble p_bern =
+      //     1.0 / euler::gamma + 0.5 * Ma * Ma - 0.5 * (ux * ux + uy * uy);
       press = pressure<xdouble, dim>(q);
       // press = p_bern;
       //    std::cout << "pressure diff: " << press - press_e << std::endl;
@@ -1268,7 +1268,7 @@ void calcPotentialFlowState(const xdouble *x, xdouble *qbnd)
 {
    xdouble Ma = 0.2;
    xdouble rho = 1.0;
-   xdouble p = 1.0 / euler::gamma;
+   // xdouble p = 1.0 / euler::gamma;
    xdouble theta;
    xdouble xc = 5.0;
    xdouble yc = 5.0;

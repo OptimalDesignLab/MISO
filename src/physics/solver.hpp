@@ -583,7 +583,7 @@ public:
    {
       calcResidual(*u, residual);
    }
-
+   virtual void testSensIntegrators();
    /// Compute the residual based on `state` and store the it in `residual`
    /// \param[in] state - the current state to evaluate the residual at
    /// \param[out] residual - the residual
@@ -887,7 +887,7 @@ protected:
    /// Add domain integrators to `mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addMassIntegrators(double alpha);
-
+    
    /// Add domain integrators to `nonlinear_mass`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addNonlinearMassIntegrators(double alpha) { }
@@ -905,7 +905,7 @@ protected:
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addResInterfaceIntegrators(double alpha) { }
-
+   virtual void testSensIntegrators(const mfem::ParCentGridFunction &state){}
    /// Add volume integrators to `stiff`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffVolumeIntegrators(double alpha) { }

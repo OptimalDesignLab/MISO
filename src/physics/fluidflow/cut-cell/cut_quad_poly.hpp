@@ -211,7 +211,7 @@ template <typename xdouble, int N, int ls>
 class CutCell
 {
 public:
-   CutCell(mfem::Mesh *_mesh) : mesh(_mesh) { phi = constructLevelSet<xdouble>(); }
+   CutCell(double rad, mfem::Mesh *_mesh) : mesh(_mesh), radius(rad) { phi = constructLevelSet<xdouble>(); }
 
    std::vector<uvector<double, N>> constructNormal(
        std::vector<uvector<double, N>> Xc) const
@@ -321,11 +321,11 @@ public:
          phi_ls.lsign = -1.0;
          if constexpr (std::is_same_v<double, xxdouble>)
          {
-            phi_ls.a = 0.5;
+            phi_ls.a = radius ;
          }
          else
          {
-            phi_ls.a = 0.5 + 1_e;
+            phi_ls.a = radius + 1_e;
          }
 
          phi_ls.b = 0.5;
@@ -731,7 +731,7 @@ public:
                           if (bernstein::evalBernsteinPoly(phi, x) < 0)
                           {
                              phase0.push_back(add_component(x, N, w));
-                             cout << "w " << w << endl;
+                            // cout << "w " << w << endl;
                              area += w * integrand(xmin + x * (xmax - xmin));
                           }
                        });
@@ -809,7 +809,7 @@ public:
          // xlower = {0, 0};
          // xupper = {1, 1};
          int elemid = cutelems.at(k);
-         cout << "cut cell: "<< elemid << endl;
+         // cout << "cut cell: "<< elemid << endl;
          ElementTransformation *trans = mesh->GetElementTransformation(elemid);
          findBoundingBox(elemid, xmin, xmax);
          double xscale = xmax(0) - xmin(0);
@@ -950,8 +950,8 @@ public:
             cutSegmentIntRules_sens[elemid] = irSurf_sens;
          }
       }
-      cout << "perimeter: " << peri << endl;
-      cout << "area: " << area << endl;
+      // cout << "perimeter: " << peri << endl;
+      // cout << "area: " << area << endl;
       // std::string fvol = "cut-element-quadrature.vtp";
       // outputQuadratureRuleAsVtp(qVol, fvol);
       std::cout << "  scheme.vtp file written for cut cells, containing "
@@ -1066,11 +1066,12 @@ public:
                   {
                      double x_q;
                      double xq_a;
-                     double yq_a;
-                     double wq_a;
+                     // double yq_a;
+                     // double wq_a;
                      if constexpr (std::is_same_v<double, xdouble>)
                      {
                         x_q = pt(0);
+                        xq_a = 0.0;
                      }
                      else
                      {
@@ -1090,11 +1091,13 @@ public:
                            {
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                               ip.x = 1 - x_q;
+                              ip_sens.x = -xq_a;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
                               ip.x = x_q;
+                              ip_sens.x = xq_a;
                            }
                         }
                         else
@@ -1103,11 +1106,13 @@ public:
                            {
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                               ip.x = 1 - x_q;
+                              ip_sens.x = -xq_a;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
                               ip.x = x_q;
+                              ip_sens.x = xq_a;
                            }
                         }
                         xp(0) = xlim;
@@ -1121,12 +1126,14 @@ public:
                            {
                               // ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                               ip.x = 1 - x_q;
+                              ip_sens.x = -xq_a;
                               // cout << "pt.x[0] " << pt.x[0] << endl;
                               // cout << "ip.x " << ip.x << endl;
                            }
                            else
                            {
                               ip.x = x_q;
+                              ip_sens.x = xq_a;
                               // ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
@@ -1135,11 +1142,13 @@ public:
                            if (1 == orient[c])
                            {
                               ip.x = 1 - x_q;
+                              ip_sens.x = -xq_a;
                               // ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
                               ip.x = x_q;
+                              ip_sens.x = xq_a;
                               // ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
@@ -1147,7 +1156,6 @@ public:
                         xp(1) = ylim;
                      }
                      trans->SetIntPoint(&ip);
-                     ip_sens.x = xq_a;
                      if constexpr (std::is_same_v<double, xdouble>)
                      {
                         ip.weight = pt(1);
@@ -1196,6 +1204,7 @@ public:
    }
 protected:
    mfem::Mesh *mesh;
+   double radius;
    // Algoim::LevelSet<N> phi;
    LevelSetF<xdouble, N> phi;
 };

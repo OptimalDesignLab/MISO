@@ -146,7 +146,8 @@ public:
    // }
    /// function  that sort the element-basis distance
    std::vector<std::size_t> sort_indexes(const std::vector<double> &v) const;
-
+   /// Returns vector dimension.
+   inline int GetVDim() const { return vdim;}
 private:
    /// Prolongation operator
    //    mutable HypreParMatrix *P;

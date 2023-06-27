@@ -871,9 +871,11 @@ uvector<double, 2> airfoil_cent;
       airfoil_le(1) = 20.0;
       airfoil_te(0) = 20.5;
       airfoil_te(1) = 20.0;
+      double rad = 0.5;
       /// let us see if this works
       /// find the elements to refine
-      CutCell<2, 1> cut_init(smesh.get());
+      CutCell<2, 1> cut_init(rad, smesh.get());
+
       LevelSetF<2> phi_init = cut_init.constructLevelSet();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
@@ -1157,7 +1159,9 @@ uvector<double, 2> airfoil_cent;
       circle_cent(1) = 5.0;
       /// let us see if this works
       /// find the elements to refine
-      CutCell<double, 2, 1> cut_init(smesh.get());
+      double rad = 0.5;
+      CutCell<double, 2, 1> cut_init(rad, smesh.get());
+
       /*Algoim::LevelSet<2> */  LevelSetF<double, 2> phi_init = cut_init.constructLevelSet<double>();
       cout << " # mesh elements " << endl;
       cout << smesh->GetNE() << endl;
@@ -2091,7 +2095,9 @@ void AbstractSolver::printAbsError(
    {
       absSolerr(i) = std::log(abs(absSolerr(i)));
    }
-   CutCell<double, 2, 1> cut_init(mesh.get());
+   double rad = 0.5;
+   CutCell<double, 2, 1> cut_init(rad, mesh.get());
+
    /*Algoim::LevelSet<2> */ LevelSetF<double, 2> phi_init =
        cut_init.constructLevelSet<double>();
    for (int i = 0; i < fes->GetNE(); i++)
@@ -2597,6 +2603,16 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
    // #endif // MFEM_USE_MPI
 }
 #endif
+// void AbstractSolver::calcFuncSens()
+// {
+//    CutCell<double, 2, 1> cutcell_p(rad + delta, mesh.get());
+//    CutCell<double, 2, 1> cutcell_m(rad - delta, mesh.get());
+//    phi = cutcell.constructLevelSet<double>(rad + delta);
+// }
+void AbstractSolver::testSensIntegrators()
+{
+   testSensIntegrators(*u_gd);
+}
 void AbstractSolver::solveSteady(ParCentGridFunction &state)
 {
    using namespace std;
@@ -3319,6 +3335,7 @@ void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
        "AbstractSolver::solveUnsteadyAdjoint(fun)\n"
        "\tnot implemented yet!");
 }
+
 
 void AbstractSolver::createOutput(const std::string &fun)
 {

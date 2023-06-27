@@ -6,6 +6,10 @@ target_sources(mach
       euler_integ_dg_cut_sens.hpp
       euler_dg_cut.cpp
       euler_dg_cut.hpp 
+      euler_dg_cut_sens.cpp
+      euler_dg_cut_sens.hpp 
+      euler_dg_cut_sens_test.cpp
+      euler_dg_cut_sens_test.hpp 
       inviscid_integ_def_dg_cut.hpp
       inviscid_integ_def_dg_cut_sens.hpp
       inviscid_integ_dg_cut.hpp

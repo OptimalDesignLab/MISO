@@ -1,6 +1,6 @@
 #include <cmath>
 #include <memory>
-#include "euler_dg_cut.hpp"
+#include "euler_dg_cut_sens.hpp"
 #include "cut_quad_poly.hpp"
 using namespace std::chrono;
 using namespace mfem;
@@ -9,7 +9,7 @@ using namespace std;
 namespace mach
 {
 template <int dim, bool entvar>
-CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
+CutEulerDGSensitivitySolver<dim, entvar>::CutEulerDGSensitivitySolver(
     const nlohmann::json &json_options,
     unique_ptr<mfem::Mesh> smesh,
     MPI_Comm comm)
@@ -55,55 +55,74 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    deg_vol = 3;
    int poly_deg = 3;
    double circ_rad = 0.5;
+   double delta = 1e-05;
    CutCell<duald, 2, 1> cutcell(circ_rad, mesh.get());
    CutCell<double, 2, 2> cutcell2(circ_rad, mesh.get());
+   CutCell<double, 2, 1> cutcell_p(circ_rad + delta, mesh.get());
+   CutCell<double, 2, 1> cutcell_m(circ_rad - delta, mesh.get());
    phi = cutcell.constructLevelSet<double>();
-   if (vortex)
-   {
-      phi_outer = cutcell2.constructLevelSet<double>();
-   }
+   phi_p = cutcell_p.constructLevelSet<double>();
+   phi_m = cutcell_m.constructLevelSet<double>();
    vector<int> cutelems_inner;
    vector<int> solid_elements;
    /// find the elements for which we don't need to solve
    for (int i = 0; i < mesh->GetNE(); ++i)
    {
+      /// at r 
       if (cutcell.cutByGeom(i) == true)
       {
          cutelems.push_back(i);
          cutElements.push_back(true);
-         cutelems_inner.push_back(i);
-         cout << "cut element inner id " << i << endl;
       }
       else
       {
          cutElements.push_back(false);
       }
-      if (vortex)
-      {
-         if (cutcell2.cutByGeom(i) == true)
-         {
-            // cutelems.push_back(i);
-            cutelems_outer.push_back(i);
-            cout << "cut element outer id " << i << endl;
-         }
-         if ((cutcell.insideBoundary(i) == true) ||
-             (cutcell2.insideBoundary(i) == true))
-         {
-            embeddedElements.push_back(true); /*original*/
-            solid_elements.push_back(i);
-         }
-      }
       if ((cutcell.insideBoundary(i) == true))
       {
          embeddedElements.push_back(true); /*original*/
-         solid_elements.push_back(i);
       }
       else
       {
          embeddedElements.push_back(false);
       }
+      /// r + delta 
+      if (cutcell_p.cutByGeom(i) == true)
+      {
+         cutelems_p.push_back(i);
+         cutElements_p.push_back(true);
+      }
+      else
+      {
+         cutElements_p.push_back(false);
+      }
+      if ((cutcell_p.insideBoundary(i) == true))
+      {
+         embeddedElements_p.push_back(true); /*original*/
+      }
+      else
+      {
+         embeddedElements_p.push_back(false);
+      }
+      /// r - delta 
+      if (cutcell_m.cutByGeom(i) == true)
+      {
+         cutelems_m.push_back(i);
+         cutElements_m.push_back(true);
+      }
+      else
+      {
+         cutElements_m.push_back(false);
+      }
+      if ((cutcell_m.insideBoundary(i) == true))
+      {
+         embeddedElements_m.push_back(true); /*original*/
+      }
+      else
+      {
+         embeddedElements_m.push_back(false);
+      }
    }
-   cout << "#embedded elements " << solid_elements.size() << endl;
    /// find if given face is cut, or immersed
 
    /// find faces cut by inner circle
@@ -114,6 +133,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       tr = mesh->GetFaceElementTransformations(i);
       if (tr->Elem2No >= 0)
       {
+        /// r
          if ((find(cutelems.begin(), cutelems.end(), tr->Elem1No) !=
               cutelems.end()) &&
              (find(cutelems.begin(), cutelems.end(), tr->Elem2No) !=
@@ -124,54 +144,29 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
                cutInteriorFaces.push_back(tr->Face->ElementNo);
             }
          }
-         if (vortex)
+         /// r + delta 
+         if ((find(cutelems_p.begin(), cutelems_p.end(), tr->Elem1No) !=
+              cutelems_p.end()) &&
+             (find(cutelems_p.begin(), cutelems_p.end(), tr->Elem2No) !=
+              cutelems_p.end()))
          {
-            if ((find(cutelems_outer.begin(),
-                      cutelems_outer.end(),
-                      tr->Elem1No) != cutelems_outer.end()) &&
-                (find(cutelems_outer.begin(),
-                      cutelems_outer.end(),
-                      tr->Elem2No) != cutelems_outer.end()))
+            if (!cutcell_p.findImmersedFace(tr->Face->ElementNo))
             {
-               if (!cutcell2.findImmersedFace(tr->Face->ElementNo))
-               {
-                  cutInteriorFaces_outer.push_back(tr->Face->ElementNo);
-               }
+               cutInteriorFaces_p.push_back(tr->Face->ElementNo);
+            }
+         }
+         /// r - delta 
+         if ((find(cutelems_m.begin(), cutelems_m.end(), tr->Elem1No) !=
+              cutelems_m.end()) &&
+             (find(cutelems_m.begin(), cutelems_m.end(), tr->Elem2No) !=
+              cutelems_m.end()))
+         {
+            if (!cutcell_m.findImmersedFace(tr->Face->ElementNo))
+            {
+               cutInteriorFaces_m.push_back(tr->Face->ElementNo);
             }
          }
       }
-/// ignore this for airfoil case
-#if 0
-      if (tr->Elem2No < 0)
-      {
-         if (find(cutelems.begin(), cutelems.end(), tr->Elem1No) !=
-             cutelems.end())
-         {
-            // cout << "is there any boundary  face cut by inner circle? " << endl;
-            // cout << "element is " << tr->Elem1No << endl;
-            cutBdrFaces.push_back(tr->Face->ElementNo);
-            // cout << "boundary face is " << tr->Face->ElementNo << endl;
-            // cout << tr->Elem1No << endl;
-         }
-         if (vortex)
-         {
-            if (find(cutelems_outer.begin(),
-                     cutelems_outer.end(),
-                     tr->Elem1No) != cutelems_outer.end())
-            {
-               if (!cutcell2.findImmersedFace(tr->Face->ElementNo))
-               {
-                  // cout << "is there any boundary  face cut by outer circle ? "
-                  //      << endl;
-                  // cout << "element is " << tr->Elem1No << endl;
-                  cutBdrFaces_outer.push_back(tr->Face->ElementNo);
-                  // cout << "boundary face is " << tr->Face->ElementNo << endl;
-                  //cout << tr->Elem1No << endl;
-               }
-            }
-         }
-      }
-#endif
    }
    for (int i = 0; i < mesh->GetNumFaces(); ++i)
    {
@@ -179,6 +174,7 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
       tr = mesh->GetInteriorFaceTransformations(i);
       if (tr != NULL)
       {
+         /// r
          if ((embeddedElements.at(tr->Elem1No) == true) ||
              (embeddedElements.at(tr->Elem2No)) == true)
          {
@@ -188,26 +184,86 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
          {
             immersedFaces[tr->Face->ElementNo] = true;
          }
-         else if (vortex)
-         {
-            if (cutcell2.findImmersedFace(tr->Face->ElementNo))
-            {
-               immersedFaces[tr->Face->ElementNo] = true;
-            }
-         }
          else
          {
             // cout << "immersed Face element is: " << tr->Elem1No << endl;
             immersedFaces[tr->Face->ElementNo] = false;
          }
+         /// r + delta
+         if ((embeddedElements_p.at(tr->Elem1No) == true) ||
+             (embeddedElements_p.at(tr->Elem2No)) == true)
+         {
+            immersedFaces_p[tr->Face->ElementNo] = true;
+         }
+         else if (cutcell_p.findImmersedFace(tr->Face->ElementNo))
+         {
+            immersedFaces_p[tr->Face->ElementNo] = true;
+         }
+         else
+         {
+            // cout << "immersed Face element is: " << tr->Elem1No << endl;
+            immersedFaces_p[tr->Face->ElementNo] = false;
+         }
+        /// r - delta
+         if ((embeddedElements_m.at(tr->Elem1No) == true) ||
+             (embeddedElements_m.at(tr->Elem2No)) == true)
+         {
+            immersedFaces_m[tr->Face->ElementNo] = true;
+         }
+         else if (cutcell_m.findImmersedFace(tr->Face->ElementNo))
+         {
+            immersedFaces_m[tr->Face->ElementNo] = true;
+         }
+         else
+         {
+            // cout << "immersed Face element is: " << tr->Elem1No << endl;
+            immersedFaces_m[tr->Face->ElementNo] = false;
+         }
       }
    }
-
    double radius = 0.3;
    /// int rule for cut elements
    auto elint_start = high_resolution_clock::now();
-   cutcell.GetCutElementIntRule(cutelems, deg_vol, poly_deg, cutSquareIntRules, cutSquareIntRules_sens, cutSegmentIntRules, cutSegmentIntRules_sens);
-   cutcell.GetCutInterfaceIntRule(cutelems, cutInteriorFaces, deg_vol, cutInteriorFaceIntRules, cutInteriorFaceIntRules_sens);
+   /// r
+   cutcell.GetCutElementIntRule(cutelems,
+                                deg_vol,
+                                poly_deg,
+                                cutSquareIntRules,
+                                cutSquareIntRules_sens,
+                                cutSegmentIntRules,
+                                cutSegmentIntRules_sens);
+   cutcell.GetCutInterfaceIntRule(cutelems,
+                                  cutInteriorFaces,
+                                  deg_vol,
+                                  cutInteriorFaceIntRules,
+                                  cutInteriorFaceIntRules_sens);
+   /// r + delta
+   cutcell_p.GetCutElementIntRule(cutelems_p,
+                                  deg_vol,
+                                  poly_deg,
+                                  cutSquareIntRules_p,
+                                  cutSquareIntRules_sens_p,
+                                  cutSegmentIntRules_p,
+                                  cutSegmentIntRules_sens_p);
+   cutcell_p.GetCutInterfaceIntRule(cutelems_p,
+                                    cutInteriorFaces_p,
+                                    deg_vol,
+                                    cutInteriorFaceIntRules_p,
+                                    cutInteriorFaceIntRules_sens_p);
+   /// r - delta
+   cutcell_m.GetCutElementIntRule(cutelems_m,
+                                  deg_vol,
+                                  poly_deg,
+                                  cutSquareIntRules_m,
+                                  cutSquareIntRules_sens_m,
+                                  cutSegmentIntRules_m,
+                                  cutSegmentIntRules_sens_m);
+   cutcell_m.GetCutInterfaceIntRule(cutelems_m,
+                                    cutInteriorFaces_m,
+                                    deg_vol,
+                                    cutInteriorFaceIntRules_m,
+                                    cutInteriorFaceIntRules_sens_m);
+
    auto elint_stop = high_resolution_clock::now();
    auto elint_duration = duration_cast<seconds>(elint_stop - elint_start);
    cout << " ---- Time taken to get cut elements int rules  ---- " << endl;
@@ -216,43 +272,110 @@ CutEulerDGSolver<dim, entvar>::CutEulerDGSolver(
    // get interior face int rule that is cut by the embedded geometry
    auto segint_start = high_resolution_clock::now();
    cout << "#interior faces " << cutInteriorFaces.size() << endl;
-
-   if (cutBdrFaces.size() > 0)
+   int fe_order = options["space-dis"]["degree"].template get<int>();
+   if (gd)
    {
-      cout << "boundary faces are cut " << endl;
-      // cutcell.GetCutBdrSegmentIntRule(
-      //     cutelems, cutBdrFaces, deg_surf, radius, cutBdrFaceIntRules);
+      fes_gd_p.reset(new GDSpaceType(mesh.get(),
+                                     fec.get(),
+                                     embeddedElements_p,
+                                     cutElements_p,
+                                     num_state,
+                                     Ordering::byVDIM,
+                                     fe_order,
+                                     comm));
+      fes_gd_m.reset(new GDSpaceType(mesh.get(),
+                                     fec.get(),
+                                     embeddedElements_m,
+                                     cutElements_m,
+                                     num_state,
+                                     Ordering::byVDIM,
+                                     fe_order,
+                                     comm));
+      res_p.reset(new NonlinearFormType(fes_gd_p.get()));
+      res_m.reset(new NonlinearFormType(fes_gd_m.get()));
+      double alpha = 1.0;
+      /// add volume integrators
+      res_p->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
+          diff_stack, cutSquareIntRules_p, embeddedElements_p, alpha));
+      res_m->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
+          diff_stack, cutSquareIntRules_m, embeddedElements_m, alpha));
+      /// add immersed boundary integrators
+      auto &bcs = options["bcs"];
+      if (bcs.find("slip-wall") != bcs.end())
+      {  // slip-wall boundary condition
+         res_p->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+             diff_stack, fec.get(), cutSegmentIntRules_p, phi_p, alpha));
+         res_m->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+             diff_stack, fec.get(), cutSegmentIntRules_m, phi_m, alpha));
+      }
+      if (options["flow-param"]["potential-mms"].template get<bool>())
+      {
+         res_p->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
+             diff_stack, cutSquareIntRules_p, embeddedElements_p, -alpha));
+         res_m->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
+             diff_stack, cutSquareIntRules_m, embeddedElements_m, -alpha));
+      }
+      /// add far-field boundary integrators
+      if (bcs.find("potential-flow") != bcs.end())
+      {
+        int idx = 0;
+         // far-field boundary conditions
+         vector<int> tmp = bcs["potential-flow"].template get<vector<int>>();
+         bndry_marker[idx].SetSize(tmp.size(), 0);
+         bndry_marker[idx].Assign(tmp.data());
+         res_p->AddBdrFaceIntegrator(
+             new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         res_m->AddBdrFaceIntegrator(
+             new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
+             bndry_marker[idx]);
+         idx++;
+      }
+      /// add interface integrators
+      auto diss_coeff =
+          options["space-dis"]["iface-coeff"].template get<double>();
+      res_p->AddInteriorFaceIntegrator(
+          new CutDGInterfaceIntegrator<dim, entvar>(diff_stack,
+                                                    diss_coeff,
+                                                    fec.get(),
+                                                    immersedFaces_p,
+                                                    cutInteriorFaceIntRules_p,
+                                                    alpha));
+      res_m->AddInteriorFaceIntegrator(
+          new CutDGInterfaceIntegrator<dim, entvar>(diff_stack,
+                                                    diss_coeff,
+                                                    fec.get(),
+                                                    immersedFaces_m,
+                                                    cutInteriorFaceIntRules_m,
+                                                    alpha));
+      /// add output integrator
+    //   if (fun == "drag")
+    //   {
+    //      // drag on the specified boundaries (not used for cut-cell mesh)
+    //      auto bdrs = options["boundaries"].template get<vector<int>>();
+
+    //      mfem::Vector drag_dir(dim);
+    //      drag_dir = 0.0;
+    //      if (dim == 1)
+    //      {
+    //         drag_dir(0) = 1.0;
+    //      }
+    //      else
+    //      {
+    //         drag_dir(iroll) = cos(aoa_fs);
+    //         drag_dir(ipitch) = sin(aoa_fs);
+    //      }
+    //      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+
+    //      FunctionalOutput out_p(*fes, res_fields);
+    //      out.addOutputDomainIntegrator(new CutDGPressureForce<dim, entvar>(
+    //          diff_stack, fec.get(), drag_dir, cutSegmentIntRules, phi));
+    //      outputs.emplace(fun, std::move(out));
+    //   }
    }
-   // if (vortex)
-   // {
-   //    cutcell2.GetCutElementIntRule(
-   //        cutelems_outer, deg_vol, radius, cutSquareIntRules_outer);
-   //    cutSquareIntRules.insert(cutSquareIntRules_outer.begin(),
-   //                             cutSquareIntRules_outer.end());
-   //    cutcell2.GetCutSegmentIntRule(cutelems_outer,
-   //                                  cutInteriorFaces_outer,
-   //                                  deg_surf,
-   //                                  radius,
-   //                                  cutSegmentIntRules_outer,
-   //                                  cutInteriorFaceIntRules_outer);
-   //    cutcell2.GetCutBdrSegmentIntRule(cutelems_outer,
-   //                                     cutBdrFaces_outer,
-   //                                     deg_surf,
-   //                                     radius,
-   //                                     cutBdrFaceIntRules_outer);
-   //    cutInteriorFaceIntRules.insert(cutInteriorFaceIntRules_outer.begin(),
-   //                                   cutInteriorFaceIntRules_outer.end());
-   //    cutBdrFaceIntRules.insert(cutBdrFaceIntRules_outer.begin(),
-   //                              cutBdrFaceIntRules_outer.end());
-   // }
-   auto segint_stop = high_resolution_clock::now();
-   auto segint_duration = duration_cast<seconds>(segint_stop - segint_start);
-   cout << " ---- Time taken to get cut segments and faces int rules  ---- "
-        << endl;
-   cout << "      " << segint_duration.count() << "s " << endl;
 }
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::setGDSpace(int fe_order)
+void CutEulerDGSensitivitySolver<dim, entvar>::setGDSpace(int fe_order)
 {
    fes_gd.reset(new GDSpaceType(mesh.get(),
                                 fec.get(),
@@ -265,7 +388,7 @@ void CutEulerDGSolver<dim, entvar>::setGDSpace(int fe_order)
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::constructForms()
+void CutEulerDGSensitivitySolver<dim, entvar>::constructForms()
 {
    if (gd)
    {
@@ -302,21 +425,21 @@ void CutEulerDGSolver<dim, entvar>::constructForms()
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addMassIntegrators(double alpha)
+void CutEulerDGSensitivitySolver<dim, entvar>::addMassIntegrators(double alpha)
 {
    mass->AddDomainIntegrator(
        new CutDGMassIntegrator(cutSquareIntRules, embeddedElements, num_state));
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
+void CutEulerDGSensitivitySolver<dim, entvar>::addNonlinearMassIntegrators(double alpha)
 {
    nonlinear_mass->AddDomainIntegrator(
        new MassIntegrator<dim, entvar>(diff_stack, alpha));
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
+void CutEulerDGSensitivitySolver<dim, entvar>::addResVolumeIntegrators(double alpha,
                                                             double &diff_coeff)
 {
 #if 1
@@ -336,7 +459,7 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
       if (dim != 2)
       {
          throw MachException(
-             "CutEulerDGSolver::addBoundaryIntegrators(alpha)\n"
+             "CutEulerDGSensitivitySolver::addBoundaryIntegrators(alpha)\n"
              "\tisentropic vortex BC must use 2D mesh!");
       }
       res->AddDomainIntegrator(new CutDGIsentropicVortexBC<dim, entvar>(
@@ -350,9 +473,9 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
       res_sens_cut->AddDomainIntegrator(new CutDGSensitivitySlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules,cutSegmentIntRules_sens,  phi, alpha));
    }
-   double peri = res->GetEnergy(x);
-   double peri_sens = res_sens_cut->GetEnergy(x);
-   cout << "peri_sens " << peri_sens << endl;
+//    double peri = res->GetEnergy(x);
+//    double peri_sens = res_sens_cut->GetEnergy(x);
+//    cout << "peri_sens " << peri_sens << endl;
    if (options["flow-param"]["inviscid-mms"].template get<bool>())
    {
       if (dim != 2)
@@ -407,7 +530,7 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
       if (dim != 2)
       {
          throw MachException(
-             "CutEulerDGSolver::addBoundaryIntegrators(alpha)\n"
+             "CutEulerDGSensitivitySolver::addBoundaryIntegrators(alpha)\n"
              "\tisentropic vortex BC must use 2D mesh!");
       }
       res->AddDomainIntegrator(new CutDGIsentropicVortexBC<dim, entvar>(
@@ -469,7 +592,7 @@ void CutEulerDGSolver<dim, entvar>::addResVolumeIntegrators(double alpha,
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
+void CutEulerDGSensitivitySolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 {
    auto &bcs = options["bcs"];
    int idx = 0;
@@ -535,7 +658,7 @@ void CutEulerDGSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
+void CutEulerDGSensitivitySolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
 {
    // add the integrators based on if discretization is continuous or
    // discrete
@@ -555,18 +678,18 @@ void CutEulerDGSolver<dim, entvar>::addResInterfaceIntegrators(double alpha)
                                                  cutInteriorFaceIntRules,
                                                  cutInteriorFaceIntRules_sens,
                                                  alpha));
-   ParCentGridFunction x(fes_gd.get());
-   res_sens_cut->GetEnergy(x);
+//    ParCentGridFunction x(fes_gd.get());
+//    res_sens_cut->GetEnergy(x);
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addEntVolumeIntegrators()
+void CutEulerDGSensitivitySolver<dim, entvar>::addEntVolumeIntegrators()
 {
    ent->AddDomainIntegrator(new EntropyIntegrator<dim, entvar>(diff_stack));
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::initialHook(const ParGridFunction &state)
+void CutEulerDGSensitivitySolver<dim, entvar>::initialHook(const ParGridFunction &state)
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
@@ -581,7 +704,7 @@ void CutEulerDGSolver<dim, entvar>::initialHook(const ParGridFunction &state)
    // entropylog << setprecision(14);
 }
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::initialHook(
+void CutEulerDGSensitivitySolver<dim, entvar>::initialHook(
     const ParCentGridFunction &state)
 {
    if (options["time-dis"]["steady"].template get<bool>())
@@ -599,7 +722,7 @@ void CutEulerDGSolver<dim, entvar>::initialHook(
    // entropylog << setprecision(14);
 }
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::iterationHook(int iter,
+void CutEulerDGSensitivitySolver<dim, entvar>::iterationHook(int iter,
                                                   double t,
                                                   double dt,
                                                   const ParGridFunction &state)
@@ -609,7 +732,7 @@ void CutEulerDGSolver<dim, entvar>::iterationHook(int iter,
 }
 
 template <int dim, bool entvar>
-bool CutEulerDGSolver<dim, entvar>::iterationExit(
+bool CutEulerDGSensitivitySolver<dim, entvar>::iterationExit(
     int iter,
     double t,
     double t_final,
@@ -639,7 +762,7 @@ bool CutEulerDGSolver<dim, entvar>::iterationExit(
 }
 
 template <int dim, bool entvar>
-bool CutEulerDGSolver<dim, entvar>::iterationExit(
+bool CutEulerDGSensitivitySolver<dim, entvar>::iterationExit(
     int iter,
     double t,
     double t_final,
@@ -669,7 +792,7 @@ bool CutEulerDGSolver<dim, entvar>::iterationExit(
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::terminalHook(int iter,
+void CutEulerDGSensitivitySolver<dim, entvar>::terminalHook(int iter,
                                                  double t_final,
                                                  const ParGridFunction &state)
 {
@@ -679,7 +802,7 @@ void CutEulerDGSolver<dim, entvar>::terminalHook(int iter,
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
+void CutEulerDGSensitivitySolver<dim, entvar>::addOutput(const std::string &fun,
                                               const nlohmann::json &options)
 {
    if (fun == "drag")
@@ -742,12 +865,12 @@ void CutEulerDGSolver<dim, entvar>::addOutput(const std::string &fun,
    {
       throw MachException("Output with name " + fun +
                           " not supported by "
-                          "CutEulerDGSolver!\n");
+                          "CutEulerDGSensitivitySolver!\n");
    }
 }
 
 template <int dim, bool entvar>
-double CutEulerDGSolver<dim, entvar>::calcStepSize(
+double CutEulerDGSensitivitySolver<dim, entvar>::calcStepSize(
     int iter,
     double t,
     double t_final,
@@ -826,7 +949,7 @@ double CutEulerDGSolver<dim, entvar>::calcStepSize(
 }
 
 template <int dim, bool entvar>
-double CutEulerDGSolver<dim, entvar>::calcStepSize(
+double CutEulerDGSensitivitySolver<dim, entvar>::calcStepSize(
     int iter,
     double t,
     double t_final,
@@ -905,7 +1028,7 @@ double CutEulerDGSolver<dim, entvar>::calcStepSize(
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
+void CutEulerDGSensitivitySolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
 {
    q_ref = 0.0;
    q_ref(0) = 1.0;
@@ -922,7 +1045,7 @@ void CutEulerDGSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
 }
 
 template <int dim, bool entvar>
-double CutEulerDGSolver<dim, entvar>::calcConservativeVarsL2Error(
+double CutEulerDGSensitivitySolver<dim, entvar>::calcConservativeVarsL2Error(
     void (*u_exact)(const mfem::Vector &, mfem::Vector &),
     int entry)
 {
@@ -1009,7 +1132,7 @@ double CutEulerDGSolver<dim, entvar>::calcConservativeVarsL2Error(
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
+void CutEulerDGSensitivitySolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
 {
    if (entvar)
    {
@@ -1040,7 +1163,7 @@ void CutEulerDGSolver<dim, entvar>::convertToEntvar(mfem::Vector &state)
 }
 
 template <int dim, bool entvar>
-void CutEulerDGSolver<dim, entvar>::setSolutionError(
+void CutEulerDGSensitivitySolver<dim, entvar>::setSolutionError(
     void (*u_exact)(const mfem::Vector &, mfem::Vector &))
 {
    VectorFunctionCoefficient exsol(num_state, u_exact);
@@ -1085,10 +1208,10 @@ void inviscidMMSExact(const mfem::Vector &x, mfem::Vector &q)
    q = u;
 }
 /// explicit instantiation
-template class CutEulerDGSolver<1, true>;
-template class CutEulerDGSolver<1, false>;
-template class CutEulerDGSolver<2, true>;
-template class CutEulerDGSolver<2, false>;
-template class CutEulerDGSolver<3, true>;
-template class CutEulerDGSolver<3, false>;
+template class CutEulerDGSensitivitySolver<1, true>;
+template class CutEulerDGSensitivitySolver<1, false>;
+template class CutEulerDGSensitivitySolver<2, true>;
+template class CutEulerDGSensitivitySolver<2, false>;
+template class CutEulerDGSensitivitySolver<3, true>;
+template class CutEulerDGSensitivitySolver<3, false>;
 }  // namespace mach
