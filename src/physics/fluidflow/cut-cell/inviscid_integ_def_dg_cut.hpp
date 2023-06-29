@@ -26,14 +26,16 @@ double CutDGInviscidIntegrator<Derived>::GetElementEnergy(
    ir = cutSquareIntRules[trans.ElementNo];
    if (!ir)
    {
-      ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));  // <---
+      //ir = &(IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + 3));  // <---
+      return 0.0;
    }
    energy = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
       trans.SetIntPoint(&ip);
-      energy += ip.weight * trans.Weight();
+      //energy += ip.weight * trans.Weight();
+      energy += ip.weight * ip.x * ip.y* trans.Weight();
    }
    return energy;
 }
@@ -424,7 +426,6 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       double nx;
       double ny;
       double ds;
-
       // double xc, yc;
       // xc = 0.0;
       // yc = 0.0;
@@ -447,10 +448,10 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       /// this is used for area test
-      // double area = sqrt(trans.Weight());
-      // fun += face_ip.weight * alpha * area;
-      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
-             alpha;
+      double area = sqrt(trans.Weight());
+      fun += face_ip.x * face_ip.y * face_ip.weight * alpha * area;
+      // fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
+      //        alpha;
    }
    return fun;
 }

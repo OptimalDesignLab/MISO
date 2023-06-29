@@ -54,11 +54,11 @@ CutEulerDGSensitivityTestSolver<dim, entvar>::CutEulerDGSensitivityTestSolver(
    // deg_surf = max(10, 2 * order);
    // deg_vol = 2*order;
    // deg_surf = 2*order;
-   deg_vol = 4;
-   deg_surf = 4;
+   deg_vol = max(10, 2 * order);
+   deg_surf = max(10, 2 * order);
    int poly_deg = 3;
    double circ_rad = 0.50;
-   delta = 1e-03;
+   delta = 5e-04;
    CutCell<duald, 2, 1> cutcell(circ_rad, mesh.get());
    CutCell<double, 2, 2> cutcell2(circ_rad, mesh.get());
    CutCell<double, 2, 1> cutcell_p(circ_rad + delta, mesh.get());
@@ -277,92 +277,6 @@ CutEulerDGSensitivityTestSolver<dim, entvar>::CutEulerDGSensitivityTestSolver(
    cout << "#interior faces " << cutInteriorFaces.size() << endl;
    int fe_order = options["space-dis"]["degree"].template get<int>();
    gd = options["space-dis"].value("GD", false);
-   if (gd)
-   {
-      //   res_p.reset(new NonlinearFormType(fes_gd_p.get()));
-      //   res_m.reset(new NonlinearFormType(fes_gd_m.get()));
-      //   double alpha = 1.0;
-      //   /// add volume integrators
-      //   res_p->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
-      //       diff_stack, cutSquareIntRules_p, embeddedElements_p, alpha));
-      //   res_m->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
-      //       diff_stack, cutSquareIntRules_m, embeddedElements_m, alpha));
-#if 0
-      /// add immersed boundary integrators
-      auto &bcs = options["bcs"];
-      if (bcs.find("slip-wall") != bcs.end())
-      {  // slip-wall boundary condition
-         res_p->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-             diff_stack, fec.get(), cutSegmentIntRules_p, phi_p, alpha));
-         res_m->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-             diff_stack, fec.get(), cutSegmentIntRules_m, phi_m, alpha));
-      }
-      if (options["flow-param"]["potential-mms"].template get<bool>())
-      {
-         res_p->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
-             diff_stack, cutSquareIntRules_p, embeddedElements_p, -alpha));
-         res_m->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
-             diff_stack, cutSquareIntRules_m, embeddedElements_m, -alpha));
-      }
-      /// add far-field boundary integrators
-      if (bcs.find("potential-flow") != bcs.end())
-      {
-        int idx = 0;
-         // far-field boundary conditions
-         vector<int> tmp = bcs["potential-flow"].template get<vector<int>>();
-         bndry_marker[idx].SetSize(tmp.size(), 0);
-         bndry_marker[idx].Assign(tmp.data());
-         res_p->AddBdrFaceIntegrator(
-             new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
-             bndry_marker[idx]);
-         res_m->AddBdrFaceIntegrator(
-             new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
-             bndry_marker[idx]);
-         idx++;
-      }
-      /// add interface integrators
-      auto diss_coeff =
-          options["space-dis"]["iface-coeff"].template get<double>();
-      res_p->AddInteriorFaceIntegrator(
-          new CutDGInterfaceIntegrator<dim, entvar>(diff_stack,
-                                                    diss_coeff,
-                                                    fec.get(),
-                                                    immersedFaces_p,
-                                                    cutInteriorFaceIntRules_p,
-                                                    alpha));
-      res_m->AddInteriorFaceIntegrator(
-          new CutDGInterfaceIntegrator<dim, entvar>(diff_stack,
-                                                    diss_coeff,
-                                                    fec.get(),
-                                                    immersedFaces_m,
-                                                    cutInteriorFaceIntRules_m,
-                                                    alpha));
-#endif
-      /// add output integrator
-      //   if (fun == "drag")
-      //   {
-      //      // drag on the specified boundaries (not used for cut-cell mesh)
-      //      auto bdrs = options["boundaries"].template get<vector<int>>();
-
-      //      mfem::Vector drag_dir(dim);
-      //      drag_dir = 0.0;
-      //      if (dim == 1)
-      //      {
-      //         drag_dir(0) = 1.0;
-      //      }
-      //      else
-      //      {
-      //         drag_dir(iroll) = cos(aoa_fs);
-      //         drag_dir(ipitch) = sin(aoa_fs);
-      //      }
-      //      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
-
-      //      FunctionalOutput out_p(*fes, res_fields);
-      //      out.addOutputDomainIntegrator(new CutDGPressureForce<dim, entvar>(
-      //          diff_stack, fec.get(), drag_dir, cutSegmentIntRules, phi));
-      //      outputs.emplace(fun, std::move(out));
-      //   }
-   }
 }
 template <int dim, bool entvar>
 void CutEulerDGSensitivityTestSolver<dim, entvar>::setGDSpace(int fe_order)
@@ -452,7 +366,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
 
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-#if 1
+#if 0
    res_sens_cut->AddDomainIntegrator(
        new CutEulerDGSensitivityIntegrator<dim>(diff_stack,
                                                 cutSquareIntRules,
@@ -465,8 +379,8 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
    res_m->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules_m, embeddedElements_m, alpha));
    ParCentGridFunction x(fes_gd.get());
-   double area = res_sens_cut->GetEnergy(x);
-   cout << "area " << area << endl;
+//    double area = res_sens_cut->GetEnergy(x);
+//    cout << "area " << area << endl;
 #endif
 
    // res->AddDomainIntegrator(new CutEulerDiffusionIntegrator<dim>(
@@ -486,20 +400,22 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
    }
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
+   #if 0
       cout << "slip-wall bc are present " << endl;
-    //   res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-    //       diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
-    //   res_p->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-    //       diff_stack, fec.get(), cutSegmentIntRules_p, phi_p, alpha));
-    //   res_m->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
-    //       diff_stack, fec.get(), cutSegmentIntRules_m, phi_m, alpha));
-    //   res_sens_cut->AddDomainIntegrator(
-    //       new CutDGSensitivitySlipWallBC<dim, entvar>(diff_stack,
-    //                                                   fec.get(),
-    //                                                   cutSegmentIntRules,
-    //                                                   cutSegmentIntRules_sens,
-    //                                                   phi,
-    //                                                   alpha));
+      res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+      res_p->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules_p, phi_p, alpha));
+      res_m->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules_m, phi_m, alpha));
+      res_sens_cut->AddDomainIntegrator(
+          new CutDGSensitivitySlipWallBC<dim, entvar>(diff_stack,
+                                                      fec.get(),
+                                                      cutSegmentIntRules,
+                                                      cutSegmentIntRules_sens,
+                                                      phi,
+                                                      alpha));
+    #endif
    }
    //    double peri = res->GetEnergy(x);
    //    double peri_sens = res_sens_cut->GetEnergy(x);
@@ -659,7 +575,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResInterfaceIntegrators(
                                                  immersedFaces,
                                                  cutInteriorFaceIntRules,
                                                  alpha));
-#if 0
+#if 1
    res_p->AddInteriorFaceIntegrator(
        new CutDGInterfaceIntegrator<dim, entvar>(diff_stack,
                                                  diss_coeff,
@@ -790,24 +706,42 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::testSensIntegrators(
    HypreParVector *res_m_true = res_minus->GetTrueDofs();
    HypreParVector *res_sens_true = res_sens->GetTrueDofs();
    HypreParVector *u_true = u_gd.GetTrueDofs();
+   cout << "res_p size " << res_p_true->Size() << endl;
    res_sens_cut->Mult(*u_true, *res_sens_true);
    *res_sens = *res_sens_true;
-   cout << " Autodiff " << endl;
-   res_sens->Print();
+   double drda_v_auto = InnerProduct(*res_sens_true, v);
    res_p->Mult(*u_true, *res_p_true);
    *res_plus = *res_p_true;
-   //    cout << " for R(r + delta) " << endl;
-   //    res_plus->Print();
    res_m->Mult(*u_true, *res_m_true);
    *res_minus = *res_m_true;
-   //    cout << " for R(r  - delta) " << endl;
-   //    res_minus->Print();
-   cout << " for R(r + delta) - R(r- delta)/(2 x delta) " << endl;
    subtract(1 / (2 * delta), *res_plus, *res_minus, *res_plus);
-   res_plus->Print();
-//    cout << " dR/da - (dR/da)_c " << endl;
-//    *res_plus -= *res_sens;
-//    res_plus->Print();
+   double drda_v_fd = InnerProduct(*res_p_true, v);
+   double abs_deriv_err = abs(drda_v_fd - drda_v_auto);
+   double rel_deriv_err = abs_deriv_err / abs(drda_v_fd) * 100;
+   cout << " ============================================ " << endl;
+   cout << "drda_v_fd " << drda_v_fd << endl;
+   cout << "drda_v_auto " << drda_v_auto << endl;
+   cout << "|v.dRda_auto - v.dRda_FD|/|v.dRda_FD| x 100 " << endl;
+   cout << rel_deriv_err << " %" << endl;
+   cout << " ============================================ " << endl;
+//    cout << "check GetEnergy() " << endl;
+   ParCentGridFunction x_p(fes_gd_p.get());
+   ParCentGridFunction x_m(fes_gd_m.get());
+   ParCentGridFunction x_sens(fes_gd.get());
+   double area_p = res_p->GetEnergy(x_p);
+   double area_m = res_m->GetEnergy(x_m);
+   double dadr_auto = res_sens_cut->GetEnergy(x_sens);
+   area_p -= area_m;
+   area_p /= (2.0 * delta);
+   double func_err = abs(area_p - dadr_auto) / abs(area_p);
+   cout << " ============================================ " << endl;
+   cout << " dAdr_FD " << endl;
+   cout << area_p << endl;
+   cout << " dAdr_auto " << endl;
+   cout << dadr_auto << endl;
+   cout << "functional error " << endl;
+   cout << func_err * 100 << " % " << endl;
+   cout << " ============================================ " << endl;
 }
 
 template <int dim, bool entvar>

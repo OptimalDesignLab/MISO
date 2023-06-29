@@ -1066,8 +1066,6 @@ public:
                   {
                      double x_q;
                      double xq_a;
-                     // double yq_a;
-                     // double wq_a;
                      if constexpr (std::is_same_v<double, xdouble>)
                      {
                         x_q = pt(0);
@@ -1081,23 +1079,23 @@ public:
                      IntegrationPoint &ip = ir->IntPoint(i);
                      IntegrationPoint &ip_sens = ir_sens->IntPoint(i);
                      ip.y = 0.0;
-                     ip_sens.y = 0.0;
                      uvector<double, N + 1> xp;
                      if (dir == 0)
                      {
+                        ip_sens.x = 0.0;
                         if (v1coord[1] < v2coord[1])
                         {
                            if (-1 == orient[c])
                            {
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                               ip.x = 1 - x_q;
-                              ip_sens.x = -xq_a;
+                              ip_sens.y = -xq_a;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
                               ip.x = x_q;
-                              ip_sens.x = xq_a;
+                              ip_sens.y = xq_a;
                            }
                         }
                         else
@@ -1106,13 +1104,13 @@ public:
                            {
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                               ip.x = 1 - x_q;
-                              ip_sens.x = -xq_a;
+                              ip_sens.y = -xq_a;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
                               ip.x = x_q;
-                              ip_sens.x = xq_a;
+                              ip_sens.y = xq_a;
                            }
                         }
                         xp(0) = xlim;
@@ -1120,6 +1118,7 @@ public:
                      }
                      else if (dir == 1)
                      {
+                        ip_sens.y = 0.0;
                         if (v1coord[0] < v2coord[0])
                         {
                            if (-1 == orient[c])
@@ -1159,6 +1158,7 @@ public:
                      if constexpr (std::is_same_v<double, xdouble>)
                      {
                         ip.weight = pt(1);
+                        ip_sens.weight = 0.0;
                      }
                      else
                      {
