@@ -58,7 +58,7 @@ CutEulerDGSensitivityTestSolver<dim, entvar>::CutEulerDGSensitivityTestSolver(
    deg_surf = max(10, 2 * order);
    int poly_deg = 3;
    double circ_rad = 0.50;
-   delta = 5e-04;
+   delta = 1e-05;
    CutCell<duald, 2, 1> cutcell(circ_rad, mesh.get());
    CutCell<double, 2, 2> cutcell2(circ_rad, mesh.get());
    CutCell<double, 2, 1> cutcell_p(circ_rad + delta, mesh.get());
@@ -366,7 +366,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
 
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-#if 0
+#if 1
    res_sens_cut->AddDomainIntegrator(
        new CutEulerDGSensitivityIntegrator<dim>(diff_stack,
                                                 cutSquareIntRules,
@@ -394,13 +394,12 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
              "CutEulerDGSensitivityTestSolver::addBoundaryIntegrators(alpha)\n"
              "\tisentropic vortex BC must use 2D mesh!");
       }
-     res->AddDomainIntegrator(new CutDGIsentropicVortexBC<dim, entvar>(
-            diff_stack, fec.get(), cutSegmentIntRules_outer, phi_outer,
-            alpha));
+      res->AddDomainIntegrator(new CutDGIsentropicVortexBC<dim, entvar>(
+          diff_stack, fec.get(), cutSegmentIntRules_outer, phi_outer, alpha));
    }
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
-   #if 0
+#if 1
       cout << "slip-wall bc are present " << endl;
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
@@ -415,7 +414,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
                                                       cutSegmentIntRules_sens,
                                                       phi,
                                                       alpha));
-    #endif
+#endif
    }
    //    double peri = res->GetEnergy(x);
    //    double peri_sens = res_sens_cut->GetEnergy(x);
@@ -426,8 +425,8 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
       {
          throw MachException("Inviscid MMS problem only available for 2D!");
       }
-     res->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
-            diff_stack, cutSquareIntRules, embeddedElements, -alpha));
+      res->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
+          diff_stack, cutSquareIntRules, embeddedElements, -alpha));
       //   res_sens_cut->AddDomainIntegrator(
       //       new CutSensitivityPotentialMMSIntegrator<dim, entvar>(
       //           diff_stack, cutSquareIntRules, cutSquareIntRules_sens,
@@ -550,14 +549,14 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResBoundaryIntegrators(
    }
    if (bcs.find("potential-flow") != bcs.end())
    {
-        // far-field boundary conditions
-        vector<int> tmp = bcs["potential-flow"].template get<vector<int>>();
-        bndry_marker[idx].SetSize(tmp.size(), 0);
-        bndry_marker[idx].Assign(tmp.data());
-        res->AddBdrFaceIntegrator(
-            new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
-            bndry_marker[idx]);
-        idx++;
+      // far-field boundary conditions
+      vector<int> tmp = bcs["potential-flow"].template get<vector<int>>();
+      bndry_marker[idx].SetSize(tmp.size(), 0);
+      bndry_marker[idx].Assign(tmp.data());
+      res->AddBdrFaceIntegrator(
+          new DGPotentialFlowBC<dim, entvar>(diff_stack, fec.get(), alpha),
+          bndry_marker[idx]);
+      idx++;
    }
 }
 
@@ -688,7 +687,7 @@ template <int dim, bool entvar>
 void CutEulerDGSensitivityTestSolver<dim, entvar>::testSensIntegrators(
     const ParCentGridFunction &u_gd)
 {
-  cout << "FD step-size: " << delta << endl;
+   cout << "FD step-size: " << delta << endl;
    // initialize the vector that the Jacobian multiplies
    ParCentGridFunction v(fes_gd.get());
    VectorFunctionCoefficient v_rand(num_state, randVectorState);
@@ -724,7 +723,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::testSensIntegrators(
    cout << "|v.dRda_auto - v.dRda_FD|/|v.dRda_FD| x 100 " << endl;
    cout << rel_deriv_err << " %" << endl;
    cout << " ============================================ " << endl;
-//    cout << "check GetEnergy() " << endl;
+   //    cout << "check GetEnergy() " << endl;
    ParCentGridFunction x_p(fes_gd_p.get());
    ParCentGridFunction x_m(fes_gd_m.get());
    ParCentGridFunction x_sens(fes_gd.get());

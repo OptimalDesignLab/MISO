@@ -721,12 +721,28 @@ void CutDGInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       // Interpolate elfun at the point
       elfun1_mat.MultTranspose(shape1, u_face_left);
       elfun2_mat.MultTranspose(shape2, u_face_right);
-
+      Vector xl(dim);
+      Vector xr(dim);
+      xl(0) = trans.GetElement1IntPoint().x;
+      xl(1) = trans.GetElement1IntPoint().y;
+      xr(0) = trans.GetElement2IntPoint().x;
+      xr(1) = trans.GetElement2IntPoint().y;
       trans.Face->SetIntPoint(&ip);
       // Get the normal vector and the flux on the face
       CalcOrtho(trans.Face->Jacobian(), nrm);
       flux(nrm, u_face_left, u_face_right, fluxN);
 
+      // for (int k = 0; k < num_states; k++)
+      // {
+      //    for (int s = 0; s < dof1; s++)
+      //    {
+      //       elvect1_mat(s, k) += xl(0) * xl(1);
+      //    }
+      //    for (int s = 0; s < dof2; s++)
+      //    {
+      //       elvect2_mat(s, k) += xr(0) * xr(1);
+      //    }
+      // }
       fluxN *= ip.weight;
       for (int k = 0; k < num_states; k++)
       {

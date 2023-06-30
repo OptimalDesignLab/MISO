@@ -547,6 +547,16 @@ void CutDGInterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
                                                qL.GetData(),
                                                qR.GetData(),
                                                flux.GetData());
+            // mach::calcFakeDirFlux<double, dim>(dir.GetData(),
+            //                              diss_coeff,
+            //                              qL.GetData(),
+            //                              qR.GetData(),
+            //                              flux.GetData());
+      // mach::calcFakeStateFlux<double, dim>(dir.GetData(),
+      //                                      diss_coeff,
+      //                                      qL.GetData(),
+      //                                      qR.GetData(),
+      //                                      flux.GetData());
    }
 }
 
@@ -584,6 +594,10 @@ void CutDGInterfaceIntegrator<dim, entvar>::calcFluxJacState(
       //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
       mach::calcLaxFriedrichsFlux<adouble, dim>(
           dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+      //  mach::calcFakeDirFlux<adouble, dim>(
+      //     dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+      // mach::calcFakeStateFlux<adouble, dim>(
+      //     dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
@@ -627,6 +641,13 @@ void CutDGInterfaceIntegrator<dim, entvar>::calcFluxJacDir(
       //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
       mach::calcLaxFriedrichsFlux<adouble, dim>(
           dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+      //  mach::calcFakeDirFlux<adouble, dim>(
+      //     dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+      // mach::calcFakeStateFlux<adouble, dim>(dir_a.data(),
+      //                                           diss_coeff_a,
+      //                                           qL_a.data(),
+      //                                           qR_a.data(),
+      //                                           flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());

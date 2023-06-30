@@ -745,6 +745,48 @@ void calcLaxFriedrichsFlux(const xdouble *dir,
       flux[k] *= 0.5;
    }
 }
+/// "Fake" flux function for sensitivity test
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
+/// \param[in] qL - conservative variables at "left" state
+/// \param[in] qR - conservative variables at "right" state
+/// \param[out] flux - fluxes in the direction `di`
+/// \tparam double - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcFakeDirFlux(const xdouble *dir,
+                           xdouble diss_coeff,
+                           const xdouble *qL,
+                           const xdouble *qR,
+                           xdouble *flux)
+{
+   for (int k = 0; k < dim + 2; ++k)
+   {
+      flux[k] = dir[0] + dir[1];
+      flux[k] *= 2.0;
+   }
+}
+/// "Fake" flux function for sensitivity test
+/// \param[in] dir - vector direction in which flux is wanted
+/// \param[in] diss_coeff - scales the dissipation (must be non-negative!)
+/// \param[in] qL - conservative variables at "left" state
+/// \param[in] qR - conservative variables at "right" state
+/// \param[out] flux - fluxes in the direction `di`
+/// \tparam double - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcFakeStateFlux(const xdouble *dir,
+                           xdouble diss_coeff,
+                           const xdouble *qL,
+                           const xdouble *qR,
+                           xdouble *flux)
+{
+   for (int k = 0; k < dim + 2; ++k)
+   {
+      flux[k] = qL[k] + qR[k];
+      flux[k] *= 2.0;
+   }
+}
 /// Applies the matrix `dQ/dW` to `vec`, and scales by the avg. spectral radius
 /// \param[in] adjJ - the adjugate of the mapping Jacobian
 /// \param[in] w - ent. variables at which `dQ/dW` and radius are to be

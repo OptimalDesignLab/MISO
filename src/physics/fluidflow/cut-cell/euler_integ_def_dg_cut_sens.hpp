@@ -206,6 +206,16 @@ void CutDGSensitivityInterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vect
                                                qL.GetData(),
                                                qR.GetData(),
                                                flux.GetData());
+      // mach::calcFakeDirFlux<double, dim>(dir.GetData(),
+      //                                    diss_coeff,
+      //                                    qL.GetData(),
+      //                                    qR.GetData(),
+      //                                    flux.GetData());
+      // mach::calcFakeStateFlux<double, dim>(dir.GetData(),
+      //                                    diss_coeff,
+      //                                    qL.GetData(),
+      //                                    qR.GetData(),
+      //                                    flux.GetData());
    }
 }
 
@@ -242,7 +252,13 @@ void CutDGSensitivityInterfaceIntegrator<dim, entvar>::calcFluxJacState(
       // mach::calcRoeFaceFlux<adouble, dim>(
       //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
       mach::calcLaxFriedrichsFlux<adouble, dim>(
-          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(),
+          flux_a.data());
+      // mach::calcFakeDirFlux<adouble, dim>(
+      //     dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(),
+      //     flux_a.data());
+      // mach::calcFakeStateFlux<adouble, dim>(
+      //     dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(qL_a.data(), qL.Size());
@@ -277,15 +293,28 @@ void CutDGSensitivityInterfaceIntegrator<dim, entvar>::calcFluxJacDir(
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
-          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+           mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+               dir_a.data(),
+               diss_coeff_a,
+               qL_a.data(),
+               qR_a.data(),
+               flux_a.data());
    }
    else
    {
-      // mach::calcRoeFaceFlux<adouble, dim>(
-      //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
-      mach::calcLaxFriedrichsFlux<adouble, dim>(
-          dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
+           // mach::calcRoeFaceFlux<adouble, dim>(
+           //     dir_a.data(), qL_a.data(), qR_a.data(), flux_a.data());
+           mach::calcLaxFriedrichsFlux<adouble, dim>(
+               dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(),
+               flux_a.data());
+            // mach::calcFakeDirFlux<adouble, dim>(
+            //    dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(),
+            //    flux_a.data());
+         //   mach::calcFakeStateFlux<adouble, dim>(dir_a.data(),
+         //                                        diss_coeff_a,
+         //                                        qL_a.data(),
+         //                                        qR_a.data(),
+         //                                        flux_a.data());
    }
    // set the independent and dependent variables
    this->stack.independent(dir_a.data(), dir.Size());
@@ -293,5 +322,5 @@ void CutDGSensitivityInterfaceIntegrator<dim, entvar>::calcFluxJacDir(
    // compute the jacobian w.r.t dir
    this->stack.jacobian(jac_dir.GetData());
 }
-}
+}  // namespace mach
 #endif

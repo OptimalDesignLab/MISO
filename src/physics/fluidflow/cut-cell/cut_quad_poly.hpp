@@ -1082,6 +1082,7 @@ public:
                      uvector<double, N + 1> xp;
                      if (dir == 0)
                      {
+                        // cout << "vertical element: " << endl;
                         ip_sens.x = 0.0;
                         if (v1coord[1] < v2coord[1])
                         {
@@ -1090,12 +1091,16 @@ public:
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                               ip.x = 1 - x_q;
                               ip_sens.y = -xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.y << endl;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
                               ip.x = x_q;
                               ip_sens.y = xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.y << endl;
                            }
                         }
                         else
@@ -1105,12 +1110,16 @@ public:
                               // ip.x = 1 - (pt.x[1] - xmin[1]) / yscale;
                               ip.x = 1 - x_q;
                               ip_sens.y = -xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.y << endl;
                            }
                            else
                            {
                               // ip.x = (pt.x[1] - xmin[1]) / yscale;
                               ip.x = x_q;
                               ip_sens.y = xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.y << endl;
                            }
                         }
                         xp(0) = xlim;
@@ -1118,6 +1127,7 @@ public:
                      }
                      else if (dir == 1)
                      {
+                        // cout << "horizontal element: " << endl;
                         ip_sens.y = 0.0;
                         if (v1coord[0] < v2coord[0])
                         {
@@ -1126,6 +1136,8 @@ public:
                               // ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                               ip.x = 1 - x_q;
                               ip_sens.x = -xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.x << endl;
                               // cout << "pt.x[0] " << pt.x[0] << endl;
                               // cout << "ip.x " << ip.x << endl;
                            }
@@ -1133,6 +1145,8 @@ public:
                            {
                               ip.x = x_q;
                               ip_sens.x = xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.x << endl;
                               // ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }
@@ -1142,12 +1156,16 @@ public:
                            {
                               ip.x = 1 - x_q;
                               ip_sens.x = -xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.x << endl;
                               // ip.x = 1 - (pt.x[0] - xmin[0]) / xscale;
                            }
                            else
                            {
                               ip.x = x_q;
                               ip_sens.x = xq_a;
+                              // cout << "orient[c] " << orient[c] << endl;
+                              // cout << "ip_sens.x " << ip_sens.x << endl;
                               // ip.x = (pt.x[0] - xmin[0]) / xscale;
                            }
                         }

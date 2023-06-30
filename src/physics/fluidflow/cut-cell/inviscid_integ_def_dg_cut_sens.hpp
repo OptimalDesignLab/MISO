@@ -44,7 +44,7 @@ double CutDGSensitivityInviscidIntegrator<Derived>::GetElementEnergy(
       energy += ip_sens.x * ip.y * ip.weight * trans.Weight();
       energy += ip.x * ip.y * ip_sens.weight * trans.Weight();
       energy += ip.x * ip_sens.y * ip.weight * trans.Weight();
-      //energy += ip_sens.weight* trans.Weight();
+      // energy += ip_sens.weight* trans.Weight();
    }
    return energy;
 }
@@ -90,9 +90,10 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
       hessian.SetSize(num_nodes, size);
       elflux.SetSize(num_states, dim);
       adjJ_i.SetSize(dim);
-      Vector dxqi, flux_jacqi, dudxqik;
+      Vector dxqi, flux_jacqi, dudxqi, dudai;
       dxqi.SetSize(dim);
-      dudxqik.SetSize(num_states);
+      dudxqi.SetSize(num_states);
+      dudai.SetSize(num_states);
       flux_jacqi.SetSize(num_states);
       int intorder = trans.OrderGrad(&el) + trans.Order() + el.GetOrder();
       const IntegrationRule *ir;  // = IntRule;
@@ -108,7 +109,6 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
       }
       else
       {
-         double delta = 1e-05;
          for (int i = 0; i < ir->GetNPoints(); i++)
          {
             const IntegrationPoint &ip = ir->IntPoint(i);
@@ -136,19 +136,21 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
             // (dshape x [dFdxq x dxqda +  dFdyq x dyqda])
             dxqi(0) = ip_a.x;
             dxqi(1) = ip_a.y;
-            for (int dik = 0; dik < dim; ++dik)
+            dudai = 0.0;
+            for (int di = 0; di < dim; ++di)
             {
-               dshape.GetColumn(dik, dshapedxik);
-               for (int di = 0; di < dim; ++di)
-               {
-                  adjJ_i.GetRow(di, dxidx);
-                  fluxJacState(dxidx, u, flux_jaci);
-                  dshape.GetColumn(di, dshapedxi);
-                  u_mat.MultTranspose(dshapedxik, dudxqik);
-                  flux_jaci.Mult(dudxqik, flux_jacqi);
-                  AddMult_a_VWt(
-                      -dxqi(dik) * ip.weight, dshapedxi, flux_jacqi, res);
-               }
+               dshape.GetColumn(di, dshapedxi);
+               u_mat.MultTranspose(dshapedxi, dudxqi);
+               dudxqi *= dxqi(di);
+               dudai += dudxqi;
+            }
+            for (int di = 0; di < dim; ++di)
+            {
+               adjJ_i.GetRow(di, dxidx);
+               fluxJacState(dxidx, u, flux_jaci);
+               flux_jaci.Mult(dudai, flux_jacqi);
+               dshape.GetColumn(di, dshapedxi);
+               AddMult_a_VWt(-ip.weight, dshapedxi, flux_jacqi, res);
             }
             /// third term
             // ([d2shape(0) x Fx + d2shape(1) x Fy] dxqda +
@@ -161,7 +163,6 @@ void CutDGSensitivityInviscidIntegrator<Derived>::AssembleElementVector(
                   adjJ_i.GetRow(di, dxidx);
                   flux(dxidx, u, fluxi);
                   hessian.GetColumn(dir, d2shapedxi);
-                  //flux_jaci.MultTranspose(u, flux_jacqi);
                   AddMult_a_VWt(-dxqi(dik) * ip.weight, d2shapedxi, fluxi, res);
                   ++dir;
                }
@@ -237,7 +238,7 @@ void CutDGSensitivityInviscidBoundaryIntegrator<Derived>::calcNormalSens(
       }
    }
    /// exact
-   
+
    // trans.Transform(ip, x);
    // double y2 = x(1) - yc;
    // double x2 = x(0) - xc;
@@ -305,7 +306,7 @@ double CutDGSensitivityInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       u.MultTranspose(shape, u_face);
       /// this is used for area test
       double area = sqrt(trans.Weight());
-      //fun += face_ip.weight * alpha * area;
+      // fun += face_ip.weight * alpha * area;
       fun_sens += face_ip_sens.x * face_ip.y * face_ip.weight * alpha * area;
       fun_sens += face_ip.x * face_ip.y * face_ip_sens.weight * alpha * area;
       fun_sens += face_ip_sens.y * face_ip.x * face_ip.weight * alpha * area;
@@ -571,12 +572,14 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
    ir = cutInteriorFaceIntRules[trans.Face->ElementNo];
    const IntegrationRule *ir_sens;
    ir_sens = cutInteriorFaceIntRules_sens[trans.Face->ElementNo];
+
 #if 0
+   double face_length = 0.0;
    if (ir != NULL)
    {
       cout << "face elements are " << trans.Elem1No << " , " << trans.Elem2No
            << endl;
-      double face_length = 0.0;
+
       for (int i = 0; i < ir->GetNPoints(); i++)
       {
          const IntegrationPoint &ip = ir->IntPoint(i);
@@ -592,11 +595,86 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
    {
       return;
    }
+
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       IntegrationPoint &ip = ir->IntPoint(i);
       const IntegrationPoint &ip_sens = ir_sens->IntPoint(i);
       trans.SetAllIntPoints(&ip);  // set face and element int. points
+      double delta = 1e-05;
+      IntegrationPoint ip_p;
+      ip_p.x = ip.x + delta;
+      ip_p.y = ip.y;
+      trans.SetAllIntPoints(&ip_p);  // set face and element int. points
+      Vector x_p_l(dim), x_p_r(dim);
+      x_p_l(0) = trans.GetElement1IntPoint().x;
+      x_p_l(1) = trans.GetElement1IntPoint().y;
+      x_p_r(0) = trans.GetElement2IntPoint().x;
+      x_p_r(1) = trans.GetElement2IntPoint().y;
+      IntegrationPoint ip_m;
+      ip_m.x = ip.x - delta;
+      ip_m.y = ip.y;
+      trans.SetAllIntPoints(&ip_m);  // set face and element int. points
+      Vector x_m_l(dim), x_m_r(dim);
+      x_m_l(0) = trans.GetElement1IntPoint().x;
+      x_m_l(1) = trans.GetElement1IntPoint().y;
+      x_m_r(0) = trans.GetElement2IntPoint().x;
+      x_m_r(1) = trans.GetElement2IntPoint().y;
+      x_p_l -=x_m_l;
+      x_p_l /=2.0 * delta;
+      x_p_r -=x_m_r;
+      x_p_r /=2.0 * delta;
+      Vector xl(dim);
+      xl(0) = trans.GetElement1IntPoint().x;
+      xl(1) = trans.GetElement1IntPoint().y;
+      Vector xr(dim);
+      xr(0) = trans.GetElement2IntPoint().x;
+      xr(1) = trans.GetElement2IntPoint().y;
+      double dxda_i;
+      double dxda, dyda;
+      if (ip_sens.x == 0)
+      {
+         dxda_i = ip_sens.y;
+      }
+      else
+      {
+         dxda_i = ip_sens.x;
+      }
+#if 0
+      if (ip_sens.y == 0)
+      {
+         cout << " ----------------------------------------- " << endl;
+         cout << "horizontal face " << endl;
+         cout << "dxda before: " << dxda_i << endl;
+         dxda = x_p_l(0) * dxda_i;
+         //dxda = dxda_i;
+         cout << "dxda after: " << dxda << endl;
+         dyda = 0.0;
+      }
+      else
+      {
+         dxda = 0.0;
+         cout << "vertical face" << endl;
+         cout << "dxda before: " << dxda_i << endl;
+         dyda = x_p_l(1) * dxda_i;
+         cout << "dxda after: " << dyda << endl;
+         cout << " ----------------------------------------- " << endl;
+         
+      }
+      for (int k = 0; k < num_states; k++)
+      {
+         for (int s = 0; s < dof1; s++)
+         {
+            elvect1_mat(s, k) += xl(0) * dyda + xl(1) * dxda;
+         }
+         for (int s = 0; s < dof2; s++)
+         {
+            elvect2_mat(s, k) += xr(0) * dyda + xr(1) * dxda;
+         }
+      }
+#endif
+      ///\Warning don't forget to reset integration points here
+      trans.SetAllIntPoints(&ip);
       // Calculate basis functions on both elements at the face
       el_left.CalcShape(trans.GetElement1IntPoint(), shape1);
       el_right.CalcShape(trans.GetElement2IntPoint(), shape2);
@@ -608,7 +686,18 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
       CalcOrtho(trans.Face->Jacobian(), nrm);
       flux(nrm, u_face_left, u_face_right, fluxN);
       double dwda_i = ip_sens.weight;
+      dxqi(0) = x_p_l(0) * ip_sens.x;
+      dxqi(1) = x_p_l(1) * ip_sens.y;
+      el_left.CalcDShape(trans.GetElement1IntPoint(), dshape1);
+      el_right.CalcDShape(trans.GetElement2IntPoint(), dshape2);
+      dshape1.Mult(dxqi, dshape1_xqi);
+      dshape2.Mult(dxqi, dshape2_xqi);
+#if 1
       /// first term (dwda)
+      el_left.CalcDShape(trans.GetElement1IntPoint(), dshape1);
+      el_right.CalcDShape(trans.GetElement2IntPoint(), dshape2);
+      dshape1.Mult(dxqi, dshape1_xqi);
+      dshape2.Mult(dxqi, dshape2_xqi);
       for (int k = 0; k < num_states; k++)
       {
          for (int s = 0; s < dof1; s++)
@@ -620,12 +709,9 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
             elvect2_mat(s, k) -= fluxN(k) * dwda_i * shape2(s);
          }
       }
-      // cout << "Ist term done " << endl;
       /// second term (dshapeda)
       el_left.CalcDShape(trans.GetElement1IntPoint(), dshape1);
       el_right.CalcDShape(trans.GetElement2IntPoint(), dshape2);
-      dxqi(0) = ip_sens.x;
-      dxqi(1) = ip_sens.y;
       dshape1.Mult(dxqi, dshape1_xqi);
       dshape2.Mult(dxqi, dshape2_xqi);
       for (int k = 0; k < num_states; k++)
@@ -639,7 +725,6 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
             elvect2_mat(s, k) -= fluxN(k) * ip.weight * dshape2_xqi(s);
          }
       }
-      // cout << "2nd term done " << endl;
       /// third term (dFdu x duda)
       fluxJacStates(
           nrm, u_face_left, u_face_right, flux_jac_left, flux_jac_right);
@@ -670,6 +755,7 @@ void CutDGSensitivityInviscidFaceIntegrator<Derived>::AssembleFaceVector(
             elvect2_mat(s, k) -= flux_jac1_uai(k) * ip.weight * shape2(s);
          }
       }
+#endif
 // cout << "3rd term done " << endl;
 #if 0
       /// fourth term (dFdn x dnda)
