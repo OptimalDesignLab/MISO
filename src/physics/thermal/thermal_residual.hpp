@@ -81,6 +81,8 @@ public:
 private:
    /// Nonlinear form that handles the weak form
    MachNonlinearForm res;
+   /// coefficient for weakly imposed boundary conditions
+   std::unique_ptr<mfem::Coefficient> g;
    // Material dependent coefficient representing thermal conductivity
    std::unique_ptr<MeshDependentCoefficient> kappa;
    /// Material dependent coefficient representing density

@@ -1,10 +1,12 @@
 #ifndef MACH_THERMAL_INTEG
 #define MACH_THERMAL_INTEG
 
-#include <fem/nonlininteg.hpp>
+#include <set>
+
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
+#include "electromag_integ.hpp"
 #include "mach_input.hpp"
 #include "mfem_common_integ.hpp"
 
@@ -58,6 +60,53 @@ public:
 #endif
 };
 
+class ThermalContactResistanceIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setInputs(ThermalContactResistanceIntegrator &integ,
+                         const MachInputs &inputs)
+   {
+      setValueFromInputs(inputs, "h_c", integ.h);
+   }
+
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
+
+   void AssembleFaceGrad(const mfem::FiniteElement &el1,
+                         const mfem::FiniteElement &el2,
+                         mfem::FaceElementTransformations &trans,
+                         const mfem::Vector &elfun,
+                         mfem::DenseMatrix &elmat) override;
+
+   ThermalContactResistanceIntegrator(StateCoefficient &m,
+                                      double mu,
+                                      std::set<int> attrs,
+                                      double alpha = 1.0)
+    : sipg(m, mu), attrs(attrs), alpha(alpha)
+   { }
+
+private:
+   DGInteriorFaceDiffusionIntegrator sipg;
+
+   /// attributes for the interface integrator
+   std::set<int> attrs;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+   /// Thermal contact coefficient
+   double h = 1.0;
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+
+   mfem::DenseMatrix elmat11;
+   mfem::DenseMatrix elmat12;
+   mfem::DenseMatrix elmat22;
+#endif
+};
+
 class ConvectionBCIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
@@ -81,6 +130,9 @@ public:
                          mfem::DenseMatrix &elmat) override;
 
    ConvectionBCIntegrator(double alpha = 1.0) : alpha(alpha) { }
+   ConvectionBCIntegrator(double h, double theta_f, double alpha = 1.0)
+    : alpha(alpha), h(h), theta_f(theta_f)
+   { }
 
 private:
    /// scales the terms; can be used to move to rhs/lhs
@@ -272,6 +324,9 @@ public:
                          mfem::DenseMatrix &elmat) override;
 
    OutfluxBCIntegrator(double alpha = 1.0) : alpha(alpha) { }
+   OutfluxBCIntegrator(double outflux, double alpha = 1.0)
+    : alpha(alpha), flux(outflux)
+   { }
 
 private:
    /// scales the terms; can be used to move to rhs/lhs

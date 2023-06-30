@@ -212,10 +212,10 @@ MachMesh constructMesh(MPI_Comm comm,
    // }
    mesh.mesh->EnsureNodes();
 
-   if (!keep_boundaries)
-   {
-      mesh.mesh->RemoveInternalBoundaries();
-   }
+   // if (!keep_boundaries)
+   // {
+   //    mesh.mesh->RemoveInternalBoundaries();
+   // }
 
    // std::ofstream file("pde_solver_mesh.mesh");
    // mesh.mesh->Print(file);

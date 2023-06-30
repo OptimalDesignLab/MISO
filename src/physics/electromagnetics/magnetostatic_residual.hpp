@@ -87,7 +87,7 @@ public:
 private:
    /// Nonlinear form that handles the curl curl term of the weak form
    MachNonlinearForm res;
-   /// coefficient for weakly imposed boundry conditions
+   /// coefficient for weakly imposed boundary conditions
    std::unique_ptr<mfem::Coefficient> g;
    /// Load vector for current and magnetic sources
    // MagnetostaticLoad load;

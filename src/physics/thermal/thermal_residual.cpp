@@ -166,6 +166,8 @@ ThermalResidual::ThermalResidual(
     const nlohmann::json &options,
     const nlohmann::json &materials)
  : res(fes, fields),
+   g(std::make_unique<mfem::GridFunctionCoefficient>(
+       &fields.at("dirichlet_bc").gridFunc())),
    kappa(
        constructMaterialCoefficient("kappa", options["components"], materials)),
    rho(constructMaterialCoefficient("rho", options["components"], materials)),
@@ -173,16 +175,24 @@ ThermalResidual::ThermalResidual(
    prec(constructPreconditioner(fes, options["lin-prec"]))
 
 {
+   res.addDomainIntegrator(new NonlinearDiffusionIntegrator(*kappa));
+
    const auto &basis_type =
        options["space-dis"]["basis-type"].get<std::string>();
-   if (basis_type != "H1" && basis_type != "h1" && basis_type != "CG" &&
-       basis_type != "cg")
-   {
-      throw MachException(
-          "Thermal residual currently only supports H1 state field!\n");
-   }
 
-   res.addDomainIntegrator(new NonlinearDiffusionIntegrator(*kappa));
+   if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
+       basis_type == "dg")
+   {
+      auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+      if (mu < 0)
+      {
+         auto degree = options["space-dis"]["degree"].get<double>();
+         mu = pow(degree + 1, 3);
+      }
+      res.addInteriorFaceIntegrator(
+          new DGInteriorFaceDiffusionIntegrator(*kappa, mu));
+      std::cout << "adding sipg integ!\n";
+   }
 
    if (options.contains("bcs"))
    {
@@ -191,16 +201,133 @@ ThermalResidual::ThermalResidual(
       // convection heat transfer boundary condition
       if (bcs.contains("convection"))
       {
-         const auto &bdr_attr_marker =
-             bcs["convection"].get<std::vector<int>>();
+         auto &bc = bcs["convection"];
+         std::vector<int> bdr_attr_marker;
+         double h = 1.0;
+         double theta_f = 1.0;
+         if (bc.is_array())
+         {
+            bdr_attr_marker = bc.get<std::vector<int>>();
+         }
+         else if (bc.is_object())
+         {
+            bdr_attr_marker = bc["attrs"].get<std::vector<int>>();
+            h = bc.value("h", h);
+            theta_f = bc.value("theta_f", theta_f);
+         }
 
-         res.addBdrFaceIntegrator(new ConvectionBCIntegrator, bdr_attr_marker);
+         res.addBdrFaceIntegrator(new ConvectionBCIntegrator(h, theta_f),
+                                  bdr_attr_marker);
       }
       if (bcs.contains("outflux"))
       {
-         const auto &bdr_attr_marker = bcs["outflux"].get<std::vector<int>>();
+         auto &bc = bcs["outflux"];
+         std::vector<int> bdr_attr_marker;
+         double flux = 1.0;
+         if (bc.is_array())
+         {
+            bdr_attr_marker = bc.get<std::vector<int>>();
+         }
+         else if (bc.is_object())
+         {
+            bdr_attr_marker = bc["attrs"].get<std::vector<int>>();
+            flux = bc.value("flux", flux);
+         }
 
-         res.addBdrFaceIntegrator(new OutfluxBCIntegrator, bdr_attr_marker);
+         res.addBdrFaceIntegrator(new OutfluxBCIntegrator(flux, 1.0),
+                                  bdr_attr_marker);
+      }
+      if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
+          basis_type == "dg")
+      {
+         // weakly imposed dirichlet boundary condition
+         if (bcs.contains("weak-essential") || bcs.contains("essential"))
+         {
+            std::string ess_bdr;
+            if (bcs.contains("weak-essential"))
+            {
+               ess_bdr = "weak-essential";
+            }
+            else
+            {
+               ess_bdr = "essential";
+            }
+
+            std::vector<int> bdr_attr_marker(
+                fes.GetParMesh()->bdr_attributes.Max());
+
+            if (bcs[ess_bdr].is_string())
+            {
+               auto tmp = bcs[ess_bdr].get<std::string>();
+               if (tmp == "all")
+               {
+                  for (int i = 0; i < bdr_attr_marker.size(); ++i)
+                  {
+                     bdr_attr_marker[i] = i + 1;
+                  }
+               }
+               else
+               {
+                  throw MachException("Unrecognized string for boundary!");
+               }
+            }
+            else if (bcs[ess_bdr].is_array())
+            {
+               bdr_attr_marker = bcs[ess_bdr].get<std::vector<int>>();
+            }
+            else
+            {
+               throw MachException("Unrecognized JSON value for boundary!");
+            }
+
+            auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+            if (mu < 0)
+            {
+               auto degree = options["space-dis"]["degree"].get<double>();
+               mu = pow(degree + 1, 3);
+            }
+
+            std::cout << "mu: " << mu << "\n";
+            res.addBdrFaceIntegrator(
+                new NonlinearDGDiffusionIntegrator(*kappa, *g, -mu),
+                bdr_attr_marker);
+         }
+      }
+   }
+   if (options.contains("interfaces"))
+   {
+      const auto &interfaces = options["interfaces"];
+
+      for (const auto &interface : interfaces)
+      {
+         std::cout << "interface: " << interface << "\n";
+         // thermal contact resistance interface
+         if (interface["kind"] == "thermal_contact_resistance")
+         {
+            auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+            if (mu < 0)
+            {
+               auto degree = options["space-dis"]["degree"].get<double>();
+               mu = pow(degree + 1, 3);
+            }
+
+            const auto &attrs = interface["attrs"].get<std::set<int>>();
+
+            const auto h_c = interface["h_c"].get<double>();
+
+            auto *integ =
+                new ThermalContactResistanceIntegrator(*kappa, mu, attrs);
+            setInputs(*integ, {{"h_c", h_c}});
+
+            // const auto &vec_attrs =
+            // interface["attrs"].get<std::vector<int>>();
+
+            res.addInteriorFaceIntegrator(integ);
+            // res.addBdrFaceIntegrator(integ, vec_attrs);
+
+            std::cout << "adding TCR integrator!\n";
+            std::cout << "with attrs: " << interface["attrs"] << "\n";
+         }
       }
    }
 }

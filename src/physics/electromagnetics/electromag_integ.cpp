@@ -119,7 +119,7 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 1;
+            return 2 * el.GetOrder();
          }
          else
          {
@@ -204,7 +204,7 @@ void NonlinearDiffusionIntegrator::AssembleElementGrad(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 1;
+            return 2 * el.GetOrder();
          }
          else
          {
@@ -1163,6 +1163,628 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       }
    }
 }
+
+void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   dshape1.SetSize(ndof1, dim);
+   dshape2.SetSize(ndof2, dim);
+   dshapedxt1.SetSize(ndof1, dim);
+   dshapedxt2.SetSize(ndof2, dim);
+   dshapedn1.SetSize(ndof1);
+   dshapedn2.SetSize(ndof2);
+
+   double pointflux1_buffer[3] = {};
+   Vector pointflux1(pointflux1_buffer, dim);
+
+   double pointflux2_buffer[3] = {};
+   Vector pointflux2(pointflux2_buffer, dim);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   elvect.SetSize(ndof1 + ndof2);
+   mfem::Vector elvect1(elvect.GetData(), ndof1);
+   mfem::Vector elvect2(elvect.GetData() + ndof1, ndof2);
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+      double el2_trans_weight = trans.Elem2->Weight();
+
+      double w1 = alpha * ip.weight / (el1_trans_weight);
+      double w2 = alpha * ip.weight / (el2_trans_weight);
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+      el1.CalcDShape(eip1, dshape1);
+      el2.CalcDShape(eip2, dshape2);
+
+      Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
+
+      dshapedxt1.MultTranspose(elfun1, pointflux1);
+      dshapedxt2.MultTranspose(elfun2, pointflux2);
+
+      const double pointflux1_norm = pointflux1.Norml2();
+      const double pointflux1_mag = pointflux1_norm / el1_trans_weight;
+
+      const double pointflux2_norm = pointflux2.Norml2();
+      const double pointflux2_mag = pointflux2_norm / el2_trans_weight;
+
+      double model_val1 = model.Eval(*trans.Elem1, eip1, pointflux1_mag);
+      double model_val2 = model.Eval(*trans.Elem2, eip2, pointflux2_mag);
+
+      double avg_model_val = (model_val1 + model_val2) / 2;
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
+
+      elvect1.Add(-(dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w1,
+                  shape1);
+      elvect2.Add((dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w2,
+                  shape2);
+
+
+      elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w1,
+                  dshapedn1);
+      elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w2,
+                  dshapedn2);
+
+      const double w_q1 = w1 * (nor * nor) * mu;
+      const double w_q2 = w2 * (nor * nor) * mu;
+      elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1,
+                  shape1);
+      elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w_q2,
+                  shape2);
+   }
+}
+
+void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   dshape1.SetSize(ndof1, dim);
+   dshape2.SetSize(ndof2, dim);
+   dshapedxt1.SetSize(ndof1, dim);
+   dshapedxt2.SetSize(ndof2, dim);
+   dshapedn1.SetSize(ndof1);
+   dshapedn2.SetSize(ndof2);
+
+   double pointflux1_buffer[3] = {};
+   Vector pointflux1(pointflux1_buffer, dim);
+
+   double pointflux2_buffer[3] = {};
+   Vector pointflux2(pointflux2_buffer, dim);
+
+   pointflux1_norm_dot.SetSize(ndof1);
+   pointflux2_norm_dot.SetSize(ndof2);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   elmat.SetSize(ndof1 + ndof2);
+
+   elmat11.SetSize(ndof1);
+   elmat12.SetSize(ndof1, ndof2);
+   elmat22.SetSize(ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+      double el2_trans_weight = trans.Elem2->Weight();
+
+      double w1 = alpha * ip.weight / (2 * el1_trans_weight);
+      double w2 = alpha * ip.weight / (2 * el2_trans_weight);
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+      el1.CalcDShape(eip1, dshape1);
+      el2.CalcDShape(eip2, dshape2);
+
+      Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
+
+      dshapedxt1.MultTranspose(elfun1, pointflux1);
+      dshapedxt2.MultTranspose(elfun2, pointflux2);
+
+      const double pointflux1_norm = pointflux1.Norml2();
+
+      pointflux1_norm_dot = 0.0;
+      if (abs(pointflux1_norm) > 1e-14)
+      {
+         dshapedxt1.AddMult_a(
+             1.0 / pointflux1_norm, pointflux1, pointflux1_norm_dot);
+      }
+
+      const double pointflux1_mag = pointflux1_norm / el1_trans_weight;
+      pointflux1_norm_dot /= el1_trans_weight;
+
+      const double pointflux2_norm = pointflux2.Norml2();
+      pointflux2_norm_dot = 0.0;
+      if (abs(pointflux2_norm) > 1e-14)
+      {
+         dshapedxt2.AddMult_a(
+             1.0 / pointflux2_norm, pointflux2, pointflux2_norm_dot);
+      }
+
+      const double pointflux2_mag = pointflux2_norm / el2_trans_weight;
+      pointflux2_norm_dot /= el2_trans_weight;
+
+      double model_val1 = model.Eval(*trans.Elem1, eip1, pointflux1_mag);
+      double model_deriv1 =
+          model.EvalStateDeriv(*trans.Elem1, ip, pointflux1_mag);
+      pointflux1_norm_dot *= model_deriv1;
+
+      double model_val2 = model.Eval(*trans.Elem2, eip2, pointflux2_mag);
+      double model_deriv2 =
+          model.EvalStateDeriv(*trans.Elem2, ip, pointflux2_mag);
+      pointflux2_norm_dot *= model_deriv2;
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
+
+      elmat11 = 0.0;
+      elmat12 = 0.0;
+      elmat22 = 0.0;
+
+      // elvect1.Add((-(dshapedn1 * elfun1) * model_val1 -
+      //              (dshapedn2 * elfun2) * model_val2) *
+      //                 w1,
+      //             shape1);
+      AddMult_a_VWt(-model_val1 * w1, dshapedn1, shape1, elmat11);
+      AddMult_a_VWt(
+          -(dshapedn1 * elfun1) * w1, shape1, pointflux1_norm_dot, elmat11);
+      
+      AddMult_a_VWt(-model_val2 * w1, dshapedn2, shape1, elmat12);
+      AddMult_a_VWt(
+          -(dshapedn2 * elfun2) * w1, shape1, pointflux2_norm_dot, elmat12);
+
+
+      // elvect2.Add((+(dshapedn1 * elfun1) * model_val1 +
+      //              (dshapedn2 * elfun2) * model_val2) *
+      //                 w2,
+      //             shape2);
+      AddMult_a_VWt(model_val2 * w2, dshapedn2, shape2, elmat22);
+      AddMult_a_VWt(
+          (dshapedn2 * elfun2) * w2, shape2, pointflux2_norm_dot, elmat22);
+
+      // AddMult_a_VWt(model_val1 * w2, dshapedn1, shape2, elmat12);
+      // AddMult_a_VWt(
+      //     (dshapedn1 * elfun1) * w2, shape2, pointflux1_norm_dot, elmat12);
+
+
+      double avg_model_val = (model_val1 + model_val2) / 2;
+
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w1,
+      //             dshapedn1);
+      AddMult_a_VWt(-avg_model_val * w1, shape1, dshapedn1, elmat11);
+      AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w1 / 2,
+                    dshapedn1,
+                    pointflux1_norm_dot,
+                    elmat11);
+
+      AddMult_a_VWt(avg_model_val * w1, shape2, dshapedn1, elmat12);
+      // AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w1,
+      //               dshapedn1,
+      //               pointflux1_norm_dot,
+      //               elmat11);
+
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w2,
+      //             dshapedn2);
+      AddMult_a_VWt(avg_model_val * w2, shape2, dshapedn2, elmat22);
+      AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w2 / 2,
+                    dshapedn2,
+                    pointflux2_norm_dot,
+                    elmat22);
+
+      // AddMult_a_VWt(-model_val2 * w2, shape1, dshapedn2, elmat12);
+
+      const double w_q1 = 2 * w1 * (nor * nor) * mu;
+      const double w_q2 = 2 * w2 * (nor * nor) * mu;
+      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1,
+      //             shape1);
+      AddMult_a_VVt(avg_model_val * w_q1, shape1, elmat11);
+      AddMult_a_VWt(((shape1 * elfun1) - (shape2 * elfun2)) * w_q1 / 2,
+                    shape1,
+                    pointflux1_norm_dot,
+                    elmat11);
+
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w_q2,
+      //             shape2);
+      AddMult_a_VVt(avg_model_val * w_q2, shape2, elmat22);
+      AddMult_a_VWt(((shape1 * elfun1) - (shape2 * elfun2)) * w_q2 / 2,
+                    shape2,
+                    pointflux2_norm_dot,
+                    elmat22);
+
+      for (int j = 0; j < ndof1; ++j)
+      {
+         for (int k = 0; k < ndof1; ++k)
+         {
+            elmat(j, k) += elmat11(j, k);
+         }
+      }
+
+      for (int j = 0; j < ndof1; ++j)
+      {
+         for (int k = 0; k < ndof2; ++k)
+         {
+            elmat(j, k + ndof1) += elmat12(j, k);
+            elmat(k + ndof1, j) += elmat12(j, k);
+         }
+      }
+
+      for (int j = 0; j < ndof2; ++j)
+      {
+         for (int k = 0; k < ndof2; ++k)
+         {
+            elmat(j + ndof1, k + ndof1) += elmat22(j, k);
+         }
+      }
+   }
+}
+
+/// this signature is for sensitivity wrt mesh face
+void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   //    const int element = mesh_trans.ElementNo;
+   //    auto &trans =
+   //        *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
+   //    const int state_elem_num = trans.Elem1->ElementNo;
+   //    const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
+   //    int dim = el1.GetDim();
+
+   //    const int mesh_ndof = mesh_el.GetDof();
+   //    const int ndof = el1.GetDof();
+   //    const int trans_dim = trans.GetDimension();
+   //    const int space_dim = trans.GetSpaceDim();
+
+   //    /// get the proper element, transformation, and state vector
+   // #ifdef MFEM_THREAD_SAFE
+   //    mfem::Array<int> vdofs;
+   //    mfem::Vector elfun;
+   //    mfem::Vector psi;
+   // #endif
+   //    auto *dof_tr = state.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   //    state.GetSubVector(vdofs, elfun);
+   //    if (dof_tr != nullptr)
+   //    {
+   //       dof_tr->InvTransformPrimal(elfun);
+   //    }
+
+   //    dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   //    adjoint.GetSubVector(vdofs, psi);
+   //    if (dof_tr != nullptr)
+   //    {
+   //       dof_tr->InvTransformPrimal(psi);
+   //    }
+
+   // #ifdef MFEM_THREAD_SAFE
+   //    mfem::Vector shape;
+   //    mfem::DenseMatrix dshape;
+   //    mfem::DenseMatrix dshapedxt;
+   //    mfem::Vector dshapedn;
+   //    mfem::DenseMatrix PointMat_bar;
+   //    mfem::DenseMatrix dshapedxt_bar;
+   //    mfem::Vector dshapedn_bar;
+   // #else
+   //    auto &shape = integ.shape;
+   //    auto &dshape = integ.dshape;
+   //    auto &dshapedxt = integ.dshapedxt;
+   //    auto &dshapedn = integ.dshapedn;
+   // #endif
+   //    shape.SetSize(ndof);
+   //    dshape.SetSize(ndof, dim);
+   //    dshapedxt.SetSize(ndof, dim);
+   //    dshapedn.SetSize(ndof);
+
+   //    PointMat_bar.SetSize(space_dim, mesh_ndof);
+   //    dshapedxt_bar.SetSize(ndof, dim);
+   //    dshapedn_bar.SetSize(ndof);
+
+   //    double pointflux_buffer[3] = {};
+   //    Vector pointflux(pointflux_buffer, dim);
+
+   //    double pointflux_bar_buffer[3] = {};
+   //    Vector pointflux_bar(pointflux_bar_buffer, dim);
+
+   //    double nor_buffer[3] = {};
+   //    mfem::Vector nor(nor_buffer, dim);
+
+   //    double nor_bar_buffer[3] = {};
+   //    mfem::Vector nor_bar(nor_bar_buffer, dim);
+
+   //    double adj_jac_bar_buffer[9] = {};
+   //    mfem::DenseMatrix adj_jac_bar(dim);
+
+   //    double jac_bar_buffer[9] = {};
+   //    mfem::DenseMatrix jac_bar(dim, trans_dim);
+
+   //    // cast the ElementTransformation
+   //    auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation
+   //    &>(trans);
+
+   //    const mfem::IntegrationRule *ir = IntRule;
+   //    if (ir == nullptr)
+   //    {
+   //       int order = 2 * el1.GetOrder();
+   //       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   //    }
+
+   //    auto &alpha = integ.alpha;
+   //    auto &model = integ.model;
+   //    auto &g = integ.g;
+   //    auto &mu = integ.mu;
+
+   //    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   //    mesh_coords_bar = 0.0;
+   //    for (int i = 0; i < ir->GetNPoints(); i++)
+   //    {
+   //       const IntegrationPoint &ip = ir->IntPoint(i);
+
+   //       // Set the integration point in the face and the neighboring
+   //       elements trans.SetAllIntPoints(&ip); const IntegrationPoint &eip1 =
+   //       trans.GetElement1IntPoint();
+
+   //       double el1_trans_weight = trans.Elem1->Weight();
+
+   //       double w = alpha * ip.weight / el1_trans_weight;
+
+   //       if (dim == 1)
+   //       {
+   //          nor(0) = 2 * eip1.x - 1.0;
+   //       }
+   //       else
+   //       {
+   //          CalcOrtho(trans.Jacobian(), nor);
+   //       }
+
+   //       el1.CalcShape(eip1, shape);
+   //       el1.CalcDShape(eip1, dshape);
+
+   //       Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+   //       dshapedxt.MultTranspose(elfun, pointflux);
+   //       const double pointflux_norm = pointflux.Norml2();
+   //       const double pointflux_mag = pointflux_norm / el1_trans_weight;
+
+   //       double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
+
+   //       dshapedxt.Mult(nor, dshapedn);
+
+   //       double bc_val = g.Eval(*trans.Elem1, eip1);
+
+   //       double elfun_shape = elfun * shape;
+   //       double elfun_dshapedn = elfun * dshapedn;
+
+   //       double psi_shape = psi * shape;
+   //       double psi_dshapedn = psi * dshapedn;
+
+   //       // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
+   //       double term1 = -elfun_dshapedn * model_val * w * psi_shape;
+   //       // elvect.Add(-((shape * elfun) - bc_val) * model_val * w,
+   //       dshapedn); double term2 = -(elfun_shape - bc_val) * model_val * w *
+   //       psi_dshapedn;
+
+   //       const double w_q = w * (nor * nor) * mu;
+   //       // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
+   //       double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
+
+   //       /// dummy functional for adjoint-weighted residual
+   //       // fun += term1 + term2 + term3;
+
+   //       /// start reverse pass
+   //       const double fun_bar = 1.0;
+
+   //       /// fun += term1 + term2 + term3;
+   //       const double term1_bar = fun_bar;
+   //       const double term2_bar = fun_bar;
+   //       const double term3_bar = fun_bar;
+
+   //       /// double term3 = (elfun_shape - bc_val) * model_val * w_q *
+   //       psi_shape; double w_q_bar =
+   //           term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
+   //       double model_val_bar =
+   //           term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
+
+   //       /// const double w_q = w * (nor * nor) * mu;
+   //       double w_bar = w_q_bar * (nor * nor) * mu;
+   //       nor_bar = 0.0;
+   //       nor_bar.Add(2 * w_q_bar * w * mu, nor);
+
+   //       /// double term2 = -(elfun_shape - bc_val) * model_val * w *
+   //       psi_dshapedn; w_bar += term2_bar * -(elfun_shape - bc_val) *
+   //       model_val * psi_dshapedn; model_val_bar += term2_bar * -(elfun_shape
+   //       - bc_val) * w * psi_dshapedn; double psi_dshapedn_bar =
+   //           term2_bar * -(elfun_shape - bc_val) * model_val * w;
+
+   //       /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
+   //       w_bar += term1_bar * -elfun_dshapedn * model_val * psi_shape;
+   //       model_val_bar += term1_bar * -elfun_dshapedn * w * psi_shape;
+   //       double elfun_dshapedn_bar = term1_bar * -model_val * w * psi_shape;
+
+   //       /// double psi_dshapedn = psi * dshapedn;
+   //       dshapedn_bar = 0.0;
+   //       dshapedn_bar.Add(psi_dshapedn_bar, psi);
+
+   //       /// double psi_shape = psi * shape;
+
+   //       /// double elfun_dshapedn = elfun * dshapedn;
+   //       dshapedn_bar.Add(elfun_dshapedn_bar, elfun);
+
+   //       /// double elfun_shape = elfun * shape;
+
+   //       /// double bc_val = g.Eval(trans, eip1);
+
+   //       /// dshapedxt.Mult(nor, dshapedn);
+   //       dshapedxt.AddMultTranspose(dshapedn_bar, nor_bar);
+   //       // MultVWt(dshapedn_bar, nor, dshapedxt_bar);
+
+   //       /// double model_val = model.Eval(trans, eip1, pointflux_mag);
+   //       const double model_val_dot =
+   //           model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
+   //       double pointflux_mag_bar = model_val_bar * model_val_dot;
+
+   //       /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
+   //       double pointflux_norm_bar = pointflux_mag_bar / el1_trans_weight;
+   //       double el1_trans_weight_bar =
+   //           -pointflux_mag_bar * pointflux_norm / pow(el1_trans_weight, 2);
+
+   //       /// const double pointflux_norm = pointflux.Norml2();
+   //       pointflux_bar = 0.0;
+   //       add(pointflux_bar,
+   //           pointflux_norm_bar / pointflux_norm,
+   //           pointflux,
+   //           pointflux_bar);
+
+   //       /// dshapedxt.MultTranspose(elfun, pointflux);
+   //       AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
+
+   //       /// Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+   //       // MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
+
+   //       // PointMat_bar = 0.0;
+   //       // isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar); ///
+   //       // element Jacobian!
+
+   //       if (dim == 1)
+   //       {
+   //          /// nor(0) = 2 * eip1.x - 1.0;
+   //       }
+   //       else
+   //       {
+   //          /// CalcOrtho(trans.Jacobian(), nor);
+   //          jac_bar = 0.0;
+   //          CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
+   //          PointMat_bar = 0.0;
+   //          isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+   //       }
+
+   //       /// double w = alpha * ip.weight / el1_trans_weight;
+   //       el1_trans_weight_bar +=
+   //           w_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
+
+   //       /// double el1_trans_weight = trans.Elem1->Weight();
+   //       // trans.Elem1->WeightRevDiff(el1_trans_weight_bar, PointMat_bar);
+   //       ///
+   //       // element Jacobian!
+
+   //       // code to insert PointMat_bar into mesh_coords_bar;
+   //       for (int j = 0; j < mesh_ndof; ++j)
+   //       {
+   //          for (int k = 0; k < space_dim; ++k)
+   //          {
+   //             mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+   //          }
+   //       }
+   //    }
+}
+
+void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &el,
+    mfem::FaceElementTransformations &trans,
+    mfem::Vector &mesh_coords_bar)
+{ }
 
 void TestBoundaryIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,

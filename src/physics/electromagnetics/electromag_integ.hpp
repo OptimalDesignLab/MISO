@@ -306,6 +306,110 @@ inline void addBdrSensitivityIntegrator(
    }
 }
 
+/** Integrator for the SIPG form for imposing interior face penalties:
+
+    - < {(Q grad(u)).n}, [v] > - < [u], {(Q grad(v)).n} >
+    + mu < {h^{-1} Q} [u], [v] >
+
+    where Q is the diffusion coefficient and u, v are the trial and test spaces,
+    respectively.
+    The parameter mu is the SIPG penalty parameter */
+class DGInteriorFaceDiffusionIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   DGInteriorFaceDiffusionIntegrator(StateCoefficient &Q,
+                                     double mu,
+                                     double a = 1.0)
+    : model(Q), mu(mu), alpha(a)
+   { }
+
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
+
+   void AssembleFaceGrad(const mfem::FiniteElement &el1,
+                         const mfem::FiniteElement &el2,
+                         mfem::FaceElementTransformations &trans,
+                         const mfem::Vector &elfun,
+                         mfem::DenseMatrix &elmat) override;
+
+private:
+   /// Diffusion coefficient
+   StateCoefficient &model;
+   /// SIPG Penalty parameter
+   double mu;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+   mfem::Vector pointflux1_norm_dot;
+   mfem::Vector pointflux2_norm_dot;
+
+   mfem::DenseMatrix elmat11;
+   mfem::DenseMatrix elmat12;
+   mfem::DenseMatrix elmat22;
+#endif
+   friend class DGInteriorFaceDiffusionIntegratorMeshRevSens;
+};
+
+class DGInteriorFaceDiffusionIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   DGInteriorFaceDiffusionIntegratorMeshRevSens(
+       mfem::GridFunction &state,
+       mfem::GridFunction &adjoint,
+       DGInteriorFaceDiffusionIntegrator &integ)
+    : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   /// \note this signature is for sensitivity wrt mesh face
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+   /// This signature is for sensitivity wrt mesh element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::FaceElementTransformations &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   DGInteriorFaceDiffusionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun, psi;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix dshapedxt_bar;
+   mfem::Vector dshapedn_bar;
+#endif
+};
+
 class TestBoundaryIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:

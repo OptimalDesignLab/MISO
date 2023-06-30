@@ -29,6 +29,7 @@ set(REGRESSION_TEST_SRCS
    test_magnetostatic_residual
    test_thermal_residual
    test_weak_boundary
+   test_thermal_solver
 )
 
 create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)

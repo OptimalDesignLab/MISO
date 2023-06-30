@@ -79,6 +79,67 @@ TEST_CASE("TestBCIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("ThermalContactResistanceIntegrator::AssembleFaceGrad")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   mfem::ConstantCoefficient one(1.0);
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         res.AddInteriorFaceIntegrator(
+            new mach::ThermalContactResistanceIntegrator(one,
+                                                         pow(p+1, 3),
+                                                         std::set<int>{1}));
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
 TEST_CASE("ConvectionBCIntegrator::AssembleFaceGrad")
 {
    using namespace mfem;
