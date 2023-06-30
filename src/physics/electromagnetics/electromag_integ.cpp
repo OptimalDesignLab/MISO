@@ -1269,23 +1269,28 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
       dshapedxt1.Mult(nor, dshapedn1);
       dshapedxt2.Mult(nor, dshapedn2);
 
-      elvect1.Add(-(dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w1,
-                  shape1);
-      elvect2.Add((dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w2,
-                  shape2);
+      elvect1.Add(
+          -(dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w1,
+          shape1);
+      elvect2.Add(
+          (dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w2,
+          shape2);
 
-
-      elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w1,
-                  dshapedn1);
-      elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w2,
-                  dshapedn2);
+      elvect1.Add(
+          (-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w1,
+          dshapedn1);
+      elvect2.Add(
+          (-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w2,
+          dshapedn2);
 
       const double w_q1 = w1 * (nor * nor) * mu;
       const double w_q2 = w2 * (nor * nor) * mu;
-      elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1,
-                  shape1);
-      elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w_q2,
-                  shape2);
+      elvect1.Add(
+          ((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1,
+          shape1);
+      elvect2.Add(
+          (-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w_q2,
+          shape2);
    }
 }
 
@@ -1432,11 +1437,10 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       AddMult_a_VWt(-model_val1 * w1, dshapedn1, shape1, elmat11);
       AddMult_a_VWt(
           -(dshapedn1 * elfun1) * w1, shape1, pointflux1_norm_dot, elmat11);
-      
+
       AddMult_a_VWt(-model_val2 * w1, dshapedn2, shape1, elmat12);
       AddMult_a_VWt(
           -(dshapedn2 * elfun2) * w1, shape1, pointflux2_norm_dot, elmat12);
-
 
       // elvect2.Add((+(dshapedn1 * elfun1) * model_val1 +
       //              (dshapedn2 * elfun2) * model_val2) *
@@ -1450,10 +1454,10 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       // AddMult_a_VWt(
       //     (dshapedn1 * elfun1) * w2, shape2, pointflux1_norm_dot, elmat12);
 
-
       double avg_model_val = (model_val1 + model_val2) / 2;
 
-      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w1,
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val *
+      // w1,
       //             dshapedn1);
       AddMult_a_VWt(-avg_model_val * w1, shape1, dshapedn1, elmat11);
       AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w1 / 2,
@@ -1467,7 +1471,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       //               pointflux1_norm_dot,
       //               elmat11);
 
-      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w2,
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val *
+      // w2,
       //             dshapedn2);
       AddMult_a_VWt(avg_model_val * w2, shape2, dshapedn2, elmat22);
       AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w2 / 2,
@@ -1479,7 +1484,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
 
       const double w_q1 = 2 * w1 * (nor * nor) * mu;
       const double w_q2 = 2 * w2 * (nor * nor) * mu;
-      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1,
+      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val *
+      // w_q1,
       //             shape1);
       AddMult_a_VVt(avg_model_val * w_q1, shape1, elmat11);
       AddMult_a_VWt(((shape1 * elfun1) - (shape2 * elfun2)) * w_q1 / 2,
@@ -1487,7 +1493,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
                     pointflux1_norm_dot,
                     elmat11);
 
-      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val * w_q2,
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * avg_model_val *
+      // w_q2,
       //             shape2);
       AddMult_a_VVt(avg_model_val * w_q2, shape2, elmat22);
       AddMult_a_VWt(((shape1 * elfun1) - (shape2 * elfun2)) * w_q2 / 2,
