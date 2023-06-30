@@ -322,5 +322,23 @@ void CutDGSensitivityInterfaceIntegrator<dim, entvar>::calcFluxJacDir(
    // compute the jacobian w.r.t dir
    this->stack.jacobian(jac_dir.GetData());
 }
+template <int dim, bool entvar>
+void CutSensitivityPotentialMMSIntegrator<dim, entvar>::calcPotentialSourceJac(
+    const mfem::Vector &x,
+    mfem::DenseMatrix &flux_jac)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(dim + 2);
+   mach::calcPotentialMMS<adouble>(x_a.data(), flux_a.data());
+   this->stack.independent(x_a.data(), x.Size());
+   this->stack.dependent(flux_a.data(), dim + 2);
+   this->stack.jacobian(flux_jac.GetData());
+}
 }  // namespace mach
 #endif

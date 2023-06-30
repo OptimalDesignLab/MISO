@@ -427,10 +427,17 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
       }
       res->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
           diff_stack, cutSquareIntRules, embeddedElements, -alpha));
-      //   res_sens_cut->AddDomainIntegrator(
-      //       new CutSensitivityPotentialMMSIntegrator<dim, entvar>(
-      //           diff_stack, cutSquareIntRules, cutSquareIntRules_sens,
-      //           embeddedElements, -alpha));
+      res_p->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
+          diff_stack, cutSquareIntRules_p, embeddedElements_p, -alpha));
+      res_m->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
+          diff_stack, cutSquareIntRules_m, embeddedElements_m, -alpha));
+      res_sens_cut->AddDomainIntegrator(
+          new CutSensitivityPotentialMMSIntegrator<dim, entvar>(
+              diff_stack,
+              cutSquareIntRules,
+              cutSquareIntRules_sens,
+              embeddedElements,
+              -alpha));
    }
 
 #endif

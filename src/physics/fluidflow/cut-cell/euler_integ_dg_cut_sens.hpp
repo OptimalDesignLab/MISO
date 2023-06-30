@@ -236,6 +236,7 @@ public:
                              std::vector<bool> embeddedElements,
                              double a = 1.0)
     : CutSensitivityMMSIntegrator<CutSensitivityPotentialMMSIntegrator<dim, entvar>>(
+          diff_stack,
           cutSquareIntRules,
           cutSquareIntRules_sens,
           embeddedElements,
@@ -250,6 +251,11 @@ public:
    {
       calcPotentialMMS<double>(x.GetData(), src.GetData());
    }
+   /// Computes the MMS source term at a give point
+   /// \param[in] x - spatial location at which to evaluate the source
+   /// \param[out] src - source term evaluated at `x`
+   void calcPotentialSourceJac(const mfem::Vector &xq,
+                      mfem::DenseMatrix &source_jac);
 
 private:
 };

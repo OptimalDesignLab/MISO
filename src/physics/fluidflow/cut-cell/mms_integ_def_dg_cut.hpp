@@ -105,6 +105,45 @@ void CutMMSIntegrator<Derived>::AssembleElementGrad(
    elmat.SetSize(num_states * num_nodes);
    elmat = 0.0;
 }
+
+template <typename Derived>
+void CutSensitivityMMSIntegrator<Derived>::calcTransformSens(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const IntegrationPoint &ip,
+    mfem::DenseMatrix &el_dx)
+{
+   int dim = el.GetDim();
+   /// calculate FD
+   double delta = 1e-05;
+   for (int i = 0; i < dim; ++i)
+   {
+      IntegrationPoint ip_p = ip;
+      IntegrationPoint ip_m = ip;
+      if (i == 0)
+      {
+         ip_p.x = ip.x + delta;
+         ip_m.x = ip.x - delta;
+      }
+      else
+      {
+         ip_p.y = ip.y + delta;
+         ip_m.y = ip.y - delta;
+      }
+      trans.SetIntPoint(&ip_p);
+      Vector x_i_p(dim), x_i_m(dim);
+      trans.Transform(ip_p, x_i_p);
+      trans.SetIntPoint(&ip_m);
+      trans.Transform(ip_m, x_i_m);
+      x_i_p -= x_i_m;
+      x_i_p /= 2.0 * delta;
+      for (int j = 0; j < dim; ++j)
+      {
+         el_dx(j, i) = x_i_p(j);
+      }
+   }
+}
+
 template <typename Derived>
 void CutSensitivityMMSIntegrator<Derived>::AssembleElementVector(
     const mfem::FiniteElement &el,
@@ -118,13 +157,19 @@ void CutSensitivityMMSIntegrator<Derived>::AssembleElementVector(
 #ifdef MFEM_THREAD_SAFE
    Vector x_i, src_i;
 #endif
-   Vector dxqi, dshape_xqi;
+   Vector dxqi, dshape_xqi, src_Jac_a, dxqe_da;
+   DenseMatrix src_Jac_xq;
+   mfem::DenseMatrix del_xq;
+   del_xq.SetSize(dim, dim);
+   dxqe_da.SetSize(dim);
    elvect.SetSize(num_states * num_nodes);
    DenseMatrix res(elvect.GetData(), num_nodes, num_states);
    elvect = 0.0;
    shape.SetSize(num_nodes);
    dshape.SetSize(num_nodes, dim);
    dxqi.SetSize(dim);
+   src_Jac_xq.SetSize(num_states, dim);
+   src_Jac_a.SetSize(num_states);
    dshape_xqi.SetSize(num_nodes);
    if (embeddedElements.at(trans.ElementNo) == true)
    {
@@ -143,14 +188,15 @@ void CutSensitivityMMSIntegrator<Derived>::AssembleElementVector(
       }
       else
       {
+         double delta = 1e-05;
          for (int i = 0; i < ir->GetNPoints(); ++i)
          {
             const IntegrationPoint &ip = ir->IntPoint(i);
             const IntegrationPoint &ip_a = ir_a->IntPoint(i);
             trans.SetIntPoint(&ip);
             trans.Transform(ip, x_i);
+            calcTransformSens(el, trans, ip, del_xq);
             el.CalcShape(ip, shape);
-            double weight = trans.Weight() * ip.weight;
             src_i.SetSize(num_states);
             source(x_i, src_i);
             double dwda_i = ip_a.weight;
@@ -159,7 +205,7 @@ void CutSensitivityMMSIntegrator<Derived>::AssembleElementVector(
             {
                for (int s = 0; s < num_nodes; ++s)
                {
-                  res(s, n) += trans.Weight() * src_i(n) * shape(s) * dwda_i ;
+                  res(s, n) += trans.Weight() * src_i(n) * shape(s) * dwda_i;
                }
             }
             /// 2nd term (dshapeda)
@@ -173,6 +219,19 @@ void CutSensitivityMMSIntegrator<Derived>::AssembleElementVector(
                {
                   res(s, n) +=
                       trans.Weight() * src_i(n) * dshape_xqi(s) * ip.weight;
+               }
+            }
+            /// third term (dsrc_dxq)
+            sourceJac(x_i, src_Jac_xq);
+            del_xq.Mult(dxqi, dxqe_da);
+            src_Jac_xq.Mult(dxqe_da, src_Jac_a);
+
+            for (int n = 0; n < num_states; ++n)
+            {
+               for (int s = 0; s < num_nodes; ++s)
+               {
+                  res(s, n) +=
+                      trans.Weight() * src_Jac_a(n) * shape(s) * ip.weight;
                }
             }
          }

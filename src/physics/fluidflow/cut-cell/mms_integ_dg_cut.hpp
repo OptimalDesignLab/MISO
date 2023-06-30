@@ -106,6 +106,7 @@ public:
    /// For example, there may be 5 states for the 2D RANS equations, but
    /// `source` may use only the first 4.
    CutSensitivityMMSIntegrator(
+       adept::Stack &diff_stack,
        std::map<int, mfem::IntegrationRule *> _cutSquareIntRules,
        std::map<int, mfem::IntegrationRule *> _cutSquareIntRules_sens,
        std::vector<bool> _embeddedElements,
@@ -113,6 +114,7 @@ public:
        double a = 1.0)
     : num_states(num_state_vars),
       alpha(a),
+      stack(diff_stack),
       cutSquareIntRules(_cutSquareIntRules),
       cutSquareIntRules_sens(_cutSquareIntRules_sens),
       embeddedElements(_embeddedElements)
@@ -128,7 +130,10 @@ public:
    {
       return 0.0;
    }
-
+   void calcTransformSens(const mfem::FiniteElement &el,
+                          mfem::ElementTransformation &trans,
+                          const IntegrationPoint &ip,
+                          mfem::DenseMatrix &el_dx);
    /// Construct the element local residual
    /// \param[in] el - the finite element whose residual we want
    /// \param[in] trans - defines the reference to physical element mapping
@@ -154,6 +159,8 @@ protected:
    int num_states;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
+    /// stack used for algorithmic differentiation
+   adept::Stack &stack;
 #ifndef MFEM_THREAD_SAFE
    /// the coordinates of node i
    mfem::Vector x_i;
@@ -177,6 +184,14 @@ protected:
    void source(const mfem::Vector &x, mfem::Vector &src)
    {
       static_cast<Derived *>(this)->calcSource(x, src);
+   }
+   /// The MMS source sensitivity function
+   /// \param[in] x - spatial location at which to evaluate the source
+   /// \param[out] src - source term evaluated at `x`
+   /// \note This uses the CRTP, so it wraps a call to `calcSource` in Derived.
+   void sourceJac(const mfem::Vector &xq, mfem::DenseMatrix &source_jac)
+   {
+      static_cast<Derived *>(this)->calcPotentialSourceJac(xq, source_jac);
    }
 };
 }  // namespace mach
