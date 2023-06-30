@@ -534,7 +534,7 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
 
    // LinearCoefficient one_sc(1.0);
    NonLinearCoefficient one_sc;
-   double mu = 0.0;
+   double mu = 10.0;
 
    for (int p = 1; p <= 1; ++p)
    {
@@ -545,7 +545,14 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
 
          GridFunction state(&fes);
          FunctionCoefficient pert(randState);
-         state.ProjectCoefficient(pert);
+         // state.ProjectCoefficient(pert);
+         FunctionCoefficient state_coeff([](Vector &p)
+         {
+            auto x = p(0);
+            auto y = p(1);
+            return exp(-(pow(x, 2) + pow(y, 2)));
+         });
+         state.ProjectCoefficient(state_coeff);
 
          NonlinearForm res(&fes);
          res.AddInteriorFaceIntegrator(new mach::DGInteriorFaceDiffusionIntegrator(one_sc, mu));

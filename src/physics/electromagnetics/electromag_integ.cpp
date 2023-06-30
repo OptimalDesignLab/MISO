@@ -1195,11 +1195,11 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
    dshapedn1.SetSize(ndof1);
    dshapedn2.SetSize(ndof2);
 
-   double pointflux1_buffer[3] = {};
-   Vector pointflux1(pointflux1_buffer, dim);
+   double ip_flux1_buffer[3] = {};
+   Vector ip_flux1(ip_flux1_buffer, dim);
 
-   double pointflux2_buffer[3] = {};
-   Vector pointflux2(pointflux2_buffer, dim);
+   double ip_flux2_buffer[3] = {};
+   Vector ip_flux2(ip_flux2_buffer, dim);
 
    double nor_buffer[3] = {};
    mfem::Vector nor(nor_buffer, dim);
@@ -1252,19 +1252,19 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
       Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
       Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
 
-      dshapedxt1.MultTranspose(elfun1, pointflux1);
-      dshapedxt2.MultTranspose(elfun2, pointflux2);
+      dshapedxt1.MultTranspose(elfun1, ip_flux1);
+      dshapedxt2.MultTranspose(elfun2, ip_flux2);
 
-      const double pointflux1_norm = pointflux1.Norml2();
-      const double pointflux1_mag = pointflux1_norm / el1_trans_weight;
+      const double ip_flux1_norm = ip_flux1.Norml2();
+      const double ip_flux1_mag = ip_flux1_norm / el1_trans_weight;
 
-      const double pointflux2_norm = pointflux2.Norml2();
-      const double pointflux2_mag = pointflux2_norm / el2_trans_weight;
+      const double ip_flux2_norm = ip_flux2.Norml2();
+      const double ip_flux2_mag = ip_flux2_norm / el2_trans_weight;
 
-      double model_val1 = model.Eval(*trans.Elem1, eip1, pointflux1_mag);
-      double model_val2 = model.Eval(*trans.Elem2, eip2, pointflux2_mag);
+      const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_mag);
+      const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_mag);
 
-      double avg_model_val = (model_val1 + model_val2) / 2;
+      const double avg_model_val = (model_val1 + model_val2) / 2;
 
       dshapedxt1.Mult(nor, dshapedn1);
       dshapedxt2.Mult(nor, dshapedn2);
