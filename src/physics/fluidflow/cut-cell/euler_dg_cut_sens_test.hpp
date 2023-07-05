@@ -134,6 +134,9 @@ protected:
    std::unique_ptr<GDSpaceType> fes_gd_m;
    std::unique_ptr<NonlinearFormType> res_p;
    std::unique_ptr<NonlinearFormType> res_m;
+   std::unique_ptr<NonlinearFormType> out_p;
+   std::unique_ptr<NonlinearFormType> out_m;
+   std::unique_ptr<NonlinearFormType> out_sens;
    // Algoim::LevelSet<2> phi;
    // Algoim::LevelSet<2> phi_outer;
    /// Class constructor (protected to prevent misuse)
@@ -151,7 +154,7 @@ protected:
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    void addResVolumeIntegrators(double alpha) override
    {} 
-   void testSensIntegrators(const mfem::ParCentGridFunction &state) override;
+   void testSensIntegrators(const mfem::ParCentGridFunction &state, const mfem::ParCentGridFunction &adj) override;
    /// Add volume integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    void addResVolumeIntegrators(double alpha, double &diff_coeff) override;

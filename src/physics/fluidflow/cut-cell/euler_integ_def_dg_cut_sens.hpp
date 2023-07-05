@@ -135,6 +135,31 @@ void CutDGSensitivitySlipWallBC<dim, entvar>::calcFluxJacDir(const mfem::Vector 
 }
 
 template <int dim, bool entvar>
+void CutDGSensitivitySlipWallBC<dim, entvar>::calcFluxJacNor(const mfem::Vector &x,
+                                               const mfem::Vector &dir,
+                                               const mfem::Vector &q,
+                                               mfem::Vector &flux_vec)
+{
+    // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   flux_vec = 0.0;
+}
+
+template <int dim, bool entvar>
+void CutDGSensitivitySlipWallBC<dim, entvar>::calcFluxJacIntRule(const mfem::Vector &x,
+                                               const mfem::Vector &dir,
+                                               const mfem::Vector &q,
+                                               mfem::Vector &flux_vec)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   flux_vec = 0.0;
+}
+template <int dim, bool entvar>
 CutDGSensitivityInterfaceIntegrator<dim, entvar>::CutDGSensitivityInterfaceIntegrator(
     adept::Stack &diff_stack,
     double coeff,
@@ -339,6 +364,97 @@ void CutSensitivityPotentialMMSIntegrator<dim, entvar>::calcPotentialSourceJac(
    this->stack.independent(x_a.data(), x.Size());
    this->stack.dependent(flux_a.data(), dim + 2);
    this->stack.jacobian(flux_jac.GetData());
+}
+template <int dim, bool entvar>
+double CutDGSensitivityPressureForce<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                                     const mfem::Vector &dir,
+                                                     const mfem::Vector &q)
+{
+   calcSlipWallFlux<double, dim, entvar>(
+       x.GetData(), dir.GetData(), q.GetData(), work_vec.GetData());
+   return dot<double, dim>(force_nrm.GetData(), work_vec.GetData() + 1);
+}
+
+template <int dim, bool entvar>
+void CutDGSensitivityPressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
+                                               const mfem::Vector &dir,
+                                               const mfem::Vector &q,
+                                               mfem::Vector &flux_vec)
+{
+   // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> force_nrm_a(force_nrm.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(force_nrm_a.data(), force_nrm.Size(), force_nrm.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
+   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   fun_a.set_gradient(1.0);
+   this->stack.compute_adjoint();
+   adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
+}
+template <int dim, bool entvar>
+void CutDGSensitivityPressureForce<dim, entvar>::calcFluxJacNor(const mfem::Vector &x,
+                                               const mfem::Vector &dir,
+                                               const mfem::Vector &q,
+                                               mfem::Vector &flux_vec)
+{
+    // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> force_nrm_a(force_nrm.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(force_nrm_a.data(), force_nrm.Size(), force_nrm.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
+   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   fun_a.set_gradient(1.0);
+   this->stack.compute_adjoint();
+   adept::get_gradients(dir_a.data(), dir.Size(), flux_vec.GetData());
+}
+template <int dim, bool entvar>
+void CutDGSensitivityPressureForce<dim, entvar>::calcFluxJacIntRule(const mfem::Vector &x,
+                                               const mfem::Vector &dir,
+                                               const mfem::Vector &q,
+                                               mfem::Vector &flux_vec)
+{
+    // create containers for active double objects for each input
+   std::vector<adouble> x_a(x.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   std::vector<adouble> force_nrm_a(force_nrm.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(x_a.data(), x.Size(), x.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   adept::set_values(force_nrm_a.data(), force_nrm.Size(), force_nrm.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   mach::calcSlipWallFlux<adouble, dim, entvar>(
+       x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
+   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   fun_a.set_gradient(1.0);
+   this->stack.compute_adjoint();
+   adept::get_gradients(x_a.data(), x.Size(), flux_vec.GetData());
 }
 }  // namespace mach
 #endif

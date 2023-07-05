@@ -905,7 +905,7 @@ protected:
    /// Add interior-face integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addResInterfaceIntegrators(double alpha) { }
-   virtual void testSensIntegrators(const mfem::ParCentGridFunction &state){}
+   virtual void testSensIntegrators(const mfem::ParCentGridFunction &state, const mfem::ParCentGridFunction &adj){}
    /// Add volume integrators to `stiff`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
    virtual void addStiffVolumeIntegrators(double alpha) { }

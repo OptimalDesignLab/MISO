@@ -200,7 +200,9 @@ void uexact(const Vector &x, Vector &q)
 #endif
 Mesh buildMesh(int N)
 {
-   Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 40.0, 40.0, true);
+   // Mesh mesh = Mesh::MakeCartesian2D(
+   //     N, N, Element::QUADRILATERAL, true, 40.0, 40.0, true);
+      Mesh mesh = Mesh::MakeCartesian2D(
+       N, N, Element::QUADRILATERAL, true, 1.2, 1.2, true);
    return mesh;
 }

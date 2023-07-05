@@ -317,8 +317,11 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::constructForms()
    {
       res.reset(new NonlinearFormType(fes_gd.get()));
       res_sens_cut.reset(new NonlinearFormType(fes_gd.get()));
+      out_sens.reset(new NonlinearFormType(fes_gd.get()));
       res_p.reset(new NonlinearFormType(fes_gd_p.get()));
       res_m.reset(new NonlinearFormType(fes_gd_m.get()));
+      out_p.reset(new NonlinearFormType(fes_gd_p.get()));
+      out_m.reset(new NonlinearFormType(fes_gd_m.get()));
       double alpha = 1.0;
       if ((entvar) && (!options["time-dis"]["steady"].template get<bool>()))
       {
@@ -362,11 +365,34 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
     double alpha,
     double &diff_coeff)
 {
+   mfem::Vector drag_dir(dim);
+   drag_dir = 0.0;
+   if (dim == 1)
+   {
+      drag_dir(0) = 1.0;
+   }
+   else
+   {
+      drag_dir(iroll) = cos(aoa_fs);
+      drag_dir(ipitch) = sin(aoa_fs);
+   }
+   drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+   out_sens->AddDomainIntegrator(
+       new CutDGSensitivityPressureForce<dim, entvar>(diff_stack,
+                                                      fec.get(),
+                                                      drag_dir,
+                                                      cutSegmentIntRules,
+                                                      cutSegmentIntRules_sens,
+                                                      phi));
+   out_p->AddDomainIntegrator(new CutDGPressureForce<dim, entvar>(
+       diff_stack, fec.get(), drag_dir, cutSegmentIntRules_p, phi_p));
+   out_m->AddDomainIntegrator(new CutDGPressureForce<dim, entvar>(
+       diff_stack, fec.get(), drag_dir, cutSegmentIntRules_m, phi_m));
 #if 1
 
    res->AddDomainIntegrator(new CutEulerDGIntegrator<dim>(
        diff_stack, cutSquareIntRules, embeddedElements, alpha));
-#if 1
+#if 0
    res_sens_cut->AddDomainIntegrator(
        new CutEulerDGSensitivityIntegrator<dim>(diff_stack,
                                                 cutSquareIntRules,
@@ -399,10 +425,11 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
    }
    if (bcs.find("slip-wall") != bcs.end())
    {  // slip-wall boundary condition
-#if 1
+
       cout << "slip-wall bc are present " << endl;
       res->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules, phi, alpha));
+#if 0
       res_p->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
           diff_stack, fec.get(), cutSegmentIntRules_p, phi_p, alpha));
       res_m->AddDomainIntegrator(new CutDGSlipWallBC<dim, entvar>(
@@ -421,12 +448,14 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
    //    cout << "peri_sens " << peri_sens << endl;
    if (options["flow-param"]["potential-mms"].template get<bool>())
    {
+
       if (dim != 2)
       {
          throw MachException("Inviscid MMS problem only available for 2D!");
       }
       res->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
           diff_stack, cutSquareIntRules, embeddedElements, -alpha));
+#if 0
       res_p->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
           diff_stack, cutSquareIntRules_p, embeddedElements_p, -alpha));
       res_m->AddDomainIntegrator(new CutPotentialMMSIntegrator<dim, entvar>(
@@ -438,6 +467,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::addResVolumeIntegrators(
               cutSquareIntRules_sens,
               embeddedElements,
               -alpha));
+#endif
    }
 
 #endif
@@ -692,9 +722,26 @@ void randVectorState(const mfem::Vector &x, mfem::Vector &u)
 
 template <int dim, bool entvar>
 void CutEulerDGSensitivityTestSolver<dim, entvar>::testSensIntegrators(
-    const ParCentGridFunction &u_gd)
+    const ParCentGridFunction &u_gd,
+    const mfem::ParCentGridFunction &adj_gd)
 {
+   #if 0
    cout << "FD step-size: " << delta << endl;
+   //    cout << "check GetEnergy() " << endl;
+   ParCentGridFunction x_p(fes_gd_p.get());
+   ParCentGridFunction x_m(fes_gd_m.get());
+   ParCentGridFunction x_sens(fes_gd.get());
+   double e_p = out_p->GetEnergy(u_gd);
+   double e_m = out_m->GetEnergy(u_gd);
+   cout << "energy_p " << e_p<< endl;
+   cout << "energy_m " << e_m << endl;
+   e_p -= e_m;
+   e_m /= (2.0 * delta);
+   cout << "djdu_fd " << e_m << endl;
+   double djdu_an = out_sens->GetEnergy(u_gd);
+   cout << "djdu_analytical  " <<  djdu_an << endl;
+   #endif
+#if 1
    // initialize the vector that the Jacobian multiplies
    ParCentGridFunction v(fes_gd.get());
    VectorFunctionCoefficient v_rand(num_state, randVectorState);
@@ -712,6 +759,7 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::testSensIntegrators(
    HypreParVector *res_m_true = res_minus->GetTrueDofs();
    HypreParVector *res_sens_true = res_sens->GetTrueDofs();
    HypreParVector *u_true = u_gd.GetTrueDofs();
+   HypreParVector *adj_true_gd = adj_gd.GetTrueDofs();
    cout << "res_p size " << res_p_true->Size() << endl;
    res_sens_cut->Mult(*u_true, *res_sens_true);
    *res_sens = *res_sens_true;
@@ -730,24 +778,22 @@ void CutEulerDGSensitivityTestSolver<dim, entvar>::testSensIntegrators(
    cout << "|v.dRda_auto - v.dRda_FD|/|v.dRda_FD| x 100 " << endl;
    cout << rel_deriv_err << " %" << endl;
    cout << " ============================================ " << endl;
-   //    cout << "check GetEnergy() " << endl;
-   ParCentGridFunction x_p(fes_gd_p.get());
-   ParCentGridFunction x_m(fes_gd_m.get());
-   ParCentGridFunction x_sens(fes_gd.get());
-   double area_p = res_p->GetEnergy(x_p);
-   double area_m = res_m->GetEnergy(x_m);
-   double dadr_auto = res_sens_cut->GetEnergy(x_sens);
-   area_p -= area_m;
-   area_p /= (2.0 * delta);
-   double func_err = abs(area_p - dadr_auto) / abs(area_p);
-   cout << " ============================================ " << endl;
-   cout << " dAdr_FD " << endl;
-   cout << area_p << endl;
-   cout << " dAdr_auto " << endl;
-   cout << dadr_auto << endl;
-   cout << "functional error " << endl;
-   cout << func_err * 100 << " % " << endl;
-   cout << " ============================================ " << endl;
+   
+   // double area_p = res_p->GetEnergy(x_p);
+   // double area_m = res_m->GetEnergy(x_m);
+   // double dadr_auto = res_sens_cut->GetEnergy(x_sens);
+   // area_p -= area_m;
+   // area_p /= (2.0 * delta);
+   // double func_err = abs(area_p - dadr_auto) / abs(area_p);
+   // cout << " ============================================ " << endl;
+   // cout << " dAdr_FD " << endl;
+   // cout << area_p << endl;
+   // cout << " dAdr_auto " << endl;
+   // cout << dadr_auto << endl;
+   // cout << "functional error " << endl;
+   // cout << func_err * 100 << " % " << endl;
+   // cout << " ============================================ " << endl;
+   #endif
 }
 
 template <int dim, bool entvar>

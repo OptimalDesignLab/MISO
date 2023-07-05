@@ -248,7 +248,6 @@ double CutDGEulerBoundaryIntegrator<Derived>::GetFaceEnergy(
       trans.Face->SetIntPoint(&face_ip);
       CalcOrtho(trans.Face->Jacobian(), nrm);
       // fun += face_ip.weight * trans.Weight();
-      //   cout << "face_ip.weight " << face_ip.weight << endl;
       fun += bndryFun(x, nrm, u_face) * face_ip.weight * alpha;
    }
    return fun;
@@ -411,7 +410,6 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
    {
       return fun;
    }
-
    DenseMatrix u(elfun.GetData(), num_nodes, num_states);
    // IntegrationPoint el_ip;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -426,16 +424,6 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       double nx;
       double ny;
       double ds;
-      // double xc, yc;
-      // xc = 0.0;
-      // yc = 0.0;
-      // nx = 2 * (x(0) - xc);
-      // ny = 2 * (x(1) - yc);
-      // ds = sqrt((nx * nx) + (ny * ny));
-      // nrm(0) = phi.sign_phi * nx / ds;
-      // nrm(1) = phi.sign_phi * ny / ds;
-      // cout << "Inside GetElementEnergy " << endl;
-      /// n_hat = grad_phi/|\grad_phi|
       uvector<double, 2> beta, xs;
       xs(0) = x(0);
       xs(1) = x(1);
@@ -449,9 +437,11 @@ double CutDGInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       u.MultTranspose(shape, u_face);
       /// this is used for area test
       double area = sqrt(trans.Weight());
-      fun += face_ip.x * face_ip.y * face_ip.weight * alpha * area;
-      // fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
-      //        alpha;
+      //fun += face_ip.x * face_ip.y * face_ip.weight * alpha * area;
+      // //cout << "face_ip.weight " << face_ip.weight << endl;
+      // cout << "bdr flux " << bndryFun(x, nrm, u_face) << endl;
+      fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight()) *
+             alpha;
    }
    return fun;
 }

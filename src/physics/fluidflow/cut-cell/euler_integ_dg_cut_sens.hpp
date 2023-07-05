@@ -140,6 +140,17 @@ public:
                        const mfem::Vector &dir,
                        const mfem::Vector &q,
                        mfem::DenseMatrix &flux_jac);
+  /// Not used
+   void calcFluxJacNor(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::Vector &flux_jac);
+
+   void calcFluxJacIntRule(const mfem::Vector &x,
+                           const mfem::Vector &dir,
+                           const mfem::Vector &q,
+                           mfem::Vector &flux_jac);
+
 
 private:
 };
@@ -258,6 +269,89 @@ public:
                       mfem::DenseMatrix &source_jac);
 
 private:
+};
+
+/// Integrator for forces due to pressure
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class CutDGSensitivityPressureForce
+ : public CutDGSensitivityInviscidBoundaryIntegrator<CutDGSensitivityPressureForce<dim, entvar>>
+{
+public:
+   /// Constructs an integrator that computes pressure contribution to force
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] force_dir - unit vector specifying the direction of the force
+   /// \param[in] cutSegmentIntRules - integration rule for cut segments
+   /// \param[in] phi - level-set function (required for normal vector
+   /// calculations)
+   CutDGSensitivityPressureForce(adept::Stack &diff_stack,
+                      const mfem::FiniteElementCollection *fe_coll,
+                      const mfem::Vector &force_dir,
+                      std::map<int, IntegrationRule *> cutSegmentIntRules,
+                      std::map<int, IntegrationRule *> cutSegmentIntRules_sens,
+                      /*Algoim::LevelSet<2> */  LevelSetF<double, 2> phi)
+    : CutDGSensitivityInviscidBoundaryIntegrator<CutDGSensitivityPressureForce<dim, entvar>>(
+          diff_stack,
+          fe_coll,
+          cutSegmentIntRules,
+          cutSegmentIntRules_sens,
+          phi,
+          dim + 2,
+          1.0),
+      force_nrm(force_dir),
+      work_vec(dim + 2)
+   { }
+
+   /// Return an adjoint-consistent slip-wall normal (pressure) stress term
+   /// \param[in] x - coordinate location at which stress is evaluated (not
+   /// used) \param[in] dir - vector normal to the boundary at `x` \param[in] q
+   /// - conservative variables at which to evaluate the stress \returns
+   /// conmponent of stress due to pressure in `force_nrm` direction
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Returns the gradient of the stress with respect to `q`
+   /// \param[in] x - coordinate location at which stress is evaluated (not
+   /// used) \param[in] dir - vector normal to the boundary at `x` \param[in] q
+   /// - conservative variables at which to evaluate the stress \param[out]
+   /// flux_vec - derivative of stress with respect to `q`
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec);
+
+   /// Not used
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Not used
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac)
+   { }
+   void calcFluxJacNor(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::Vector &flux_jac);
+
+   void calcFluxJacIntRule(const mfem::Vector &x,
+                           const mfem::Vector &dir,
+                           const mfem::Vector &q,
+                           mfem::Vector &flux_jac);
+
+private:
+   /// `dim` entry unit normal vector specifying the direction of the force
+   mfem::Vector force_nrm;
+   /// work vector used to stored the flux
+  mfem::Vector work_vec;
 };
 }  // namespace mach
 

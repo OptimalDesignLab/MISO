@@ -67,7 +67,6 @@ int main(int argc, char *argv[])
       out->precision(15);
       solver->setInitialCondition(uexact);
       solver->printSolution("cylinder-steady-dg-cut-potential-init", 0);
-      solver->testSensIntegrators();
       auto drag_opts = R"({ "boundaries": [0, 0, 0, 0]})"_json;
       auto lift_opts = R"({ "boundaries": [1, 1, 1, 1]})"_json;
       solver->createOutput("drag", drag_opts);
@@ -76,12 +75,33 @@ int main(int argc, char *argv[])
       *out << "\nInitial Drag error = " << abs(solver->calcOutput("drag"))
            << endl;
       // get the initial density error
-      double l2_error = (static_cast<CutEulerDGSensitivityTestSolver<2, entvar> &>(*solver)
-                             .calcConservativeVarsL2Error(uexact, 1));
+      double l2_error =
+          (static_cast<CutEulerDGSensitivityTestSolver<2, entvar> &>(*solver)
+               .calcConservativeVarsL2Error(uexact, 1));
       double res_error = solver->calcResidualNorm();
       // *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
       *out << "Initial \n|| (rho.u)_h - (rho.u) ||_{L^2} = " << l2_error;
       *out << "\ninitial residual norm = " << res_error << endl;
+      // *out << "Initial \n|| rho_h - rho ||_{L^2} = " << l2_error;
+      *out << "Initial \n|| (rho.u)_h - (rho.u) ||_{L^2} = " << l2_error;
+      *out << "\ninitial residual norm = " << res_error << endl;
+      solver->solveForState();
+      solver->printSolution("cylinder-steady-dg-cut-potential-final", -1);
+      solver->printAbsError(
+          "cylinder-steady-dg-cut-potential-sol-error-final", uexact, -1);
+      mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
+                << endl;
+
+      *out << "\n|| rho_h - rho ||_{L^2} = "
+           << (static_cast<CutEulerDGSensitivityTestSolver<2, entvar> &>(*solver)
+                   .calcConservativeVarsL2Error(uexact, 0));
+      l2_error = (static_cast<CutEulerDGSensitivityTestSolver<2, entvar> &>(*solver)
+                      .calcConservativeVarsL2Error(uexact, 1));
+      *out << "\n|| (rho.u)_h - (rho.u) ||_{L^2}  = " << l2_error << endl;
+
+      *out << "\nDrag error = " << abs(solver->calcOutput("drag")) << endl;
+      solver->solveForAdjoint("drag");
+      solver->testSensIntegrators();
    }
 
    catch (MachException &exception)

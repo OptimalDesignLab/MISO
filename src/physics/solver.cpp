@@ -2611,7 +2611,7 @@ void AbstractSolver::solveSteady(ParGridFunction &state)
 // }
 void AbstractSolver::testSensIntegrators()
 {
-   testSensIntegrators(*u_gd);
+   testSensIntegrators(*u_gd, *adj_gd);
 }
 void AbstractSolver::solveSteady(ParCentGridFunction &state)
 {

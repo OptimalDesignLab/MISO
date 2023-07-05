@@ -97,7 +97,7 @@ void pert(const Vector &x, Vector &p)
 Mesh buildMesh(int N)
 {
    Mesh mesh = Mesh::MakeCartesian2D(
-       N, N, Element::QUADRILATERAL, true, 20.0, 20.0, true);
+       N, N, Element::QUADRILATERAL, true, 1.0, 5.0, true);
    return mesh;
 }
 

@@ -263,7 +263,22 @@ double CutDGSensitivityInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
 #ifdef MFEM_THREAD_SAFE
    Vector u_face, x, nrm, flux_face;
 #endif
+   mfem::DenseMatrix dndxq, dshape;
+   dndxq.SetSize(dim, dim); 
+   Vector dudxqi, dudai, dnda;
+   Vector dxqi, dshape_xqi, dshapedxi;
+   Vector flux_jac_uai, flux_jac_nor, flux_jac_norai, flux_jac_xq;
+   Vector flux_jac;
+   dxqi.SetSize(dim);
+   dnda.SetSize(dim);
+   flux_jac_nor.SetSize(dim);
+   flux_jac_xq.SetSize(dim);
+   dudxqi.SetSize(num_states);
+   dshapedxi.SetSize(dof);
+   dudai.SetSize(num_states);
    u_face.SetSize(num_states);
+   flux_jac.SetSize(num_states);
+   dshape.SetSize(dof, dim);
    x.SetSize(dim);
    nrm.SetSize(dim);
    shape.SetSize(num_nodes);
@@ -302,17 +317,45 @@ double CutDGSensitivityInviscidBoundaryIntegrator<Derived>::GetElementEnergy(
       ny = beta(1);
       nrm(0) = nx / ds;
       nrm(1) = ny / ds;
+      dxqi(0) = face_ip_sens.x;
+      dxqi(1) = face_ip_sens.y;
       // Interpolate elfun at the point
       u.MultTranspose(shape, u_face);
       /// this is used for area test
       double area = sqrt(trans.Weight());
       // fun += face_ip.weight * alpha * area;
-      fun_sens += face_ip_sens.x * face_ip.y * face_ip.weight * alpha * area;
-      fun_sens += face_ip.x * face_ip.y * face_ip_sens.weight * alpha * area;
-      fun_sens += face_ip_sens.y * face_ip.x * face_ip.weight * alpha * area;
+      // fun_sens += face_ip_sens.x * face_ip.y * face_ip.weight * alpha * area;
+      // fun_sens += face_ip.x * face_ip.y * face_ip_sens.weight * alpha * area;
+      // fun_sens += face_ip_sens.y * face_ip.x * face_ip.weight * alpha * area;
       // fun += bndryFun(x, nrm, u_face) * face_ip.weight * sqrt(trans.Weight())
       // *
       //        alpha;
+      /// bndryFunJacx
+      // first term (dwda)
+      fun += bndryFun(x, nrm, u_face) * face_ip_sens.weight *
+             sqrt(trans.Weight()) * alpha;
+      // second term (dFdu x duda)
+      flux(x, nrm, u_face, flux_jac);
+      dudai = 0.0;
+      for (int di = 0; di < dim; ++di)
+      {
+         dshape.GetColumn(di, dshapedxi);
+         u.MultTranspose(dshapedxi, dudxqi);
+         dudxqi *= dxqi(di);
+         dudai += dudxqi;
+      }
+      double flux_jac_ui = flux_jac * dudai;
+      fun += flux_jac_ui * face_ip.weight * sqrt(trans.Weight()) * alpha;
+      // third term (dFdn x dnda)
+      fluxJacNor(x, nrm, u_face, flux_jac_nor);
+      calcNormalSens(el_bnd, trans, face_ip, dndxq);
+      dndxq.Mult(dxqi, dnda);
+      double flux_jac_nori = flux_jac_nor * dnda;
+      fun += flux_jac_nori * face_ip.weight * sqrt(trans.Weight()) * alpha;
+      // fourth term (dFdxq x dxda)
+      fluxJacIntRule(x, nrm, u_face, flux_jac_xq);
+      double flux_jac_xqi = flux_jac_xq * dxqi;
+      fun += flux_jac_xqi * face_ip.weight * sqrt(trans.Weight()) * alpha;
    }
    return fun_sens;
 #endif

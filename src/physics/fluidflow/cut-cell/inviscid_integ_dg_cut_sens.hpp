@@ -256,7 +256,35 @@ protected:
    {
       static_cast<Derived *>(this)->calcFlux(x, dir, u, flux_vec);
    }
-
+   
+   /// Compute a boundary flux function
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   /// \note `x` can be ignored depending on the flux
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void fluxJacNor(const mfem::Vector &x,
+             const mfem::Vector &dir,
+             const mfem::Vector &u,
+             mfem::Vector &flux_vec)
+   {
+      static_cast<Derived *>(this)->calcFluxJacNor(x, dir, u, flux_vec);
+   }
+   /// Compute a boundary flux function
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] u - state at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   /// \note `x` can be ignored depending on the flux
+   /// \note This uses the CRTP, so it wraps a call to `calcFlux` in Derived.
+   void fluxJacIntRule(const mfem::Vector &x,
+             const mfem::Vector &dir,
+             const mfem::Vector &u,
+             mfem::Vector &flux_vec)
+   {
+      static_cast<Derived *>(this)->calcFluxJacIntRule(x, dir, u, flux_vec);
+   }
    /// Compute the Jacobian of the boundary flux function w.r.t. `u`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
