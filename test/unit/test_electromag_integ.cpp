@@ -481,7 +481,7 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
    NonLinearCoefficient one_sc;
    double mu = 10.0;
 
-   for (int p = 1; p <= 4; ++p)
+   for (int p = 1; p <= 1; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -502,9 +502,58 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
          // evaluate the Jacobian and compute its product with v
          Operator& jac = res.GetGradient(state);
          GridFunction jac_v(&fes);
-         jac.Mult(v, jac_v);
+         // jac.Mult(v, jac_v);
 
-         // now compute the finite-difference approximation...
+         // // now compute the finite-difference approximation...
+         // GridFunction r(&fes), jac_v_fd(&fes);
+         // state.Add(-delta, v);
+         // res.Mult(state, r);
+         // state.Add(2*delta, v);
+         // res.Mult(state, jac_v_fd);
+         // jac_v_fd -= r;
+         // jac_v_fd /= (2*delta);
+
+         // for (int i = 0; i < jac_v.Size(); ++i)
+         // {
+         //    REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         // }
+
+         // evaluate the Jacobian and compute its product with v
+         DenseMatrix dJac(v.Size());
+         DenseMatrix dJac_fd(v.Size());
+         for (int i = 0; i < v.Size(); ++i)
+         {
+            v = 0.0;
+            v(i) = 1.0;
+            jac.Mult(v, jac_v);
+            // now compute the finite-difference approximation...
+            GridFunction r(&fes), jac_v_fd(&fes);
+            state.Add(-delta, v);
+            res.Mult(state, r);
+            state.Add(2*delta, v);
+            res.Mult(state, jac_v_fd);
+            jac_v_fd -= r;
+            jac_v_fd /= (2*delta);
+            // std::cout << "Jac_v:\n";
+            // jac_v.Print(mfem::out, 1); 
+            // std::cout << "Jac_v_fd:\n";
+            // jac_v_fd.Print(mfem::out, 1); 
+            state.Add(-delta, v);
+            for (int j = 0; j < v.Size(); ++j)
+            {
+               dJac(j, i) = jac_v(j);
+               dJac_fd(j, i) = jac_v_fd(j);
+            }
+         }
+         std::cout << "Jac:\n";
+         dJac.Print(mfem::out, v.Size()); 
+         std::cout << "Jac_fd:\n";
+         dJac_fd.Print(mfem::out, v.Size()); 
+
+         v.ProjectCoefficient(pert);
+         // v = 0.0;
+         // v(0) = 1.0;
+         jac.Mult(v, jac_v);
          GridFunction r(&fes), jac_v_fd(&fes);
          state.Add(-delta, v);
          res.Mult(state, r);

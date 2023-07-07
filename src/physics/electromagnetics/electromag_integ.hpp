@@ -352,11 +352,12 @@ private:
    mfem::DenseMatrix dshapedxt2;
    mfem::Vector dshapedn1;
    mfem::Vector dshapedn2;
-   mfem::Vector pointflux1_norm_dot;
-   mfem::Vector pointflux2_norm_dot;
+   mfem::Vector ip_flux1_norm_dot;
+   mfem::Vector ip_flux2_norm_dot;
 
    mfem::DenseMatrix elmat11;
    mfem::DenseMatrix elmat12;
+   mfem::DenseMatrix elmat21;
    mfem::DenseMatrix elmat22;
 #endif
    friend class DGInteriorFaceDiffusionIntegratorMeshRevSens;
