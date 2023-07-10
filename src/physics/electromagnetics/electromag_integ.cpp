@@ -1691,6 +1691,8 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 
    auto &alpha = integ.alpha;
+   auto &model = integ.model;
+   auto &mu = integ.mu;
 
    mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
    mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(), space_dim*mesh_ndof1);
@@ -1771,8 +1773,8 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w2, dshapedn2);
       double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2 * psi2_dshapedn2;
 
-      const double w_q1 = w1 * (nor * nor);
-      const double w_q2 = w2 * (nor * nor);
+      const double w_q1 = w1 * (nor * nor) * mu;
+      const double w_q2 = w2 * (nor * nor) * mu;
 
       // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1, shape1);
       double term5 = (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1 * psi1_shape1;
@@ -1801,13 +1803,13 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       avg_model_val_bar += term5_bar * (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
       double w_q1_bar = term5_bar * (elfun1_shape1 - elfun2_shape2) * avg_model_val * psi1_shape1;
 
-      /// const double w_q2 = w2 * (nor * nor);
-      double w2_bar = w_q2_bar * (nor * nor);
-      double nornor_bar = w_q2_bar * w2;
+      /// const double w_q2 = w2 * (nor * nor) * mu;
+      double w2_bar = w_q2_bar * (nor * nor) * mu;
+      double nornor_bar = w_q2_bar * w2 * mu;
 
-      /// const double w_q1 = w1 * (nor * nor);
-      double w1_bar = w_q1_bar * (nor * nor);
-      nornor_bar += w_q1_bar * w1;
+      /// const double w_q1 = w1 * (nor * nor) * mu;
+      double w1_bar = w_q1_bar * (nor * nor) * mu;
+      nornor_bar += w_q1_bar * w1 * mu;
 
       /// nornor = nor * nor
       nor_bar = 0.0;

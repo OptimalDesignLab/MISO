@@ -590,8 +590,6 @@ TEST_CASE("DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect"
 
    // LinearCoefficient one_sc(1.0);
    NonLinearCoefficient one_sc;
-   ConstantCoefficient bc_val(10.0);
-   double sigma = -1.0;
    double mu = 10;
 
    for (int p = 1; p <= 4; ++p)
@@ -624,7 +622,7 @@ TEST_CASE("DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect"
          // evaluate d(psi^T R)/dx and contract with v
          LinearForm dfdx(&mesh_fes);
          dfdx.AddInteriorFaceIntegrator(
-            new mach::DGInteriorFaceDiffusionIntegratorMeshRevSens(state, adjoint, *integ));
+            new mach::DGInteriorFaceDiffusionIntegratorMeshRevSens(mesh_fes, state, adjoint, *integ));
          dfdx.Assemble();
          double dfdx_v = dfdx * v;
 
