@@ -372,7 +372,7 @@ public:
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
    DGInteriorFaceDiffusionIntegratorMeshRevSens(
-      mfem::FiniteElementSpace &mesh_fes,
+       mfem::FiniteElementSpace &mesh_fes,
        mfem::GridFunction &state,
        mfem::GridFunction &adjoint,
        DGInteriorFaceDiffusionIntegrator &integ)

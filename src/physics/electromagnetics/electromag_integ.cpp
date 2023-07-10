@@ -1587,7 +1587,8 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    mfem::Vector psi1;
    mfem::Vector psi2;
 #endif
-   auto *dof_tr = state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   auto *dof_tr =
+       state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
    state.GetSubVector(vdofs1, elfun1);
    if (dof_tr != nullptr)
    {
@@ -1695,8 +1696,11 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &mu = integ.mu;
 
    mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
-   mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(), space_dim*mesh_ndof1);
-   mfem::Vector mesh_coords_bar2(mesh_coords_bar.GetData() + space_dim*mesh_ndof1, space_dim*mesh_ndof2);
+   mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(),
+                                 space_dim * mesh_ndof1);
+   mfem::Vector mesh_coords_bar2(
+       mesh_coords_bar.GetData() + space_dim * mesh_ndof1,
+       space_dim * mesh_ndof2);
    mesh_coords_bar = 0.0;
    mesh_coords_face_bar = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -1723,7 +1727,7 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          CalcOrtho(trans.Jacobian(), nor);
       }
-      
+
       el1.CalcShape(eip1, shape1);
       el2.CalcShape(eip2, shape2);
       el1.CalcDShape(eip1, dshape1);
@@ -1763,23 +1767,35 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       double psi1_dshapedn1 = psi1 * dshapedn1;
       double psi2_dshapedn2 = psi2 * dshapedn2;
 
-      // elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) / 2 * avg_model_val * w1, shape1);
-      double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val * w1 * psi1_shape1;
-      // elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) / 2 * avg_model_val * w2, shape2);
-      double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val * w2 * psi2_shape2;
+      // elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) / 2 *
+      // avg_model_val * w1, shape1);
+      double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
+                     avg_model_val * w1 * psi1_shape1;
+      // elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) / 2 *
+      // avg_model_val * w2, shape2);
+      double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val *
+                     w2 * psi2_shape2;
 
-      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w1, dshapedn1);
-      double term3 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1 * psi1_dshapedn1;
-      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w2, dshapedn2);
-      double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2 * psi2_dshapedn2;
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 *
+      // avg_model_val * w1, dshapedn1);
+      double term3 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1 *
+                     psi1_dshapedn1;
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 *
+      // avg_model_val * w2, dshapedn2);
+      double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2 *
+                     psi2_dshapedn2;
 
       const double w_q1 = w1 * (nor * nor) * mu;
       const double w_q2 = w2 * (nor * nor) * mu;
 
-      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q1, shape1);
-      double term5 = (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1 * psi1_shape1;
-      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val * w_q2, shape2);
-      double term6 = -(elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q2 * psi2_shape2;
+      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val *
+      // w_q1, shape1);
+      double term5 =
+          (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1 * psi1_shape1;
+      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val *
+      // w_q2, shape2);
+      double term6 =
+          -(elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q2 * psi2_shape2;
 
       /// dummy functional for adjoint-weighted residual
       /// fun += term1 + term2 + term3 + term4 + term5 + term6;
@@ -1795,13 +1811,19 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       const double term5_bar = fun_bar;
       const double term6_bar = fun_bar;
 
-      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q2 * psi2_shape2;
-      double avg_model_val_bar = term6_bar * -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
-      double w_q2_bar = term6_bar * -(elfun1_shape1 - elfun2_shape2) * avg_model_val * psi2_shape2;
+      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q2
+      /// * psi2_shape2;
+      double avg_model_val_bar =
+          term6_bar * -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
+      double w_q2_bar = term6_bar * -(elfun1_shape1 - elfun2_shape2) *
+                        avg_model_val * psi2_shape2;
 
-      /// double term5 = (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1 * psi1_shape1;
-      avg_model_val_bar += term5_bar * (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
-      double w_q1_bar = term5_bar * (elfun1_shape1 - elfun2_shape2) * avg_model_val * psi1_shape1;
+      /// double term5 = (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1
+      /// * psi1_shape1;
+      avg_model_val_bar +=
+          term5_bar * (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
+      double w_q1_bar = term5_bar * (elfun1_shape1 - elfun2_shape2) *
+                        avg_model_val * psi1_shape1;
 
       /// const double w_q2 = w2 * (nor * nor) * mu;
       double w2_bar = w_q2_bar * (nor * nor) * mu;
@@ -1815,25 +1837,41 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       nor_bar = 0.0;
       nor_bar.Add(2 * nornor_bar, nor);
 
-      /// double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2 * psi2_dshapedn2;
-      avg_model_val_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * w2 * psi2_dshapedn2;
-      w2_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * psi2_dshapedn2;
-      double psi2_dshapedn2_bar = term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2;
+      /// double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val *
+      /// w2 * psi2_dshapedn2;
+      avg_model_val_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
+                           w2 * psi2_dshapedn2;
+      w2_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
+                avg_model_val * psi2_dshapedn2;
+      double psi2_dshapedn2_bar =
+          term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2;
 
-      /// double term3 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1 * psi1_dshapedn1;
-      avg_model_val_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * w1 * psi1_dshapedn1;
-      w1_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * psi1_dshapedn1;
-      double psi1_dshapedn1_bar = term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1;
+      /// double term3 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val *
+      /// w1 * psi1_dshapedn1;
+      avg_model_val_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
+                           w1 * psi1_dshapedn1;
+      w1_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
+                avg_model_val * psi1_dshapedn1;
+      double psi1_dshapedn1_bar =
+          term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1;
 
-      /// double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val * w2 * psi2_shape2;
-      avg_model_val_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * w2 * psi2_shape2;
-      w2_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val * psi2_shape2;
-      double elfun1_dshapedn1_bar = term2_bar / 2 * avg_model_val * w2 * psi2_shape2;
-      double elfun2_dshapedn2_bar = term2_bar / 2 * avg_model_val * w2 * psi2_shape2;
+      /// double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
+      /// avg_model_val * w2 * psi2_shape2;
+      avg_model_val_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) /
+                           2 * w2 * psi2_shape2;
+      w2_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
+                avg_model_val * psi2_shape2;
+      double elfun1_dshapedn1_bar =
+          term2_bar / 2 * avg_model_val * w2 * psi2_shape2;
+      double elfun2_dshapedn2_bar =
+          term2_bar / 2 * avg_model_val * w2 * psi2_shape2;
 
-      /// double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val * w1 * psi1_shape1;
-      avg_model_val_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * w1 * psi1_shape1;
-      w1_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val * psi1_shape1;
+      /// double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
+      /// avg_model_val * w1 * psi1_shape1;
+      avg_model_val_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) /
+                           2 * w1 * psi1_shape1;
+      w1_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
+                avg_model_val * psi1_shape1;
       elfun1_dshapedn1_bar += -term1_bar / 2 * avg_model_val * w1 * psi1_shape1;
       elfun2_dshapedn2_bar += -term1_bar / 2 * avg_model_val * w1 * psi1_shape1;
 
@@ -1871,21 +1909,26 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double avg_model_val =
       ///     2 * model_val1 * model_val2 / (model_val1 + model_val2);
-      double model_val1_bar = avg_model_val_bar * 2 * pow(model_val2, 2) / pow(model_val1 + model_val2, 2);
-      double model_val2_bar = avg_model_val_bar * 2 * pow(model_val1, 2) / pow(model_val1 + model_val2, 2);
+      double model_val1_bar = avg_model_val_bar * 2 * pow(model_val2, 2) /
+                              pow(model_val1 + model_val2, 2);
+      double model_val2_bar = avg_model_val_bar * 2 * pow(model_val1, 2) /
+                              pow(model_val1 + model_val2, 2);
 
-      /// const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_mag);
+      /// const double model_val2 = model.Eval(*trans.Elem2, eip2,
+      /// ip_flux2_mag);
       const double model_val2_dot =
           model.EvalStateDeriv(*trans.Elem2, eip2, ip_flux2_mag);
       double ip_flux2_mag_bar = model_val2_bar * model_val2_dot;
-      /// const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_mag);
+      /// const double model_val1 = model.Eval(*trans.Elem1, eip1,
+      /// ip_flux1_mag);
       const double model_val1_dot =
           model.EvalStateDeriv(*trans.Elem1, eip1, ip_flux1_mag);
       double ip_flux1_mag_bar = model_val1_bar * model_val1_dot;
 
       /// const double ip_flux2_mag = ip_flux2_norm / el2_trans_weight;
       double ip_flux2_norm_bar = ip_flux2_mag_bar / el2_trans_weight;
-      double el2_trans_weight_bar = -ip_flux2_mag_bar * ip_flux2_norm / pow(el2_trans_weight, 2);
+      double el2_trans_weight_bar =
+          -ip_flux2_mag_bar * ip_flux2_norm / pow(el2_trans_weight, 2);
 
       /// const double ip_flux2_norm = ip_flux2.Norml2();
       ip_flux2_bar = 0.0;
@@ -1893,7 +1936,8 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double ip_flux1_mag = ip_flux1_norm / el1_trans_weight;
       double ip_flux1_norm_bar = ip_flux1_mag_bar / el1_trans_weight;
-      double el1_trans_weight_bar = -ip_flux1_mag_bar * ip_flux1_norm / pow(el1_trans_weight, 2);
+      double el1_trans_weight_bar =
+          -ip_flux1_mag_bar * ip_flux1_norm / pow(el1_trans_weight, 2);
 
       /// const double ip_flux1_norm = ip_flux1.Norml2();
       ip_flux1_bar = 0.0;
@@ -1930,7 +1974,8 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          /// CalcOrtho(trans.Jacobian(), nor);
          double jac_bar_buffer[9] = {};
-         mfem::DenseMatrix jac_bar(jac_bar_buffer, space_dim, trans.GetFE()->GetDim());
+         mfem::DenseMatrix jac_bar(
+             jac_bar_buffer, space_dim, trans.GetFE()->GetDim());
          jac_bar = 0.0;
          CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
          trans.JacobianRevDiff(jac_bar, PointMatFace_bar);
@@ -1972,7 +2017,8 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          for (int k = 0; k < space_dim; ++k)
          {
-            mesh_coords_face_bar(k * mesh_face_ndof + j) += PointMatFace_bar(k, j);
+            mesh_coords_face_bar(k * mesh_face_ndof + j) +=
+                PointMatFace_bar(k, j);
          }
       }
    }
@@ -2622,7 +2668,8 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
    mfem::Vector psi1;
    mfem::Vector psi2;
 #endif
-   auto *dof_tr = state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   auto *dof_tr =
+       state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
    state.GetSubVector(vdofs1, elfun1);
    if (dof_tr != nullptr)
    {
@@ -2716,8 +2763,11 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &alpha = integ.alpha;
 
    mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
-   mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(), space_dim*mesh_ndof1);
-   mfem::Vector mesh_coords_bar2(mesh_coords_bar.GetData() + space_dim*mesh_ndof1, space_dim*mesh_ndof2);
+   mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(),
+                                 space_dim * mesh_ndof1);
+   mfem::Vector mesh_coords_bar2(
+       mesh_coords_bar.GetData() + space_dim * mesh_ndof1,
+       space_dim * mesh_ndof2);
    mesh_coords_bar = 0.0;
    mesh_coords_face_bar = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
@@ -2744,7 +2794,7 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          CalcOrtho(trans.Jacobian(), nor);
       }
-      
+
       el1.CalcShape(eip1, shape1);
       el2.CalcShape(eip2, shape2);
       el1.CalcDShape(eip1, dshape1);
@@ -2768,9 +2818,11 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       double psi1_dshapedn1 = psi1 * dshapedn1;
       double psi2_dshapedn2 = psi2 * dshapedn2;
 
-      // elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w1, shape1);
+      // elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w1,
+      // shape1);
       double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) * w1 * psi1_shape1;
-      // elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w2, shape2);
+      // elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w2,
+      // shape2);
       double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) * w2 * psi2_shape2;
 
       // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w1, dshapedn1);
@@ -2801,10 +2853,12 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       const double term6_bar = fun_bar;
 
       /// double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
-      double w_q2_bar = term6_bar * -(elfun1_shape1 - elfun2_shape2) * psi2_shape2;
+      double w_q2_bar =
+          term6_bar * -(elfun1_shape1 - elfun2_shape2) * psi2_shape2;
 
       /// double term5 = (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
-      double w_q1_bar = term5_bar * (elfun1_shape1 - elfun2_shape2) * psi1_shape1;
+      double w_q1_bar =
+          term5_bar * (elfun1_shape1 - elfun2_shape2) * psi1_shape1;
 
       /// const double w_q2 = w2 * (nor * nor);
       double w2_bar = w_q2_bar * (nor * nor);
@@ -2820,19 +2874,24 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// double term4 = (-elfun1_shape1 + elfun2_shape2) * w2 * psi2_dshapedn2;
       w2_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) * psi2_dshapedn2;
-      double psi2_dshapedn2_bar = term4_bar * (-elfun1_shape1 + elfun2_shape2) * w2;
+      double psi2_dshapedn2_bar =
+          term4_bar * (-elfun1_shape1 + elfun2_shape2) * w2;
 
       /// double term3 = (-elfun1_shape1 + elfun2_shape2) * w1 * psi1_dshapedn1;
       w1_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) * psi1_dshapedn1;
-      double psi1_dshapedn1_bar = term4_bar * (-elfun1_shape1 + elfun2_shape2) * w1;
+      double psi1_dshapedn1_bar =
+          term4_bar * (-elfun1_shape1 + elfun2_shape2) * w1;
 
-      /// double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) * w2 * psi2_shape2;
+      /// double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) * w2 *
+      /// psi2_shape2;
       w2_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) * psi2_shape2;
       double elfun1_dshapedn1_bar = term2_bar * w2 * psi2_shape2;
       double elfun2_dshapedn2_bar = term2_bar * w2 * psi2_shape2;
 
-      /// double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) * w1 * psi1_shape1;
-      w1_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) * psi1_shape1;
+      /// double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) * w1 *
+      /// psi1_shape1;
+      w1_bar +=
+          -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) * psi1_shape1;
       elfun1_dshapedn1_bar += -term1_bar * w1 * psi1_shape1;
       elfun2_dshapedn2_bar += -term1_bar * w1 * psi1_shape1;
 
@@ -2867,7 +2926,7 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       dshapedxt1_bar = 0.0;
       MultVWt(dshapedn1_bar, nor, dshapedxt1_bar);
       dshapedxt1.AddMultTranspose(dshapedn1_bar, nor_bar);
-      
+
       /// Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
       double adj_jac2_bar_buffer[9] = {};
       DenseMatrix adj_jac2_bar(adj_jac2_bar_buffer, space_dim, space_dim);
@@ -2893,7 +2952,8 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          /// CalcOrtho(trans.Jacobian(), nor);
          double jac_bar_buffer[9] = {};
-         mfem::DenseMatrix jac_bar(jac_bar_buffer, space_dim, trans.GetFE()->GetDim());
+         mfem::DenseMatrix jac_bar(
+             jac_bar_buffer, space_dim, trans.GetFE()->GetDim());
          jac_bar = 0.0;
          CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
          trans.JacobianRevDiff(jac_bar, PointMatFace_bar);
@@ -2935,7 +2995,8 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          for (int k = 0; k < space_dim; ++k)
          {
-            mesh_coords_face_bar(k * mesh_face_ndof + j) += PointMatFace_bar(k, j);
+            mesh_coords_face_bar(k * mesh_face_ndof + j) +=
+                PointMatFace_bar(k, j);
          }
       }
    }
