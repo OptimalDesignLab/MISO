@@ -588,7 +588,6 @@ TEST_CASE("DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect"
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   // LinearCoefficient one_sc(1.0);
    NonLinearCoefficient one_sc;
    double mu = 10;
 

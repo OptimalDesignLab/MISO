@@ -104,6 +104,77 @@ private:
    mfem::DenseMatrix elmat11;
    mfem::DenseMatrix elmat12;
    mfem::DenseMatrix elmat22;
+
+   mfem::Vector sipg_elvect;
+   mfem::DenseMatrix sipg_elmat;
+#endif
+   friend class ThermalContactResistanceIntegratorMeshRevSens;
+};
+
+class ThermalContactResistanceIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] mesh_fes - the mesh finite element space
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ThermalContactResistanceIntegratorMeshRevSens(
+       mfem::FiniteElementSpace &mesh_fes,
+       mfem::GridFunction &state,
+       mfem::GridFunction &adjoint,
+       ThermalContactResistanceIntegrator &integ)
+    : mesh_fes(mesh_fes),
+      state(state),
+      adjoint(adjoint),
+      integ(integ),
+      sipg(mesh_fes, state, adjoint, integ.sipg)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &,
+                               mfem::ElementTransformation &,
+                               mfem::Vector &) override
+   {
+      mfem::mfem_error(
+          "ThermalContactResistanceIntegratorMeshRevSens::"
+          "AssembleRHSElementVect(...)");
+   }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] mesh_el1 - the finite element that describes the mesh element
+   /// \param[in] mesh_el2 - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   /// \note this signature is for sensitivity wrt mesh element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el1,
+                               const mfem::FiniteElement &mesh_el2,
+                               mfem::FaceElementTransformations &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// The mesh finite element space used to assemble the sensitivity
+   mfem::FiniteElementSpace &mesh_fes;
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ThermalContactResistanceIntegrator &integ;
+   /// SIPG interface integ mesh sens
+   DGInteriorFaceDiffusionIntegratorMeshRevSens sipg;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
 #endif
 };
 
