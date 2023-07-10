@@ -514,8 +514,6 @@ void ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect(
          mesh_coords_bar1(idx) += mesh_coords_face_bar(j);
       }
    }
-
-
 }
 
 void ConvectionBCIntegrator::AssembleFaceVector(
