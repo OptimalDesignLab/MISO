@@ -367,14 +367,16 @@ class DGInteriorFaceDiffusionIntegratorMeshRevSens
  : public mfem::LinearFormIntegrator
 {
 public:
+   /// \param[in] mesh_fes - the mesh finite element space
    /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
    /// \param[in] integ - reference to primal integrator
    DGInteriorFaceDiffusionIntegratorMeshRevSens(
+      mfem::FiniteElementSpace &mesh_fes,
        mfem::GridFunction &state,
        mfem::GridFunction &adjoint,
        DGInteriorFaceDiffusionIntegrator &integ)
-    : state(state), adjoint(adjoint), integ(integ)
+    : mesh_fes(mesh_fes), state(state), adjoint(adjoint), integ(integ)
    { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -401,6 +403,8 @@ public:
                                mfem::Vector &mesh_coords_bar) override;
 
 private:
+   /// The mesh finite element space used to assemble the sensitivity
+   mfem::FiniteElementSpace &mesh_fes;
    /// the state to use when evaluating d(psi^T R)/dX
    mfem::GridFunction &state;
    /// the adjoint to use when evaluating d(psi^T R)/dX
@@ -409,11 +413,20 @@ private:
    DGInteriorFaceDiffusionIntegrator &integ;
 
 #ifndef MFEM_THREAD_SAFE
-   mfem::Array<int> vdofs;
-   mfem::Vector elfun, psi;
-   mfem::DenseMatrix PointMat_bar;
-   mfem::DenseMatrix dshapedxt_bar;
-   mfem::Vector dshapedn_bar;
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+   mfem::DenseMatrix dshapedxt1_bar;
+   mfem::DenseMatrix dshapedxt2_bar;
+   mfem::Vector dshapedn1_bar;
+   mfem::Vector dshapedn2_bar;
+   mfem::DenseMatrix PointMat1_bar;
+   mfem::DenseMatrix PointMat2_bar;
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
 #endif
 };
 
