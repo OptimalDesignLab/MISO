@@ -377,20 +377,26 @@ public:
     : state(state), adjoint(adjoint), integ(integ)
    { }
 
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &Tr,
+                               mfem::Vector &elvect) override
+   {
+      mfem::mfem_error(
+          "DGInteriorFaceDiffusionIntegratorMeshRevSens::"
+          "AssembleRHSElementVect(...)");
+   }
+
    /// \brief - assemble an element's contribution to d(psi^T R)/dX
-   /// \param[in] el - the finite element that describes the mesh element
+   /// \param[in] el1 - the finite element that describes the mesh element
+   /// \param[in] el2 - the finite element that describes the mesh element
    /// \param[in] trans - the transformation between reference and physical
    /// space
    /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
    /// \note the LinearForm that assembles this integrator's FiniteElementSpace
    /// MUST be the mesh's nodal finite element space
-   /// \note this signature is for sensitivity wrt mesh face
-   void AssembleRHSElementVect(const mfem::FiniteElement &el,
-                               mfem::ElementTransformation &trans,
-                               mfem::Vector &mesh_coords_bar) override;
-
-   /// This signature is for sensitivity wrt mesh element
-   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+   /// \note this signature is for sensitivity wrt mesh element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el1,
+                               const mfem::FiniteElement &el2,
                                mfem::FaceElementTransformations &trans,
                                mfem::Vector &mesh_coords_bar) override;
 
@@ -477,6 +483,100 @@ private:
    mfem::DenseMatrix PointMat_bar;
    mfem::DenseMatrix dshapedxt_bar;
    mfem::Vector dshapedn_bar;
+#endif
+};
+
+class TestInteriorFaceIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   TestInteriorFaceIntegrator(double a = 1.0) : alpha(a) { }
+
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
+
+private:
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+#endif
+
+   friend class TestInteriorFaceIntegratorMeshRevSens;
+};
+
+class TestInteriorFaceIntegratorMeshRevSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] mesh_fes - the mesh finite element space
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   TestInteriorFaceIntegratorMeshRevSens(mfem::FiniteElementSpace &mesh_fes,
+                                         mfem::GridFunction &state,
+                                         mfem::GridFunction &adjoint,
+                                         TestInteriorFaceIntegrator &integ)
+    : mesh_fes(mesh_fes), state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &el,
+                               mfem::ElementTransformation &Tr,
+                               mfem::Vector &elvect) override
+   {
+      mfem::mfem_error(
+          "DGInteriorFaceDiffusionIntegratorMeshRevSens::"
+          "AssembleRHSElementVect(...)");
+   }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] el1 - the finite element that describes the mesh element
+   /// \param[in] el2 - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   /// \note this signature is for sensitivity wrt mesh element
+   void AssembleRHSElementVect(const mfem::FiniteElement &el1,
+                               const mfem::FiniteElement &el2,
+                               mfem::FaceElementTransformations &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// The mesh finite element space used to assemble the sensitivity
+   mfem::FiniteElementSpace &mesh_fes;
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   TestInteriorFaceIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+   mfem::DenseMatrix dshapedxt1_bar;
+   mfem::DenseMatrix dshapedxt2_bar;
+   mfem::Vector dshapedn1_bar;
+   mfem::Vector dshapedn2_bar;
+   mfem::DenseMatrix PointMat1_bar;
+   mfem::DenseMatrix PointMat2_bar;
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
 #endif
 };
 

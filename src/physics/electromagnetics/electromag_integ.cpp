@@ -1296,31 +1296,6 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
    }
 }
 
-// const double delta = 1e-5;
-
-// mfem::Vector state(elfun);
-// mfem::Vector v(ndof);
-// mfem::Vector r_p(ndof);
-// mfem::Vector r_m(ndof);
-
-// elmat.SetSize(ndof);
-// for (int i = 0; i < v.Size(); ++i)
-// {
-//    v = 0.0;
-//    v(i) = 1.0;
-
-//    state.Add(-delta, v);
-//    AssembleFaceVector(el1, el2, trans, state, r_m);
-//    state.Add(2*delta, v);
-//    AssembleFaceVector(el1, el2, trans, state, r_p);
-//    state.Add(-delta, v);
-
-//    for (int j = 0; j < v.Size(); ++j)
-//    {
-//       elmat(j, i) = (r_p(j) - r_m(j)) / (2*delta);
-//    }
-// }
-
 void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
     const mfem::FiniteElement &el1,
     const mfem::FiniteElement &el2,
@@ -1584,269 +1559,21 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
    }
 }
 
-/// this signature is for sensitivity wrt mesh face
 void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
-    const mfem::FiniteElement &el,
-    mfem::ElementTransformation &trans,
-    mfem::Vector &mesh_coords_bar)
-{
-   //    const int element = mesh_trans.ElementNo;
-   //    auto &trans =
-   //        *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
-   //    const int state_elem_num = trans.Elem1->ElementNo;
-   //    const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
-   //    int dim = el1.GetDim();
-
-   //    const int mesh_ndof = mesh_el.GetDof();
-   //    const int ndof = el1.GetDof();
-   //    const int trans_dim = trans.GetDimension();
-   //    const int space_dim = trans.GetSpaceDim();
-
-   //    /// get the proper element, transformation, and state vector
-   // #ifdef MFEM_THREAD_SAFE
-   //    mfem::Array<int> vdofs;
-   //    mfem::Vector elfun;
-   //    mfem::Vector psi;
-   // #endif
-   //    auto *dof_tr = state.FESpace()->GetElementVDofs(state_elem_num, vdofs);
-   //    state.GetSubVector(vdofs, elfun);
-   //    if (dof_tr != nullptr)
-   //    {
-   //       dof_tr->InvTransformPrimal(elfun);
-   //    }
-
-   //    dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
-   //    adjoint.GetSubVector(vdofs, psi);
-   //    if (dof_tr != nullptr)
-   //    {
-   //       dof_tr->InvTransformPrimal(psi);
-   //    }
-
-   // #ifdef MFEM_THREAD_SAFE
-   //    mfem::Vector shape;
-   //    mfem::DenseMatrix dshape;
-   //    mfem::DenseMatrix dshapedxt;
-   //    mfem::Vector dshapedn;
-   //    mfem::DenseMatrix PointMat_bar;
-   //    mfem::DenseMatrix dshapedxt_bar;
-   //    mfem::Vector dshapedn_bar;
-   // #else
-   //    auto &shape = integ.shape;
-   //    auto &dshape = integ.dshape;
-   //    auto &dshapedxt = integ.dshapedxt;
-   //    auto &dshapedn = integ.dshapedn;
-   // #endif
-   //    shape.SetSize(ndof);
-   //    dshape.SetSize(ndof, dim);
-   //    dshapedxt.SetSize(ndof, dim);
-   //    dshapedn.SetSize(ndof);
-
-   //    PointMat_bar.SetSize(space_dim, mesh_ndof);
-   //    dshapedxt_bar.SetSize(ndof, dim);
-   //    dshapedn_bar.SetSize(ndof);
-
-   //    double pointflux_buffer[3] = {};
-   //    Vector pointflux(pointflux_buffer, dim);
-
-   //    double pointflux_bar_buffer[3] = {};
-   //    Vector pointflux_bar(pointflux_bar_buffer, dim);
-
-   //    double nor_buffer[3] = {};
-   //    mfem::Vector nor(nor_buffer, dim);
-
-   //    double nor_bar_buffer[3] = {};
-   //    mfem::Vector nor_bar(nor_bar_buffer, dim);
-
-   //    double adj_jac_bar_buffer[9] = {};
-   //    mfem::DenseMatrix adj_jac_bar(dim);
-
-   //    double jac_bar_buffer[9] = {};
-   //    mfem::DenseMatrix jac_bar(dim, trans_dim);
-
-   //    // cast the ElementTransformation
-   //    auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation
-   //    &>(trans);
-
-   //    const mfem::IntegrationRule *ir = IntRule;
-   //    if (ir == nullptr)
-   //    {
-   //       int order = 2 * el1.GetOrder();
-   //       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
-   //    }
-
-   //    auto &alpha = integ.alpha;
-   //    auto &model = integ.model;
-   //    auto &g = integ.g;
-   //    auto &mu = integ.mu;
-
-   //    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
-   //    mesh_coords_bar = 0.0;
-   //    for (int i = 0; i < ir->GetNPoints(); i++)
-   //    {
-   //       const IntegrationPoint &ip = ir->IntPoint(i);
-
-   //       // Set the integration point in the face and the neighboring
-   //       elements trans.SetAllIntPoints(&ip); const IntegrationPoint &eip1 =
-   //       trans.GetElement1IntPoint();
-
-   //       double el1_trans_weight = trans.Elem1->Weight();
-
-   //       double w = alpha * ip.weight / el1_trans_weight;
-
-   //       if (dim == 1)
-   //       {
-   //          nor(0) = 2 * eip1.x - 1.0;
-   //       }
-   //       else
-   //       {
-   //          CalcOrtho(trans.Jacobian(), nor);
-   //       }
-
-   //       el1.CalcShape(eip1, shape);
-   //       el1.CalcDShape(eip1, dshape);
-
-   //       Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-   //       dshapedxt.MultTranspose(elfun, pointflux);
-   //       const double pointflux_norm = pointflux.Norml2();
-   //       const double pointflux_mag = pointflux_norm / el1_trans_weight;
-
-   //       double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
-
-   //       dshapedxt.Mult(nor, dshapedn);
-
-   //       double bc_val = g.Eval(*trans.Elem1, eip1);
-
-   //       double elfun_shape = elfun * shape;
-   //       double elfun_dshapedn = elfun * dshapedn;
-
-   //       double psi_shape = psi * shape;
-   //       double psi_dshapedn = psi * dshapedn;
-
-   //       // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
-   //       double term1 = -elfun_dshapedn * model_val * w * psi_shape;
-   //       // elvect.Add(-((shape * elfun) - bc_val) * model_val * w,
-   //       dshapedn); double term2 = -(elfun_shape - bc_val) * model_val * w *
-   //       psi_dshapedn;
-
-   //       const double w_q = w * (nor * nor) * mu;
-   //       // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
-   //       double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
-
-   //       /// dummy functional for adjoint-weighted residual
-   //       // fun += term1 + term2 + term3;
-
-   //       /// start reverse pass
-   //       const double fun_bar = 1.0;
-
-   //       /// fun += term1 + term2 + term3;
-   //       const double term1_bar = fun_bar;
-   //       const double term2_bar = fun_bar;
-   //       const double term3_bar = fun_bar;
-
-   //       /// double term3 = (elfun_shape - bc_val) * model_val * w_q *
-   //       psi_shape; double w_q_bar =
-   //           term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
-   //       double model_val_bar =
-   //           term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
-
-   //       /// const double w_q = w * (nor * nor) * mu;
-   //       double w_bar = w_q_bar * (nor * nor) * mu;
-   //       nor_bar = 0.0;
-   //       nor_bar.Add(2 * w_q_bar * w * mu, nor);
-
-   //       /// double term2 = -(elfun_shape - bc_val) * model_val * w *
-   //       psi_dshapedn; w_bar += term2_bar * -(elfun_shape - bc_val) *
-   //       model_val * psi_dshapedn; model_val_bar += term2_bar * -(elfun_shape
-   //       - bc_val) * w * psi_dshapedn; double psi_dshapedn_bar =
-   //           term2_bar * -(elfun_shape - bc_val) * model_val * w;
-
-   //       /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
-   //       w_bar += term1_bar * -elfun_dshapedn * model_val * psi_shape;
-   //       model_val_bar += term1_bar * -elfun_dshapedn * w * psi_shape;
-   //       double elfun_dshapedn_bar = term1_bar * -model_val * w * psi_shape;
-
-   //       /// double psi_dshapedn = psi * dshapedn;
-   //       dshapedn_bar = 0.0;
-   //       dshapedn_bar.Add(psi_dshapedn_bar, psi);
-
-   //       /// double psi_shape = psi * shape;
-
-   //       /// double elfun_dshapedn = elfun * dshapedn;
-   //       dshapedn_bar.Add(elfun_dshapedn_bar, elfun);
-
-   //       /// double elfun_shape = elfun * shape;
-
-   //       /// double bc_val = g.Eval(trans, eip1);
-
-   //       /// dshapedxt.Mult(nor, dshapedn);
-   //       dshapedxt.AddMultTranspose(dshapedn_bar, nor_bar);
-   //       // MultVWt(dshapedn_bar, nor, dshapedxt_bar);
-
-   //       /// double model_val = model.Eval(trans, eip1, pointflux_mag);
-   //       const double model_val_dot =
-   //           model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
-   //       double pointflux_mag_bar = model_val_bar * model_val_dot;
-
-   //       /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
-   //       double pointflux_norm_bar = pointflux_mag_bar / el1_trans_weight;
-   //       double el1_trans_weight_bar =
-   //           -pointflux_mag_bar * pointflux_norm / pow(el1_trans_weight, 2);
-
-   //       /// const double pointflux_norm = pointflux.Norml2();
-   //       pointflux_bar = 0.0;
-   //       add(pointflux_bar,
-   //           pointflux_norm_bar / pointflux_norm,
-   //           pointflux,
-   //           pointflux_bar);
-
-   //       /// dshapedxt.MultTranspose(elfun, pointflux);
-   //       AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
-
-   //       /// Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-   //       // MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
-
-   //       // PointMat_bar = 0.0;
-   //       // isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar); ///
-   //       // element Jacobian!
-
-   //       if (dim == 1)
-   //       {
-   //          /// nor(0) = 2 * eip1.x - 1.0;
-   //       }
-   //       else
-   //       {
-   //          /// CalcOrtho(trans.Jacobian(), nor);
-   //          jac_bar = 0.0;
-   //          CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
-   //          PointMat_bar = 0.0;
-   //          isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
-   //       }
-
-   //       /// double w = alpha * ip.weight / el1_trans_weight;
-   //       el1_trans_weight_bar +=
-   //           w_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
-
-   //       /// double el1_trans_weight = trans.Elem1->Weight();
-   //       // trans.Elem1->WeightRevDiff(el1_trans_weight_bar, PointMat_bar);
-   //       ///
-   //       // element Jacobian!
-
-   //       // code to insert PointMat_bar into mesh_coords_bar;
-   //       for (int j = 0; j < mesh_ndof; ++j)
-   //       {
-   //          for (int k = 0; k < space_dim; ++k)
-   //          {
-   //             mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
-   //          }
-   //       }
-   //    }
-}
-
-void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
-    const mfem::FiniteElement &el,
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
     mfem::FaceElementTransformations &trans,
     mfem::Vector &mesh_coords_bar)
-{ }
+{
+   std::cout << "integ!\n";
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+   int ndof = ndof1 + ndof2;
+
+   int dim = trans.GetSpaceDim();
+
+   mesh_coords_bar.SetSize(dim * ndof);
+}
 
 void TestBoundaryIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,
@@ -2348,6 +2075,465 @@ void TestBoundaryIntegratorMeshRevSens::AssembleRHSElementVect(
          {
             mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
          }
+      }
+   }
+}
+
+void TestInteriorFaceIntegrator::AssembleFaceVector(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+
+   int dim = trans.GetSpaceDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   dshape1.SetSize(ndof1, dim);
+   dshape2.SetSize(ndof2, dim);
+   dshapedxt1.SetSize(ndof1, dim);
+   dshapedxt2.SetSize(ndof2, dim);
+   dshapedn1.SetSize(ndof1);
+   dshapedn2.SetSize(ndof2);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elvect.SetSize(ndof1 + ndof2);
+   mfem::Vector elvect1(elvect.GetData(), ndof1);
+   mfem::Vector elvect2(elvect.GetData() + ndof1, ndof2);
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+      double el2_trans_weight = trans.Elem2->Weight();
+
+      double w1 = alpha * ip.weight / (el1_trans_weight);
+      double w2 = alpha * ip.weight / (el2_trans_weight);
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+      el1.CalcDShape(eip1, dshape1);
+      el2.CalcDShape(eip2, dshape2);
+
+      Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
+
+      elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w1, shape1);
+      elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w2, shape2);
+
+      elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w1, dshapedn1);
+      elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w2, dshapedn2);
+
+      const double w_q1 = w1 * (nor * nor);
+      const double w_q2 = w2 * (nor * nor);
+      elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * w_q1, shape1);
+      elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q2, shape2);
+   }
+}
+
+void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el1,
+    const mfem::FiniteElement &mesh_el2,
+    mfem::FaceElementTransformations &trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const auto &el1 = *state.FESpace()->GetFE(trans.Elem1->ElementNo);
+   const auto &el2 = *state.FESpace()->GetFE(trans.Elem2->ElementNo);
+
+   const int mesh_ndof1 = mesh_el1.GetDof();
+   const int mesh_ndof2 = mesh_el2.GetDof();
+   const int mesh_face_ndof = trans.GetFE()->GetDof();
+
+   const int ndof1 = el1.GetDof();
+   const int ndof2 = el2.GetDof();
+
+   int dim = el1.GetDim();
+   const int space_dim = trans.GetSpaceDim();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+   auto *dof_tr = state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   state.GetSubVector(vdofs1, elfun1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun1);
+   }
+   dof_tr = state.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   state.GetSubVector(vdofs2, elfun2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun2);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   adjoint.GetSubVector(vdofs1, psi1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi1);
+   }
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   adjoint.GetSubVector(vdofs2, psi2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi2);
+   }
+
+   dof_tr = mesh_fes.GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   mesh_fes.GetFaceVDofs(trans.ElementNo, vdofs2);
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+   mfem::DenseMatrix dshapedxt1_bar;
+   mfem::DenseMatrix dshapedxt2_bar;
+   mfem::Vector dshapedn1_bar;
+   mfem::Vector dshapedn2_bar;
+   mfem::DenseMatrix PointMat1_bar;
+   mfem::DenseMatrix PointMat2_bar;
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
+#else
+   auto &shape1 = integ.shape1;
+   auto &shape2 = integ.shape2;
+   auto &dshape1 = integ.dshape1;
+   auto &dshape2 = integ.dshape2;
+   auto &dshapedxt1 = integ.dshapedxt1;
+   auto &dshapedxt2 = integ.dshapedxt2;
+   auto &dshapedn1 = integ.dshapedn1;
+   auto &dshapedn2 = integ.dshapedn2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   dshape1.SetSize(ndof1, dim);
+   dshape2.SetSize(ndof2, dim);
+   dshapedxt1.SetSize(ndof1, dim);
+   dshapedxt2.SetSize(ndof2, dim);
+   dshapedn1.SetSize(ndof1);
+   dshapedn2.SetSize(ndof2);
+   dshapedxt1_bar.SetSize(ndof1, dim);
+   dshapedxt2_bar.SetSize(ndof2, dim);
+   dshapedn1_bar.SetSize(ndof1);
+   dshapedn2_bar.SetSize(ndof2);
+   PointMat1_bar.SetSize(space_dim, mesh_ndof1);
+   PointMat2_bar.SetSize(space_dim, mesh_ndof2);
+   PointMatFace_bar.SetSize(space_dim, mesh_face_ndof);
+   mesh_coords_face_bar.SetSize(space_dim * mesh_face_ndof);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   double nor_bar_buffer[3] = {};
+   mfem::Vector nor_bar(nor_bar_buffer, dim);
+
+   auto &isotrans1 =
+       dynamic_cast<mfem::IsoparametricTransformation &>(*trans.Elem1);
+   auto &isotrans2 =
+       dynamic_cast<mfem::IsoparametricTransformation &>(*trans.Elem2);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+
+   mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
+   mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(), space_dim*mesh_ndof1);
+   mfem::Vector mesh_coords_bar2(mesh_coords_bar.GetData() + space_dim*mesh_ndof1, space_dim*mesh_ndof2);
+   mesh_coords_bar = 0.0;
+   mesh_coords_face_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+      double el2_trans_weight = trans.Elem2->Weight();
+
+      double w1 = alpha * ip.weight / (el1_trans_weight);
+      double w2 = alpha * ip.weight / (el2_trans_weight);
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+      
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+      el1.CalcDShape(eip1, dshape1);
+      el2.CalcDShape(eip2, dshape2);
+
+      Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
+
+      double elfun1_shape1 = elfun1 * shape1;
+      double elfun2_shape2 = elfun2 * shape2;
+
+      double elfun1_dshapedn1 = dshapedn1 * elfun1;
+      double elfun2_dshapedn2 = dshapedn2 * elfun2;
+
+      double psi1_shape1 = psi1 * shape1;
+      double psi2_shape2 = psi2 * shape2;
+
+      double psi1_dshapedn1 = psi1 * dshapedn1;
+      double psi2_dshapedn2 = psi2 * dshapedn2;
+
+      // elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w1, shape1);
+      double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) * w1 * psi1_shape1;
+      // elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) * w2, shape2);
+      double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) * w2 * psi2_shape2;
+
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w1, dshapedn1);
+      double term3 = (-elfun1_shape1 + elfun2_shape2) * w1 * psi1_dshapedn1;
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w2, dshapedn2);
+      double term4 = (-elfun1_shape1 + elfun2_shape2) * w2 * psi2_dshapedn2;
+
+      const double w_q1 = w1 * (nor * nor);
+      const double w_q2 = w2 * (nor * nor);
+
+      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * w_q1, shape1);
+      double term5 = (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
+      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q2, shape2);
+      double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
+
+      /// dummy functional for adjoint-weighted residual
+      /// fun += term1 + term2 + term3 + term4 + term5 + term6;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += term1 + term2 + term3 + term4 + term5 + term6;
+      const double term1_bar = fun_bar;
+      const double term2_bar = fun_bar;
+      const double term3_bar = fun_bar;
+      const double term4_bar = fun_bar;
+      const double term5_bar = fun_bar;
+      const double term6_bar = fun_bar;
+
+      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
+      double w_q2_bar = term6_bar * -(elfun1_shape1 - elfun2_shape2) * psi2_shape2;
+
+      /// double term5 = (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
+      double w_q1_bar = term5_bar * (elfun1_shape1 - elfun2_shape2) * psi1_shape1;
+
+      /// const double w_q2 = w2 * (nor * nor);
+      double w2_bar = w_q2_bar * (nor * nor);
+      double nornor_bar = w_q2_bar * w2;
+
+      /// const double w_q1 = w1 * (nor * nor);
+      double w1_bar = w_q1_bar * (nor * nor);
+      nornor_bar += w_q1_bar * w1;
+
+      /// nornor = nor * nor
+      nor_bar = 0.0;
+      nor_bar.Add(2 * nornor_bar, nor);
+
+      /// double term4 = (-elfun1_shape1 + elfun2_shape2) * w2 * psi2_dshapedn2;
+      w2_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) * psi2_dshapedn2;
+      double psi2_dshapedn2_bar = term4_bar * (-elfun1_shape1 + elfun2_shape2) * w2;
+
+      /// double term3 = (-elfun1_shape1 + elfun2_shape2) * w1 * psi1_dshapedn1;
+      w1_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) * psi1_dshapedn1;
+      double psi1_dshapedn1_bar = term4_bar * (-elfun1_shape1 + elfun2_shape2) * w1;
+
+      /// double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) * w2 * psi2_shape2;
+      w2_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) * psi2_shape2;
+      double elfun1_dshapedn1_bar = term2_bar * w2 * psi2_shape2;
+      double elfun2_dshapedn2_bar = term2_bar * w2 * psi2_shape2;
+
+      /// double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) * w1 * psi1_shape1;
+      w1_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) * psi1_shape1;
+      elfun1_dshapedn1_bar += -term1_bar * w1 * psi1_shape1;
+      elfun2_dshapedn2_bar += -term1_bar * w1 * psi1_shape1;
+
+      /// double psi2_dshapedn2 = psi2 * dshapedn2;
+      dshapedn2_bar = 0.0;
+      dshapedn2_bar.Add(psi2_dshapedn2_bar, psi2);
+
+      /// double psi1_dshapedn1 = psi1 * dshapedn1;
+      dshapedn1_bar = 0.0;
+      dshapedn1_bar.Add(psi1_dshapedn1_bar, psi1);
+
+      /// double psi2_shape2 = psi2 * shape2;
+
+      /// double psi1_shape1 = psi1 * shape1;
+
+      /// double elfun2_dshapedn2 = dshapedn2 * elfun2;
+      dshapedn2_bar.Add(elfun2_dshapedn2_bar, elfun2);
+
+      /// double elfun1_dshapedn1 = dshapedn1 * elfun1;
+      dshapedn1_bar.Add(elfun1_dshapedn1_bar, elfun1);
+
+      /// double elfun2_shape2 = elfun2 * shape2;
+
+      /// double elfun1_shape1 = elfun1 * shape1;
+
+      /// dshapedxt2.Mult(nor, dshapedn2);
+      dshapedxt2_bar = 0.0;
+      MultVWt(dshapedn2_bar, nor, dshapedxt2_bar);
+      dshapedxt2.AddMultTranspose(dshapedn2_bar, nor_bar);
+
+      /// dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt1_bar = 0.0;
+      MultVWt(dshapedn1_bar, nor, dshapedxt1_bar);
+      dshapedxt1.AddMultTranspose(dshapedn1_bar, nor_bar);
+      
+      /// Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
+      double adj_jac2_bar_buffer[9] = {};
+      DenseMatrix adj_jac2_bar(adj_jac2_bar_buffer, space_dim, space_dim);
+      MultAtB(dshape2, dshapedxt2_bar, adj_jac2_bar);
+
+      PointMat2_bar = 0.0;
+      isotrans2.AdjugateJacobianRevDiff(adj_jac2_bar, PointMat2_bar);
+
+      /// Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
+      double adj_jac1_bar_buffer[9] = {};
+      DenseMatrix adj_jac1_bar(adj_jac1_bar_buffer, space_dim, space_dim);
+      MultAtB(dshape1, dshapedxt1_bar, adj_jac1_bar);
+
+      PointMat1_bar = 0.0;
+      isotrans1.AdjugateJacobianRevDiff(adj_jac1_bar, PointMat1_bar);
+
+      PointMatFace_bar = 0.0;
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         /// CalcOrtho(trans.Jacobian(), nor);
+         double jac_bar_buffer[9] = {};
+         mfem::DenseMatrix jac_bar(jac_bar_buffer, space_dim, trans.GetFE()->GetDim());
+         jac_bar = 0.0;
+         CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
+         trans.JacobianRevDiff(jac_bar, PointMatFace_bar);
+      }
+
+      /// double w2 = alpha * ip.weight / (el2_trans_weight);
+      double el2_trans_weight_bar =
+          w2_bar * -alpha * ip.weight / pow(el2_trans_weight, 2);
+
+      /// double w1 = alpha * ip.weight / (el1_trans_weight);
+      double el1_trans_weight_bar =
+          w1_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
+
+      /// double el2_trans_weight = trans.Elem2->Weight();
+      isotrans2.WeightRevDiff(el2_trans_weight_bar, PointMat2_bar);
+
+      /// double el1_trans_weight = trans.Elem1->Weight();
+      isotrans1.WeightRevDiff(el1_trans_weight_bar, PointMat1_bar);
+
+      // code to insert PointMat_bar into mesh_coords_bar
+      for (int j = 0; j < mesh_ndof1; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_bar1(k * mesh_ndof1 + j) += PointMat1_bar(k, j);
+         }
+      }
+
+      // code to insert PointMat_bar into mesh_coords_bar
+      for (int j = 0; j < mesh_ndof2; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_bar2(k * mesh_ndof2 + j) += PointMat2_bar(k, j);
+         }
+      }
+      // code to insert PointMatFace_bar into mesh_coords_face_bar
+      for (int j = 0; j < mesh_face_ndof; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_face_bar(k * mesh_face_ndof + j) += PointMatFace_bar(k, j);
+         }
+      }
+   }
+
+   // code to insert mesh_coords_face_bar into mesh_coords_bar
+   for (int j = 0; j < vdofs2.Size(); ++j)
+   {
+      auto idx = vdofs1.Find(vdofs2[j]);
+      if (idx == -1)
+      {
+         continue;
+      }
+      else
+      {
+         mesh_coords_bar1(idx) += mesh_coords_face_bar(j);
       }
    }
 }

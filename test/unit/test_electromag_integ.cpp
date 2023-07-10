@@ -436,13 +436,15 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceVector")
          state.ProjectCoefficient(pert);
 
          NonlinearForm res(&fes);
-         res.AddInteriorFaceIntegrator(new mach::DGInteriorFaceDiffusionIntegrator(one_sc, mu));
+         res.AddInteriorFaceIntegrator(
+            new mach::DGInteriorFaceDiffusionIntegrator(one_sc, mu));
 
          GridFunction res_vec(&fes);
          res.Mult(state, res_vec);
 
          NonlinearForm mfem_res(&fes);
-         mfem_res.AddInteriorFaceIntegrator(new DGDiffusionIntegrator(one, sigma, mu));
+         mfem_res.AddInteriorFaceIntegrator(
+            new DGDiffusionIntegrator(one, sigma, mu));
 
          GridFunction mfem_res_vec(&fes);
          mfem_res.Mult(state, mfem_res_vec);
@@ -493,7 +495,8 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
          state.ProjectCoefficient(pert);
 
          NonlinearForm res(&fes);
-         res.AddInteriorFaceIntegrator(new mach::DGInteriorFaceDiffusionIntegrator(one_sc, mu));
+         res.AddInteriorFaceIntegrator(
+            new mach::DGInteriorFaceDiffusionIntegrator(one_sc, mu));
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(&fes);
@@ -566,6 +569,83 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
          {
             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
          }
+      }
+   }
+}
+
+TEST_CASE("DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   // LinearCoefficient one_sc(1.0);
+   NonLinearCoefficient one_sc;
+   ConstantCoefficient bc_val(10.0);
+   double sigma = -1.0;
+   double mu = 10;
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::DGInteriorFaceDiffusionIntegrator(one_sc, mu);
+         res.AddInteriorFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new mach::DGInteriorFaceDiffusionIntegratorMeshRevSens(state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -646,7 +726,76 @@ TEST_CASE("TestBoundaryIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
 
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::TestInteriorFaceIntegrator;
+         res.AddInteriorFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new mach::TestInteriorFaceIntegratorMeshRevSens(mesh_fes, state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
 
 TEST_CASE("MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect")
 {
