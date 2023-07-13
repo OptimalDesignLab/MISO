@@ -260,10 +260,10 @@ MagnetostaticResidual::MagnetostaticResidual(
       res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
 
       const auto &basis_type =
-         options["space-dis"]["basis-type"].get<std::string>();
+          options["space-dis"]["basis-type"].get<std::string>();
 
       if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
-         basis_type == "dg")
+          basis_type == "dg")
       {
          auto mu = options["space-dis"].value("sipg-penalty", -1.0);
          if (mu < 0)
@@ -272,7 +272,7 @@ MagnetostaticResidual::MagnetostaticResidual(
             mu = pow(degree + 1, 3);
          }
          res.addInteriorFaceIntegrator(
-            new DGInteriorFaceDiffusionIntegrator(nu, mu));
+             new DGInteriorFaceDiffusionIntegrator(nu, mu));
          std::cout << "adding sipg integ!\n";
       }
 
@@ -283,8 +283,8 @@ MagnetostaticResidual::MagnetostaticResidual(
          // dirichlet boundary condition
          if (bcs.contains("essential"))
          {
-            if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
-               basis_type == "dg")
+            if (basis_type == "L2" || basis_type == "l2" ||
+                basis_type == "DG" || basis_type == "dg")
             {
                std::vector<int> bdr_attr_marker;
                if (bcs["essential"].is_array())
@@ -293,7 +293,8 @@ MagnetostaticResidual::MagnetostaticResidual(
                }
                else
                {
-                  throw MachException("Unrecognized JSON type for boundary attrs!");
+                  throw MachException(
+                      "Unrecognized JSON type for boundary attrs!");
                }
 
                auto mu = options["space-dis"].value("sipg-penalty", -1.0);
@@ -304,8 +305,8 @@ MagnetostaticResidual::MagnetostaticResidual(
                }
                std::cout << "mu: " << mu << "\n";
                res.addBdrFaceIntegrator(
-                  new NonlinearDGDiffusionIntegrator(nu, *g, mu),
-                  bdr_attr_marker);
+                   new NonlinearDGDiffusionIntegrator(nu, *g, mu),
+                   bdr_attr_marker);
             }
          }
 
@@ -318,7 +319,8 @@ MagnetostaticResidual::MagnetostaticResidual(
             }
             else
             {
-               throw MachException("Unrecognized JSON type for boundary attrs!");
+               throw MachException(
+                   "Unrecognized JSON type for boundary attrs!");
             }
 
             auto mu = options["space-dis"].value("sipg-penalty", -1.0);

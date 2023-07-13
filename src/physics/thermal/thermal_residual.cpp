@@ -243,7 +243,7 @@ ThermalResidual::ThermalResidual(
       if (bcs.contains("essential"))
       {
          if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
-            basis_type == "dg")
+             basis_type == "dg")
          {
             std::vector<int> bdr_attr_marker;
             if (bcs["essential"].is_array())
@@ -252,7 +252,8 @@ ThermalResidual::ThermalResidual(
             }
             else
             {
-               throw MachException("Unrecognized JSON type for boundary attrs!");
+               throw MachException(
+                   "Unrecognized JSON type for boundary attrs!");
             }
 
             auto mu = options["space-dis"].value("sipg-penalty", -1.0);
@@ -263,8 +264,8 @@ ThermalResidual::ThermalResidual(
             }
             std::cout << "mu: " << mu << "\n";
             res.addBdrFaceIntegrator(
-               new NonlinearDGDiffusionIntegrator(*kappa, *g, mu),
-               bdr_attr_marker);
+                new NonlinearDGDiffusionIntegrator(*kappa, *g, mu),
+                bdr_attr_marker);
          }
       }
 
@@ -288,8 +289,8 @@ ThermalResidual::ThermalResidual(
          }
          std::cout << "mu: " << mu << "\n";
          res.addBdrFaceIntegrator(
-               new NonlinearDGDiffusionIntegrator(*kappa, *g, mu),
-               bdr_attr_marker);
+             new NonlinearDGDiffusionIntegrator(*kappa, *g, mu),
+             bdr_attr_marker);
       }
    }
 
