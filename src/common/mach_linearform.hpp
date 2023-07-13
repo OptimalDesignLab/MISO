@@ -98,6 +98,25 @@ public:
    void addBdrFaceIntegrator(T *integrator,
                              const std::vector<int> &bdr_attr_marker);
 
+   /// Adds internal boundary face integrator to linear form
+   /// \param[in] integrator - face linear form integrator for internal boundary
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(T *integrator);
+
+   /// Adds internal boundary face integrator to linear form restricted to the
+   /// given boundary attributes.
+   /// \param[in] integrator - face linear form integrator for internal boundary
+   /// \param[in] bdr_attr_marker - internal boundary attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   /// \note The array bdr_attr_marker is copied
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(
+       T *integrator,
+       const std::vector<int> &bdr_attr_marker);
+
    const mfem::Array<int> &getEssentialDofs() const { return ess_tdof_list; }
 
    MachLinearForm(mfem::ParFiniteElementSpace &pfes,
@@ -135,7 +154,7 @@ private:
    std::list<mfem::Array<int>> domain_markers;
 
    /// Collection of boundary markers for boundary integrators
-   std::vector<mfem::Array<int>> bdr_markers;
+   std::list<mfem::Array<int>> bdr_markers;
 
    /// map of external fields the linear form depends on
    std::map<std::string, FiniteElementState> *lf_fields;
@@ -263,6 +282,42 @@ void MachLinearForm::addBdrFaceIntegrator(
                                fwd_scalar_sens,
                                &marker,
                                adjoint_name);
+}
+
+template <typename T>
+void MachLinearForm::addInternalBoundaryFaceIntegrator(T *integrator)
+{
+   integs.emplace_back(*integrator);
+   lf.AddInternalBoundaryFaceIntegrator(integrator);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            *lf_fields,
+                                            rev_sens,
+                                            rev_scalar_sens,
+                                            fwd_sens,
+                                            fwd_scalar_sens,
+                                            nullptr,
+                                            adjoint_name);
+}
+
+template <typename T>
+void MachLinearForm::addInternalBoundaryFaceIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
+{
+   integs.emplace_back(*integrator);
+   auto mesh_attr_size = lf.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
+
+   lf.AddInternalBoundaryFaceIntegrator(integrator, marker);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            *lf_fields,
+                                            rev_sens,
+                                            rev_scalar_sens,
+                                            fwd_sens,
+                                            fwd_scalar_sens,
+                                            &marker,
+                                            adjoint_name);
 }
 
 }  // namespace mach

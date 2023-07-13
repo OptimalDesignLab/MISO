@@ -92,6 +92,28 @@ public:
    void addOutputBdrFaceIntegrator(T *integrator,
                                    const std::vector<int> &bdr_attr_marker);
 
+   /// Adds internal boundary face integrator to the nonlinear form that backs
+   /// this output, and adds a reference to it to in integs as a MachIntegrator
+   /// \param[in] integrator - integrator for internal boundary faces
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(T *integrator);
+
+   /// Adds internal boundary face integrator restricted to certain boundaries
+   /// specified by the attributes listed in @a bdr_attr_marker to the nonlinear
+   /// form that backs this output, and adds a reference to it to in integs as a
+   /// MachIntegrator
+   /// \param[in] integrator - integrator for internal boundary faces
+   /// \param[in] bdr_attr_marker - internal boundary attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   /// \note The array bdr_attr_marker is copied
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(
+       T *integrator,
+       const std::vector<int> &bdr_attr_marker);
+
    FunctionalOutput(mfem::ParFiniteElementSpace &fes,
                     std::map<std::string, FiniteElementState> &fields,
                     std::string state_name = "state")
@@ -209,6 +231,38 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
                                output_scalar_sens,
                                &marker,
                                state_name);
+}
+
+template <typename T>
+void FunctionalOutput::addInternalBoundaryFaceIntegrator(T *integrator)
+{
+   integs.emplace_back(*integrator);
+   output.AddInternalBoundaryFaceIntegrator(integrator);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            *func_fields,
+                                            output_sens,
+                                            output_scalar_sens,
+                                            nullptr,
+                                            state_name);
+}
+
+template <typename T>
+void FunctionalOutput::addInternalBoundaryFaceIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
+{
+   integs.emplace_back(*integrator);
+   auto mesh_attr_size = output.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
+
+   output.AddInternalBoundaryFaceIntegrator(integrator, marker);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            *func_fields,
+                                            output_sens,
+                                            output_scalar_sens,
+                                            &marker,
+                                            state_name);
 }
 
 }  // namespace mach

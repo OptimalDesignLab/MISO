@@ -199,6 +199,32 @@ inline void addBdrSensitivityIntegrator(
     std::string adjoint_name = "adjoint")
 { }
 
+/// Function meant to be overloaded to allow residual sensitivity integrators
+/// to be associated with the forward version of the integrator
+/// \param[in] primal_integ - integrator used in forward evaluation
+/// \param[in] fields - map of fields solver depends on
+/// \param[inout] rev_sens - map of linear forms that will assemble the
+/// reverse-mode sensitivity
+/// \param[inout] rev_scalar_sens - map of nonlinear forms that will assemble
+/// the reverse-mode scalar sensitivity
+/// \param[inout] fwd_sens - map of linear forms that will assemble the
+/// forward-mode sensitivity
+/// \param[inout] fwd_scalar_sens - map of nonlinear forms that will assemble
+/// the forward-mode scalar sensitivity
+/// \param[in] attr_marker - optional list of element attributes the sensitivity
+/// integrators should be used on
+template <typename T>
+inline void addInternalBoundarySensitivityIntegrator(
+    T &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker = nullptr,
+    std::string adjoint_name = "adjoint")
+{ }
+
 /// Function meant to be overloaded to allow output sensitivity integrators
 /// to be associated with the forward version of the integrator
 /// \param[in] primal_integ - integrator used in forward evaluation
@@ -253,6 +279,26 @@ inline void addBdrSensitivityIntegrator(
     std::map<std::string, mfem::ParLinearForm> &output_sens,
     std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
     mfem::Array<int> *attr_marker,
+    std::string state_name = "state")
+{ }
+
+/// Function meant to be overloaded to allow residual sensitivity integrators
+/// to be associated with the forward version of the integrator
+/// \param[in] primal_integ - integrator used in forward evaluation
+/// \param[in] fields - map of fields solver depends on
+/// \param[inout] output_sens - map of linear forms that will assemble the
+/// output partial derivatives wrt to fields
+/// \param[inout] output_scalar_sens - map of nonlinear forms that will
+/// assemble the output partial derivatives wrt to scalars
+/// \param[in] attr_marker - optional list of element attributes the sensitivity
+/// integrators should be used on
+template <typename T>
+inline void addInternalBoundarySensitivityIntegrator(
+    T &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker = nullptr,
     std::string state_name = "state")
 { }
 

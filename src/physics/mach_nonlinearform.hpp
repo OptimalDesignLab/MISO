@@ -117,6 +117,25 @@ public:
    void addBdrFaceIntegrator(T *integrator,
                              const std::vector<int> &bdr_attr_marker);
 
+   /// Adds internal boundary face integrator to nonlinear form
+   /// \param[in] integrator - integrator for internal boundary faces
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(T *integrator);
+
+   /// Adds internal boundary face integrator to nonlinear form restricted to
+   /// the given boundary attributes.
+   /// \param[in] integrator - integrator for internal boundary faces
+   /// \param[in] bdr_attr_marker - internal boundary attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \note Assumes ownership of integrator
+   /// \note The array bdr_attr_marker is copied
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(
+       T *integrator,
+       const std::vector<int> &bdr_attr_marker);
+
    const mfem::Array<int> &getEssentialDofs() const
    {
       return nf.GetEssentialTrueDofs();
@@ -282,6 +301,42 @@ void MachNonlinearForm::addBdrFaceIntegrator(
                                fwd_scalar_sens,
                                &marker,
                                adjoint_name);
+}
+
+template <typename T>
+void MachNonlinearForm::addInternalBoundaryFaceIntegrator(T *integrator)
+{
+   integs.emplace_back(*integrator);
+   nf.AddInternalBoundaryFaceIntegrator(integrator);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            nf_fields,
+                                            rev_sens,
+                                            rev_scalar_sens,
+                                            fwd_sens,
+                                            fwd_scalar_sens,
+                                            nullptr,
+                                            adjoint_name);
+}
+
+template <typename T>
+void MachNonlinearForm::addInternalBoundaryFaceIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
+{
+   integs.emplace_back(*integrator);
+   auto mesh_attr_size = nf.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
+
+   nf.AddInternalBoundaryFaceIntegrator(integrator, marker);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            nf_fields,
+                                            rev_sens,
+                                            rev_scalar_sens,
+                                            fwd_sens,
+                                            fwd_scalar_sens,
+                                            &marker,
+                                            adjoint_name);
 }
 
 }  // namespace mach
