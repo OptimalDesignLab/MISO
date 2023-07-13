@@ -81,18 +81,9 @@ public:
                          const mfem::Vector &elfun,
                          mfem::DenseMatrix &elmat) override;
 
-   ThermalContactResistanceIntegrator(StateCoefficient &m,
-                                      double mu,
-                                      std::set<int> attrs,
-                                      double alpha = 1.0)
-    : sipg(m, mu), attrs(attrs), alpha(alpha)
-   { }
+   ThermalContactResistanceIntegrator(double alpha = 1.0) : alpha(alpha) { }
 
 private:
-   DGInteriorFaceDiffusionIntegrator sipg;
-
-   /// attributes for the interface integrator
-   std::set<int> attrs;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
    /// Thermal contact coefficient
@@ -104,9 +95,6 @@ private:
    mfem::DenseMatrix elmat11;
    mfem::DenseMatrix elmat12;
    mfem::DenseMatrix elmat22;
-
-   mfem::Vector sipg_elvect;
-   mfem::DenseMatrix sipg_elmat;
 #endif
    friend class ThermalContactResistanceIntegratorMeshRevSens;
 };
@@ -124,11 +112,7 @@ public:
        mfem::GridFunction &state,
        mfem::GridFunction &adjoint,
        ThermalContactResistanceIntegrator &integ)
-    : mesh_fes(mesh_fes),
-      state(state),
-      adjoint(adjoint),
-      integ(integ),
-      sipg(mesh_fes, state, adjoint, integ.sipg)
+    : mesh_fes(mesh_fes), state(state), adjoint(adjoint), integ(integ)
    { }
 
    void AssembleRHSElementVect(const mfem::FiniteElement &,
@@ -163,8 +147,6 @@ private:
    mfem::GridFunction &adjoint;
    /// reference to primal integrator
    ThermalContactResistanceIntegrator &integ;
-   /// SIPG interface integ mesh sens
-   DGInteriorFaceDiffusionIntegratorMeshRevSens sipg;
 
 #ifndef MFEM_THREAD_SAFE
    mfem::Array<int> vdofs1;

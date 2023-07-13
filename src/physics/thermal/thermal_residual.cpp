@@ -187,7 +187,7 @@ ThermalResidual::ThermalResidual(
       if (mu < 0)
       {
          auto degree = options["space-dis"]["degree"].get<double>();
-         mu = pow(degree + 1, 3);
+         mu = pow(degree + 1, 2);
       }
       res.addInteriorFaceIntegrator(
           new DGInteriorFaceDiffusionIntegrator(*kappa, mu));
@@ -219,6 +219,7 @@ ThermalResidual::ThermalResidual(
          res.addBdrFaceIntegrator(new ConvectionBCIntegrator(h, theta_f),
                                   bdr_attr_marker);
       }
+
       if (bcs.contains("outflux"))
       {
          auto &bc = bcs["outflux"];
@@ -237,63 +238,61 @@ ThermalResidual::ThermalResidual(
          res.addBdrFaceIntegrator(new OutfluxBCIntegrator(flux, 1.0),
                                   bdr_attr_marker);
       }
-      if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
-          basis_type == "dg")
+
+      // dirichlet boundary condition
+      if (bcs.contains("essential"))
       {
-         // weakly imposed dirichlet boundary condition
-         if (bcs.contains("weak-essential") || bcs.contains("essential"))
+         if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
+            basis_type == "dg")
          {
-            std::string ess_bdr;
-            if (bcs.contains("weak-essential"))
+            std::vector<int> bdr_attr_marker;
+            if (bcs["essential"].is_array())
             {
-               ess_bdr = "weak-essential";
+               bdr_attr_marker = bcs["essential"].get<std::vector<int>>();
             }
             else
             {
-               ess_bdr = "essential";
-            }
-
-            std::vector<int> bdr_attr_marker(
-                fes.GetParMesh()->bdr_attributes.Max());
-
-            if (bcs[ess_bdr].is_string())
-            {
-               auto tmp = bcs[ess_bdr].get<std::string>();
-               if (tmp == "all")
-               {
-                  for (int i = 0; i < bdr_attr_marker.size(); ++i)
-                  {
-                     bdr_attr_marker[i] = i + 1;
-                  }
-               }
-               else
-               {
-                  throw MachException("Unrecognized string for boundary!");
-               }
-            }
-            else if (bcs[ess_bdr].is_array())
-            {
-               bdr_attr_marker = bcs[ess_bdr].get<std::vector<int>>();
-            }
-            else
-            {
-               throw MachException("Unrecognized JSON value for boundary!");
+               throw MachException("Unrecognized JSON type for boundary attrs!");
             }
 
             auto mu = options["space-dis"].value("sipg-penalty", -1.0);
             if (mu < 0)
             {
                auto degree = options["space-dis"]["degree"].get<double>();
-               mu = pow(degree + 1, 3);
+               mu = pow(degree + 1, 2);
             }
-
             std::cout << "mu: " << mu << "\n";
             res.addBdrFaceIntegrator(
-                new NonlinearDGDiffusionIntegrator(*kappa, *g, -mu),
-                bdr_attr_marker);
+               new NonlinearDGDiffusionIntegrator(*kappa, *g, mu),
+               bdr_attr_marker);
          }
       }
+
+      if (bcs.contains("weak-essential"))
+      {
+         std::vector<int> bdr_attr_marker;
+         if (bcs["weak-essential"].is_array())
+         {
+            bdr_attr_marker = bcs["weak-essential"].get<std::vector<int>>();
+         }
+         else
+         {
+            throw MachException("Unrecognized JSON type for boundary attrs!");
+         }
+
+         auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+         if (mu < 0)
+         {
+            auto degree = options["space-dis"]["degree"].get<double>();
+            mu = pow(degree + 1, 2);
+         }
+         std::cout << "mu: " << mu << "\n";
+         res.addBdrFaceIntegrator(
+               new NonlinearDGDiffusionIntegrator(*kappa, *g, mu),
+               bdr_attr_marker);
+      }
    }
+
    if (options.contains("interfaces"))
    {
       const auto &interfaces = options["interfaces"];
@@ -304,26 +303,23 @@ ThermalResidual::ThermalResidual(
          // thermal contact resistance interface
          if (interface["kind"] == "thermal_contact_resistance")
          {
+            const auto &attrs = interface["attrs"].get<std::vector<int>>();
+
             auto mu = options["space-dis"].value("sipg-penalty", -1.0);
             if (mu < 0)
             {
                auto degree = options["space-dis"]["degree"].get<double>();
-               mu = pow(degree + 1, 3);
+               mu = pow(degree + 1, 2);
             }
 
-            const auto &attrs = interface["attrs"].get<std::set<int>>();
+            res.addInternalBoundaryFaceIntegrator(
+                new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1), attrs);
 
             const auto h_c = interface["h_c"].get<double>();
 
-            auto *integ =
-                new ThermalContactResistanceIntegrator(*kappa, mu, attrs);
+            auto *integ = new ThermalContactResistanceIntegrator;
             setInputs(*integ, {{"h_c", h_c}});
-
-            // const auto &vec_attrs =
-            // interface["attrs"].get<std::vector<int>>();
-
-            res.addInteriorFaceIntegrator(integ);
-            // res.addBdrFaceIntegrator(integ, vec_attrs);
+            res.addInternalBoundaryFaceIntegrator(integ, attrs);
 
             std::cout << "adding TCR integrator!\n";
             std::cout << "with attrs: " << interface["attrs"] << "\n";

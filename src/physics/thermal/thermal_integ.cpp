@@ -161,27 +161,13 @@ void ThermalContactResistanceIntegrator::AssembleFaceVector(
    int ndof1 = el1.GetDof();
    int ndof2 = el2.GetDof();
 
-   auto face_attr = trans.Attribute;
-
-   std::cout << "face attr " << face_attr << "\n";
-
-   if (attrs.count(face_attr) == 0)
-   {
-      elvect.SetSize(ndof1 + ndof2);
-      elvect = 0.0;
-      return;
-   }
-
 #ifdef MFEM_THREAD_SAFE
    mfem::Vector shape1;
    mfem::Vector shape2;
-
-   mfem::Vector sipg_elvect;
 #endif
+
    shape1.SetSize(ndof1);
    shape2.SetSize(ndof2);
-
-   sipg_elvect.SetSize(ndof1 + ndof2);
 
    mfem::Vector elfun1(elfun.GetData(), ndof1);
    mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
@@ -197,9 +183,7 @@ void ThermalContactResistanceIntegrator::AssembleFaceVector(
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
-   sipg.AssembleFaceVector(el1, el2, trans, elfun, elvect);
-   elvect *= -1.0;
-
+   elvect = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       // Set the integration point in the face and the neighboring element
@@ -235,15 +219,6 @@ void ThermalContactResistanceIntegrator::AssembleFaceGrad(
    int ndof1 = el1.GetDof();
    int ndof2 = el2.GetDof();
 
-   auto face_attr = trans.Attribute;
-
-   if (attrs.count(face_attr) == 0)
-   {
-      elmat.SetSize(ndof1 + ndof2);
-      elmat = 0.0;
-      return;
-   }
-
 #ifdef MFEM_THREAD_SAFE
    mfem::Vector shape1;
    mfem::Vector shape2;
@@ -251,9 +226,8 @@ void ThermalContactResistanceIntegrator::AssembleFaceGrad(
    mfem::DenseMatrix elmat11;
    mfem::DenseMatrix elmat12;
    mfem::DenseMatrix elmat22;
-
-   mfem::DenseMatrix sipg_elmat;
 #endif
+
    shape1.SetSize(ndof1);
    shape2.SetSize(ndof2);
 
@@ -266,8 +240,6 @@ void ThermalContactResistanceIntegrator::AssembleFaceGrad(
    elmat12.SetSize(ndof1, ndof2);
    elmat22.SetSize(ndof2);
 
-   sipg_elmat.SetSize(ndof1 + ndof2);
-
    const auto *ir = IntRule;
    if (ir == nullptr)
    {
@@ -275,9 +247,7 @@ void ThermalContactResistanceIntegrator::AssembleFaceGrad(
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
-   sipg.AssembleFaceGrad(el1, el2, trans, elfun, elmat);
-   elmat *= -1.0;
-
+   elmat = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       // Set the integration point in the face and the neighboring element
@@ -432,10 +402,6 @@ void ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect(
        space_dim * mesh_ndof2);
    mesh_coords_bar = 0.0;
    mesh_coords_face_bar = 0.0;
-
-   sipg.AssembleRHSElementVect(mesh_el1, mesh_el2, trans, mesh_coords_bar);
-   mesh_coords_bar *= -1.0;
-
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       // Set the integration point in the face and the neighboring element

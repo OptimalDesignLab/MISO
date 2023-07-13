@@ -94,8 +94,6 @@ TEST_CASE("ThermalContactResistanceIntegrator::AssembleFaceGrad")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   NonLinearCoefficient one_sc;
-
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -109,10 +107,7 @@ TEST_CASE("ThermalContactResistanceIntegrator::AssembleFaceGrad")
          state.ProjectCoefficient(pert);
 
          NonlinearForm res(&fes);
-         res.AddInteriorFaceIntegrator(
-            new mach::ThermalContactResistanceIntegrator(one_sc,
-                                                         pow(p+1, 3),
-                                                         std::set<int>{1}));
+         res.AddInteriorFaceIntegrator(new mach::ThermalContactResistanceIntegrator);
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(&fes);
@@ -155,9 +150,6 @@ TEST_CASE("ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
-   NonLinearCoefficient one_sc;
-   double mu = 10;
-
    for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
@@ -173,7 +165,7 @@ TEST_CASE("ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect
          adjoint.ProjectCoefficient(pert);
 
          NonlinearForm res(&fes);
-         auto *integ = new mach::ThermalContactResistanceIntegrator(one_sc, mu, std::set<int>{1});
+         auto *integ = new mach::ThermalContactResistanceIntegrator;
          res.AddInteriorFaceIntegrator(integ);
 
          // extract mesh nodes and get their finite-element space

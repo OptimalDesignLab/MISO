@@ -7,10 +7,6 @@
 #include "mach_input.hpp"
 #include "thermal.hpp"
 
-///TODO: Once install mach again, replace the below lines with relative rather than absolute path
-#include "../../src/physics/electromagnetics/magnetostatic.hpp"
-// #include "../../src/physics/electromagnetics/electromag_outputs.hpp"
-
 using namespace mach;
 using namespace mfem;
 
@@ -154,101 +150,157 @@ TEST_CASE("ThermalSolver Box Regression Test with load")
          }
       },
       "bcs": {
-         "essential": [3, 5]
       }
    })"_json;
 
    // define the target state solution error
-   std::vector<std::vector<double>> target_error = {
+   std::vector<std::vector<double>> h1_strong_target_error = {
       // nxy = 2, nxy = 4, nyx = 8, nyx = 16, nxy = 32
-      {0.0080687153, 0.0014263608, 0.0002521474, 0.0, 0.0}, // p = 1
+      {0.0080687153, 0.0014263608, 0.0002521474, 0.0000445738, 0.0}, // p = 1
+      {0.0, 0.0, 0.0, 0.0, 0.0}, // p = 2
+   };
+
+   std::vector<std::vector<double>> h1_weak_target_error = {
+      // nxy = 2, nxy = 4, nyx = 8, nyx = 16, nxy = 32
+      {0.0069394428, 0.0013382178, 0.0002444395, 0.0000438794, 0.0}, // p = 1
+      {0.0, 0.0, 0.0, 0.0, 0.0}, // p = 2
+   };
+
+   std::vector<std::vector<double>> dg_weak_target_error = {
+      // nxy = 2, nxy = 4, nyx = 8, nyx = 16, nxy = 32
+      {0.0065339248, 0.0008618944, 0.000117883, 0.0000170136, 0.0}, // p = 1
       {0.0, 0.0, 0.0, 0.0, 0.0}, // p = 2
    };
 
    /// number of elements in Z direction
    auto nz = 2;
 
-   for (int order = 1; order <= 2; ++order)
+   for (int dg = 0; dg < 2; ++dg)
    {
-      options["space-dis"]["degree"] = order;
-      int nxy = 2;
-      for (int ref = 1; ref <= 3; ++ref)
-      {  
-         nxy *= 2;
-         DYNAMIC_SECTION("...for order " << order << " and mesh sizing nxy = " << nxy)
+      if (dg)
+      {
+         options["space-dis"]["basis-type"] = "dg";
+      }
+      for (int wk_bdr = 0; wk_bdr < 2; ++wk_bdr)
+      {
+         if (wk_bdr)
          {
-            // construct the solver, set the initial condition, and solve
-            auto smesh = std::unique_ptr<mfem::Mesh>(
-                  new mfem::Mesh(
-                     mfem::Mesh::MakeCartesian3D(
-                        nxy, nxy, nz,
-                        mfem::Element::TETRAHEDRON,
-                        1.0, 1.0, (double)nz / (double)nxy, true)));
-                     // mfem::Mesh::MakeCartesian2D(
-                     //    nxy, nxy, mfem::Element::TRIANGLE)));
-
-            ThermalSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
-            mfem::Vector state(solver.getStateSize());
-
-            auto &fes = solver.getState().space();
-            mfem::ParLinearForm load(&fes);
-            mfem::FunctionCoefficient force([](const mfem::Vector &p)
+            options["bcs"] = R"({"weak-essential": [3, 5]})"_json;
+         }
+         else
+         {
+            if (dg)
             {
-               return -2;
-            });
-            load.AddDomainIntegrator(new mfem::DomainLFIntegrator(force));
-            load.Assemble();
-            mfem::Vector load_tv(fes.GetTrueVSize());
-            load.ParallelAssemble(load_tv);
+               continue;
+            }
+            options["bcs"] = R"({"essential": [3, 5]})"_json;
+         }
 
-            mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
-            getMFEMBoundaryArray(options["bcs"]["essential"], ess_bdr);
-
-            mfem::Array<int> ess_tdof_list;
-            fes.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
-            load_tv.SetSubVector(ess_tdof_list, 0.0);
-
-            /// Set initial conditions
-            solver.setState([](const mfem::Vector &p)
-            {
-               auto x = p(0);
-               auto y = p(1);
-               auto tol = 1e-10;
-               if (fabs(x - 1.0) < tol || fabs(y - 1.0) < tol|| fabs(x) < tol || fabs(y) < tol )
+         for (int order = 1; order <= 1; ++order)
+         {
+            options["space-dis"]["degree"] = order;
+            int nxy = 2;
+            for (int ref = 1; ref <= 4; ++ref)
+            {  
+               nxy *= 2;
+               DYNAMIC_SECTION("...for " << (dg ? "DG" : "H1") << " with " << (wk_bdr ? "weak" : "strong") << " Dirichlet BCs, for order " << order << " and mesh sizing nxy = " << nxy)
                {
-                  return pow(x, 2);
+                  // construct the solver, set the initial condition, and solve
+                  auto smesh = std::unique_ptr<mfem::Mesh>(
+                        new mfem::Mesh(
+                           mfem::Mesh::MakeCartesian3D(
+                              nxy, nxy, nz,
+                              mfem::Element::TETRAHEDRON,
+                              1.0, 1.0, (double)nz / (double)nxy, true)));
+                           // mfem::Mesh::MakeCartesian2D(
+                           //    nxy, nxy, mfem::Element::TRIANGLE)));
+
+                  ThermalSolver solver(MPI_COMM_WORLD, options, std::move(smesh));
+                  mfem::Vector state(solver.getStateSize());
+
+                  auto &fes = solver.getState().space();
+                  mfem::ParLinearForm load(&fes);
+                  mfem::FunctionCoefficient force([](const mfem::Vector &p)
+                  {
+                     return -2;
+                  });
+                  load.AddDomainIntegrator(new mfem::DomainLFIntegrator(force));
+                  load.Assemble();
+                  mfem::Vector load_tv(fes.GetTrueVSize());
+                  load.ParallelAssemble(load_tv);
+
+                  if (options["space-dis"]["basis-type"] == "h1" &&
+                     options["bcs"].contains("essential"))
+                  {
+                     mfem::Array<int> ess_bdr(fes.GetParMesh()->bdr_attributes.Max());
+                     getMFEMBoundaryArray(options["bcs"]["essential"], ess_bdr);
+
+                     mfem::Array<int> ess_tdof_list;
+                     fes.GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+                     load_tv.SetSubVector(ess_tdof_list, 0.0);
+                  }
+
+                  /// Set initial conditions
+                  solver.setState([](const mfem::Vector &p)
+                  {
+                     auto x = p(0);
+                     auto y = p(1);
+                     auto tol = 0.25;
+                     if (fabs(x - 1.0) < tol || fabs(x) < tol)
+                     {
+                        return pow(x, 2);
+                     }
+                     return 100.0;
+                  }, state);
+
+                  MachInputs inputs{
+                     {"thermal_load", load_tv}
+                  };
+                  ///TODO: Remove once done debugging
+                  // std::cout << "intial_state=np.array([";
+                  // for (int j = 0; j < state.Size(); j++) {std::cout << state.Elem(j) << ", ";}
+                  // std::cout << "])\n";
+                  // std::cout << "thermal_load=np.array([";
+                  // for (int j = 0; j < load_tv.Size(); j++) {std::cout << load_tv.Elem(j) << ", ";}
+                  // std::cout << "])\n";
+                  
+                  solver.solveForState(inputs, state);
+
+                  ///TODO: Remove once done debugging
+                  // std::cout << "solved_state=np.array([";
+                  // for (int j = 0; j < state.Size(); j++) {std::cout << state.Elem(j) << ", ";}
+                  // std::cout << "])\n";
+
+                  /// Compute state error and check against target error
+                  double error = solver.calcStateError([](const mfem::Vector &p)
+                  {
+                     auto x = p(0);
+                     return pow(x, 2);
+                  }, state);
+
+                  std::cout.precision(10);
+                  std::cout << "error: " << error << "\n";
+
+                  double target_error = infinity();
+                  if (dg)
+                  {
+                     target_error = dg_weak_target_error[order-1][ref-1];
+                  }
+                  else
+                  {
+                     if (wk_bdr)
+                     {
+                        target_error = h1_weak_target_error[order-1][ref-1];
+                     }
+                     else
+                     {
+                        target_error = h1_strong_target_error[order-1][ref-1];
+                     }
+
+                  }
+                  REQUIRE(error == Approx(target_error).margin(1e-10));
                }
-               return 0.0;
-            }, state);
-
-            MachInputs inputs{
-               {"thermal_load", load_tv}
-            };
-            ///TODO: Remove once done debugging
-            // std::cout << "intial_state=np.array([";
-            // for (int j = 0; j < state.Size(); j++) {std::cout << state.Elem(j) << ", ";}
-            // std::cout << "])\n";
-            // std::cout << "thermal_load=np.array([";
-            // for (int j = 0; j < load_tv.Size(); j++) {std::cout << load_tv.Elem(j) << ", ";}
-            // std::cout << "])\n";
-            
-            solver.solveForState(inputs, state);
-
-            ///TODO: Remove once done debugging
-            // std::cout << "solved_state=np.array([";
-            // for (int j = 0; j < state.Size(); j++) {std::cout << state.Elem(j) << ", ";}
-            // std::cout << "])\n";
-
-            /// Compute state error and check against target error
-            double error = solver.calcStateError([](const mfem::Vector &p)
-            {
-               auto x = p(0);
-               return pow(x, 2);
-            }, state);
-
-            std::cout.precision(10);
-            std::cout << "error: " << error << "\n";
-            REQUIRE(error == Approx(target_error[order-1][ref - 1]).margin(1e-10));
+            }
          }
       }
    }

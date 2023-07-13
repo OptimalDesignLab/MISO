@@ -259,44 +259,66 @@ MagnetostaticResidual::MagnetostaticResidual(
    {
       res.addDomainIntegrator(new NonlinearDiffusionIntegrator(nu));
 
+      const auto &basis_type =
+         options["space-dis"]["basis-type"].get<std::string>();
+
+      if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
+         basis_type == "dg")
+      {
+         auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+         if (mu < 0)
+         {
+            auto degree = options["space-dis"]["degree"].get<double>();
+            mu = pow(degree + 1, 3);
+         }
+         res.addInteriorFaceIntegrator(
+            new DGInteriorFaceDiffusionIntegrator(nu, mu));
+         std::cout << "adding sipg integ!\n";
+      }
+
       if (options.contains("bcs"))
       {
          const auto &bcs = options["bcs"];
-         // weakly imposed dirichlet boundary condition
-         if (bcs.contains("weak-essential"))
-         {
-            std::vector<int> bdr_attr_marker(
-                fes.GetParMesh()->bdr_attributes.Max());
 
-            if (bcs["weak-essential"].is_string())
+         // dirichlet boundary condition
+         if (bcs.contains("essential"))
+         {
+            if (basis_type == "L2" || basis_type == "l2" || basis_type == "DG" ||
+               basis_type == "dg")
             {
-               auto tmp = bcs["weak-essential"].get<std::string>();
-               if (tmp == "all")
+               std::vector<int> bdr_attr_marker;
+               if (bcs["essential"].is_array())
                {
-                  // std::fill(bdr_attr_marker.begin(), bdr_attr_marker.end(),
-                  // 1);
-                  for (int i = 0; i < bdr_attr_marker.size(); ++i)
-                  {
-                     bdr_attr_marker[i] = i + 1;
-                  }
+                  bdr_attr_marker = bcs["essential"].get<std::vector<int>>();
                }
-               // else if (tmp == "none")
-               // {
-               //    std::fill(bdr_attr_marker.begin(), bdr_attr_marker.end(),
-               //    0);
-               // }
                else
                {
-                  throw MachException("Unrecognized string for boundary!");
+                  throw MachException("Unrecognized JSON type for boundary attrs!");
                }
+
+               auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+               if (mu < 0)
+               {
+                  auto degree = options["space-dis"]["degree"].get<double>();
+                  mu = pow(degree + 1, 3);
+               }
+               std::cout << "mu: " << mu << "\n";
+               res.addBdrFaceIntegrator(
+                  new NonlinearDGDiffusionIntegrator(nu, *g, mu),
+                  bdr_attr_marker);
             }
-            else if (bcs["weak-essential"].is_array())
+         }
+
+         if (bcs.contains("weak-essential"))
+         {
+            std::vector<int> bdr_attr_marker;
+            if (bcs["weak-essential"].is_array())
             {
                bdr_attr_marker = bcs["weak-essential"].get<std::vector<int>>();
             }
             else
             {
-               throw MachException("Unrecognized JSON value for boundary!");
+               throw MachException("Unrecognized JSON type for boundary attrs!");
             }
 
             auto mu = options["space-dis"].value("sipg-penalty", -1.0);
@@ -305,10 +327,9 @@ MagnetostaticResidual::MagnetostaticResidual(
                auto degree = options["space-dis"]["degree"].get<double>();
                mu = pow(degree + 1, 3);
             }
-
             std::cout << "mu: " << mu << "\n";
             res.addBdrFaceIntegrator(
-                new NonlinearDGDiffusionIntegrator(nu, *g, -mu),
+                new NonlinearDGDiffusionIntegrator(nu, *g, mu),
                 bdr_attr_marker);
          }
       }
