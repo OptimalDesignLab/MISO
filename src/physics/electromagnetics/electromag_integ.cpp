@@ -805,8 +805,8 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
 //       const double term2_bar = fun_bar;
 //       const double term3_bar = fun_bar;
 
-//       /// double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
-//       double w_q_bar =
+//       /// double term3 = (elfun_shape - bc_val) * model_val * w_q *
+//       psi_shape; double w_q_bar =
 //           term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
 //       double model_val_bar =
 //           term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
@@ -816,10 +816,10 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
 //       nor_bar = 0.0;
 //       nor_bar.Add(2 * w_q_bar * w * mu, nor);
 
-//       /// double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
-//       w_bar += term2_bar * -(elfun_shape - bc_val) * model_val * psi_dshapedn;
-//       model_val_bar += term2_bar * -(elfun_shape - bc_val) * w * psi_dshapedn;
-//       double psi_dshapedn_bar =
+//       /// double term2 = -(elfun_shape - bc_val) * model_val * w *
+//       psi_dshapedn; w_bar += term2_bar * -(elfun_shape - bc_val) * model_val
+//       * psi_dshapedn; model_val_bar += term2_bar * -(elfun_shape - bc_val) *
+//       w * psi_dshapedn; double psi_dshapedn_bar =
 //           term2_bar * -(elfun_shape - bc_val) * model_val * w;
 
 //       /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
@@ -1070,17 +1070,21 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       const double term3_bar = fun_bar;
 
       /// double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
-      double w_q_bar = term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
-      double model_val_bar = term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
+      double w_q_bar =
+          term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
+      double model_val_bar =
+          term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
 
       /// const double w_q = w * (nor * nor) * mu / el1_trans_weight;
-      double el1_trans_weight_bar = w_q_bar * -w * (nor * nor) * mu / pow(el1_trans_weight, 2);
+      double el1_trans_weight_bar =
+          w_q_bar * -w * (nor * nor) * mu / pow(el1_trans_weight, 2);
       nor_bar = 0.0;
       nor_bar.Add(w_q_bar * 2 * w * mu / el1_trans_weight, nor);
 
       /// double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
       model_val_bar += term2_bar * -(elfun_shape - bc_val) * w * psi_dshapedn;
-      double psi_dshapedn_bar = term2_bar * -(elfun_shape - bc_val) * model_val * w;
+      double psi_dshapedn_bar =
+          term2_bar * -(elfun_shape - bc_val) * model_val * w;
 
       /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
       model_val_bar += term1_bar * -elfun_dshapedn * w * psi_shape;

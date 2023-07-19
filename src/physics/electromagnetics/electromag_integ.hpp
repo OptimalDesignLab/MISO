@@ -273,7 +273,6 @@ private:
 #endif
 };
 
-
 // public:
 //    /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
 //    /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
@@ -290,7 +289,8 @@ private:
 //    /// \param[in] trans - the transformation between reference and physical
 //    /// space
 //    /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
-//    /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+//    /// \note the LinearForm that assembles this integrator's
+//    FiniteElementSpace
 //    /// MUST be the mesh's nodal finite element space
 //    /// \note this signature is for sensitivity wrt mesh face
 //    void AssembleRHSElementVect(const mfem::FiniteElement &el,
@@ -335,7 +335,8 @@ inline void addBdrSensitivityIntegrator(
    if (attr_marker == nullptr)
    {
       // rev_sens.at("mesh_coords")
-      //     .AddBoundaryIntegrator(new NonlinearDGDiffusionIntegratorMeshRevSens(
+      //     .AddBoundaryIntegrator(new
+      //     NonlinearDGDiffusionIntegratorMeshRevSens(
       //         fields.at("state").gridFunc(),
       //         fields.at(adjoint_name).gridFunc(),
       //         primal_integ));
@@ -349,7 +350,8 @@ inline void addBdrSensitivityIntegrator(
    else
    {
       // rev_sens.at("mesh_coords")
-      //     .AddBoundaryIntegrator(new NonlinearDGDiffusionIntegratorMeshRevSens(
+      //     .AddBoundaryIntegrator(new
+      //     NonlinearDGDiffusionIntegratorMeshRevSens(
       //                                fields.at("state").gridFunc(),
       //                                fields.at(adjoint_name).gridFunc(),
       //                                primal_integ),
