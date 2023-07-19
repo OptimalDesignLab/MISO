@@ -298,32 +298,39 @@ ThermalResidual::ThermalResidual(
    {
       const auto &interfaces = options["interfaces"];
 
-      for (const auto &interface : interfaces)
+      for (const auto &[kind, interface] : interfaces.items())
       {
+         std::cout << "kind: " << kind << "\n";
          std::cout << "interface: " << interface << "\n";
          // thermal contact resistance interface
-         if (interface["kind"] == "thermal_contact_resistance")
+         if (kind == "thermal_contact_resistance")
          {
-            const auto &attrs = interface["attrs"].get<std::vector<int>>();
-
-            auto mu = options["space-dis"].value("sipg-penalty", -1.0);
-            if (mu < 0)
+            for (const auto &[name, intr] : interface.items())
             {
-               auto degree = options["space-dis"]["degree"].get<double>();
-               mu = pow(degree + 1, 2);
+               const auto &attrs = intr["attrs"].get<std::vector<int>>();
+
+               auto mu = options["space-dis"].value("sipg-penalty", -1.0);
+               if (mu < 0)
+               {
+                  auto degree = options["space-dis"]["degree"].get<double>();
+                  mu = pow(degree + 1, 2);
+               }
+
+               res.addInternalBoundaryFaceIntegrator(
+                   new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
+                   attrs);
+               //  new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
+               //  attrs);
+
+               const auto h_c = intr["h_c"].get<double>();
+
+               auto *integ = new ThermalContactResistanceIntegrator(h_c, name);
+               // setInputs(*integ, {{"h_c", h_c}});
+               res.addInternalBoundaryFaceIntegrator(integ, attrs);
+
+               std::cout << "adding " << name << " TCR integrator!\n";
+               std::cout << "with attrs: " << intr["attrs"] << "\n";
             }
-
-            res.addInternalBoundaryFaceIntegrator(
-                new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1), attrs);
-
-            const auto h_c = interface["h_c"].get<double>();
-
-            auto *integ = new ThermalContactResistanceIntegrator;
-            setInputs(*integ, {{"h_c", h_c}});
-            res.addInternalBoundaryFaceIntegrator(integ, attrs);
-
-            std::cout << "adding TCR integrator!\n";
-            std::cout << "with attrs: " << interface["attrs"] << "\n";
          }
       }
    }

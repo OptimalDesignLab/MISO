@@ -151,6 +151,19 @@ void TestBCIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 }
 
+void setInputs(ThermalContactResistanceIntegrator &integ,
+               const MachInputs &inputs)
+{
+   if (!integ.name.empty())
+   {
+      setValueFromInputs(inputs, "h_c:" + integ.name, integ.h);
+   }
+   else
+   {
+      setValueFromInputs(inputs, "h_c", integ.h);
+   }
+}
+
 void ThermalContactResistanceIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,
     const mfem::FiniteElement &el2,

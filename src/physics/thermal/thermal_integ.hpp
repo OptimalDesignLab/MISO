@@ -64,10 +64,7 @@ class ThermalContactResistanceIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    friend void setInputs(ThermalContactResistanceIntegrator &integ,
-                         const MachInputs &inputs)
-   {
-      setValueFromInputs(inputs, "h_c", integ.h);
-   }
+                         const MachInputs &inputs);
 
    void AssembleFaceVector(const mfem::FiniteElement &el1,
                            const mfem::FiniteElement &el2,
@@ -81,13 +78,20 @@ public:
                          const mfem::Vector &elfun,
                          mfem::DenseMatrix &elmat) override;
 
-   ThermalContactResistanceIntegrator(double alpha = 1.0) : alpha(alpha) { }
+   ThermalContactResistanceIntegrator(double h = 1.0,
+                                      std::string name = "",
+                                      double alpha = 1.0)
+    : h(h), name(std::move(name)), alpha(alpha)
+   { }
 
 private:
+   /// Thermal contact coefficient
+   double h;
+   /// name of the interface to apply the integrator to
+   std::string name;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
-   /// Thermal contact coefficient
-   double h = 1.0;
+
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape1;
    mfem::Vector shape2;

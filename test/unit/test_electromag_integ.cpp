@@ -86,6 +86,26 @@ TEST_CASE("NonlinearDiffusionIntegrator::AssembleElementGrad")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
+
    NonLinearCoefficient nu;
    // LinearCoefficient nu;
    for (int p = 1; p <= 4; ++p)
@@ -143,6 +163,26 @@ TEST_CASE("NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
+
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
 
    NonLinearCoefficient nu;
    // LinearCoefficient nu;
@@ -217,6 +257,26 @@ TEST_CASE("NonlinearDGDiffusionIntegrator::AssembleFaceVector")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
+
    LinearCoefficient one_sc(10.0);
    ConstantCoefficient one(10.0);
    ConstantCoefficient bc_val(-10.0);
@@ -279,6 +339,26 @@ TEST_CASE("NonlinearDGDiffusionIntegrator::AssembleFaceGrad")
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
+
    // LinearCoefficient one_sc(1.0);
    NonLinearCoefficient one_sc;
    ConstantCoefficient bc_val(10.0);
@@ -333,17 +413,36 @@ TEST_CASE("NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 2;
+   int num_edge = 3;
    auto mesh = Mesh::MakeCartesian2D(num_edge,
                                      num_edge,
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
+
    // LinearCoefficient one_sc(1.0);
    NonLinearCoefficient one_sc;
    ConstantCoefficient bc_val(10.0);
-   double sigma = -1.0;
    double mu = 10;
 
    for (int p = 1; p <= 4; ++p)
@@ -375,10 +474,8 @@ TEST_CASE("NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
 
          // evaluate d(psi^T R)/dx and contract with v
          LinearForm dfdx(&mesh_fes);
-         dfdx.AddBoundaryIntegrator(
-            new mach::NonlinearDGDiffusionIntegratorMeshRevSens(state, adjoint, *integ));
          dfdx.AddBdrFaceIntegrator(
-            new mach::NonlinearDGDiffusionIntegratorMeshRevSens(state, adjoint, *integ));
+            new mach::NonlinearDGDiffusionIntegratorMeshRevSens(mesh_fes, state, adjoint, *integ));
          dfdx.Assemble();
          double dfdx_v = dfdx * v;
 
@@ -404,6 +501,256 @@ TEST_CASE("NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
+// TEST_CASE("DGInteriorFaceDiffusionIntegrator2::AssembleFaceVector")
+// {
+//    using namespace mfem;
+//    using namespace electromag_data;
+
+//    double delta = 1e-5;
+
+//    // generate a 6 element mesh
+//    int num_edge = 2;
+//    auto mesh = Mesh::MakeCartesian2D(num_edge,
+//                                      num_edge,
+//                                      Element::TRIANGLE);
+//    mesh.EnsureNodes();
+//    const auto dim = mesh.SpaceDimension();
+
+//    mesh.SetCurvature(1);
+
+//    auto &mesh_gf = *mesh.GetNodes();
+//    auto *mesh_fespace = mesh_gf.FESpace();
+
+//    mfem::GridFunction mesh_pert(mesh_fespace);
+//    for (int i = 0; i < mesh_pert.Size(); ++i)
+//    {
+//       mesh_pert(i) = electromag_data::randNumber();
+//    }
+//    mesh_pert /= (100 * (num_edge / 32.0));
+//    // mesh_pert = 0.0;
+
+//    mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+//    ess_bdr = 1;
+//    mfem::Array<int> ess_tdof_list;
+//    mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+//    mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+//    mesh_gf += mesh_pert;
+
+//    LinearCoefficient one_sc(1.0);
+//    ConstantCoefficient one(1.0);
+//    double sigma = -1.0;
+//    double mu = 10.0;
+
+//    for (int p = 1; p <= 1; ++p)
+//    {
+//       DYNAMIC_SECTION( "...for degree p = " << p )
+//       {
+//          L2_FECollection fec(p, dim);
+//          FiniteElementSpace fes(&mesh, &fec);
+
+//          GridFunction state(&fes);
+//          FunctionCoefficient pert(randState);
+//          state.ProjectCoefficient(pert);
+
+//          NonlinearForm res(&fes);
+//          res.AddInteriorFaceIntegrator(
+//             new mach::DGInteriorFaceDiffusionIntegrator2(one_sc, mu));
+
+//          GridFunction res_vec(&fes);
+//          res.Mult(state, res_vec);
+
+//          NonlinearForm mfem_res(&fes);
+//          mfem_res.AddInteriorFaceIntegrator(
+//             new DGDiffusionIntegrator(one_sc, sigma, mu));
+
+//          GridFunction mfem_res_vec(&fes);
+//          mfem_res.Mult(state, mfem_res_vec);
+
+//          // evaluate the Jacobian and compute its product with v
+//          Operator& jac = res.GetGradient(state);
+//          GridFunction jac_v(&fes);
+//          GridFunction v(&fes);
+//          DenseMatrix dJac(v.Size());
+//          DenseMatrix dJac_fd(v.Size());
+//          for (int i = 0; i < v.Size(); ++i)
+//          {
+//             v = 0.0;
+//             v(i) = 1.0;
+//             jac.Mult(v, jac_v);
+//             // now compute the finite-difference approximation...
+//             GridFunction r(&fes), jac_v_fd(&fes);
+//             state.Add(-delta, v);
+//             res.Mult(state, r);
+//             state.Add(2*delta, v);
+//             res.Mult(state, jac_v_fd);
+//             jac_v_fd -= r;
+//             jac_v_fd /= (2*delta);
+//             // std::cout << "Jac_v:\n";
+//             // jac_v.Print(mfem::out, 1); 
+//             // std::cout << "Jac_v_fd:\n";
+//             // jac_v_fd.Print(mfem::out, 1); 
+//             state.Add(-delta, v);
+//             for (int j = 0; j < v.Size(); ++j)
+//             {
+//                dJac(j, i) = jac_v(j);
+//                dJac_fd(j, i) = jac_v_fd(j);
+//             }
+//          }
+//          std::cout << "Jac:\n";
+//          dJac.Print(mfem::out, v.Size()); 
+//          std::cout << "Jac_fd:\n";
+//          dJac_fd.Print(mfem::out, v.Size()); 
+
+//          for (int i = 0; i < v.Size(); ++i)
+//          {
+//             for (int j = 0; j < v.Size(); ++j)
+//             {
+//                REQUIRE(dJac(i, j) == Approx(dJac_fd(i, j)).margin(1e-6));
+//             }
+//          }
+
+//          std::cout << "res:\n";
+//          res_vec.Print(mfem::out, v.Size()); 
+//          std::cout << "mfem_res:\n";
+//          mfem_res_vec.Print(mfem::out, v.Size()); 
+
+//          for (int i = 0; i < state.Size(); ++i)
+//          {
+//             REQUIRE(res_vec(i) == Approx(mfem_res_vec(i)).margin(1e-8));
+//          }
+//       }
+//    }
+// }
+
+// TEST_CASE("DGInteriorFaceDiffusionIntegrator2::AssembleFaceGrad")
+// {
+//    using namespace mfem;
+//    using namespace electromag_data;
+
+//    double delta = 1e-5;
+
+//    // generate a 6 element mesh
+//    int num_edge = 2;
+//    auto mesh = Mesh::MakeCartesian2D(num_edge,
+//                                      num_edge,
+//                                      Element::TRIANGLE);
+//    mesh.EnsureNodes();
+//    const auto dim = mesh.SpaceDimension();
+
+//    mesh.SetCurvature(1);
+
+//    auto &mesh_gf = *mesh.GetNodes();
+//    auto *mesh_fespace = mesh_gf.FESpace();
+
+//    mfem::GridFunction mesh_pert(mesh_fespace);
+//    for (int i = 0; i < mesh_pert.Size(); ++i)
+//    {
+//       mesh_pert(i) = electromag_data::randNumber();
+//    }
+//    mesh_pert /= (100 * (num_edge / 32.0));
+//    // mesh_pert = 0.0;
+
+//    mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+//    ess_bdr = 1;
+//    mfem::Array<int> ess_tdof_list;
+//    mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+//    mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+//    mesh_gf += mesh_pert;
+
+//    // LinearCoefficient one_sc(1.0);
+//    NonLinearCoefficient one_sc;
+//    double mu = 10.0;
+
+//    for (int p = 1; p <= 4; ++p)
+//    {
+//       DYNAMIC_SECTION( "...for degree p = " << p )
+//       {
+//          L2_FECollection fec(p, dim);
+//          FiniteElementSpace fes(&mesh, &fec);
+
+//          GridFunction state(&fes);
+//          FunctionCoefficient pert(randState);
+//          state.ProjectCoefficient(pert);
+
+//          NonlinearForm res(&fes);
+//          res.AddInteriorFaceIntegrator(
+//             new mach::DGInteriorFaceDiffusionIntegrator2(one_sc, mu));
+
+//          // initialize the vector that the Jacobian multiplies
+//          GridFunction v(&fes);
+//          v.ProjectCoefficient(pert);
+
+//          // evaluate the Jacobian and compute its product with v
+//          Operator& jac = res.GetGradient(state);
+//          GridFunction jac_v(&fes);
+//          jac.Mult(v, jac_v);
+
+//          // now compute the finite-difference approximation...
+//          GridFunction r(&fes), jac_v_fd(&fes);
+//          state.Add(-delta, v);
+//          res.Mult(state, r);
+//          state.Add(2*delta, v);
+//          res.Mult(state, jac_v_fd);
+//          jac_v_fd -= r;
+//          jac_v_fd /= (2*delta);
+
+//          for (int i = 0; i < jac_v.Size(); ++i)
+//          {
+//             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+//          }
+
+//          // // evaluate the Jacobian and compute its product with v
+//          // DenseMatrix dJac(v.Size());
+//          // DenseMatrix dJac_fd(v.Size());
+//          // for (int i = 0; i < v.Size(); ++i)
+//          // {
+//          //    v = 0.0;
+//          //    v(i) = 1.0;
+//          //    jac.Mult(v, jac_v);
+//          //    // now compute the finite-difference approximation...
+//          //    GridFunction r(&fes), jac_v_fd(&fes);
+//          //    state.Add(-delta, v);
+//          //    res.Mult(state, r);
+//          //    state.Add(2*delta, v);
+//          //    res.Mult(state, jac_v_fd);
+//          //    jac_v_fd -= r;
+//          //    jac_v_fd /= (2*delta);
+//          //    // std::cout << "Jac_v:\n";
+//          //    // jac_v.Print(mfem::out, 1); 
+//          //    // std::cout << "Jac_v_fd:\n";
+//          //    // jac_v_fd.Print(mfem::out, 1); 
+//          //    state.Add(-delta, v);
+//          //    for (int j = 0; j < v.Size(); ++j)
+//          //    {
+//          //       dJac(j, i) = jac_v(j);
+//          //       dJac_fd(j, i) = jac_v_fd(j);
+//          //    }
+//          // }
+//          // std::cout << "Jac:\n";
+//          // dJac.Print(mfem::out, v.Size()); 
+//          // std::cout << "Jac_fd:\n";
+//          // dJac_fd.Print(mfem::out, v.Size()); 
+
+//          // v.ProjectCoefficient(pert);
+//          // // v = 0.0;
+//          // // v(0) = 1.0;
+//          // jac.Mult(v, jac_v);
+//          // GridFunction r(&fes), jac_v_fd(&fes);
+//          // state.Add(-delta, v);
+//          // res.Mult(state, r);
+//          // state.Add(2*delta, v);
+//          // res.Mult(state, jac_v_fd);
+//          // jac_v_fd -= r;
+//          // jac_v_fd /= (2*delta);
+
+//          // for (int i = 0; i < jac_v.Size(); ++i)
+//          // {
+//          //    REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+//          // }
+//       }
+//    }
+// }
+
 TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceVector")
 {
    using namespace mfem;
@@ -418,6 +765,26 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceVector")
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
+
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
 
    LinearCoefficient one_sc(1.0);
    ConstantCoefficient one(1.0);
@@ -472,18 +839,38 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
    double delta = 1e-5;
 
    // generate a 6 element mesh
-   int num_edge = 1;
+   int num_edge = 2;
    auto mesh = Mesh::MakeCartesian2D(num_edge,
                                      num_edge,
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
 
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
+
    // LinearCoefficient one_sc(1.0);
    NonLinearCoefficient one_sc;
    double mu = 10.0;
 
-   for (int p = 1; p <= 1; ++p)
+   for (int p = 1; p <= 4; ++p)
    {
       DYNAMIC_SECTION( "...for degree p = " << p )
       {
@@ -521,37 +908,37 @@ TEST_CASE("DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad")
          //    REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
          // }
 
-         // evaluate the Jacobian and compute its product with v
-         DenseMatrix dJac(v.Size());
-         DenseMatrix dJac_fd(v.Size());
-         for (int i = 0; i < v.Size(); ++i)
-         {
-            v = 0.0;
-            v(i) = 1.0;
-            jac.Mult(v, jac_v);
-            // now compute the finite-difference approximation...
-            GridFunction r(&fes), jac_v_fd(&fes);
-            state.Add(-delta, v);
-            res.Mult(state, r);
-            state.Add(2*delta, v);
-            res.Mult(state, jac_v_fd);
-            jac_v_fd -= r;
-            jac_v_fd /= (2*delta);
-            // std::cout << "Jac_v:\n";
-            // jac_v.Print(mfem::out, 1); 
-            // std::cout << "Jac_v_fd:\n";
-            // jac_v_fd.Print(mfem::out, 1); 
-            state.Add(-delta, v);
-            for (int j = 0; j < v.Size(); ++j)
-            {
-               dJac(j, i) = jac_v(j);
-               dJac_fd(j, i) = jac_v_fd(j);
-            }
-         }
-         std::cout << "Jac:\n";
-         dJac.Print(mfem::out, v.Size()); 
-         std::cout << "Jac_fd:\n";
-         dJac_fd.Print(mfem::out, v.Size()); 
+         // // evaluate the Jacobian and compute its product with v
+         // DenseMatrix dJac(v.Size());
+         // DenseMatrix dJac_fd(v.Size());
+         // for (int i = 0; i < v.Size(); ++i)
+         // {
+         //    v = 0.0;
+         //    v(i) = 1.0;
+         //    jac.Mult(v, jac_v);
+         //    // now compute the finite-difference approximation...
+         //    GridFunction r(&fes), jac_v_fd(&fes);
+         //    state.Add(-delta, v);
+         //    res.Mult(state, r);
+         //    state.Add(2*delta, v);
+         //    res.Mult(state, jac_v_fd);
+         //    jac_v_fd -= r;
+         //    jac_v_fd /= (2*delta);
+         //    // std::cout << "Jac_v:\n";
+         //    // jac_v.Print(mfem::out, 1); 
+         //    // std::cout << "Jac_v_fd:\n";
+         //    // jac_v_fd.Print(mfem::out, 1); 
+         //    state.Add(-delta, v);
+         //    for (int j = 0; j < v.Size(); ++j)
+         //    {
+         //       dJac(j, i) = jac_v(j);
+         //       dJac_fd(j, i) = jac_v_fd(j);
+         //    }
+         // }
+         // std::cout << "Jac:\n";
+         // dJac.Print(mfem::out, v.Size()); 
+         // std::cout << "Jac_fd:\n";
+         // dJac_fd.Print(mfem::out, v.Size()); 
 
          v.ProjectCoefficient(pert);
          // v = 0.0;
@@ -587,6 +974,26 @@ TEST_CASE("DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect"
                                      Element::TRIANGLE);
    mesh.EnsureNodes();
    const auto dim = mesh.SpaceDimension();
+
+   mesh.SetCurvature(1);
+
+   auto &mesh_gf = *mesh.GetNodes();
+   auto *mesh_fespace = mesh_gf.FESpace();
+
+   mfem::GridFunction mesh_pert(mesh_fespace);
+   for (int i = 0; i < mesh_pert.Size(); ++i)
+   {
+      mesh_pert(i) = electromag_data::randNumber();
+   }
+   mesh_pert /= (100 * (num_edge / 32.0));
+   // mesh_pert = 0.0;
+
+   mfem::Array<int> ess_bdr(mesh.bdr_attributes.Max());
+   ess_bdr = 1;
+   mfem::Array<int> ess_tdof_list;
+   mesh_fespace->GetEssentialTrueDofs(ess_bdr, ess_tdof_list);
+   mesh_pert.SetSubVector(ess_tdof_list, 0.0);
+   mesh_gf += mesh_pert;
 
    NonLinearCoefficient one_sc;
    double mu = 10;

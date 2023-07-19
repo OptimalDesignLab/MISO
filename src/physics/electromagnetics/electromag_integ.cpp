@@ -340,7 +340,7 @@ void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       {
          if (el.Space() == FunctionSpace::Pk)
          {
-            return 2 * el.GetOrder() - 1;
+            return 2 * el.GetOrder();
          }
          else
          {
@@ -503,8 +503,9 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceVector(
       const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
 
       double el1_trans_weight = trans.Elem1->Weight();
+      // double el1_trans_weight = 1.0;
 
-      double w = alpha * ip.weight / el1_trans_weight;
+      double w = alpha * ip.weight;
 
       if (dim == 1)
       {
@@ -518,15 +519,11 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceVector(
       el1.CalcShape(eip1, shape);
       el1.CalcDShape(eip1, dshape);
 
-      Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+      Mult(dshape, trans.Elem1->InverseJacobian(), dshapedxt);
       dshapedxt.MultTranspose(elfun, pointflux);
       const double pointflux_norm = pointflux.Norml2();
-      const double pointflux_mag = pointflux_norm / el1_trans_weight;
 
-      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
-
-      // trans.Elem1->AdjugateJacobian().Mult(nor, nh);
-      // dshape.Mult(nh, dshapedn);
+      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_norm);
 
       dshapedxt.Mult(nor, dshapedn);
 
@@ -535,7 +532,7 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceVector(
       elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
       elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
 
-      const double w_q = w * (nor * nor) * mu;
+      const double w_q = w * (nor * nor) * mu / el1_trans_weight;
       elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
    }
 }
@@ -602,7 +599,7 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
 
       double el1_trans_weight = trans.Elem1->Weight();
 
-      double w = alpha * ip.weight / el1_trans_weight;
+      double w = alpha * ip.weight;
 
       if (dim == 1)
       {
@@ -616,11 +613,8 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
       el1.CalcShape(eip1, shape);
       el1.CalcDShape(eip1, dshape);
 
-      Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-
+      Mult(dshape, trans.Elem1->InverseJacobian(), dshapedxt);
       dshapedxt.MultTranspose(elfun, pointflux);
-      /// pointflux_dot = dshapedxt.Transpose()
-
       const double pointflux_norm = pointflux.Norml2();
       pointflux_norm_dot = 0.0;
       if (abs(pointflux_norm) > 1e-14)
@@ -629,30 +623,25 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
              1.0 / pointflux_norm, pointflux, pointflux_norm_dot);
       }
 
-      const double pointflux_mag = pointflux_norm / el1_trans_weight;
-      pointflux_norm_dot /= el1_trans_weight;
-
-      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
-
+      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_norm);
       double model_deriv =
-          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
+          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_norm);
       pointflux_norm_dot *= model_deriv;
 
-      trans.Elem1->AdjugateJacobian().Mult(nor, nh);
-      dshape.Mult(nh, dshapedn);
+      dshapedxt.Mult(nor, dshapedn);
 
       double bc_val = g.Eval(*trans.Elem1, eip1);
 
       // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
-      AddMult_a_VWt(-model_val * w, dshapedn, shape, elmat);
+      AddMult_a_VWt(-model_val * w, shape, dshapedn, elmat);
       AddMult_a_VWt(-(dshapedn * elfun) * w, shape, pointflux_norm_dot, elmat);
 
       // elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
-      AddMult_a_VWt(-model_val * w, shape, dshapedn, elmat);
+      AddMult_a_VWt(-model_val * w, dshapedn, shape, elmat);
       AddMult_a_VWt(
           -((shape * elfun) - bc_val) * w, dshapedn, pointflux_norm_dot, elmat);
 
-      const double w_q = w * (nor * nor) * mu;
+      const double w_q = w * (nor * nor) * mu / el1_trans_weight;
       // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
       AddMult_a_VVt(model_val * w_q, shape, elmat);
       AddMult_a_VWt(
@@ -660,51 +649,311 @@ void NonlinearDGDiffusionIntegrator::AssembleFaceGrad(
    }
 }
 
+// void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
+//     const mfem::FiniteElement &mesh_el,
+//     mfem::ElementTransformation &trans,
+//     mfem::Vector &mesh_coords_bar)
+// {
+//    const int element = mesh_trans.ElementNo;
+//    auto &trans =
+//        *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
+//    const int state_elem_num = trans.Elem1->ElementNo;
+//    const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
+//    int dim = el1.GetDim();
+
+//    const int mesh_ndof = mesh_el.GetDof();
+//    const int ndof = el1.GetDof();
+//    const int trans_dim = trans.GetDimension();
+//    const int space_dim = trans.GetSpaceDim();
+
+//    /// get the proper element, transformation, and state vector
+// #ifdef MFEM_THREAD_SAFE
+//    mfem::Array<int> vdofs;
+//    mfem::Vector elfun;
+//    mfem::Vector psi;
+// #endif
+//    auto *dof_tr = state.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+//    state.GetSubVector(vdofs, elfun);
+//    if (dof_tr != nullptr)
+//    {
+//       dof_tr->InvTransformPrimal(elfun);
+//    }
+
+//    dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+//    adjoint.GetSubVector(vdofs, psi);
+//    if (dof_tr != nullptr)
+//    {
+//       dof_tr->InvTransformPrimal(psi);
+//    }
+
+// #ifdef MFEM_THREAD_SAFE
+//    mfem::Vector shape;
+//    mfem::DenseMatrix dshape;
+//    mfem::DenseMatrix dshapedxt;
+//    mfem::Vector dshapedn;
+//    mfem::DenseMatrix PointMat_bar;
+//    mfem::DenseMatrix dshapedxt_bar;
+//    mfem::Vector dshapedn_bar;
+// #else
+//    auto &shape = integ.shape;
+//    auto &dshape = integ.dshape;
+//    auto &dshapedxt = integ.dshapedxt;
+//    auto &dshapedn = integ.dshapedn;
+// #endif
+//    shape.SetSize(ndof);
+//    dshape.SetSize(ndof, dim);
+//    dshapedxt.SetSize(ndof, dim);
+//    dshapedn.SetSize(ndof);
+
+//    PointMat_bar.SetSize(space_dim, mesh_ndof);
+//    dshapedxt_bar.SetSize(ndof, dim);
+//    dshapedn_bar.SetSize(ndof);
+
+//    double pointflux_buffer[3] = {};
+//    Vector pointflux(pointflux_buffer, dim);
+
+//    double pointflux_bar_buffer[3] = {};
+//    Vector pointflux_bar(pointflux_bar_buffer, dim);
+
+//    double nor_buffer[3] = {};
+//    mfem::Vector nor(nor_buffer, dim);
+
+//    double nor_bar_buffer[3] = {};
+//    mfem::Vector nor_bar(nor_bar_buffer, dim);
+
+//    double adj_jac_bar_buffer[9] = {};
+//    mfem::DenseMatrix adj_jac_bar(dim);
+
+//    double jac_bar_buffer[9] = {};
+//    mfem::DenseMatrix jac_bar(dim, trans_dim);
+
+//    // cast the ElementTransformation
+//    auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
+
+//    const mfem::IntegrationRule *ir = IntRule;
+//    if (ir == nullptr)
+//    {
+//       int order = 2 * el1.GetOrder();
+//       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+//    }
+
+//    auto &alpha = integ.alpha;
+//    auto &model = integ.model;
+//    auto &g = integ.g;
+//    auto &mu = integ.mu;
+
+//    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+//    mesh_coords_bar = 0.0;
+//    for (int i = 0; i < ir->GetNPoints(); i++)
+//    {
+//       const IntegrationPoint &ip = ir->IntPoint(i);
+
+//       // Set the integration point in the face and the neighboring elements
+//       trans.SetAllIntPoints(&ip);
+//       const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
+
+//       double el1_trans_weight = trans.Elem1->Weight();
+
+//       double w = alpha * ip.weight / el1_trans_weight;
+
+//       if (dim == 1)
+//       {
+//          nor(0) = 2 * eip1.x - 1.0;
+//       }
+//       else
+//       {
+//          CalcOrtho(trans.Jacobian(), nor);
+//       }
+
+//       el1.CalcShape(eip1, shape);
+//       el1.CalcDShape(eip1, dshape);
+
+//       Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+//       dshapedxt.MultTranspose(elfun, pointflux);
+//       const double pointflux_norm = pointflux.Norml2();
+//       const double pointflux_mag = pointflux_norm / el1_trans_weight;
+
+//       double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
+
+//       dshapedxt.Mult(nor, dshapedn);
+
+//       double bc_val = g.Eval(*trans.Elem1, eip1);
+
+//       double elfun_shape = elfun * shape;
+//       double elfun_dshapedn = elfun * dshapedn;
+
+//       double psi_shape = psi * shape;
+//       double psi_dshapedn = psi * dshapedn;
+
+//       // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
+//       double term1 = -elfun_dshapedn * model_val * w * psi_shape;
+//       // elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
+//       double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
+
+//       const double w_q = w * (nor * nor) * mu;
+//       // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
+//       double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
+
+//       /// dummy functional for adjoint-weighted residual
+//       // fun += term1 + term2 + term3;
+
+//       /// start reverse pass
+//       const double fun_bar = 1.0;
+
+//       /// fun += term1 + term2 + term3;
+//       const double term1_bar = fun_bar;
+//       const double term2_bar = fun_bar;
+//       const double term3_bar = fun_bar;
+
+//       /// double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
+//       double w_q_bar =
+//           term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
+//       double model_val_bar =
+//           term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
+
+//       /// const double w_q = w * (nor * nor) * mu;
+//       double w_bar = w_q_bar * (nor * nor) * mu;
+//       nor_bar = 0.0;
+//       nor_bar.Add(2 * w_q_bar * w * mu, nor);
+
+//       /// double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
+//       w_bar += term2_bar * -(elfun_shape - bc_val) * model_val * psi_dshapedn;
+//       model_val_bar += term2_bar * -(elfun_shape - bc_val) * w * psi_dshapedn;
+//       double psi_dshapedn_bar =
+//           term2_bar * -(elfun_shape - bc_val) * model_val * w;
+
+//       /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
+//       w_bar += term1_bar * -elfun_dshapedn * model_val * psi_shape;
+//       model_val_bar += term1_bar * -elfun_dshapedn * w * psi_shape;
+//       double elfun_dshapedn_bar = term1_bar * -model_val * w * psi_shape;
+
+//       /// double psi_dshapedn = psi * dshapedn;
+//       dshapedn_bar = 0.0;
+//       dshapedn_bar.Add(psi_dshapedn_bar, psi);
+
+//       /// double psi_shape = psi * shape;
+
+//       /// double elfun_dshapedn = elfun * dshapedn;
+//       dshapedn_bar.Add(elfun_dshapedn_bar, elfun);
+
+//       /// double elfun_shape = elfun * shape;
+
+//       /// double bc_val = g.Eval(trans, eip1);
+
+//       /// dshapedxt.Mult(nor, dshapedn);
+//       dshapedxt.AddMultTranspose(dshapedn_bar, nor_bar);
+//       // MultVWt(dshapedn_bar, nor, dshapedxt_bar);
+
+//       /// double model_val = model.Eval(trans, eip1, pointflux_mag);
+//       const double model_val_dot =
+//           model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
+//       double pointflux_mag_bar = model_val_bar * model_val_dot;
+
+//       /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
+//       double pointflux_norm_bar = pointflux_mag_bar / el1_trans_weight;
+//       double el1_trans_weight_bar =
+//           -pointflux_mag_bar * pointflux_norm / pow(el1_trans_weight, 2);
+
+//       /// const double pointflux_norm = pointflux.Norml2();
+//       pointflux_bar = 0.0;
+//       add(pointflux_bar,
+//           pointflux_norm_bar / pointflux_norm,
+//           pointflux,
+//           pointflux_bar);
+
+//       /// dshapedxt.MultTranspose(elfun, pointflux);
+//       AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
+
+//       /// Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
+//       // MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
+
+//       // PointMat_bar = 0.0;
+//       // isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar); ///
+//       // element Jacobian!
+
+//       if (dim == 1)
+//       {
+//          /// nor(0) = 2 * eip1.x - 1.0;
+//       }
+//       else
+//       {
+//          /// CalcOrtho(trans.Jacobian(), nor);
+//          jac_bar = 0.0;
+//          CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
+//          PointMat_bar = 0.0;
+//          isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
+//       }
+
+//       /// double w = alpha * ip.weight / el1_trans_weight;
+//       el1_trans_weight_bar +=
+//           w_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
+
+//       /// double el1_trans_weight = trans.Elem1->Weight();
+//       // trans.Elem1->WeightRevDiff(el1_trans_weight_bar, PointMat_bar); ///
+//       // element Jacobian!
+
+//       // code to insert PointMat_bar into mesh_coords_bar;
+//       for (int j = 0; j < mesh_ndof; ++j)
+//       {
+//          for (int k = 0; k < space_dim; ++k)
+//          {
+//             mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+//          }
+//       }
+//    }
+// }
+
 void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
     const mfem::FiniteElement &mesh_el,
-    mfem::ElementTransformation &mesh_trans,
+    mfem::FaceElementTransformations &trans,
     mfem::Vector &mesh_coords_bar)
 {
-   const int element = mesh_trans.ElementNo;
-   auto &trans =
-       *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
-   const int state_elem_num = trans.Elem1->ElementNo;
-   const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
-   int dim = el1.GetDim();
+   const auto &el = *state.FESpace()->GetFE(trans.Elem1->ElementNo);
 
    const int mesh_ndof = mesh_el.GetDof();
-   const int ndof = el1.GetDof();
-   const int trans_dim = trans.GetDimension();
+   const int mesh_face_ndof = trans.GetFE()->GetDof();
+
+   const int ndof = el.GetDof();
+
+   int dim = el.GetDim();
    const int space_dim = trans.GetSpaceDim();
+   const int trans_dim = trans.GetDimension();
 
    /// get the proper element, transformation, and state vector
 #ifdef MFEM_THREAD_SAFE
    mfem::Array<int> vdofs;
+   mfem::Array<int> vdofs2;
    mfem::Vector elfun;
    mfem::Vector psi;
 #endif
-   auto *dof_tr = state.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   auto *dof_tr =
+       state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs);
    state.GetSubVector(vdofs, elfun);
    if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(elfun);
    }
 
-   dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs);
    adjoint.GetSubVector(vdofs, psi);
    if (dof_tr != nullptr)
    {
       dof_tr->InvTransformPrimal(psi);
    }
 
+   dof_tr = mesh_fes.GetElementVDofs(trans.Elem1->ElementNo, vdofs);
+   mesh_fes.GetBdrElementVDofs(trans.ElementNo, vdofs2);
+
 #ifdef MFEM_THREAD_SAFE
    mfem::Vector shape;
    mfem::DenseMatrix dshape;
    mfem::DenseMatrix dshapedxt;
    mfem::Vector dshapedn;
-   mfem::DenseMatrix PointMat_bar;
    mfem::DenseMatrix dshapedxt_bar;
    mfem::Vector dshapedn_bar;
+   mfem::DenseMatrix PointMat_bar;
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
 #else
    auto &shape = integ.shape;
    auto &dshape = integ.dshape;
@@ -716,15 +965,18 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    dshapedxt.SetSize(ndof, dim);
    dshapedn.SetSize(ndof);
 
-   PointMat_bar.SetSize(space_dim, mesh_ndof);
    dshapedxt_bar.SetSize(ndof, dim);
    dshapedn_bar.SetSize(ndof);
 
-   double pointflux_buffer[3] = {};
-   Vector pointflux(pointflux_buffer, dim);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+   PointMatFace_bar.SetSize(space_dim, mesh_face_ndof);
+   mesh_coords_face_bar.SetSize(space_dim * mesh_face_ndof);
 
-   double pointflux_bar_buffer[3] = {};
-   Vector pointflux_bar(pointflux_bar_buffer, dim);
+   double ip_flux_buffer[3] = {};
+   Vector ip_flux(ip_flux_buffer, dim);
+
+   double ip_flux_bar_buffer[3] = {};
+   Vector ip_flux_bar(ip_flux_bar_buffer, dim);
 
    double nor_buffer[3] = {};
    mfem::Vector nor(nor_buffer, dim);
@@ -732,265 +984,11 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    double nor_bar_buffer[3] = {};
    mfem::Vector nor_bar(nor_bar_buffer, dim);
 
-   double adj_jac_bar_buffer[9] = {};
-   mfem::DenseMatrix adj_jac_bar(dim);
+   double inv_jac_bar_buffer[9] = {};
+   mfem::DenseMatrix inv_jac_bar(space_dim, dim);
 
    double jac_bar_buffer[9] = {};
-   mfem::DenseMatrix jac_bar(dim, trans_dim);
-
-   // cast the ElementTransformation
-   auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
-
-   const mfem::IntegrationRule *ir = IntRule;
-   if (ir == nullptr)
-   {
-      int order = 2 * el1.GetOrder();
-      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
-   }
-
-   auto &alpha = integ.alpha;
-   auto &model = integ.model;
-   auto &g = integ.g;
-   auto &mu = integ.mu;
-
-   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
-   mesh_coords_bar = 0.0;
-   for (int i = 0; i < ir->GetNPoints(); i++)
-   {
-      const IntegrationPoint &ip = ir->IntPoint(i);
-
-      // Set the integration point in the face and the neighboring elements
-      trans.SetAllIntPoints(&ip);
-      const IntegrationPoint &eip1 = trans.GetElement1IntPoint();
-
-      double el1_trans_weight = trans.Elem1->Weight();
-
-      double w = alpha * ip.weight / el1_trans_weight;
-
-      if (dim == 1)
-      {
-         nor(0) = 2 * eip1.x - 1.0;
-      }
-      else
-      {
-         CalcOrtho(trans.Jacobian(), nor);
-      }
-
-      el1.CalcShape(eip1, shape);
-      el1.CalcDShape(eip1, dshape);
-
-      Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-      dshapedxt.MultTranspose(elfun, pointflux);
-      const double pointflux_norm = pointflux.Norml2();
-      const double pointflux_mag = pointflux_norm / el1_trans_weight;
-
-      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
-
-      dshapedxt.Mult(nor, dshapedn);
-
-      double bc_val = g.Eval(*trans.Elem1, eip1);
-
-      double elfun_shape = elfun * shape;
-      double elfun_dshapedn = elfun * dshapedn;
-
-      double psi_shape = psi * shape;
-      double psi_dshapedn = psi * dshapedn;
-
-      // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
-      double term1 = -elfun_dshapedn * model_val * w * psi_shape;
-      // elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
-      double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
-
-      const double w_q = w * (nor * nor) * mu;
-      // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
-      double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
-
-      /// dummy functional for adjoint-weighted residual
-      // fun += term1 + term2 + term3;
-
-      /// start reverse pass
-      const double fun_bar = 1.0;
-
-      /// fun += term1 + term2 + term3;
-      const double term1_bar = fun_bar;
-      const double term2_bar = fun_bar;
-      const double term3_bar = fun_bar;
-
-      /// double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
-      double w_q_bar =
-          term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
-      double model_val_bar =
-          term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
-
-      /// const double w_q = w * (nor * nor) * mu;
-      double w_bar = w_q_bar * (nor * nor) * mu;
-      nor_bar = 0.0;
-      nor_bar.Add(2 * w_q_bar * w * mu, nor);
-
-      /// double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
-      w_bar += term2_bar * -(elfun_shape - bc_val) * model_val * psi_dshapedn;
-      model_val_bar += term2_bar * -(elfun_shape - bc_val) * w * psi_dshapedn;
-      double psi_dshapedn_bar =
-          term2_bar * -(elfun_shape - bc_val) * model_val * w;
-
-      /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
-      w_bar += term1_bar * -elfun_dshapedn * model_val * psi_shape;
-      model_val_bar += term1_bar * -elfun_dshapedn * w * psi_shape;
-      double elfun_dshapedn_bar = term1_bar * -model_val * w * psi_shape;
-
-      /// double psi_dshapedn = psi * dshapedn;
-      dshapedn_bar = 0.0;
-      dshapedn_bar.Add(psi_dshapedn_bar, psi);
-
-      /// double psi_shape = psi * shape;
-
-      /// double elfun_dshapedn = elfun * dshapedn;
-      dshapedn_bar.Add(elfun_dshapedn_bar, elfun);
-
-      /// double elfun_shape = elfun * shape;
-
-      /// double bc_val = g.Eval(trans, eip1);
-
-      /// dshapedxt.Mult(nor, dshapedn);
-      dshapedxt.AddMultTranspose(dshapedn_bar, nor_bar);
-      // MultVWt(dshapedn_bar, nor, dshapedxt_bar);
-
-      /// double model_val = model.Eval(trans, eip1, pointflux_mag);
-      const double model_val_dot =
-          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
-      double pointflux_mag_bar = model_val_bar * model_val_dot;
-
-      /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
-      double pointflux_norm_bar = pointflux_mag_bar / el1_trans_weight;
-      double el1_trans_weight_bar =
-          -pointflux_mag_bar * pointflux_norm / pow(el1_trans_weight, 2);
-
-      /// const double pointflux_norm = pointflux.Norml2();
-      pointflux_bar = 0.0;
-      add(pointflux_bar,
-          pointflux_norm_bar / pointflux_norm,
-          pointflux,
-          pointflux_bar);
-
-      /// dshapedxt.MultTranspose(elfun, pointflux);
-      AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
-
-      /// Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-      // MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
-
-      // PointMat_bar = 0.0;
-      // isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar); ///
-      // element Jacobian!
-
-      if (dim == 1)
-      {
-         /// nor(0) = 2 * eip1.x - 1.0;
-      }
-      else
-      {
-         /// CalcOrtho(trans.Jacobian(), nor);
-         jac_bar = 0.0;
-         CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
-         PointMat_bar = 0.0;
-         isotrans.JacobianRevDiff(jac_bar, PointMat_bar);
-      }
-
-      /// double w = alpha * ip.weight / el1_trans_weight;
-      el1_trans_weight_bar +=
-          w_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
-
-      /// double el1_trans_weight = trans.Elem1->Weight();
-      // trans.Elem1->WeightRevDiff(el1_trans_weight_bar, PointMat_bar); ///
-      // element Jacobian!
-
-      // code to insert PointMat_bar into mesh_coords_bar;
-      for (int j = 0; j < mesh_ndof; ++j)
-      {
-         for (int k = 0; k < space_dim; ++k)
-         {
-            mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
-         }
-      }
-   }
-}
-
-void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
-    const mfem::FiniteElement &mesh_el,
-    mfem::FaceElementTransformations &mesh_trans,
-    mfem::Vector &mesh_coords_bar)
-{
-   const int element = mesh_trans.ElementNo;
-   auto &trans =
-       *state.FESpace()->GetMesh()->GetBdrFaceTransformations(element);
-   const int state_elem_num = trans.Elem1->ElementNo;
-   const auto &el1 = *state.FESpace()->GetFE(state_elem_num);
-   int dim = el1.GetDim();
-
-   const int mesh_ndof = mesh_el.GetDof();
-   const int ndof = el1.GetDof();
-   const int trans_dim = trans.GetDimension();
-   const int space_dim = trans.GetSpaceDim();
-
-   /// get the proper element, transformation, and state vector
-#ifdef MFEM_THREAD_SAFE
-   mfem::Array<int> vdofs;
-   mfem::Vector elfun;
-   mfem::Vector psi;
-#endif
-   auto *dof_tr = state.FESpace()->GetElementVDofs(state_elem_num, vdofs);
-   state.GetSubVector(vdofs, elfun);
-   if (dof_tr != nullptr)
-   {
-      dof_tr->InvTransformPrimal(elfun);
-   }
-
-   dof_tr = adjoint.FESpace()->GetElementVDofs(state_elem_num, vdofs);
-   adjoint.GetSubVector(vdofs, psi);
-   if (dof_tr != nullptr)
-   {
-      dof_tr->InvTransformPrimal(psi);
-   }
-
-#ifdef MFEM_THREAD_SAFE
-   mfem::Vector shape;
-   mfem::DenseMatrix dshape;
-   mfem::DenseMatrix dshapedxt;
-   mfem::Vector dshapedn;
-   mfem::DenseMatrix PointMat_bar;
-   mfem::DenseMatrix dshapedxt_bar;
-   mfem::Vector dshapedn_bar;
-#else
-   auto &shape = integ.shape;
-   auto &dshape = integ.dshape;
-   auto &dshapedxt = integ.dshapedxt;
-   auto &dshapedn = integ.dshapedn;
-#endif
-   shape.SetSize(ndof);
-   dshape.SetSize(ndof, dim);
-   dshapedxt.SetSize(ndof, dim);
-   dshapedn.SetSize(ndof);
-
-   PointMat_bar.SetSize(space_dim, mesh_ndof);
-   dshapedxt_bar.SetSize(ndof, dim);
-   dshapedn_bar.SetSize(ndof);
-
-   double pointflux_buffer[3] = {};
-   Vector pointflux(pointflux_buffer, dim);
-
-   double pointflux_bar_buffer[3] = {};
-   Vector pointflux_bar(pointflux_bar_buffer, dim);
-
-   double nor_buffer[3] = {};
-   mfem::Vector nor(nor_buffer, dim);
-
-   double nor_bar_buffer[3] = {};
-   mfem::Vector nor_bar(nor_bar_buffer, dim);
-
-   double adj_jac_bar_buffer[9] = {};
-   mfem::DenseMatrix adj_jac_bar(dim);
-
-   double jac_bar_buffer[9] = {};
-   mfem::DenseMatrix jac_bar(dim, trans_dim);
+   mfem::DenseMatrix jac_bar(space_dim, trans_dim);
 
    // cast the ElementTransformation
    auto &isotrans =
@@ -999,7 +997,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    const mfem::IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = 2 * el1.GetOrder();
+      int order = 2 * el.GetOrder();
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
@@ -1010,6 +1008,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
    mesh_coords_bar.SetSize(mesh_ndof * space_dim);
    mesh_coords_bar = 0.0;
+   mesh_coords_face_bar = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -1020,7 +1019,7 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       double el1_trans_weight = trans.Elem1->Weight();
 
-      double w = alpha * ip.weight / el1_trans_weight;
+      double w = alpha * ip.weight;
 
       if (dim == 1)
       {
@@ -1031,15 +1030,14 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
          CalcOrtho(trans.Jacobian(), nor);
       }
 
-      el1.CalcShape(eip1, shape);
-      el1.CalcDShape(eip1, dshape);
+      el.CalcShape(eip1, shape);
+      el.CalcDShape(eip1, dshape);
 
-      Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-      dshapedxt.MultTranspose(elfun, pointflux);
-      const double pointflux_norm = pointflux.Norml2();
-      const double pointflux_mag = pointflux_norm / el1_trans_weight;
+      Mult(dshape, trans.Elem1->InverseJacobian(), dshapedxt);
+      dshapedxt.MultTranspose(elfun, ip_flux);
+      const double ip_flux_norm = ip_flux.Norml2();
 
-      double model_val = model.Eval(*trans.Elem1, eip1, pointflux_mag);
+      double model_val = model.Eval(*trans.Elem1, eip1, ip_flux_norm);
 
       dshapedxt.Mult(nor, dshapedn);
 
@@ -1051,14 +1049,14 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       double psi_shape = psi * shape;
       double psi_dshapedn = psi * dshapedn;
 
-      // elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
-      double term1 = -elfun_dshapedn * model_val * w * psi_shape;
-      // elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
-      double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
+      /// elvect.Add(-(dshapedn * elfun) * model_val * w, shape);
+      // double term1 = -elfun_dshapedn * model_val * w * psi_shape;
+      /// elvect.Add(-((shape * elfun) - bc_val) * model_val * w, dshapedn);
+      // double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
 
-      const double w_q = w * (nor * nor) * mu;
-      // elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
-      double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
+      const double w_q = w * (nor * nor) * mu / el1_trans_weight;
+      /// elvect.Add(((shape * elfun) - bc_val) * model_val * w_q, shape);
+      // double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
 
       /// dummy functional for adjoint-weighted residual
       // fun += term1 + term2 + term3;
@@ -1072,24 +1070,19 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       const double term3_bar = fun_bar;
 
       /// double term3 = (elfun_shape - bc_val) * model_val * w_q * psi_shape;
-      double w_q_bar =
-          term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
-      double model_val_bar =
-          term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
+      double w_q_bar = term3_bar * (elfun_shape - bc_val) * model_val * psi_shape;
+      double model_val_bar = term3_bar * (elfun_shape - bc_val) * w_q * psi_shape;
 
-      /// const double w_q = w * (nor * nor) * mu;
-      double w_bar = w_q_bar * (nor * nor) * mu;
+      /// const double w_q = w * (nor * nor) * mu / el1_trans_weight;
+      double el1_trans_weight_bar = w_q_bar * -w * (nor * nor) * mu / pow(el1_trans_weight, 2);
       nor_bar = 0.0;
-      nor_bar.Add(2 * w_q_bar * w * mu, nor);
+      nor_bar.Add(w_q_bar * 2 * w * mu / el1_trans_weight, nor);
 
       /// double term2 = -(elfun_shape - bc_val) * model_val * w * psi_dshapedn;
-      w_bar += term2_bar * -(elfun_shape - bc_val) * model_val * psi_dshapedn;
       model_val_bar += term2_bar * -(elfun_shape - bc_val) * w * psi_dshapedn;
-      double psi_dshapedn_bar =
-          term2_bar * -(elfun_shape - bc_val) * model_val * w;
+      double psi_dshapedn_bar = term2_bar * -(elfun_shape - bc_val) * model_val * w;
 
       /// double term1 = -elfun_dshapedn * model_val * w * psi_shape;
-      w_bar += term1_bar * -elfun_dshapedn * model_val * psi_shape;
       model_val_bar += term1_bar * -elfun_dshapedn * w * psi_shape;
       double elfun_dshapedn_bar = term1_bar * -model_val * w * psi_shape;
 
@@ -1110,28 +1103,23 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       dshapedxt.AddMultTranspose(dshapedn_bar, nor_bar);
       MultVWt(dshapedn_bar, nor, dshapedxt_bar);
 
-      /// double model_val = model.Eval(trans, eip1, pointflux_mag);
+      /// double model_val = model.Eval(trans, eip1, ip_flux_norm);
       const double model_val_dot =
-          model.EvalStateDeriv(*trans.Elem1, ip, pointflux_mag);
-      double pointflux_mag_bar = model_val_bar * model_val_dot;
+          model.EvalStateDeriv(*trans.Elem1, ip, ip_flux_norm);
+      double ip_flux_norm_bar = model_val_bar * model_val_dot;
 
-      /// const double pointflux_mag = pointflux_norm / el1_trans_weight;
-      double pointflux_norm_bar = pointflux_mag_bar / el1_trans_weight;
-      double el1_trans_weight_bar =
-          -pointflux_mag_bar * pointflux_norm / pow(el1_trans_weight, 2);
+      /// const double ip_flux_norm = ip_flux.Norml2();
+      ip_flux_bar = 0.0;
+      ip_flux_bar.Add(ip_flux_norm_bar / ip_flux_norm, ip_flux);
 
-      /// const double pointflux_norm = pointflux.Norml2();
-      pointflux_bar = 0.0;
-      pointflux_bar.Add(pointflux_norm_bar / pointflux_norm, pointflux);
+      /// dshapedxt.MultTranspose(elfun, ip_flux);
+      AddMultVWt(elfun, ip_flux_bar, dshapedxt_bar);
 
-      /// dshapedxt.MultTranspose(elfun, pointflux);
-      AddMultVWt(elfun, pointflux_bar, dshapedxt_bar);
-
-      /// Mult(dshape, trans.Elem1->AdjugateJacobian(), dshapedxt);
-      MultAtB(dshape, dshapedxt_bar, adj_jac_bar);
-
+      /// Mult(dshape, trans.Elem1->InverseJacobian(), dshapedxt);
+      inv_jac_bar = 0.0;
+      MultAtB(dshape, dshapedxt_bar, inv_jac_bar);
       PointMat_bar = 0.0;
-      isotrans.AdjugateJacobianRevDiff(adj_jac_bar, PointMat_bar);
+      isotrans.InverseJacobianRevDiff(inv_jac_bar, PointMat_bar);
 
       if (dim == 1)
       {
@@ -1140,15 +1128,13 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       else
       {
          /// CalcOrtho(trans.Jacobian(), nor);
-         // jac_bar = 0.0;
-         // CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
-         // PointMat_bar = 0.0;
-         // isotrans.JacobianRevDiff(jac_bar, PointMat_bar); /// face Jacobian!
+         jac_bar = 0.0;
+         CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
+         PointMatFace_bar = 0.0;
+         trans.JacobianRevDiff(jac_bar, PointMatFace_bar);
       }
 
-      /// double w = alpha * ip.weight / el1_trans_weight;
-      el1_trans_weight_bar +=
-          w_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
+      /// double w = alpha * ip.weight;
 
       /// double el1_trans_weight = trans.Elem1->Weight();
       isotrans.WeightRevDiff(el1_trans_weight_bar, PointMat_bar);
@@ -1160,6 +1146,30 @@ void NonlinearDGDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
          {
             mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
          }
+      }
+
+      // code to insert PointMatFace_bar into mesh_coords_face_bar
+      for (int j = 0; j < mesh_face_ndof; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_face_bar(k * mesh_face_ndof + j) +=
+                PointMatFace_bar(k, j);
+         }
+      }
+   }
+
+   // code to insert mesh_coords_face_bar into mesh_coords_bar
+   for (int j = 0; j < vdofs2.Size(); ++j)
+   {
+      auto idx = vdofs.Find(vdofs2[j]);
+      if (idx == -1)
+      {
+         continue;
+      }
+      else
+      {
+         mesh_coords_bar(idx) += mesh_coords_face_bar(j);
       }
    }
 }
@@ -1232,8 +1242,418 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
       double el1_trans_weight = trans.Elem1->Weight();
       double el2_trans_weight = trans.Elem2->Weight();
 
-      double w1 = alpha * ip.weight / (el1_trans_weight);
-      double w2 = alpha * ip.weight / (el2_trans_weight);
+      double w = alpha * ip.weight;
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+      el1.CalcDShape(eip1, dshape1);
+      el2.CalcDShape(eip2, dshape2);
+
+      Mult(dshape1, trans.Elem1->InverseJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->InverseJacobian(), dshapedxt2);
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
+
+      dshapedxt1.MultTranspose(elfun1, ip_flux1);
+      dshapedxt2.MultTranspose(elfun2, ip_flux2);
+
+      const double ip_flux1_norm = ip_flux1.Norml2();
+      const double ip_flux2_norm = ip_flux2.Norml2();
+
+      const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_norm);
+      const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_norm);
+
+      elvect1.Add(-(model_val1 * (dshapedn1 * elfun1) +
+                    model_val2 * (dshapedn2 * elfun2)) /
+                      2 * w,
+                  shape1);
+      elvect2.Add((model_val1 * (dshapedn1 * elfun1) +
+                   model_val2 * (dshapedn2 * elfun2)) /
+                      2 * w,
+                  shape2);
+
+      elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * model_val1 / 2 * w,
+                  dshapedn1);
+      elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * model_val2 / 2 * w,
+                  dshapedn2);
+
+      const double w_q =
+          w * (nor * nor) * mu / 2 *
+          (model_val1 / el1_trans_weight + model_val2 / el2_trans_weight);
+      elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * w_q, shape1);
+      elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q, shape2);
+   }
+}
+
+void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+// {
+//    int ndof1 = el1.GetDof();
+//    int ndof2 = el2.GetDof();
+//    int ndof = ndof1 + ndof2;
+
+//    const double delta = 1e-5;
+
+//    mfem::Vector v(ndof);
+//    mfem::Vector r_p(ndof);
+//    mfem::Vector r_m(ndof);
+//    mfem::Vector e = elfun;
+
+//    elmat.SetSize(ndof);
+
+//    // compute the finite-difference approximation...
+//    for (int i = 0; i < ndof; ++i)
+//    {
+//       v = 0.0;
+//       v(i) = 1.0;
+
+//       e.Add(-delta, v);
+//       DGInteriorFaceDiffusionIntegrator2::AssembleFaceVector(
+//           el1, el2, trans, e, r_m);
+
+//       e.Add(2 * delta, v);
+//       DGInteriorFaceDiffusionIntegrator2::AssembleFaceVector(
+//           el1, el2, trans, e, r_p);
+//       r_p -= r_m;
+//       r_p /= (2 * delta);
+
+//       e.Add(-delta, v);
+
+//       for (int j = 0; j < ndof; ++j)
+//       {
+//          elmat(j, i) = r_p(j);
+//       }
+//    }
+// }
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+   int ndof = ndof1 + ndof2;
+
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   dshape1.SetSize(ndof1, dim);
+   dshape2.SetSize(ndof2, dim);
+   dshapedxt1.SetSize(ndof1, dim);
+   dshapedxt2.SetSize(ndof2, dim);
+   dshapedn1.SetSize(ndof1);
+   dshapedn2.SetSize(ndof2);
+
+   double ip_flux1_buffer[3] = {};
+   Vector ip_flux1(ip_flux1_buffer, dim);
+
+   double ip_flux2_buffer[3] = {};
+   Vector ip_flux2(ip_flux2_buffer, dim);
+
+   ip_flux1_norm_dot.SetSize(ndof1);
+   ip_flux2_norm_dot.SetSize(ndof2);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   elmat.SetSize(ndof);
+
+   elmat11.SetSize(ndof1);
+   elmat12.SetSize(ndof1, ndof2);
+   elmat21.SetSize(ndof2, ndof1);
+   elmat22.SetSize(ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+      double el2_trans_weight = trans.Elem2->Weight();
+
+      double w = alpha * ip.weight;
+
+      if (dim == 1)
+      {
+         nor(0) = 2 * eip1.x - 1.0;
+      }
+      else
+      {
+         CalcOrtho(trans.Jacobian(), nor);
+      }
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+      el1.CalcDShape(eip1, dshape1);
+      el2.CalcDShape(eip2, dshape2);
+
+      Mult(dshape1, trans.Elem1->InverseJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->InverseJacobian(), dshapedxt2);
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
+
+      dshapedxt1.MultTranspose(elfun1, ip_flux1);
+      dshapedxt2.MultTranspose(elfun2, ip_flux2);
+
+      const double ip_flux1_norm = ip_flux1.Norml2();
+      ip_flux1_norm_dot = 0.0;
+      if (abs(ip_flux1_norm) > 1e-14)
+      {
+         dshapedxt1.AddMult_a(1.0 / ip_flux1_norm, ip_flux1, ip_flux1_norm_dot);
+      }
+
+      const double ip_flux2_norm = ip_flux2.Norml2();
+      ip_flux2_norm_dot = 0.0;
+      if (abs(ip_flux2_norm) > 1e-14)
+      {
+         dshapedxt2.AddMult_a(1.0 / ip_flux2_norm, ip_flux2, ip_flux2_norm_dot);
+      }
+
+      const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_norm);
+      double model_deriv1 =
+          model.EvalStateDeriv(*trans.Elem1, ip, ip_flux1_norm);
+      ip_flux1_norm_dot *= model_deriv1;
+
+      const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_norm);
+      double model_deriv2 =
+          model.EvalStateDeriv(*trans.Elem2, ip, ip_flux2_norm);
+      ip_flux2_norm_dot *= model_deriv2;
+
+      elmat11 = 0.0;
+      elmat12 = 0.0;
+      elmat21 = 0.0;
+      elmat22 = 0.0;
+
+      // elvect1.Add(-(model_val1 * (dshapedn1 * elfun1) +
+      //               model_val2 * (dshapedn2 * elfun2)) /
+      //                 2 * w,
+      //             shape1);
+      AddMult_a_VWt(-model_val1 * w / 2, shape1, dshapedn1, elmat11);
+      AddMult_a_VWt(
+          -(dshapedn1 * elfun1) * w / 2, shape1, ip_flux1_norm_dot, elmat11);
+
+      AddMult_a_VWt(-model_val2 * w / 2, shape1, dshapedn2, elmat12);
+      AddMult_a_VWt(
+          -(dshapedn2 * elfun2) * w / 2, shape1, ip_flux2_norm_dot, elmat12);
+
+      // elvect2.Add((model_val1 * (dshapedn1 * elfun1) +
+      //              model_val2 * (dshapedn2 * elfun2)) /
+      //                 2 * w,
+      //             shape2);
+      AddMult_a_VWt(model_val2 * w / 2, shape2, dshapedn2, elmat22);
+      AddMult_a_VWt(
+          (dshapedn2 * elfun2) * w / 2, shape2, ip_flux2_norm_dot, elmat22);
+
+      AddMult_a_VWt(model_val1 * w / 2, shape2, dshapedn1, elmat21);
+      AddMult_a_VWt(
+          (dshapedn1 * elfun1) * w / 2, shape2, ip_flux1_norm_dot, elmat21);
+
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * model_val1 /2*w,
+      //             dshapedn1);
+      AddMult_a_VWt(-model_val1 * w / 2, dshapedn1, shape1, elmat11);
+      AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w / 2,
+                    dshapedn1,
+                    ip_flux1_norm_dot,
+                    elmat11);
+
+      AddMult_a_VWt(model_val1 * w / 2, dshapedn1, shape2, elmat12);
+      // AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w / 2,
+      //               dshapedn1,
+      //               ip_flux2_norm_dot,
+      //               elmat12);
+
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * model_val2 /2*w,
+      //             dshapedn2);
+      AddMult_a_VWt(model_val2 * w / 2, dshapedn2, shape2, elmat22);
+      AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w / 2,
+                    dshapedn2,
+                    ip_flux2_norm_dot,
+                    elmat22);
+
+      AddMult_a_VWt(-model_val2 * w / 2, dshapedn2, shape1, elmat21);
+      // AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w / 2,
+      //               dshapedn2,
+      //               ip_flux1_norm_dot,
+      //               elmat21);
+
+      const double w_q =
+          w * (nor * nor) * mu / 2 *
+          (model_val1 / el1_trans_weight + model_val2 / el2_trans_weight);
+
+      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * w_q, shape1);
+      AddMult_a_VVt(w_q, shape1, elmat11);
+      AddMult_a_VWt(((shape1 * elfun1) - (shape2 * elfun2)) * w * (nor * nor) *
+                        mu / 2 / el1_trans_weight,
+                    shape1,
+                    ip_flux1_norm_dot,
+                    elmat11);
+
+      AddMult_a_VWt(-w_q, shape1, shape2, elmat12);
+      AddMult_a_VWt(((shape1 * elfun1) - (shape2 * elfun2)) * w * (nor * nor) *
+                        mu / 2 / el2_trans_weight,
+                    shape1,
+                    ip_flux2_norm_dot,
+                    elmat12);
+
+      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q, shape2);
+      AddMult_a_VVt(w_q, shape2, elmat22);
+      AddMult_a_VWt(-((shape1 * elfun1) - (shape2 * elfun2)) * w * (nor * nor) *
+                        mu / 2 / el2_trans_weight,
+                    shape2,
+                    ip_flux2_norm_dot,
+                    elmat22);
+
+      AddMult_a_VWt(-w_q, shape2, shape1, elmat21);
+      AddMult_a_VWt(-((shape1 * elfun1) - (shape2 * elfun2)) * w * (nor * nor) *
+                        mu / 2 / el1_trans_weight,
+                    shape2,
+                    ip_flux1_norm_dot,
+                    elmat21);
+
+      for (int j = 0; j < ndof1; ++j)
+      {
+         for (int k = 0; k < ndof1; ++k)
+         {
+            elmat(j, k) += elmat11(j, k);
+         }
+      }
+
+      for (int j = 0; j < ndof1; ++j)
+      {
+         for (int k = 0; k < ndof2; ++k)
+         {
+            elmat(j, k + ndof1) += elmat12(j, k);
+            elmat(k + ndof1, j) += elmat21(k, j);
+         }
+      }
+
+      for (int j = 0; j < ndof2; ++j)
+      {
+         for (int k = 0; k < ndof2; ++k)
+         {
+            elmat(j + ndof1, k + ndof1) += elmat22(j, k);
+         }
+      }
+   }
+}
+
+/**
+void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+
+   int dim = el1.GetDim();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+   mfem::DenseMatrix dshape1;
+   mfem::DenseMatrix dshape2;
+   mfem::DenseMatrix dshapedxt1;
+   mfem::DenseMatrix dshapedxt2;
+   mfem::Vector dshapedn1;
+   mfem::Vector dshapedn2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+   dshape1.SetSize(ndof1, dim);
+   dshape2.SetSize(ndof2, dim);
+   dshapedxt1.SetSize(ndof1, dim);
+   dshapedxt2.SetSize(ndof2, dim);
+   dshapedn1.SetSize(ndof1);
+   dshapedn2.SetSize(ndof2);
+
+   double ip_flux1_buffer[3] = {};
+   Vector ip_flux1(ip_flux1_buffer, dim);
+
+   double ip_flux2_buffer[3] = {};
+   Vector ip_flux2(ip_flux2_buffer, dim);
+
+   double nor_buffer[3] = {};
+   mfem::Vector nor(nor_buffer, dim);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   elvect.SetSize(ndof1 + ndof2);
+   mfem::Vector elvect1(elvect.GetData(), ndof1);
+   mfem::Vector elvect2(elvect.GetData() + ndof1, ndof2);
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      double el1_trans_weight = trans.Elem1->Weight();
+      double el2_trans_weight = trans.Elem2->Weight();
+
+      const double avg_trans_weight = 2 * el1_trans_weight * el2_trans_weight /
+                                      (el1_trans_weight + el2_trans_weight);
+      // const double avg_trans_weight = (el1_trans_weight +
+      // el2_trans_weight) / 2;
+
+      double w1 = alpha * ip.weight / avg_trans_weight;
+      double w2 = alpha * ip.weight / avg_trans_weight;
+
+      // double w1 = alpha * ip.weight / el1_trans_weight;
+      // double w2 = alpha * ip.weight / el2_trans_weight;
 
       if (dim == 1)
       {
@@ -1257,16 +1677,18 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
 
       const double ip_flux1_norm = ip_flux1.Norml2();
       const double ip_flux1_mag = ip_flux1_norm / el1_trans_weight;
+      // const double ip_flux1_mag = ip_flux1_norm / avg_trans_weight;
 
       const double ip_flux2_norm = ip_flux2.Norml2();
       const double ip_flux2_mag = ip_flux2_norm / el2_trans_weight;
+      // const double ip_flux2_mag = ip_flux2_norm / avg_trans_weight;
 
       const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_mag);
       const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_mag);
 
-      // const double avg_model_val = (model_val1 + model_val2) / 2;
-      const double avg_model_val =
-          2 * model_val1 * model_val2 / (model_val1 + model_val2);
+      const double avg_model_val = (model_val1 + model_val2) / 2;
+      // const double avg_model_val =
+      //     2 * model_val1 * model_val2 / (model_val1 + model_val2);
 
       dshapedxt1.Mult(nor, dshapedn1);
       dshapedxt2.Mult(nor, dshapedn2);
@@ -1371,8 +1793,16 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       double el1_trans_weight = trans.Elem1->Weight();
       double el2_trans_weight = trans.Elem2->Weight();
 
-      double w1 = alpha * ip.weight / (el1_trans_weight);
-      double w2 = alpha * ip.weight / (el2_trans_weight);
+      const double avg_trans_weight = 2 * el1_trans_weight * el2_trans_weight /
+                                      (el1_trans_weight + el2_trans_weight);
+      // const double avg_trans_weight = (el1_trans_weight +
+      // el2_trans_weight) / 2;
+
+      double w1 = alpha * ip.weight / avg_trans_weight;
+      double w2 = alpha * ip.weight / avg_trans_weight;
+
+      // double w1 = alpha * ip.weight / el1_trans_weight;
+      // double w2 = alpha * ip.weight / el2_trans_weight;
 
       if (dim == 1)
       {
@@ -1404,6 +1834,9 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       const double ip_flux1_mag = ip_flux1_norm / el1_trans_weight;
       ip_flux1_norm_dot /= el1_trans_weight;
 
+      // const double ip_flux1_mag = ip_flux1_norm / avg_trans_weight;
+      // ip_flux1_norm_dot /= avg_trans_weight;
+
       const double ip_flux2_norm = ip_flux2.Norml2();
       ip_flux2_norm_dot = 0.0;
       if (abs(ip_flux2_norm) > 1e-14)
@@ -1413,6 +1846,9 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
 
       const double ip_flux2_mag = ip_flux2_norm / el2_trans_weight;
       ip_flux2_norm_dot /= el2_trans_weight;
+
+      // const double ip_flux2_mag = ip_flux2_norm / avg_trans_weight;
+      // ip_flux2_norm_dot /= avg_trans_weight;
 
       double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_mag);
       double model_deriv1 =
@@ -1424,13 +1860,18 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
           model.EvalStateDeriv(*trans.Elem2, ip, ip_flux2_mag);
       ip_flux2_norm_dot *= model_deriv2;
 
-      const double avg_model_val =
-          2 * model_val1 * model_val2 / (model_val1 + model_val2);
+      const double avg_model_val = (model_val1 + model_val2) / 2;
 
-      ip_flux1_norm_dot *=
-          (2 * pow(model_val2, 2)) / pow(model_val1 + model_val2, 2);
-      ip_flux2_norm_dot *=
-          (2 * pow(model_val1, 2)) / pow(model_val1 + model_val2, 2);
+      ip_flux1_norm_dot /= 2;
+      ip_flux2_norm_dot /= 2;
+
+      // const double avg_model_val =
+      //     2 * model_val1 * model_val2 / (model_val1 + model_val2);
+
+      // ip_flux1_norm_dot *=
+      //     (2 * pow(model_val2, 2)) / pow(model_val1 + model_val2, 2);
+      // ip_flux2_norm_dot *=
+      //     (2 * pow(model_val1, 2)) / pow(model_val1 + model_val2, 2);
 
       dshapedxt1.Mult(nor, dshapedn1);
       dshapedxt2.Mult(nor, dshapedn2);
@@ -1441,8 +1882,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       elmat22 = 0.0;
 
       // elvect1.Add(
-      //   -(dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w1,
-      //   shape1);
+      //   -(dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val *
+      //   w1, shape1);
       AddMult_a_VWt(-avg_model_val * w1 / 2, shape1, dshapedn1, elmat11);
       AddMult_a_VWt(-(dshapedn1 * elfun1 + dshapedn2 * elfun2) * w1 / 2,
                     shape1,
@@ -1456,8 +1897,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
                     elmat12);
 
       // elvect2.Add(
-      //   (dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val * w2,
-      //   shape2);
+      //   (dshapedn1 * elfun1 + dshapedn2 * elfun2) / 2 * avg_model_val *
+      //   w2, shape2);
       AddMult_a_VWt(avg_model_val * w2 / 2, shape2, dshapedn2, elmat22);
       AddMult_a_VWt((dshapedn1 * elfun1 + dshapedn2 * elfun2) * w2 / 2,
                     shape2,
@@ -1471,8 +1912,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
                     elmat21);
 
       // elvect1.Add(
-      //     (-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w1,
-      //     dshapedn1);
+      //     (-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val *
+      //     w1, dshapedn1);
       AddMult_a_VWt(-avg_model_val * w1 / 2, dshapedn1, shape1, elmat11);
       AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w1 / 2,
                     dshapedn1,
@@ -1486,8 +1927,8 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
                     elmat12);
 
       // elvect2.Add(
-      //     (-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val * w2,
-      //     dshapedn2);
+      //     (-(shape1 * elfun1) + (shape2 * elfun2)) / 2 * avg_model_val *
+      //     w2, dshapedn2);
       AddMult_a_VWt(avg_model_val * w2 / 2, dshapedn2, shape2, elmat22);
       AddMult_a_VWt((-(shape1 * elfun1) + (shape2 * elfun2)) * w2 / 2,
                     dshapedn2,
@@ -1558,6 +1999,7 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       }
    }
 }
+*/
 
 void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
     const mfem::FiniteElement &mesh_el1,
@@ -1716,8 +2158,7 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       double el1_trans_weight = trans.Elem1->Weight();
       double el2_trans_weight = trans.Elem2->Weight();
 
-      double w1 = alpha * ip.weight / (el1_trans_weight);
-      double w2 = alpha * ip.weight / (el2_trans_weight);
+      double w = alpha * ip.weight;
 
       if (dim == 1)
       {
@@ -1733,27 +2174,20 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       el1.CalcDShape(eip1, dshape1);
       el2.CalcDShape(eip2, dshape2);
 
-      Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
-      Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
+      Mult(dshape1, trans.Elem1->InverseJacobian(), dshapedxt1);
+      Mult(dshape2, trans.Elem2->InverseJacobian(), dshapedxt2);
+
+      dshapedxt1.Mult(nor, dshapedn1);
+      dshapedxt2.Mult(nor, dshapedn2);
 
       dshapedxt1.MultTranspose(elfun1, ip_flux1);
       dshapedxt2.MultTranspose(elfun2, ip_flux2);
 
       const double ip_flux1_norm = ip_flux1.Norml2();
-      const double ip_flux1_mag = ip_flux1_norm / el1_trans_weight;
-
       const double ip_flux2_norm = ip_flux2.Norml2();
-      const double ip_flux2_mag = ip_flux2_norm / el2_trans_weight;
 
-      const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_mag);
-      const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_mag);
-
-      // const double avg_model_val = (model_val1 + model_val2) / 2;
-      const double avg_model_val =
-          2 * model_val1 * model_val2 / (model_val1 + model_val2);
-
-      dshapedxt1.Mult(nor, dshapedn1);
-      dshapedxt2.Mult(nor, dshapedn2);
+      const double model_val1 = model.Eval(*trans.Elem1, eip1, ip_flux1_norm);
+      const double model_val2 = model.Eval(*trans.Elem2, eip2, ip_flux2_norm);
 
       double elfun1_shape1 = elfun1 * shape1;
       double elfun2_shape2 = elfun2 * shape2;
@@ -1767,35 +2201,41 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       double psi1_dshapedn1 = psi1 * dshapedn1;
       double psi2_dshapedn2 = psi2 * dshapedn2;
 
-      // elvect1.Add(-((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) / 2 *
-      // avg_model_val * w1, shape1);
-      double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
-                     avg_model_val * w1 * psi1_shape1;
-      // elvect2.Add(((dshapedn1 * elfun1) + (dshapedn2 * elfun2)) / 2 *
-      // avg_model_val * w2, shape2);
-      double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 * avg_model_val *
-                     w2 * psi2_shape2;
+      // elvect1.Add(-(model_val1 * (dshapedn1 * elfun1) +
+      //               model_val2 * (dshapedn2 * elfun2)) /
+      //                 2 * w,
+      //             shape1);
+      double term1 =
+          -(model_val1 * elfun1_dshapedn1 + model_val2 * elfun2_dshapedn2) / 2 *
+          w * psi1_shape1;
 
-      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 *
-      // avg_model_val * w1, dshapedn1);
-      double term3 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1 *
+      // elvect2.Add((model_val1 * (dshapedn1 * elfun1) +
+      //              model_val2 * (dshapedn2 * elfun2)) /
+      //                 2 * w,
+      //             shape2);
+      double term2 =
+          (model_val1 * elfun1_dshapedn1 + model_val2 * elfun2_dshapedn2) / 2 *
+          w * psi2_shape2;
+
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * model_val1 /2*w,
+      //             dshapedn1);
+      double term3 = (-elfun1_shape1 + elfun2_shape2) * model_val1 / 2 * w *
                      psi1_dshapedn1;
-      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) / 2 *
-      // avg_model_val * w2, dshapedn2);
-      double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2 *
+
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * model_val2 /2*w,
+      //             dshapedn2);
+      double term4 = (-elfun1_shape1 + elfun2_shape2) * model_val2 / 2 * w *
                      psi2_dshapedn2;
 
-      const double w_q1 = w1 * (nor * nor) * mu;
-      const double w_q2 = w2 * (nor * nor) * mu;
+      const double w_q =
+          w * (nor * nor) * mu / 2 *
+          (model_val1 / el1_trans_weight + model_val2 / el2_trans_weight);
 
-      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val *
-      // w_q1, shape1);
-      double term5 =
-          (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1 * psi1_shape1;
-      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * avg_model_val *
-      // w_q2, shape2);
-      double term6 =
-          -(elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q2 * psi2_shape2;
+      // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * w_q, shape1);
+      double term5 = (elfun1_shape1 - elfun2_shape2) * w_q * psi1_shape1;
+
+      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q, shape2);
+      double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q * psi2_shape2;
 
       /// dummy functional for adjoint-weighted residual
       /// fun += term1 + term2 + term3 + term4 + term5 + term6;
@@ -1811,69 +2251,63 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       const double term5_bar = fun_bar;
       const double term6_bar = fun_bar;
 
-      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q2
-      /// * psi2_shape2;
-      double avg_model_val_bar =
-          term6_bar * -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
-      double w_q2_bar = term6_bar * -(elfun1_shape1 - elfun2_shape2) *
-                        avg_model_val * psi2_shape2;
+      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q * psi2_shape2;
+      double w_q_bar =
+          term6_bar * -(elfun1_shape1 - elfun2_shape2) * psi2_shape2;
 
-      /// double term5 = (elfun1_shape1 - elfun2_shape2) * avg_model_val * w_q1
-      /// * psi1_shape1;
-      avg_model_val_bar +=
-          term5_bar * (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
-      double w_q1_bar = term5_bar * (elfun1_shape1 - elfun2_shape2) *
-                        avg_model_val * psi1_shape1;
+      /// double term5 = (elfun1_shape1 - elfun2_shape2) * w_q * psi1_shape1;
+      w_q_bar += term5_bar * (elfun1_shape1 - elfun2_shape2) * psi1_shape1;
 
-      /// const double w_q2 = w2 * (nor * nor) * mu;
-      double w2_bar = w_q2_bar * (nor * nor) * mu;
-      double nornor_bar = w_q2_bar * w2 * mu;
-
-      /// const double w_q1 = w1 * (nor * nor) * mu;
-      double w1_bar = w_q1_bar * (nor * nor) * mu;
-      nornor_bar += w_q1_bar * w1 * mu;
+      /// const double w_q =
+      ///     w * (nor * nor) * mu / 2 *
+      ///     (model_val1 / el1_trans_weight + model_val2 / el2_trans_weight);
+      double nornor_bar =
+          w_q_bar * w * mu / 2 *
+          (model_val1 / el1_trans_weight + model_val2 / el2_trans_weight);
+      double model_val1_bar =
+          w_q_bar * w * (nor * nor) * mu / 2 / el1_trans_weight;
+      double model_val2_bar =
+          w_q_bar * w * (nor * nor) * mu / 2 / el2_trans_weight;
+      double el1_trans_weight_bar = -w_q_bar * w * (nor * nor) * mu / 2 *
+                                    (model_val1 / pow(el1_trans_weight, 2));
+      double el2_trans_weight_bar = -w_q_bar * w * (nor * nor) * mu / 2 *
+                                    (model_val2 / pow(el2_trans_weight, 2));
 
       /// nornor = nor * nor
       nor_bar = 0.0;
       nor_bar.Add(2 * nornor_bar, nor);
 
-      /// double term4 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val *
-      /// w2 * psi2_dshapedn2;
-      avg_model_val_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
-                           w2 * psi2_dshapedn2;
-      w2_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
-                avg_model_val * psi2_dshapedn2;
+      /// double term4 = (-elfun1_shape1 + elfun2_shape2) * model_val2 / 2 * w *
+      ///                psi2_dshapedn2;
+      model_val2_bar +=
+          term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * w * psi2_dshapedn2;
       double psi2_dshapedn2_bar =
-          term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w2;
+          term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * model_val2 * w;
 
-      /// double term3 = (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val *
-      /// w1 * psi1_dshapedn1;
-      avg_model_val_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
-                           w1 * psi1_dshapedn1;
-      w1_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 *
-                avg_model_val * psi1_dshapedn1;
+      /// double term3 = (-elfun1_shape1 + elfun2_shape2) * model_val1 / 2 * w *
+      ///                psi1_dshapedn1;
+      model_val1_bar +=
+          term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * w * psi1_dshapedn1;
       double psi1_dshapedn1_bar =
-          term4_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * avg_model_val * w1;
+          term3_bar * (-elfun1_shape1 + elfun2_shape2) / 2 * model_val1 * w;
 
-      /// double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
-      /// avg_model_val * w2 * psi2_shape2;
-      avg_model_val_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) /
-                           2 * w2 * psi2_shape2;
-      w2_bar += term2_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
-                avg_model_val * psi2_shape2;
+      /// double term2 =
+      ///     (model_val1 * elfun1_dshapedn1 + model_val2 * elfun2_dshapedn2)/2*
+      ///     w * psi2_shape2;
+      model_val1_bar += term2_bar * (elfun1_dshapedn1) / 2 * w * psi2_shape2;
+      model_val2_bar += term2_bar * (elfun2_dshapedn2) / 2 * w * psi2_shape2;
       double elfun1_dshapedn1_bar =
-          term2_bar / 2 * avg_model_val * w2 * psi2_shape2;
+          term2_bar * model_val1 / 2 * w * psi2_shape2;
       double elfun2_dshapedn2_bar =
-          term2_bar / 2 * avg_model_val * w2 * psi2_shape2;
+          term2_bar * model_val2 / 2 * w * psi2_shape2;
 
-      /// double term1 = -(elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
-      /// avg_model_val * w1 * psi1_shape1;
-      avg_model_val_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) /
-                           2 * w1 * psi1_shape1;
-      w1_bar += -term1_bar * (elfun1_dshapedn1 + elfun2_dshapedn2) / 2 *
-                avg_model_val * psi1_shape1;
-      elfun1_dshapedn1_bar += -term1_bar / 2 * avg_model_val * w1 * psi1_shape1;
-      elfun2_dshapedn2_bar += -term1_bar / 2 * avg_model_val * w1 * psi1_shape1;
+      /// double term1 =
+      ///     -(model_val1 * elfun1_dshapedn1 + model_val2 *elfun2_dshapedn2)/2*
+      ///     *w * psi1_shape1;
+      model_val1_bar += -term1_bar * (elfun1_dshapedn1) / 2 * w * psi1_shape1;
+      model_val2_bar += -term1_bar * (elfun2_dshapedn2) / 2 * w * psi1_shape1;
+      elfun1_dshapedn1_bar += -term1_bar * model_val1 / 2 * w * psi1_shape1;
+      elfun2_dshapedn2_bar += -term1_bar * model_val2 / 2 * w * psi1_shape1;
 
       /// double psi2_dshapedn2 = psi2 * dshapedn2;
       dshapedn2_bar = 0.0;
@@ -1907,37 +2341,20 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       MultVWt(dshapedn1_bar, nor, dshapedxt1_bar);
       dshapedxt1.AddMultTranspose(dshapedn1_bar, nor_bar);
 
-      /// const double avg_model_val =
-      ///     2 * model_val1 * model_val2 / (model_val1 + model_val2);
-      double model_val1_bar = avg_model_val_bar * 2 * pow(model_val2, 2) /
-                              pow(model_val1 + model_val2, 2);
-      double model_val2_bar = avg_model_val_bar * 2 * pow(model_val1, 2) /
-                              pow(model_val1 + model_val2, 2);
-
       /// const double model_val2 = model.Eval(*trans.Elem2, eip2,
-      /// ip_flux2_mag);
+      /// ip_flux2_norm);
       const double model_val2_dot =
-          model.EvalStateDeriv(*trans.Elem2, eip2, ip_flux2_mag);
-      double ip_flux2_mag_bar = model_val2_bar * model_val2_dot;
+          model.EvalStateDeriv(*trans.Elem2, eip2, ip_flux2_norm);
+      double ip_flux2_norm_bar = model_val2_bar * model_val2_dot;
       /// const double model_val1 = model.Eval(*trans.Elem1, eip1,
       /// ip_flux1_mag);
       const double model_val1_dot =
-          model.EvalStateDeriv(*trans.Elem1, eip1, ip_flux1_mag);
-      double ip_flux1_mag_bar = model_val1_bar * model_val1_dot;
-
-      /// const double ip_flux2_mag = ip_flux2_norm / el2_trans_weight;
-      double ip_flux2_norm_bar = ip_flux2_mag_bar / el2_trans_weight;
-      double el2_trans_weight_bar =
-          -ip_flux2_mag_bar * ip_flux2_norm / pow(el2_trans_weight, 2);
+          model.EvalStateDeriv(*trans.Elem1, eip1, ip_flux1_norm);
+      double ip_flux1_norm_bar = model_val1_bar * model_val1_dot;
 
       /// const double ip_flux2_norm = ip_flux2.Norml2();
       ip_flux2_bar = 0.0;
       ip_flux2_bar.Add(ip_flux2_norm_bar / ip_flux2_norm, ip_flux2);
-
-      /// const double ip_flux1_mag = ip_flux1_norm / el1_trans_weight;
-      double ip_flux1_norm_bar = ip_flux1_mag_bar / el1_trans_weight;
-      double el1_trans_weight_bar =
-          -ip_flux1_mag_bar * ip_flux1_norm / pow(el1_trans_weight, 2);
 
       /// const double ip_flux1_norm = ip_flux1.Norml2();
       ip_flux1_bar = 0.0;
@@ -1949,21 +2366,21 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
       /// dshapedxt1.MultTranspose(elfun1, ip_flux1);
       AddMultVWt(elfun1, ip_flux1_bar, dshapedxt1_bar);
 
-      /// Mult(dshape2, trans.Elem2->AdjugateJacobian(), dshapedxt2);
-      double adj_jac2_bar_buffer[9] = {};
-      DenseMatrix adj_jac2_bar(adj_jac2_bar_buffer, space_dim, space_dim);
-      MultAtB(dshape2, dshapedxt2_bar, adj_jac2_bar);
+      /// Mult(dshape2, trans.Elem2->InverseJacobian(), dshapedxt2);
+      double inv_jac2_bar_buffer[9] = {};
+      DenseMatrix inv_jac2_bar(inv_jac2_bar_buffer, space_dim, space_dim);
+      MultAtB(dshape2, dshapedxt2_bar, inv_jac2_bar);
 
       PointMat2_bar = 0.0;
-      isotrans2.AdjugateJacobianRevDiff(adj_jac2_bar, PointMat2_bar);
+      isotrans2.InverseJacobianRevDiff(inv_jac2_bar, PointMat2_bar);
 
       /// Mult(dshape1, trans.Elem1->AdjugateJacobian(), dshapedxt1);
-      double adj_jac1_bar_buffer[9] = {};
-      DenseMatrix adj_jac1_bar(adj_jac1_bar_buffer, space_dim, space_dim);
-      MultAtB(dshape1, dshapedxt1_bar, adj_jac1_bar);
+      double inv_jac1_bar_buffer[9] = {};
+      DenseMatrix inv_jac1_bar(inv_jac1_bar_buffer, space_dim, space_dim);
+      MultAtB(dshape1, dshapedxt1_bar, inv_jac1_bar);
 
       PointMat1_bar = 0.0;
-      isotrans1.AdjugateJacobianRevDiff(adj_jac1_bar, PointMat1_bar);
+      isotrans1.InverseJacobianRevDiff(inv_jac1_bar, PointMat1_bar);
 
       PointMatFace_bar = 0.0;
       if (dim == 1)
@@ -1980,14 +2397,6 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
          CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
          trans.JacobianRevDiff(jac_bar, PointMatFace_bar);
       }
-
-      /// double w2 = alpha * ip.weight / (el2_trans_weight);
-      el2_trans_weight_bar +=
-          w2_bar * -alpha * ip.weight / pow(el2_trans_weight, 2);
-
-      /// double w1 = alpha * ip.weight / (el1_trans_weight);
-      el1_trans_weight_bar +=
-          w1_bar * -alpha * ip.weight / pow(el1_trans_weight, 2);
 
       /// double el2_trans_weight = trans.Elem2->Weight();
       isotrans2.WeightRevDiff(el2_trans_weight_bar, PointMat2_bar);
@@ -2521,7 +2930,8 @@ void TestBoundaryIntegratorMeshRevSens::AssembleRHSElementVect(
          /// CalcOrtho(trans.Jacobian(), nor);
          // jac_bar = 0.0;
          // CalcOrthoRevDiff(trans.Jacobian(), nor_bar, jac_bar);
-         // isotrans.JacobianRevDiff(jac_bar, PointMat_bar); /// face Jacobian!
+         // isotrans.JacobianRevDiff(jac_bar, PointMat_bar); /// face
+         // Jacobian!
       }
 
       /// double w = alpha * ip.weight / el1_trans_weight;
@@ -2825,9 +3235,11 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       // shape2);
       double term2 = (elfun1_dshapedn1 + elfun2_dshapedn2) * w2 * psi2_shape2;
 
-      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w1, dshapedn1);
+      // elvect1.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w1,
+      // dshapedn1);
       double term3 = (-elfun1_shape1 + elfun2_shape2) * w1 * psi1_dshapedn1;
-      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w2, dshapedn2);
+      // elvect2.Add((-(shape1 * elfun1) + (shape2 * elfun2)) * w2,
+      // dshapedn2);
       double term4 = (-elfun1_shape1 + elfun2_shape2) * w2 * psi2_dshapedn2;
 
       const double w_q1 = w1 * (nor * nor);
@@ -2835,7 +3247,8 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
 
       // elvect1.Add(((shape1 * elfun1) - (shape2 * elfun2)) * w_q1, shape1);
       double term5 = (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
-      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q2, shape2);
+      // elvect2.Add(-((shape1 * elfun1) - (shape2 * elfun2)) * w_q2,
+      // shape2);
       double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
 
       /// dummy functional for adjoint-weighted residual
@@ -2852,11 +3265,13 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       const double term5_bar = fun_bar;
       const double term6_bar = fun_bar;
 
-      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q2 * psi2_shape2;
+      /// double term6 = -(elfun1_shape1 - elfun2_shape2) * w_q2 *
+      /// psi2_shape2;
       double w_q2_bar =
           term6_bar * -(elfun1_shape1 - elfun2_shape2) * psi2_shape2;
 
-      /// double term5 = (elfun1_shape1 - elfun2_shape2) * w_q1 * psi1_shape1;
+      /// double term5 = (elfun1_shape1 - elfun2_shape2) * w_q1 *
+      /// psi1_shape1;
       double w_q1_bar =
           term5_bar * (elfun1_shape1 - elfun2_shape2) * psi1_shape1;
 
@@ -2872,12 +3287,14 @@ void TestInteriorFaceIntegratorMeshRevSens::AssembleRHSElementVect(
       nor_bar = 0.0;
       nor_bar.Add(2 * nornor_bar, nor);
 
-      /// double term4 = (-elfun1_shape1 + elfun2_shape2) * w2 * psi2_dshapedn2;
+      /// double term4 = (-elfun1_shape1 + elfun2_shape2) * w2 *
+      /// psi2_dshapedn2;
       w2_bar += term4_bar * (-elfun1_shape1 + elfun2_shape2) * psi2_dshapedn2;
       double psi2_dshapedn2_bar =
           term4_bar * (-elfun1_shape1 + elfun2_shape2) * w2;
 
-      /// double term3 = (-elfun1_shape1 + elfun2_shape2) * w1 * psi1_dshapedn1;
+      /// double term3 = (-elfun1_shape1 + elfun2_shape2) * w1 *
+      /// psi1_dshapedn1;
       w1_bar += term3_bar * (-elfun1_shape1 + elfun2_shape2) * psi1_dshapedn1;
       double psi1_dshapedn1_bar =
           term4_bar * (-elfun1_shape1 + elfun2_shape2) * w1;
@@ -3076,7 +3493,8 @@ void MagnetizationSource2DIntegrator::AssembleRHSElementVect(
          }
          else
          {
-            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine
+            // too
             return 2 * el.GetOrder() + el.GetDim() - 1;
          }
       }();
@@ -3201,7 +3619,8 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
          }
          else
          {
-            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine
+            // too
             return 2 * el.GetOrder() + el.GetDim() - 1;
          }
       }();
@@ -3243,7 +3662,8 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
       dshapedxt.GetColumnReference(1, grad_column_1);
 
       // scratch = 0.0;
-      // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
+      // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
+      // scratch);
 
       // const double psi_dot_scratch = psi * scratch;
 
@@ -3262,10 +3682,9 @@ void MagnetizationSource2DIntegratorMeshRevSens::AssembleRHSElementVect(
       scratch_bar = 0.0;
       scratch_bar.Add(psi_dot_scratch_bar, psi);
 
-      /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
-      /// Vector grad_column_1;
-      /// dshapedxt.GetColumnReference(1, grad_column_1);
-      /// Vector grad_column_0;
+      /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
+      /// scratch); Vector grad_column_1; dshapedxt.GetColumnReference(1,
+      /// grad_column_1); Vector grad_column_0;
       /// dshapedxt.GetColumnReference(0, grad_column_0);
       dshapedxt_bar = 0.0;
       Vector grad_bar_column_1;
@@ -3380,7 +3799,8 @@ void MagnetizationSource2DIntegratorTemperatureSens::AssembleRHSElementVect(
          }
          else
          {
-            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine too
+            // order = 2*el.GetOrder() - 2;  // <-- this seems to work fine
+            // too
             return 2 * el.GetOrder() + el.GetDim() - 1;
          }
       }();
@@ -3422,7 +3842,8 @@ void MagnetizationSource2DIntegratorTemperatureSens::AssembleRHSElementVect(
       dshapedxt.GetColumnReference(1, grad_column_1);
 
       // scratch = 0.0;
-      // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
+      // add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
+      // scratch);
 
       // const double psi_dot_scratch = psi * scratch;
 
@@ -3441,10 +3862,9 @@ void MagnetizationSource2DIntegratorTemperatureSens::AssembleRHSElementVect(
       scratch_bar = 0.0;
       scratch_bar.Add(psi_dot_scratch_bar, psi);
 
-      /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1, scratch);
-      /// Vector grad_column_1;
-      /// dshapedxt.GetColumnReference(1, grad_column_1);
-      /// Vector grad_column_0;
+      /// add(mag_flux(1), grad_column_0, -mag_flux(0), grad_column_1,
+      /// scratch); Vector grad_column_1; dshapedxt.GetColumnReference(1,
+      /// grad_column_1); Vector grad_column_0;
       /// dshapedxt.GetColumnReference(0, grad_column_0);
       dshapedxt_bar = 0.0;
       Vector grad_bar_column_1;
@@ -4893,11 +5313,10 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
       if (dim == 3)
       {
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-         // transposed dimensions of curlshape_dFt so I don't have to transpose
-         // jac_bar later
-         // DenseMatrix curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(),
-         // curl_dim, el_ndof); DenseMatrix curlshape_dFt_bar_(curl_dim,
-         // el_ndof);
+         // transposed dimensions of curlshape_dFt so I don't have to
+         // transpose jac_bar later DenseMatrix
+         // curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(), curl_dim,
+         // el_ndof); DenseMatrix curlshape_dFt_bar_(curl_dim, el_ndof);
          curlshape_dFt_bar.SetSize(curl_dim, el_ndof);
          MultVWt(b_vec_bar, elfun, curlshape_dFt_bar);
 
@@ -4911,9 +5330,9 @@ void MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect(
       else  // Dealing with scalar H1 field representing Az
       {
          /// curlshape_dFt.AddMultTranspose(elfun, b_vec);
-         // DenseMatrix curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(),
-         // el_ndof, curl_dim); DenseMatrix curlshape_dFt_bar_(el_ndof,
-         // curl_dim);
+         // DenseMatrix
+         // curlshape_dFt_bar_(curlshape_dFt_bar_buffer.GetData(), el_ndof,
+         // curl_dim); DenseMatrix curlshape_dFt_bar_(el_ndof, curl_dim);
          curlshape_dFt_bar.SetSize(el_ndof, curl_dim);
          MultVWt(elfun, b_vec_bar, curlshape_dFt_bar);
 
@@ -6507,9 +6926,9 @@ void setInputs(DCLossDistributionIntegrator &integ, const MachInputs &inputs)
 }
 
 /// Compute the spatial distribution of the heat flux due to DC losses.
-/// Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each
-/// node of element, then add to element vector By derivation, dP_DC/dVolume =
-/// sigma^-1 * J_src^2
+/// Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at
+/// each node of element, then add to element vector By derivation,
+/// dP_DC/dVolume = sigma^-1 * J_src^2
 void DCLossDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -6584,8 +7003,8 @@ void DCLossDistributionIntegrator::AssembleRHSElementVect(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       loss *= 1 / (winding_volume * stack_length);
 
       elvect.Add(loss * w, temp_shape);
@@ -6699,8 +7118,8 @@ void DCLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (winding_volume * stack_length);
 
@@ -6835,8 +7254,8 @@ void DCLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (winding_volume * stack_length);
 
@@ -6981,8 +7400,8 @@ double DCLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (winding_volume * stack_length);
 
@@ -7123,8 +7542,8 @@ double DCLossDistributionIntegratorWireLengthRevSens::GetElementEnergy(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (winding_volume * stack_length);
 
@@ -7163,10 +7582,12 @@ double DCLossDistributionIntegratorWireLengthRevSens::GetElementEnergy(
       //     -R_bar * wire_length /
       //     (strand_area * pow(strands_in_hand, 2) * sigma_v);
       // double sigma_v_bar = -R_bar * wire_length /
-      //                      (strand_area * strands_in_hand * pow(sigma_v, 2));
+      //                      (strand_area * strands_in_hand * pow(sigma_v,
+      //                      2));
 
       /// double strand_area = M_PI * pow(strand_radius, 2);
-      // double strand_radius_bar = strand_area_bar * M_PI * 2 * strand_radius;
+      // double strand_radius_bar = strand_area_bar * M_PI * 2 *
+      // strand_radius;
 
       fun += wire_length_bar;
    }
@@ -7265,8 +7686,8 @@ double DCLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (winding_volume * stack_length);
 
@@ -7305,10 +7726,12 @@ double DCLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
           -R_bar * wire_length /
           (strand_area * pow(strands_in_hand, 2) * sigma_v);
       // double sigma_v_bar = -R_bar * wire_length /
-      //                      (strand_area * strands_in_hand * pow(sigma_v, 2));
+      //                      (strand_area * strands_in_hand * pow(sigma_v,
+      //                      2));
 
       // /// double strand_area = M_PI * pow(strand_radius, 2);
-      // double strand_radius_bar = strand_area_bar * M_PI * 2 * strand_radius;
+      // double strand_radius_bar = strand_area_bar * M_PI * 2 *
+      // strand_radius;
 
       fun += strands_in_hand_bar;
    }
@@ -7407,8 +7830,8 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss *= 1 / (winding_volume * stack_length);
 
@@ -7437,8 +7860,8 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
       double rms_current_bar = loss_bar * 2 * rms_current * R;
       // double R_bar = loss_bar * pow(rms_current, 2);
 
-      // /// double R = wire_length / (strand_area * strands_in_hand * sigma_v);
-      // double wire_length_bar =
+      // /// double R = wire_length / (strand_area * strands_in_hand *
+      // sigma_v); double wire_length_bar =
       //     R_bar / (strand_area * strands_in_hand * sigma_v);
       // double strand_area_bar =
       //     -R_bar * wire_length /
@@ -7447,10 +7870,12 @@ double DCLossDistributionIntegratorCurrentRevSens::GetElementEnergy(
       //     -R_bar * wire_length /
       //     (strand_area * pow(strands_in_hand, 2) * sigma_v);
       // double sigma_v_bar = -R_bar * wire_length /
-      //                      (strand_area * strands_in_hand * pow(sigma_v, 2));
+      //                      (strand_area * strands_in_hand * pow(sigma_v,
+      //                      2));
 
       // /// double strand_area = M_PI * pow(strand_radius, 2);
-      // double strand_radius_bar = strand_area_bar * M_PI * 2 * strand_radius;
+      // double strand_radius_bar = strand_area_bar * M_PI * 2 *
+      // strand_radius;
 
       fun += rms_current_bar;
    }
@@ -7549,8 +7974,8 @@ double DCLossDistributionIntegratorStackLengthRevSens::GetElementEnergy(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss /= (winding_volume * stack_length);
 
@@ -7677,8 +8102,8 @@ double DCLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
       // not sure about this... but it matches MotorCAD's values
       loss *= 1.0 * sqrt(2);
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       loss /= (winding_volume * stack_length);
 
@@ -8222,9 +8647,10 @@ void setInputs(ACLossDistributionIntegrator &integ, const MachInputs &inputs)
 }
 
 /// TODO: Compute the spatial distribution of the heat flux due to AC losses.
-///  Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each
-///  node of element, then add to element vector By derivation, dP_AC/dVolume =
-///  \frac{l r_{\text{s}}^2 \sigma \left(\omega B_{\text{pk}}\right)^2}{16}
+///  Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at
+///  each node of element, then add to element vector By derivation,
+///  dP_AC/dVolume = \frac{l r_{\text{s}}^2 \sigma \left(\omega
+///  B_{\text{pk}}\right)^2}{16}
 void ACLossDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
     mfem::ElementTransformation &trans,
@@ -8236,8 +8662,8 @@ void ACLossDistributionIntegrator::AssembleRHSElementVect(
    mfem::Vector temp_elfun;
 #endif
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for flux
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for flux
    const int element = trans.ElementNo;
    const auto &flux_el = *peak_flux.FESpace()->GetFE(element);
    const int flux_ndof = flux_el.GetDof();
@@ -8314,8 +8740,8 @@ void ACLossDistributionIntegrator::AssembleRHSElementVect(
                     sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss *= 1 / (winding_volume * stack_length);
       loss *= 1 / (winding_volume);
@@ -8344,8 +8770,8 @@ void ACLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
 
    const int element = mesh_trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -8450,8 +8876,8 @@ void ACLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss *= 1 / (winding_volume * stack_length);
       loss *= 1 / (winding_volume);
@@ -8507,8 +8933,8 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -8604,8 +9030,8 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
                     sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss *= 1 / (winding_volume * stack_length);
       loss *= 1 / (winding_volume);
@@ -8634,7 +9060,8 @@ void ACLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
 
       /// double loss = stack_length * M_PI * pow(radius, 4) *
       ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
-      // double b_mag_bar = loss_bar * stack_length * M_PI * pow(radius, 4) * 2
+      // double b_mag_bar = loss_bar * stack_length * M_PI * pow(radius, 4) *
+      // 2
       // *
       //                    pow(2 * M_PI * freq, 2) * b_mag * sigma_v / 8.0;
       double b_mag_bar = loss_bar * M_PI * pow(radius, 4) * 2 *
@@ -8663,8 +9090,8 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -8761,8 +9188,8 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
                     sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss *= 1 / (winding_volume * stack_length);
       loss *= 1 / (winding_volume);
@@ -8791,7 +9218,8 @@ void ACLossDistributionIntegratorTemperatureRevSens::AssembleRHSElementVect(
 
       /// double loss = stack_length * M_PI * pow(radius, 4) *
       ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
-      // double sigma_v_bar = loss_bar * stack_length * M_PI * pow(radius, 4) *
+      // double sigma_v_bar = loss_bar * stack_length * M_PI * pow(radius, 4)
+      // *
       //                      pow(2 * M_PI * freq * b_mag, 2) / 8.0;
       double sigma_v_bar = loss_bar * M_PI * pow(radius, 4) *
                            pow(2 * M_PI * freq * b_mag, 2) / 8.0;
@@ -8823,8 +9251,8 @@ double ACLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -8918,8 +9346,8 @@ double ACLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
                     sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       loss /= winding_volume;
 
       // elvect.Add(loss * w, temp_shape);
@@ -8971,8 +9399,8 @@ double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -9069,8 +9497,8 @@ double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
                     sigma_v / 8.0;
       loss *= 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       // loss *= 1 / (winding_volume * stack_length);
       loss *= 1 / (winding_volume);
 
@@ -9098,7 +9526,8 @@ double ACLossDistributionIntegratorStrandRadiusRevSens::GetElementEnergy(
 
       /// double loss = stack_length * M_PI * pow(radius, 4) *
       ///               pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
-      // double radius_bar = loss_bar * stack_length * M_PI * 4 * pow(radius, 3)
+      // double radius_bar = loss_bar * stack_length * M_PI * 4 * pow(radius,
+      // 3)
       // *
       //                     pow(2 * M_PI * freq * b_mag, 2) * sigma_v / 8.0;
       double radius_bar = loss_bar * M_PI * 4 * pow(radius, 3) *
@@ -9127,8 +9556,8 @@ double ACLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -9224,8 +9653,8 @@ double ACLossDistributionIntegratorStrandsInHandRevSens::GetElementEnergy(
       // loss *= 2 * strands_in_hand * num_turns * num_slots;
       double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       // loss /= 0.02314281;
       double loss3 = loss2 / winding_volume;
 
@@ -9285,8 +9714,8 @@ double ACLossDistributionIntegratorNumTurnsRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -9382,8 +9811,8 @@ double ACLossDistributionIntegratorNumTurnsRevSens::GetElementEnergy(
       // loss *= 2 * strands_in_hand * num_turns * num_slots;
       double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss /= 0.02314281;
       double loss3 = loss2 / winding_volume;
@@ -9444,8 +9873,8 @@ double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -9540,8 +9969,8 @@ double ACLossDistributionIntegratorNumSlotsRevSens::GetElementEnergy(
       // loss *= 2 * strands_in_hand * num_turns * num_slots;
       double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss /= 0.02314281;
       double loss3 = loss2 / winding_volume;
@@ -9602,8 +10031,8 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -9698,8 +10127,8 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
       // loss *= 2 * strands_in_hand * num_turns * num_slots;
       double loss2 = loss * 2 * strands_in_hand * num_turns * num_slots;
 
-      // Scale the loss by 1/volume that DCLF uses and also divide by the stack
-      // length to account for the fact don't have 1m depth (W -> W/m)
+      // Scale the loss by 1/volume that DCLF uses and also divide by the
+      // stack length to account for the fact don't have 1m depth (W -> W/m)
       /// TODO: Find a way to not hard-code the volume
       // loss /= 0.02314281;
       double loss3 = loss2 / winding_volume;
@@ -9736,8 +10165,8 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
    return fun;
 }
 
-/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time
-/// into
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more
+/// time into
 // void setInputs(HybridACLossFunctionalIntegrator &integ,
 //                const MachInputs &inputs)
 // {
@@ -9761,10 +10190,10 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
 //    setValueFromInputs(inputs, "fill-factor", integ.fill_factor);
 // }
 
-/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time
-/// into In cpp and hpp, Have only the immediate below
-/// HybridACLossFunctionalIntegrator uncommented if want mfem::Coefficient logic
-/// for test_acloss_functional
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more
+/// time into In cpp and hpp, Have only the immediate below
+/// HybridACLossFunctionalIntegrator uncommented if want mfem::Coefficient
+/// logic for test_acloss_functional
 // double HybridACLossFunctionalIntegrator::GetElementEnergy(
 //     const FiniteElement &el,
 //     ElementTransformation &trans,
@@ -9840,10 +10269,10 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
 //    return fun;
 // }
 
-/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more time
-/// into In cpp and hpp, Have only the immediate below
-/// HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic for
-/// test_acloss_functional (this will be the one that remains)
+/// HybridACLossFunctionalIntegrator is a Dead class. Not putting any more
+/// time into In cpp and hpp, Have only the immediate below
+/// HybridACLossFunctionalIntegrator uncommented for StateCoefficient logic
+/// for test_acloss_functional (this will be the one that remains)
 // double HybridACLossFunctionalIntegrator::GetElementEnergy(
 //     const FiniteElement &el,
 //     ElementTransformation &trans,
@@ -9874,8 +10303,9 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
 //    {
 //       temp_el = temperature_field->FESpace()->GetFE(element);
 
-//       auto *dof_tr = temperature_field->FESpace()->GetElementVDofs(element,
-//       vdofs); temperature_field->GetSubVector(vdofs, temp_elfun); if (dof_tr
+//       auto *dof_tr =
+//       temperature_field->FESpace()->GetElementVDofs(element, vdofs);
+//       temperature_field->GetSubVector(vdofs, temp_elfun); if (dof_tr
 //       != nullptr)
 //       {
 //          dof_tr->InvTransformPrimal(temp_elfun);
@@ -9931,10 +10361,11 @@ double ACLossDistributionIntegratorWindingVolumeRevSens::GetElementEnergy(
 
 //       if (temperature_field != nullptr)
 //       {
-//          temp_el->CalcPhysShape(trans, shape); // Alternative to CalcShape,
-//          used by ACLossFunctionalIntegrator. Difference between CalcPhysShape
-//          and CalcShape? temperature = shape * temp_elfun; //Take dot product
-//          between shape and elfun to get the value at the integration point
+//          temp_el->CalcPhysShape(trans, shape); // Alternative to
+//          CalcShape, used by ACLossFunctionalIntegrator. Difference between
+//          CalcPhysShape and CalcShape? temperature = shape * temp_elfun;
+//          //Take dot product between shape and elfun to get the value at
+//          the integration point
 //       }
 //       else
 //       {
@@ -10038,8 +10469,8 @@ double ForceIntegrator3::GetElementEnergy(const FiniteElement &el,
       }
       else  // Dealing with scalar H1 field representing Az
       {
-         /// Not exactly the curl matrix, but since we just want the magnitude
-         /// of the curl it's okay
+         /// Not exactly the curl matrix, but since we just want the
+         /// magnitude of the curl it's okay
          el.CalcDShape(ip, curlshape);
          Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
@@ -10200,8 +10631,8 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
       }
       else  // Dealing with scalar H1 field representing Az
       {
-         /// Not exactly the curl matrix, but since we just want the magnitude
-         /// of the curl it's okay
+         /// Not exactly the curl matrix, but since we just want the
+         /// magnitude of the curl it's okay
          el.CalcDShape(ip, curlshape);
          Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
@@ -10402,7 +10833,8 @@ void ForceIntegrator3::AssembleElementVector(const FiniteElement &el,
 
          /// double a = -1 / (b_vec_norm * pow(trans_weight, 2));
          b_vec_norm_bar += a_bar / pow(b_vec_norm * trans_weight, 2);
-         // trans_weight_bar = 2 * a_bar / (b_vec_norm * pow(trans_weight, 3));
+         // trans_weight_bar = 2 * a_bar / (b_vec_norm * pow(trans_weight,
+         // 3));
 
          /// trans.AdjugateJacobian().Mult(b_vec, b_adjJT);
          trans.AdjugateJacobian().AddMultTranspose(b_adjJT_bar, b_vec_bar);
@@ -10537,8 +10969,8 @@ void ForceIntegratorMeshSens3::AssembleRHSElementVect(
       }
       else  // Dealing with scalar H1 field representing Az
       {
-         /// Not exactly the curl matrix, but since we just want the magnitude
-         /// of the curl it's okay
+         /// Not exactly the curl matrix, but since we just want the
+         /// magnitude of the curl it's okay
          el.CalcDShape(ip, curlshape);
          Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
@@ -10914,8 +11346,8 @@ double ForceIntegrator::GetElementEnergy(const FiniteElement &el,
       }
       else  // Dealing with scalar H1 field representing Az
       {
-         /// Not exactly the curl matrix, but since we just want the magnitude
-         /// of the curl its okay
+         /// Not exactly the curl matrix, but since we just want the
+         /// magnitude of the curl its okay
          el.CalcDShape(ip, curlshape);
          Mult(curlshape, trans.AdjugateJacobian(), curlshape_dFt);
       }
@@ -11605,8 +12037,8 @@ double SteinmetzLossIntegratorFreqSens::GetElementEnergy(
       auto alpha_v = alpha.Eval(trans, ip);
       auto beta_v = beta.Eval(trans, ip);
 
-      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) *
-      // w;
+      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag,
+      // beta_v) * w;
       sens += rho_v * k_s_v * alpha_v * pow(freq, alpha_v - 1) *
               pow(max_flux_mag, beta_v) * w;
    }
@@ -11658,8 +12090,8 @@ double SteinmetzLossIntegratorMaxFluxSens::GetElementEnergy(
       auto alpha_v = alpha.Eval(trans, ip);
       auto beta_v = beta.Eval(trans, ip);
 
-      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) *
-      // w;
+      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag,
+      // beta_v) * w;
       sens += rho_v * k_s_v * pow(freq, alpha_v) * beta_v *
               pow(max_flux_mag, beta_v - 1) * w;
    }
@@ -11723,11 +12155,12 @@ void SteinmetzLossIntegratorMeshSens::AssembleRHSElementVect(
       auto alpha_v = alpha.Eval(trans, ip);
       auto beta_v = beta.Eval(trans, ip);
 
-      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) *
-      // w;
+      // fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag,
+      // beta_v) * w;
 
       /// Start reverse pass...
-      /// fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v)
+      /// fun += rho_v * k_s_v * pow(freq, alpha_v) * pow(max_flux_mag,
+      /// beta_v)
       /// * w;
       double fun_bar = 1.0;
       double rho_v_bar =
@@ -11735,13 +12168,15 @@ void SteinmetzLossIntegratorMeshSens::AssembleRHSElementVect(
       double k_s_v_bar =
           fun_bar * rho_v * pow(freq, alpha_v) * pow(max_flux_mag, beta_v) * w;
       // double freq_bar = fun_bar * rho_v * k_s_v * alpha_v *
-      //                   pow(freq, alpha_v - 1) * pow(max_flux_mag, beta_v) *
-      //                   w;
+      //                   pow(freq, alpha_v - 1) * pow(max_flux_mag, beta_v)
+      //                   * w;
       double alpha_v_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v) *
                            log(freq) * pow(max_flux_mag, beta_v) * w;
-      // double max_flux_mag_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v)
+      // double max_flux_mag_bar = fun_bar * rho_v * k_s_v * pow(freq,
+      // alpha_v)
       // *
-      //                           beta_v * pow(max_flux_mag, beta_v - 1) * w;
+      //                           beta_v * pow(max_flux_mag, beta_v - 1) *
+      //                           w;
       double beta_v_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v) *
                           pow(max_flux_mag, beta_v) * log(max_flux_mag) * w;
       double w_bar = fun_bar * rho_v * k_s_v * pow(freq, alpha_v) *
@@ -11800,8 +12235,8 @@ void setInputs(SteinmetzLossDistributionIntegrator &integ,
 
 /// TODO: Compute the spatial distribution of the heat flux due to Steinmetz
 /// losses.
-///  Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each
-///  node of element, then add to element vector By derivation,
+///  Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at
+///  each node of element, then add to element vector By derivation,
 ///  dP_SteinmetzCore/dVolume = rho*Ws
 void SteinmetzLossDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &el,
@@ -12206,11 +12641,13 @@ void CAL2CoreLossIntegratorPeakFluxSens::AssembleRHSElementVect(
       double ke_v_bar =
           loss_bar * rho_v * std::pow(freq, 2) * std::pow(B_pk, 2);
 
-      /// const double ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_pk);
+      /// const double ke_v = CAL2_ke.Eval(trans, ip, temperature, freq,
+      /// B_pk);
       B_pk_bar +=
           ke_v_bar * CAL2_ke.EvalDerivS3(trans, ip, temperature, freq, B_pk);
 
-      /// const double kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_pk);
+      /// const double kh_v = CAL2_kh.Eval(trans, ip, temperature, freq,
+      /// B_pk);
       B_pk_bar +=
           kh_v_bar * CAL2_kh.EvalDerivS3(trans, ip, temperature, freq, B_pk);
 
@@ -12342,11 +12779,13 @@ void CAL2CoreLossIntegratorTemperatureSens::AssembleRHSElementVect(
       double ke_v_bar =
           loss_bar * rho_v * std::pow(freq, 2) * std::pow(B_pk, 2);
 
-      /// const double ke_v = CAL2_ke.Eval(trans, ip, temperature, freq, B_pk);
+      /// const double ke_v = CAL2_ke.Eval(trans, ip, temperature, freq,
+      /// B_pk);
       double temp_bar =
           ke_v_bar * CAL2_ke.EvalDerivS1(trans, ip, temperature, freq, B_pk);
 
-      /// const double kh_v = CAL2_kh.Eval(trans, ip, temperature, freq, B_pk);
+      /// const double kh_v = CAL2_kh.Eval(trans, ip, temperature, freq,
+      /// B_pk);
       temp_bar +=
           kh_v_bar * CAL2_kh.EvalDerivS1(trans, ip, temperature, freq, B_pk);
 
@@ -12505,10 +12944,10 @@ void setInputs(CAL2CoreLossDistributionIntegrator &integ,
 
 /// TODO: Compute the spatial distribution of the heat flux due to CAL2 core
 /// losses.
-///  Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at each
-///  node of element, then add to element vector By derivation,
-///  dP_CAL2Core/dVolume = \rho k_h\left(T,f,B_{\text{pk}}\right) f B_{pk}^2 +
-///  \rho k_e\left(T,f,B_{\text{pk}}\right) f^2 B_{pk}^2
+///  Goal is to have the W/m^3 (=W/m^2 b/c 2D with unity depth) compute at
+///  each node of element, then add to element vector By derivation,
+///  dP_CAL2Core/dVolume = \rho k_h\left(T,f,B_{\text{pk}}\right) f B_{pk}^2
+///  + \rho k_e\left(T,f,B_{\text{pk}}\right) f^2 B_{pk}^2
 void CAL2CoreLossDistributionIntegrator::AssembleRHSElementVect(
     const mfem::FiniteElement &temp_el,
     mfem::ElementTransformation &trans,
@@ -12626,8 +13065,8 @@ void CAL2CoreLossDistributionIntegratorMeshRevSens::AssembleRHSElementVect(
 
    const int element = mesh_trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -12780,8 +13219,8 @@ void CAL2CoreLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -12889,7 +13328,8 @@ void CAL2CoreLossDistributionIntegratorPeakFluxRevSens::AssembleRHSElementVect(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
-      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag,
+      ///               2);
       double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
       double ke_v_bar =
           loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
@@ -12929,8 +13369,8 @@ void CAL2CoreLossDistributionIntegratorTemperatureRevSens::
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -13041,7 +13481,8 @@ void CAL2CoreLossDistributionIntegratorTemperatureRevSens::
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
-      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag,
+      ///               2);
       double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
       double ke_v_bar =
           loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
@@ -13079,8 +13520,8 @@ double CAL2CoreLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
 
    const int element = trans.ElementNo;
 
-   // Obtain the finite element, element transformation, and degrees of freedom
-   // for the adjoint
+   // Obtain the finite element, element transformation, and degrees of
+   // freedom for the adjoint
    const auto &adjoint_el = *adjoint.FESpace()->GetFE(element);
    const int adjoint_ndof = adjoint_el.GetDof();
    auto *dof_tr = adjoint.FESpace()->GetElementVDofs(element, vdofs);
@@ -13189,7 +13630,8 @@ double CAL2CoreLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
       // const double w_bar = fun_bar * loss * psi_dot_temp;
 
       /// double loss = rho_v * kh_v * freq * std::pow(b_mag, 2) +
-      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag, 2);
+      ///               rho_v * ke_v * std::pow(freq, 2) * std::pow(b_mag,
+      ///               2);
       double kh_v_bar = loss_bar * rho_v * freq * std::pow(b_mag, 2);
       double ke_v_bar =
           loss_bar * rho_v * std::pow(freq, 2) * std::pow(b_mag, 2);
@@ -13232,7 +13674,8 @@ double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
    {
       temp_el = temperature_field->FESpace()->GetFE(element);
 
-      // Transform the degrees of freedom corresponding to the temperature field
+      // Transform the degrees of freedom corresponding to the temperature
+      // field
       auto *dof_tr =
           temperature_field->FESpace()->GetElementVDofs(element, vdofs);
       temperature_field->GetSubVector(vdofs, temp_elfun);
@@ -13304,12 +13747,13 @@ double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
          // std::cout << "temp_shape=np.array([";
          // for (int j = 0; j < temp_shape.Size(); j++) {std::cout <<
          // temp_shape.Elem(j) << ", ";} std::cout << "])\n"; std::cout <<
-         // "temp_elfun=np.array(["; for (int j = 0; j < temp_elfun.Size(); j++)
-         // {std::cout << temp_elfun.Elem(j) << ", ";} std::cout << "])\n";
+         // "temp_elfun=np.array(["; for (int j = 0; j < temp_elfun.Size();
+         // j++) {std::cout << temp_elfun.Elem(j) << ", ";} std::cout <<
+         // "])\n";
 
          temperature =
-             temp_shape * temp_elfun;  // Take dot product  to get the value at
-                                       // the integration point
+             temp_shape * temp_elfun;  // Take dot product  to get the value
+                                       // at the integration point
       }
       else
       {
@@ -13318,19 +13762,20 @@ double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
          temperature = 100 + 273.15;
       }
 
-      // Calculate the value of the Permanent Magnet Demagnetization constraint
-      // equation at the integration point
+      // Calculate the value of the Permanent Magnet Demagnetization
+      // constraint equation at the integration point
       double constraint_val =
           PMDemagConstraint.Eval(trans, ip, b_mag, temperature);
       // std::cout << "X=" << IP_real_coords.Elem(0) << ", Y=" <<
-      // IP_real_coords.Elem(1) << ", B=" << b_mag << ", T=" << temperature <<
+      // IP_real_coords.Elem(1) << ", B=" << b_mag << ", T=" << temperature
+      // <<
       // ", C(B,T)=" << constraint_val << "\n"; Add the contribution to the
       // overall Permanent Magnet Demagnetization constraint equation value
       fun += constraint_val * w;
 
       /// TODO: Negating PMDM constraint for IE constraint agg purposes (so
-      /// becomes a max rather than a min). Decide if want to move this logic to
-      /// the coefficient level
+      /// becomes a max rather than a min). Decide if want to move this logic
+      /// to the coefficient level
       fun *= -1;
    }
    return fun;
@@ -13348,8 +13793,8 @@ void PMDemagIntegrator::AssembleElementVector(
 
    int ndof = el.GetDof();  // number of degrees of freedom
    shape.SetSize(ndof);
-   elvect.SetSize(ndof);  // vector which will contain the PM Demag Constraint
-                          // Eq distribution
+   elvect.SetSize(ndof);  // vector which will contain the PM Demag
+                          // Constraint Eq distribution
 
    // Obtain correct element, DOFs, etc for temperature field
    // Same logic as DCLossFunctionalIntegrator
@@ -13361,7 +13806,8 @@ void PMDemagIntegrator::AssembleElementVector(
    {
       temp_el = temperature_field->FESpace()->GetFE(element);
 
-      // Transform the degrees of freedom corresponding to the temperature field
+      // Transform the degrees of freedom corresponding to the temperature
+      // field
       auto *dof_tr =
           temperature_field->FESpace()->GetElementVDofs(element, vdofs);
       temperature_field->GetSubVector(vdofs, temp_elfun);
@@ -13424,8 +13870,8 @@ void PMDemagIntegrator::AssembleElementVector(
          temp_el->CalcPhysShape(trans, temp_shape);
 
          temperature =
-             temp_shape * temp_elfun;  // Take dot product  to get the value at
-                                       // the integration point
+             temp_shape * temp_elfun;  // Take dot product  to get the value
+                                       // at the integration point
       }
       else
       {
@@ -13434,8 +13880,8 @@ void PMDemagIntegrator::AssembleElementVector(
          temperature = 100 + 273.15;
       }
 
-      // Calculate the value of the Permanent Magnet Demagnetization constraint
-      // equation at the integration point
+      // Calculate the value of the Permanent Magnet Demagnetization
+      // constraint equation at the integration point
       double constraint_val =
           PMDemagConstraint.Eval(trans, ip, b_mag, temperature);
       std::cout << "constraint_val =" << std::pow(b_mag, 2) << "*"
@@ -13452,4 +13898,5 @@ void PMDemagIntegrator::AssembleElementVector(
       std::cout << "])\n";
    }
 }
+
 }  // namespace mach
