@@ -60,6 +60,78 @@ public:
 #endif
 };
 
+class L2ProjectionIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   /// Construct the element local residual
+   /// \param[in] el - the finite element whose residual we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state vector
+   /// \param[out] elvect - element local residual
+   void AssembleElementVector(const mfem::FiniteElement &el,
+                              mfem::ElementTransformation &trans,
+                              const mfem::Vector &elfun,
+                              mfem::Vector &elvect) override;
+
+   /// Construct the element local Jacobian
+   /// \param[in] el - the finite element whose Jacobian we want
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - element local state vector
+   /// \param[out] elmat - element local Jacobian
+   void AssembleElementGrad(const mfem::FiniteElement &el,
+                            mfem::ElementTransformation &trans,
+                            const mfem::Vector &elfun,
+                            mfem::DenseMatrix &elmat) override;
+
+   L2ProjectionIntegrator(mfem::Coefficient &g, double alpha = 1.0)
+    : g(g), alpha(alpha)
+   { }
+
+private:
+   /// Field value condition value
+   mfem::Coefficient &g;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+
+   friend class L2ProjectionIntegratorMeshRevSens;
+};
+
+class L2ProjectionIntegratorMeshRevSens : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   L2ProjectionIntegratorMeshRevSens(mfem::GridFunction &state,
+                                     mfem::GridFunction &adjoint,
+                                     L2ProjectionIntegrator &integ)
+    : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   L2ProjectionIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::Vector psi;
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
 class ThermalContactResistanceIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:

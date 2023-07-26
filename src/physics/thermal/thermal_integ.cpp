@@ -151,6 +151,193 @@ void TestBCIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 }
 
+void L2ProjectionIntegrator::AssembleElementVector(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+   shape.SetSize(ndof);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el.GetOrder() + trans.OrderW();
+      ir = &mfem::IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elvect.SetSize(ndof);
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+
+      double w = alpha * ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      double state = elfun * shape;
+      double desired = g.Eval(trans, ip);
+
+      elvect.Add(w * (state - desired), shape);
+   }
+}
+
+void L2ProjectionIntegrator::AssembleElementGrad(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+   shape.SetSize(ndof);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el.GetOrder() + trans.OrderW();
+      ir = &mfem::IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elmat.SetSize(ndof);
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+
+      double w = alpha * ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      AddMult_a_VVt(w, shape, elmat);
+   }
+}
+
+void L2ProjectionIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const auto &el = *state.FESpace()->GetFE(trans.ElementNo);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int ndof = el.GetDof();
+   const int space_dim = trans.GetSpaceDim();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::Vector psi;
+#endif
+
+   auto *dof_tr = state.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.ElementNo, vdofs);
+   adjoint.GetSubVector(vdofs, psi);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::DenseMatrix PointMat_bar;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(ndof);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el.GetOrder() + trans.OrderW();
+      ir = &mfem::IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   auto &g = integ.g;
+
+   mesh_coords_bar.SetSize(space_dim * mesh_ndof);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double trans_weight = trans.Weight();
+
+      double w = alpha * ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      double state = elfun * shape;
+      double desired = g.Eval(trans, ip);
+
+      double psi_shape = psi * shape;
+
+      // elvect.Add(w * (state - desired), shape);
+      // double fun += w * (state - desired) * psi_shape;
+
+      double fun_bar = 1.0;
+
+      /// fun += w * (state - desired) * psi_shape;
+      double w_bar = fun_bar * (state - desired) * psi_shape;
+      // double state_bar = fun_bar * w * psi_shape;
+      double desired_bar = -fun_bar * w * psi_shape;
+      // double psi_shape_bar = fun_bar * w * (state - desired);
+
+      /// double psi_shape = psi * shape;
+
+      /// double desired = g.Eval(trans, ip);
+      PointMat_bar = 0.0;
+      g.EvalRevDiff(desired_bar, trans, ip, PointMat_bar);
+
+      /// double state = elfun * shape;
+      /// el.CalcShape(ip, shape);
+
+      /// double w = alpha * ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * alpha * ip.weight;
+
+      /// double trans_weight = trans.Weight();
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      // code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_bar(k * mesh_ndof + j) += PointMat_bar(k, j);
+         }
+      }
+   }
+}
+
 void setInputs(ThermalContactResistanceIntegrator &integ,
                const MachInputs &inputs)
 {
