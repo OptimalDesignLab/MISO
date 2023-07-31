@@ -33,9 +33,9 @@
 #include "evolver.hpp"
 #include "diag_mass_integ.hpp"
 #include "material_library.hpp"
-#include "mach_input.hpp"
-#include "mach_integrator.hpp"
-#include "mach_load.hpp"
+#include "miso_input.hpp"
+#include "miso_integrator.hpp"
+#include "miso_load.hpp"
 #include "solver.hpp"
 
 #ifdef MFEM_USE_EGADS
@@ -45,7 +45,7 @@
 using namespace std;
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 adept::Stack AbstractSolver::diff_stack;
 
@@ -141,7 +141,7 @@ void AbstractSolver::initBase(const nlohmann::json &file_options,
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "Unknown ODE solver type " +
           options["time-dis"]["ode-solver"].template get<string>());
       // TODO: parallel exit
@@ -315,7 +315,7 @@ void AbstractSolver::constructMesh(unique_ptr<Mesh> smesh)
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver::constructMesh(smesh)\n"
           "\tMesh file has no extension!\n");
    }
@@ -466,7 +466,7 @@ void AbstractSolver::constructPumiMesh()
    // Apply the attributes
    mesh->SetAttributes();
 #else
-   throw MachException(
+   throw MISOException(
        "AbstractSolver::constructPumiMesh()\n"
        "\tMFEM was not built with PUMI!\n"
        "\trecompile MFEM with PUMI\n");
@@ -803,7 +803,7 @@ double AbstractSolver::calcResidualNorm() const
 }
 double AbstractSolver::calcResidualNorm(const ParGridFunction &state) const
 {
-   MachInputs inputs{{"state", state.GetTrueVector().GetData()}};
+   MISOInputs inputs{{"state", state.GetTrueVector().GetData()}};
 
    calcResidual(inputs, *scratch_tv);
    return std::sqrt(InnerProduct(comm, *scratch_tv, *scratch_tv));
@@ -879,17 +879,17 @@ void AbstractSolver::calcResidual(const ParGridFunction &state,
    delete r_true;
 }
 
-void AbstractSolver::calcResidual(const MachInputs &inputs,
+void AbstractSolver::calcResidual(const MISOInputs &inputs,
                                   double *res_buffer) const
 {
    auto residual = bufferToHypreParVector(res_buffer, *fes);
    calcResidual(inputs, residual);
 }
 
-void AbstractSolver::calcResidual(const MachInputs &inputs,
+void AbstractSolver::calcResidual(const MISOInputs &inputs,
                                   HypreParVector &residual) const
 {
-   // setInputs(*res, inputs); // once I've added MachNonlinearForm
+   // setInputs(*res, inputs); // once I've added MISONonlinearForm
 
    /// this approach would require communication twice, once to set the tdofs
    ///   and then again inside of res->Mult
@@ -907,17 +907,17 @@ void AbstractSolver::calcResidual(const MachInputs &inputs,
 
    if (load)
    {
-      mach::setInputs(*load, inputs);
-      mach::addLoad(*load, residual);
+      miso::setInputs(*load, inputs);
+      miso::addLoad(*load, residual);
    }
 }
 
-void AbstractSolver::linearize(const MachInputs &inputs)
+void AbstractSolver::linearize(const MISOInputs &inputs)
 {
    setInputs(res_integrators, inputs);
    if (load)
    {
-      mach::setInputs(*load, inputs);
+      miso::setInputs(*load, inputs);
    }
 
    /// something like this...
@@ -942,7 +942,7 @@ double AbstractSolver::vectorJacobianProduct(const HypreParVector &res_bar,
    }
    if (load)
    {
-      wrt_bar += mach::vectorJacobianProduct(*load, res_bar, wrt);
+      wrt_bar += miso::vectorJacobianProduct(*load, res_bar, wrt);
    }
    return wrt_bar;
 }
@@ -1058,7 +1058,7 @@ void AbstractSolver::printFields(const std::string &file_name,
 {
    if (fields.size() != names.size())
    {
-      throw MachException(
+      throw MISOException(
           "Must supply a name for each grid function to print!");
    }
    ParaViewDataCollection paraview_dc(file_name, mesh.get());
@@ -1128,7 +1128,7 @@ void AbstractSolver::solveForState(ParGridFunction &state)
    }
 }
 
-void AbstractSolver::solveForState(const MachInputs &inputs,
+void AbstractSolver::solveForState(const MISOInputs &inputs,
                                    double *state_buffer)
 {
    HypreParVector state(fes->GetComm(),
@@ -1139,13 +1139,13 @@ void AbstractSolver::solveForState(const MachInputs &inputs,
    solveForState(inputs, state);
 }
 
-void AbstractSolver::solveForState(const MachInputs &inputs,
+void AbstractSolver::solveForState(const MISOInputs &inputs,
                                    mfem::HypreParVector &state)
 {
-   // mach::setInputs(*res, inputs);
+   // miso::setInputs(*res, inputs);
    if (load)
    {
-      mach::setInputs(*load, inputs);
+      miso::setInputs(*load, inputs);
    }
 
    auto &state_gf = res_fields.at("state");
@@ -1222,7 +1222,7 @@ void AbstractSolver::removeInternalBoundaries()
       }
       else
       {
-         throw MachException("Unrecognized entry for keep-bndrys!\n");
+         throw MISOException("Unrecognized entry for keep-bndrys!\n");
       }
    }
    else if (prob_opts.contains("keep-bndrys-adj-to"))
@@ -1309,7 +1309,7 @@ void AbstractSolver::setUpExternalFields()
          }
          else
          {
-            throw MachException("Unrecognized basis type: " + basis +
+            throw MISOException("Unrecognized basis type: " + basis +
                                 "!\n"
                                 "Known types are:\n"
                                 "\tH1\n"
@@ -1737,7 +1737,7 @@ unique_ptr<Solver> AbstractSolver::constructLinearSolver(
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "Unsupported iterative solver type!\n"
           "\tavilable options are: hypregmres, gmres, hyprefgmres,\n"
           "\thyprepcg, pcg, minres");
@@ -1795,7 +1795,7 @@ unique_ptr<Solver> AbstractSolver::constructPreconditioner(
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "Unsupported preconditioner type!\n"
           "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
           " HypreBoomerAMG.\n");
@@ -1832,7 +1832,7 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "Unsupported nonlinear solver type!\n"
           "\tavilable options are: newton, inexactnewton\n");
    }
@@ -1850,7 +1850,7 @@ unique_ptr<NewtonSolver> AbstractSolver::constructNonlinearSolver(
 void AbstractSolver::constructEvolver()
 {
    bool newton_abort = options["nonlin-solver"]["abort"].get<bool>();
-   evolver.reset(new MachEvolver(ess_bdr,
+   evolver.reset(new MISOEvolver(ess_bdr,
                                  nonlinear_mass.get(),
                                  mass.get(),
                                  res.get(),
@@ -1866,7 +1866,7 @@ void AbstractSolver::constructEvolver()
 
 void AbstractSolver::solveUnsteadyAdjoint(const std::string &fun)
 {
-   throw MachException(
+   throw MISOException(
        "AbstractSolver::solveUnsteadyAdjoint(fun)\n"
        "\tnot implemented yet!");
 }
@@ -1886,7 +1886,7 @@ void AbstractSolver::createOutput(const std::string &fun,
    }
    else
    {
-      throw MachException("Output with name " + fun + " already created!\n");
+      throw MISOException("Output with name " + fun + " already created!\n");
    }
 }
 
@@ -1898,9 +1898,9 @@ void AbstractSolver::setOutputOptions(const std::string &fun,
       auto output = outputs.find(fun);
       if (output == outputs.end())
       {
-         throw MachException("Did not find " + fun + " in output map?");
+         throw MISOException("Did not find " + fun + " in output map?");
       }
-      mach::setOptions(output->second, options);
+      miso::setOptions(output->second, options);
    }
    catch (const std::out_of_range &exception)
    {
@@ -1914,22 +1914,22 @@ double AbstractSolver::calcOutput(const ParGridFunction &state,
    HypreParVector state_true(fes.get());
    state.GetTrueDofs(state_true);
 
-   MachInputs inputs{{"state", state_true.GetData()}};
+   MISOInputs inputs{{"state", state_true.GetData()}};
    return calcOutput(fun, inputs);
 }
 
 double AbstractSolver::calcOutput(const std::string &fun,
-                                  const MachInputs &inputs)
+                                  const MISOInputs &inputs)
 {
    try
    {
       auto output = outputs.find(fun);
       if (output == outputs.end())
       {
-         throw MachException("Did not find " + fun + " in output map?");
+         throw MISOException("Did not find " + fun + " in output map?");
       }
-      mach::setInputs(output->second, inputs);
-      return mach::calcOutput(output->second, inputs);
+      miso::setInputs(output->second, inputs);
+      return miso::calcOutput(output->second, inputs);
    }
    catch (const std::out_of_range &exception)
    {
@@ -1940,7 +1940,7 @@ double AbstractSolver::calcOutput(const std::string &fun,
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
-                                       const MachInputs &inputs,
+                                       const MISOInputs &inputs,
                                        double &partial)
 {
    try
@@ -1948,9 +1948,9 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
       auto output = outputs.find(of);
       if (output == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map?");
+         throw MISOException("Did not find " + of + " in output map?");
       }
-      double part = mach::calcOutputPartial(output->second, wrt, inputs);
+      double part = miso::calcOutputPartial(output->second, wrt, inputs);
       partial += part;
    }
    catch (const std::out_of_range &exception)
@@ -1962,7 +1962,7 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
-                                       const MachInputs &inputs,
+                                       const MISOInputs &inputs,
                                        double *partial_buffer)
 {
    /// get FESpace for field we're taking partial with respect to
@@ -1976,7 +1976,7 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
 
 void AbstractSolver::calcOutputPartial(const std::string &of,
                                        const std::string &wrt,
-                                       const MachInputs &inputs,
+                                       const MISOInputs &inputs,
                                        HypreParVector &partial)
 {
    try
@@ -1984,9 +1984,9 @@ void AbstractSolver::calcOutputPartial(const std::string &of,
       auto output = outputs.find(of);
       if (output == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map?");
+         throw MISOException("Did not find " + of + " in output map?");
       }
-      mach::calcOutputPartial(output->second, wrt, inputs, partial);
+      miso::calcOutputPartial(output->second, wrt, inputs, partial);
    }
    catch (const std::out_of_range &exception)
    {
@@ -2126,4 +2126,4 @@ void AbstractSolver::checkJacobian(void (*pert_fun)(const mfem::Vector &,
    *out << "The Jacobian product error norm is " << sqrt(error) << endl;
 }
 
-}  // namespace mach
+}  // namespace miso

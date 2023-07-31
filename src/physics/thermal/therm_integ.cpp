@@ -7,7 +7,7 @@
 
 // using namespace mfem;
 
-// namespace mach
+// namespace miso
 // {
 
 // void InteriorBoundaryOutFluxInteg::AssembleFaceVector(
@@ -255,6 +255,6 @@
 //    }
 // }
 
-// } // namespace mach
+// } // namespace miso
 
 // #endif

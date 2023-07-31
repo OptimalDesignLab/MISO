@@ -4,12 +4,12 @@
 
 #include "mfem.hpp"
 
-#include "mach.hpp"
+#include "miso.hpp"
 // #include "advection.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 /// Defines the velocity field
 /// \param[in] x - coordinate of the point at which the velocity is needed
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "../../sandbox/mach_options.json";
+   const char *options_file = "../../sandbox/miso_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
       *out << "\n|| u_h - u ||_{L^2} = " 
                 << solver->calcL2Error(u0_function) << '\n' << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

@@ -10,7 +10,7 @@
 #include "thermal.hpp"
 
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto em_options = R"(
@@ -76,7 +76,7 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    *em_state = 0.0; // initialize zero field
 
    auto current_density = 3e6;
-   MachInputs inputs {
+   MISOInputs inputs {
       {"current_density", current_density},
       {"state", em_state->GetData()}
    };

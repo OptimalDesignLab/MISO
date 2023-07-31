@@ -1,15 +1,15 @@
-#ifndef MACH_COEFFICIENT
-#define MACH_COEFFICIENT
+#ifndef MISO_COEFFICIENT
+#define MISO_COEFFICIENT
 
 #include <map>
 
 #include "mfem.hpp"
 #include "tinysplinecxx.h"
 
-#include "mach_types.hpp"
+#include "miso_types.hpp"
 #include "utils.hpp"
 
-namespace mach
+namespace miso
 {
 /// TODO: remove this class, turn it into a grid function coefficient
 /// and then differentiate the grid function coefficient with respect
@@ -632,6 +632,6 @@ public:
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

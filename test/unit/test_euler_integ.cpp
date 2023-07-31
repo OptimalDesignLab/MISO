@@ -22,7 +22,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux jacobian", "[euler_flux_jac]",
       nrm(di) = dir[di];
    }
    adept::Stack stack;
-   mach::EulerIntegrator<dim> eulerinteg(stack);
+   miso::EulerIntegrator<dim> eulerinteg(stack);
 
    SECTION(" Euler flux jacobian w.r.t state is correct.")
    {
@@ -128,7 +128,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe Jacobian", "[Ismail]",
    mfem::Vector qL_plus(qL), qL_minus(qL);
    mfem::Vector qR_plus(qR), qR_minus(qR);
    adept::Stack diff_stack;
-   mach::IsmailRoeIntegrator<dim> ismailinteg(diff_stack);
+   miso::IsmailRoeIntegrator<dim> ismailinteg(diff_stack);
    // +ve perturbation
    qL_plus.Add(delta, v);
    qR_plus.Add(delta, v);
@@ -202,8 +202,8 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
       qL(di + 1) = rhou[di];
       qR(di + 1) = rhou2[di];
    }
-   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
-   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   miso::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
+   miso::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
    // create perturbation vector
    for (int di = 0; di < dim + 2; ++di)
    {
@@ -213,7 +213,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe based on ent-vars Jacobian", "[Ismail-ent]",
    mfem::Vector wL_plus(wL), wL_minus(wL);
    mfem::Vector wR_plus(wR), wR_minus(wR);
    adept::Stack diff_stack;
-   mach::IsmailRoeIntegrator<dim,true> ismailinteg(diff_stack);
+   miso::IsmailRoeIntegrator<dim,true> ismailinteg(diff_stack);
    // +ve perturbation
    wL_plus.Add(delta, v);
    wR_plus.Add(delta, v);
@@ -299,7 +299,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian", "[Ismail-face]",
    double diss_coeff = 1.0;
    std::unique_ptr<mfem::FiniteElementCollection> fec(
        new mfem::SBPCollection(1, dim));
-   mach::InterfaceIntegrator<dim, false> ismailfaceinteg(diff_stack, diss_coeff,
+   miso::InterfaceIntegrator<dim, false> ismailfaceinteg(diff_stack, diss_coeff,
                                                          fec.get());
    // +ve perturbation
    qL_plus.Add(delta, v);
@@ -374,8 +374,8 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian based on entropy variables
       qL(di + 1) = rhou[di];
       qR(di + 1) = rhou2[di];
    }
-   mach::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
-   mach::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
+   miso::calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
+   miso::calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
    // create perturbation vector
    for (int di = 0; di < dim + 2; ++di)
    {
@@ -388,7 +388,7 @@ TEMPLATE_TEST_CASE_SIG("Ismail-Roe face-flux Jacobian based on entropy variables
    double diss_coeff = 1.0;
    std::unique_ptr<mfem::FiniteElementCollection> fec(
        new mfem::SBPCollection(1, dim));
-   mach::InterfaceIntegrator<dim, true> ismailfaceinteg(diff_stack, diss_coeff,
+   miso::InterfaceIntegrator<dim, true> ismailfaceinteg(diff_stack, diss_coeff,
                                                         fec.get());
    // +ve perturbation
    wL_plus.Add(delta, v);
@@ -454,7 +454,7 @@ TEMPLATE_TEST_CASE_SIG("ApplyLPSScaling", "[LPSScaling]",
    // Create the adjJ matrix, the AD stack, and the integrator
    mfem::DenseMatrix adjJ(adjJ_data, dim, dim);
    adept::Stack diff_stack;
-   mach::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
+   miso::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
 
    SECTION("Apply scaling jacobian w.r.t AdjJ is correct")
    {
@@ -578,11 +578,11 @@ TEMPLATE_TEST_CASE_SIG("Mass integrator calcMatVec Jacobians",
       q(di + 1) = rhou[di];
    }
    mfem::Vector w(dim+2);
-   mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   miso::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
 
    // Create the AD stack and the integrator
    adept::Stack diff_stack;
-   mach::MassIntegrator<dim, true> mass_integ(diff_stack);
+   miso::MassIntegrator<dim, true> mass_integ(diff_stack);
 
    SECTION("convertVarsJacState Jacobian w.r.t state is correct")
    {
@@ -638,7 +638,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
    }
    if (entvar)
    {
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      miso::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
    else
    {
@@ -654,7 +654,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
    SECTION("Jacobian of Isentropic Vortex BC flux w.r.t state is correct")
    {
       fec.reset(new mfem::SBPCollection(1, dim));
-      mach::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
+      miso::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim + 2);
       for (int i = 0; i < dim + 2; i++)
@@ -694,7 +694,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
    SECTION("Jacobian of Isentropic Vortex BC flux w.r.t state is correct (DSBP)")
    {
       fec.reset(new mfem::DSBPCollection(1, dim));
-      mach::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
+      miso::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim + 2);
       for (int i = 0; i < dim + 2; i++)
@@ -734,7 +734,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
    SECTION("Jacobian of Isentropic Vortex BC flux w.r.t dir is correct")
    {
       fec.reset(new mfem::SBPCollection(1, dim));
-      mach::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
+      miso::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim);
       for (int i = 0; i < dim; i++)
@@ -774,7 +774,7 @@ TEMPLATE_TEST_CASE_SIG("Isentropic vortex BC flux", "[IsentropricVortexBC]",
    SECTION("Jacobian of Isentropic Vortex BC flux w.r.t dir is correct (DSBP)")
    {
       fec.reset(new mfem::DSBPCollection(1, dim));
-      mach::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
+      miso::IsentropicVortexBC<dim, entvar> isentropic_vortex(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim);
       for (int i = 0; i < dim; i++)
@@ -834,7 +834,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    }
    if (entvar)
    {
-      mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      miso::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    }
    else
    {
@@ -852,7 +852,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    {
       // Define the SBP elements and finite-element space
       fec.reset(new mfem::SBPCollection(1, dim));
-      mach::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
+      miso::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim + 2);
       for (int i = 0; i < dim + 2; i++)
@@ -893,7 +893,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    {
       // Define the SBP elements and finite-element space
       fec.reset(new mfem::DSBPCollection(1, dim));
-      mach::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
+      miso::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim + 2);
       for (int i = 0; i < dim + 2; i++)
@@ -934,7 +934,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    {
       // Define the SBP elements and finite-element space
       fec.reset(new mfem::SBPCollection(1, dim));
-      mach::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
+      miso::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim);
       for (int i = 0; i < dim; i++)
@@ -975,7 +975,7 @@ TEMPLATE_TEST_CASE_SIG("Slip Wall Flux Jacobians", "[Slip Wall]",
    {
       // Define the SBP elements and finite-element space
       fec.reset(new mfem::DSBPCollection(1, dim));
-      mach::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
+      miso::SlipWallBC<dim, entvar> slip_wall(diff_stack, fec.get());
       // create the perturbation vector
       mfem::Vector v(dim);
       for (int i = 0; i < dim; i++)
@@ -1056,7 +1056,7 @@ TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
    {
       // Define the SBP elements and finite-element space
       fec.reset(new mfem::SBPCollection(1, dim));
-      mach::PressureForce<dim> force(diff_stack, fec.get(), drag_dir);
+      miso::PressureForce<dim> force(diff_stack, fec.get(), drag_dir);
       // create the perturbation vector
       mfem::Vector v(dim + 2);
       for (int i = 0; i < dim + 2; i++)
@@ -1086,12 +1086,12 @@ TEMPLATE_TEST_CASE_SIG("Pressure force gradient", "[Pressure Force]",
    }
 
    mfem::Vector w(dim + 2);
-   mach::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+   miso::calcEntropyVars<double, dim>(q.GetData(), w.GetData());
    SECTION("Gradient of pressure stress w.r.t w is correct")
    {
       // Define the SBP elements and finite-element space
       fec.reset(new mfem::SBPCollection(1, dim));
-      mach::PressureForce<dim, true> force(diff_stack, fec.get(), drag_dir);
+      miso::PressureForce<dim, true> force(diff_stack, fec.get(), drag_dir);
       // create the perturbation vector
       mfem::Vector v(dim + 2);
       for (int i = 0; i < dim + 2; i++)
@@ -1148,7 +1148,7 @@ TEMPLATE_TEST_CASE_SIG("Entropy variables Jacobian", "[lps integrator]",
    // perturbed vectors
    mfem::Vector q_plus(q), q_minus(q);
    adept::Stack diff_stack;
-   mach::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
+   miso::EntStableLPSIntegrator<dim> lpsinteg(diff_stack);
    // +ve perturbation
    q_plus.Add(delta, v);
    // -ve perturbation

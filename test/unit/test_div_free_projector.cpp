@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 
 #include "electromag_test_data.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "div_free_projector.hpp"
 
 TEST_CASE("DivergenceFreeProjector::vectorJacobianProduct wrt in")
@@ -40,7 +40,7 @@ TEST_CASE("DivergenceFreeProjector::vectorJacobianProduct wrt in")
 
          auto ir_order = h1_fes.GetElementTransformation(0)->OrderW()
                            + 2 * fes.GetFE(0)->GetOrder();
-         mach::DivergenceFreeProjector op(h1_fes, fes, ir_order);
+         miso::DivergenceFreeProjector op(h1_fes, fes, ir_order);
 
          // initialize the vector that the Jacobian multiplies
          ParGridFunction p(&fes);
@@ -98,7 +98,7 @@ TEST_CASE("DivergenceFreeProjector::vectorJacobianProduct wrt mesh_coords")
 
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
-         auto inputs = mach::MachInputs({
+         auto inputs = miso::MISOInputs({
             {"mesh_coords", x_nodes.GetData()}
          });
          auto &mesh_fes = *x_nodes.ParFESpace();
@@ -110,7 +110,7 @@ TEST_CASE("DivergenceFreeProjector::vectorJacobianProduct wrt mesh_coords")
 
          auto ir_order = h1_fes.GetElementTransformation(0)->OrderW()
                            + 2 * fes.GetFE(0)->GetOrder();
-         mach::DivergenceFreeProjector op(h1_fes, fes, ir_order);
+         miso::DivergenceFreeProjector op(h1_fes, fes, ir_order);
 
          // initialize the vector that the Jacobian multiplies
          ParGridFunction p(&fes);

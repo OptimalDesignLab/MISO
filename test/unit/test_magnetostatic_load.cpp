@@ -6,10 +6,10 @@
 #include "mfem.hpp"
 
 #include "utils.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "magnetostatic.hpp"
 
-using namespace mach;
+using namespace miso;
 using namespace mfem;
 
 void simpleCurrent(const mfem::Vector &x,
@@ -70,11 +70,11 @@ TEST_CASE("MagnetostaticLoad Value Test")
    ConstantCoefficient nu(1.0);
 
    MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    HypreParVector tv(&fes);
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density", 1.0}
    });
 
@@ -135,10 +135,10 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
    ConstantCoefficient nu(1.0);
 
    MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    auto current_density = 1e6;
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density", current_density}
    });
    setInputs(ml, inputs);
@@ -202,13 +202,13 @@ TEST_CASE("MagnetostaticLoad vectorJacobianProduct wrt mesh_coords")
    ConstantCoefficient nu(1.0);
 
    MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    // extract mesh nodes and get their finite-element space
    auto &x_nodes = *dynamic_cast<mfem::ParGridFunction*>(mesh.GetNodes());
    auto &mesh_fes = *x_nodes.ParFESpace();
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"mesh_coords", x_nodes.GetData()}
    });
    setInputs(ml, inputs);

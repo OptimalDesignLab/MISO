@@ -10,7 +10,7 @@
 #include "thermal.hpp"
 
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto em_options = R"(
@@ -91,7 +91,7 @@ TEST_CASE("Torque Loop Regression Test")
    // The volume is lower because of bad mesh resolution
    constexpr auto current_density = M_1_PI * 1e7 * 1.5884635222882089;
 
-   MachInputs inputs {
+   MISOInputs inputs {
       {"current_density", current_density},
       {"fill-factor", 1.0},
       {"state", em_state->GetData()}

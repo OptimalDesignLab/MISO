@@ -1,5 +1,5 @@
-// #ifndef MACH_THERM_INTEG
-// #define MACH_THERM_INTEG
+// #ifndef MISO_THERM_INTEG
+// #define MISO_THERM_INTEG
 
 // #ifdef MFEM_USE_PUMI
 // #include <unordered_set>
@@ -7,7 +7,7 @@
 // #include "mfem.hpp"
 // #include "apfMDS.h"
 
-// namespace mach
+// namespace miso
 // {
 
 // class InteriorBoundaryOutFluxInteg : public mfem::BilinearFormIntegrator
@@ -47,7 +47,7 @@
 //                            mfem::DenseMatrix &elmat) override;
 // };
 
-// } // namespace mach
+// } // namespace miso
 
 // #endif
 

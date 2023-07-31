@@ -8,9 +8,9 @@
 
 using namespace mfem;
 using namespace std;
-using namespace mach;
+using namespace miso;
 
-namespace mach
+namespace miso
 {
 void PseudoTransientSolver::Init(TimeDependentOperator &_f)
 {
@@ -70,4 +70,4 @@ void RRKImplicitMidpointSolver::Step(Vector &x, double &t, double &dt)
    t += gamma * dt;
 }
 
-}  // namespace mach
+}  // namespace miso

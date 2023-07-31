@@ -1,19 +1,19 @@
-#ifndef MACH_MAGNETIC_LOAD
-#define MACH_MAGNETIC_LOAD
+#ifndef MISO_MAGNETIC_LOAD
+#define MISO_MAGNETIC_LOAD
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
-#include "mach_linearform.hpp"
+#include "miso_input.hpp"
+#include "miso_linearform.hpp"
 
-namespace mach
+namespace miso
 {
 class MagneticLoad final
 {
 public:
-   friend inline void setInputs(MagneticLoad &load, const MachInputs &inputs)
+   friend inline void setInputs(MagneticLoad &load, const MISOInputs &inputs)
    {
       setInputs(load.lf, inputs);
    }
@@ -53,7 +53,7 @@ public:
 
 private:
    std::unordered_map<std::string, mfem::ParGridFunction> mag_load_fields;
-   MachLinearForm lf;
+   MISOLinearForm lf;
    mfem::ScalarVectorProductCoefficient nuM;
 };
 
@@ -61,9 +61,9 @@ class LegacyMagneticLoad final
 {
 public:
    /// Used to set scalar inputs in the underlying load type
-   /// Ends up calling `setInputs` on either the `MachLinearForm` or
+   /// Ends up calling `setInputs` on either the `MISOLinearForm` or
    /// a specialized version for each particular load.
-   friend void setInputs(LegacyMagneticLoad &load, const MachInputs &inputs);
+   friend void setInputs(LegacyMagneticLoad &load, const MISOInputs &inputs);
 
    friend inline void setOptions(LegacyMagneticLoad &load,
                                  const nlohmann::json &options)
@@ -104,6 +104,6 @@ private:
    void assembleLoad();
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

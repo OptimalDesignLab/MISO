@@ -333,7 +333,7 @@ int SBPFiniteElement::getIntegrationPointIndex(const IntegrationPoint &ip) const
          return i;
       }
    }
-   throw mach::MachException(
+   throw miso::MISOException(
        "SBPFiniteElement::getIntegrationPointIndex(ip)\n"
        "\tprovided ip is not a node of given element!");
 }
@@ -348,7 +348,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    Q[0].SetSize(num_nodes);
    Vector pts(num_nodes);
    Vector wts(num_nodes);
-   mach::getLobattoQuadrature(degree + 2, pts, wts);
+   miso::getLobattoQuadrature(degree + 2, pts, wts);
    // shift nodes to [0,1] and scale quadrature
    for (int i = 0; i < num_nodes; ++i)
    {
@@ -418,7 +418,7 @@ SBPSegmentElement::SBPSegmentElement(const int degree)
    getNodeCoords(0, xi);
    xi *= 2.0;
    xi -= 1.0;
-   mach::getVandermondeForSeg(xi, order, V);
+   miso::getVandermondeForSeg(xi, order, V);
    // scale V to account for the different reference elements
    V *= sqrt(2.0);
 }
@@ -452,7 +452,7 @@ void SBPSegmentElement::CalcShape(const IntegrationPoint &ip,
       shape = 0.0;
       for (int i = 0; i <= order; ++i)
       {
-         mach::jacobiPoly(xvec, 0.0, 0.0, i, poly);
+         miso::jacobiPoly(xvec, 0.0, 0.0, i, poly);
          poly *= 2.0;  // scale to mfem reference element
          for (int k = 0; k < GetDof(); ++k)
          {
@@ -831,7 +831,7 @@ SBPTriangleElement::SBPTriangleElement(const int degree, const int num_nodes)
    xi -= 1.0;
    eta *= 2.0;
    eta -= 1.0;
-   mach::getVandermondeForTri(xi, eta, order, V);
+   miso::getVandermondeForTri(xi, eta, order, V);
    // scale V to account for the different reference elements
    V *= 2.0;
 }
@@ -869,7 +869,7 @@ void SBPTriangleElement::CalcShape(const IntegrationPoint &ip,
       {
          for (int j = 0; j <= r; ++j)
          {
-            mach::prorioPoly(xvec, yvec, r - j, j, poly);
+            miso::prorioPoly(xvec, yvec, r - j, j, poly);
             poly *= 2.0;  // scale to mfem reference element
             for (int k = 0; k < GetDof(); ++k)
             {

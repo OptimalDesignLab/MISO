@@ -3,7 +3,7 @@
 // #include "default_options.hpp"
 // #include "galer_diff.hpp"
 // using namespace std;
-// using namespace mach;
+// using namespace miso;
 // using namespace apf;
 // namespace mfem
 // {
@@ -226,8 +226,8 @@
 //    {
 //       case 1: nelmt = degree + 1; break;
 //       case 2: nelmt = (degree+1) * (degree+2) / 2; break;
-//       case 3: throw MachException("Not implemeneted yet.\n"); break;
-//       default: throw MachException("dim must be 1, 2 or 3.\n");
+//       case 3: throw MISOException("Not implemeneted yet.\n"); break;
+//       default: throw MISOException("dim must be 1, 2 or 3.\n");
 //    }
 //    // loop over all the element:
 //    // 1. build the patch for each element,

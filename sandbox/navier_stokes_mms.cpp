@@ -7,7 +7,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 /// Generate smoothly perturbed mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
       solver->printAdjoint("adjoint", degree+1);
 
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

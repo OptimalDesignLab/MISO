@@ -1,9 +1,9 @@
-#ifndef MACH_MESH_SENS_INTEG
-#define MACH_MESH_SENS_INTEG
+#ifndef MISO_MESH_SENS_INTEG
+#define MISO_MESH_SENS_INTEG
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for mesh sensitivity of dyadic domain integrators
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
@@ -147,7 +147,7 @@ protected:
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "mesh_sens_integ_def.hpp"
 

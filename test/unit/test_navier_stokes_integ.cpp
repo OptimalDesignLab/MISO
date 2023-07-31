@@ -30,7 +30,7 @@ TEMPLATE_TEST_CASE_SIG("ESViscousIntegrator::applyScalingJacState", "[ESViscousI
    mfem::DenseMatrix delw(delw_data, dim + 2, dim);
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   mach::ESViscousIntegrator<dim> esviscousinteg(diff_stack, Re_num, Pr_num, mu);
+   miso::ESViscousIntegrator<dim> esviscousinteg(diff_stack, Re_num, Pr_num, mu);
    // calculate the jacobian w.r.t q
    for (int di = 0; di < dim; ++di)
    {
@@ -90,7 +90,7 @@ TEMPLATE_TEST_CASE_SIG("ESViscousIntegrator::applyScalingJacDw", "[ESViscousInte
    mfem::DenseMatrix delw(delw_data, dim + 2, dim);
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   mach::ESViscousIntegrator<dim> esviscousinteg(diff_stack, Re_num, Pr_num, mu);
+   miso::ESViscousIntegrator<dim> esviscousinteg(diff_stack, Re_num, Pr_num, mu);
    // calculate the jacobian w.r.t q
    for (int di = 0; di < dim; ++di)
    {
@@ -171,7 +171,7 @@ TEMPLATE_TEST_CASE_SIG("Noslip Jacobian", "[NoSlipAdiabaticWallBC]",
    adept::Stack diff_stack;
 
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
+   miso::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
                                                     Re_num, Pr_num, q_ref, mu);
 
    SECTION("jacobian of no slip adiabatic wall w.r.t state is correct")
@@ -275,7 +275,7 @@ TEMPLATE_TEST_CASE_SIG("Noslip Jacobian w.r.t Dw", "[NoSlipAdiabaticWallBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
+   miso::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
                                                     Re_num, Pr_num, q_ref, mu);
 
    SECTION("jacobian of no slip adiabatic wall w.r.t Dw is correct")
@@ -353,7 +353,7 @@ TEMPLATE_TEST_CASE_SIG("Slip wall Jacobian states", "[ViscousSlipWallBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousSlipWallBC<dim> viscousslipwall(diff_stack, fec.get(), Re_num,
+   miso::ViscousSlipWallBC<dim> viscousslipwall(diff_stack, fec.get(), Re_num,
                                                 Pr_num, mu);
 
    SECTION("jacobian of Viscous Slip Wall BC w.r.t state is correct")
@@ -420,7 +420,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous inflow Jacobian", "[ViscousInflowBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousInflowBC<dim> viscousinflow(diff_stack, fec.get(), Re_num,
+   miso::ViscousInflowBC<dim> viscousinflow(diff_stack, fec.get(), Re_num,
                                             Pr_num, q_in, mu);
 
    SECTION("jacobian of viscous inflow bc w.r.t state is correct")
@@ -486,7 +486,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous outflow Jacobian", "[ViscousOutflowBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousOutflowBC<dim> viscousoutflow(diff_stack, fec.get(), Re_num,
+   miso::ViscousOutflowBC<dim> viscousoutflow(diff_stack, fec.get(), Re_num,
                                               Pr_num, q_out, mu);
 
    SECTION("jacobian of viscous outflow bc w.r.t state is correct")
@@ -552,7 +552,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous farfield Jacobian", "[ViscousFarFieldBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousFarFieldBC<dim> viscousfarfield(diff_stack, fec.get(), Re_num,
+   miso::ViscousFarFieldBC<dim> viscousfarfield(diff_stack, fec.get(), Re_num,
                                                 Pr_num, qfs, mu);
 
    SECTION("jacobian of viscous farfield bc w.r.t state is correct")
@@ -622,7 +622,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous Exact BC Jacobian", "[VisExactBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousExactBC<dim> viscousexact(diff_stack, fec.get(), Re_num,
+   miso::ViscousExactBC<dim> viscousexact(diff_stack, fec.get(), Re_num,
                                           Pr_num, exact, mu);
 
    SECTION("jacobian of viscous farfield bc w.r.t state is correct")
@@ -705,7 +705,7 @@ TEMPLATE_TEST_CASE_SIG("Surface force gradients", "[Surface Force]",
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    adept::Stack diff_stack;
    fec.reset(new mfem::SBPCollection(1, dim));
-   mach::SurfaceForce<dim> force(diff_stack, fec.get(), dim + 2, Re, Pr,
+   miso::SurfaceForce<dim> force(diff_stack, fec.get(), dim + 2, Re, Pr,
                                  q_ref, drag_dir);
 
    SECTION("Gradient of surface force w.r.t q is correct")

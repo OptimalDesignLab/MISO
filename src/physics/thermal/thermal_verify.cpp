@@ -6,7 +6,7 @@
 // using namespace std;
 // using namespace mfem;
 
-// namespace mach
+// namespace miso
 // {
 
 // static std::default_random_engine gen(std::random_device{}());

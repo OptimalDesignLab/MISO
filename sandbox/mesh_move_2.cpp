@@ -1,7 +1,7 @@
 #include "mfem.hpp"
 #include "thermal.hpp"
 #include "gmi_egads.h"
-#include "mach_egads.hpp"
+#include "miso_egads.hpp"
 #include "mesh_movement.hpp"
 
 #include <fstream>
@@ -9,7 +9,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 #ifdef MFEM_USE_PUMI
 int main(int argc, char *argv[])
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
       std::cout << "Solver Done" << std::endl;
 
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
 
    }

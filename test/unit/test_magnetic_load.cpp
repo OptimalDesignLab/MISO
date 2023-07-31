@@ -6,10 +6,10 @@
 #include "mfem.hpp"
 
 #include "utils.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "magnetic_load.hpp"
 
-using namespace mach;
+using namespace miso;
 using namespace mfem;
 
 void northMagnetizationSource(const Vector &x,
@@ -59,11 +59,11 @@ TEST_CASE("LegacyMagneticLoad Value Test")
    ConstantCoefficient nu(1.0);///(M_PI*4e-7));
 
    LegacyMagneticLoad load(fes, mag_coeff, nu);
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    HypreParVector tv(&fes);
 
-   MachInputs inputs;
+   MISOInputs inputs;
    setInputs(ml, inputs);
    tv = 0.0;
    addLoad(ml, tv);
@@ -115,11 +115,11 @@ TEST_CASE("MagneticLoad Value Test")
    ConstantCoefficient nu(1.0);///(M_PI*4e-7));
 
    MagneticLoad loadLF(fes, mag_coeff, nu);
-   MachLoad mlLF(loadLF);
+   MISOLoad mlLF(loadLF);
 
    HypreParVector tv(&fes);
 
-   MachInputs inputs;
+   MISOInputs inputs;
 
    setInputs(mlLF, inputs);
    tv = 0.0;
@@ -162,13 +162,13 @@ TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
    ConstantCoefficient nu(1.0);
 
    MagneticLoad load(fes, mag_coeff, nu);
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    // extract mesh nodes and get their finite-element space
    auto &x_nodes = *dynamic_cast<mfem::ParGridFunction*>(mesh.GetNodes());
    auto &mesh_fes = *x_nodes.ParFESpace();
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"mesh_coords", x_nodes.GetData()}
    });
    setInputs(ml, inputs);

@@ -1,14 +1,14 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       diag_mass_integ.cpp
       diag_mass_integ.hpp
-      mach_input.cpp
-      mach_input.hpp
-      mach_integrator.cpp
-      mach_integrator.hpp
-      mach_load.hpp
-      mach_nonlinearform.cpp
-      mach_nonlinearform.hpp
+      miso_input.cpp
+      miso_input.hpp
+      miso_integrator.cpp
+      miso_integrator.hpp
+      miso_load.hpp
+      miso_nonlinearform.cpp
+      miso_nonlinearform.hpp
       #mass_operator.cpp
       #mass_operator.hpp
       mfem_common_integ.cpp
@@ -18,7 +18,7 @@ target_sources(mach
       solver.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

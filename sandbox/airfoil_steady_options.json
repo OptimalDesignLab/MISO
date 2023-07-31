@@ -1,6 +1,6 @@
 {
    "flow-param": {
-      "mach": 0.5,
+      "miso": 0.5,
       "aoa": 3.0,
       "roll-axis": 0,
       "pitch-axis": 1

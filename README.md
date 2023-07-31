@@ -1,7 +1,7 @@
-![master](https://github.com/OptimalDesignLab/mach/actions/workflows/build.yml/badge.svg?branch=master) ![dev](https://github.com/OptimalDesignLab/mach/actions/workflows/format.yml/badge.svg?branch=dev)
-# ODL Mach #
+![master](https://github.com/OptimalDesignLab/miso/actions/workflows/build.yml/badge.svg?branch=master) ![dev](https://github.com/OptimalDesignLab/miso/actions/workflows/format.yml/badge.svg?branch=dev)
+# ODL MISO #
 
-Mach is a C++ library for multi-physics finite-element simulations based on LLNL's [MFEM](https://github.com/mfem/mfem).
+MISO is a C++ library for multi-physics finite-element simulations based on LLNL's [MFEM](https://github.com/mfem/mfem).
 
 ## Build Instructions ##
 
@@ -27,7 +27,7 @@ To configure the library to build in `release` mode (with optimizations turned o
 
 ### Build: ###
 
-Once configured, execute `make` from the build directory to build Mach. As usual, you can also use the `-j` argument to build in parallel.
+Once configured, execute `make` from the build directory to build MISO. As usual, you can also use the `-j` argument to build in parallel.
 
 If using a build system other than GNU `make`, you can let CMake pick the computer's default build system with a command like `cmake --build . -j 4 --target install`. This tells CMake to `build` the project in the `.` (build) directory, in parallel using 4 processes, with the `install` target.
 
@@ -41,13 +41,13 @@ TODO: make `make tests` an alias to `ctest --verbose` to always see verbose outp
 
 ### Installation: ###
 
-To install Mach in a specific location, add `-DCMAKE_INSTALL_PREFIX="/path/to/mach/install"` to the configuration file. If not specified, the install directory will be the root directory, and the library will be installed to `lib/`, and the header files will be copied to `include/`. Use `make install` to install the library.
+To install MISO in a specific location, add `-DCMAKE_INSTALL_PREFIX="/path/to/miso/install"` to the configuration file. If not specified, the install directory will be the root directory, and the library will be installed to `lib/`, and the header files will be copied to `include/`. Use `make install` to install the library.
 
-TODO: Install pkg-config files so it is easier to use Mach in other CMake projects.
+TODO: Install pkg-config files so it is easier to use MISO in other CMake projects.
 
 ### Documentation: ###
 
-Use the build target `doc` to build the doxygen documentaion for Mach.
+Use the build target `doc` to build the doxygen documentaion for MISO.
 
 TODO: make building the documentaion work
 

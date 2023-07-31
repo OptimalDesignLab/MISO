@@ -1,11 +1,11 @@
-#ifndef MACH_MATERIAL_LIBRARY
-#define MACH_MATERIAL_LIBRARY
+#ifndef MISO_MATERIAL_LIBRARY
+#define MISO_MATERIAL_LIBRARY
 
 #include "nlohmann/json.hpp"
 
-namespace mach
+namespace miso
 {
-/// Defines the material library for for mach
+/// Defines the material library for for miso
 ///
 /// This is placed in a hpp file instead of a json file so that it can be
 /// compiled in and doesn't require a path to it. This also allows comments.
@@ -343,6 +343,6 @@ nlohmann::json material_library{
       {"sigma", 58.14e6},
       {"max-temp", 400}}}};
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

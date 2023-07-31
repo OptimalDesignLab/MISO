@@ -1,4 +1,4 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       thermal.cpp
       thermal.hpp
@@ -9,7 +9,7 @@ target_sources(mach
       thermal_verify.cpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

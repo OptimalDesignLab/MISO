@@ -170,7 +170,7 @@
 // TEST_CASE("InteriorBoundaryOutFluxInteg::AssembleFaceMatrix")
 // {
 //    using namespace mfem;
-//    using namespace mach;
+//    using namespace miso;
 
 //    constexpr int dim = 3;
 //    constexpr int num_edge = 2;
@@ -237,7 +237,7 @@
 TEST_CASE("AggregateIntegratorNumerator/Denominator::GetEnergy")
 {
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    constexpr int dim = 3;
    int num_edge = 2;
@@ -311,7 +311,7 @@ TEST_CASE("AggregateIntegrator::AssembleVector", "[AggregateIntegrator]")
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get()));
 
-         std::unique_ptr<mach::AggregateIntegrator> func;
+         std::unique_ptr<miso::AggregateIntegrator> func;
 
          const double scale = 0.01;
 
@@ -330,8 +330,8 @@ TEST_CASE("AggregateIntegrator::AssembleVector", "[AggregateIntegrator]")
          double rhoa = 5.0;
          NonlinearForm agg(fes.get());
          agg.AddDomainIntegrator(
-            new mach::AggregateIntegrator(fes.get(), rhoa, m, &q));
-         func.reset(new mach::AggregateIntegrator(fes.get(), rhoa, m));
+            new miso::AggregateIntegrator(fes.get(), rhoa, m, &q));
+         func.reset(new miso::AggregateIntegrator(fes.get(), rhoa, m));
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
@@ -380,7 +380,7 @@ TEST_CASE("TempIntegrator::AssembleVector", "[TempIntegrator]")
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get()));
 
-         std::unique_ptr<mach::TempIntegrator> func;
+         std::unique_ptr<miso::TempIntegrator> func;
 
          const double scale = 0.01;
 
@@ -393,8 +393,8 @@ TEST_CASE("TempIntegrator::AssembleVector", "[TempIntegrator]")
 
          NonlinearForm tempint(fes.get());
          tempint.AddDomainIntegrator(
-            new mach::TempIntegrator(fes.get(), &q));
-         func.reset(new mach::TempIntegrator(fes.get()));
+            new miso::TempIntegrator(fes.get(), &q));
+         func.reset(new miso::TempIntegrator(fes.get()));
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
@@ -445,7 +445,7 @@ TEST_CASE("AggregateResIntegrator::AssembleVector", "[AggregateResIntegrator]")
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get()));
 
-         std::unique_ptr<mach::AggregateResIntegrator> func;
+         std::unique_ptr<miso::AggregateResIntegrator> func;
 
          const double scale = 0.01;
 
@@ -476,8 +476,8 @@ TEST_CASE("AggregateResIntegrator::AssembleVector", "[AggregateResIntegrator]")
          GridFunction dJdx(*x_nodes);
          NonlinearForm agg(mesh_fes);
          agg.AddDomainIntegrator(
-            new mach::AggregateResIntegrator(fes.get(), rhoa, m, &q));
-         func.reset(new mach::AggregateResIntegrator(fes.get(), rhoa, m));
+            new miso::AggregateResIntegrator(fes.get(), rhoa, m, &q));
+         func.reset(new miso::AggregateResIntegrator(fes.get(), rhoa, m));
          agg.Mult(*x_nodes, dJdx);
          double dJdx_dot_v = dJdx * v;
 
@@ -522,7 +522,7 @@ TEST_CASE("TempResIntegrator::AssembleVector", "[TempResIntegrator]")
          std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
              mesh.get(), fec.get()));
 
-         std::unique_ptr<mach::TempResIntegrator> func;
+         std::unique_ptr<miso::TempResIntegrator> func;
 
          const double scale = 0.01;
 
@@ -546,8 +546,8 @@ TEST_CASE("TempResIntegrator::AssembleVector", "[TempResIntegrator]")
          GridFunction dJdx(*x_nodes);
          NonlinearForm tempint(mesh_fes);
          tempint.AddDomainIntegrator(
-            new mach::TempResIntegrator(fes.get(), &q));
-         func.reset(new mach::TempResIntegrator(fes.get()));
+            new miso::TempResIntegrator(fes.get(), &q));
+         func.reset(new miso::TempResIntegrator(fes.get()));
          tempint.Mult(*x_nodes, dJdx);
          double dJdx_dot_v = dJdx * v;
 

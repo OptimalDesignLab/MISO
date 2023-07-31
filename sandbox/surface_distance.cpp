@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
 {
    using namespace std;
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    // Initialize MPI
    MPI_Init(&argc, &argv);

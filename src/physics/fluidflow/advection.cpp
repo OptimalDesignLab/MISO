@@ -6,7 +6,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace miso
 {
 void AdvectionIntegrator::AssembleElementMatrix(const FiniteElement &el,
                                                 ElementTransformation &Trans,
@@ -119,7 +119,7 @@ AdvectionSolver<dim>::AdvectionSolver(const nlohmann::json &json_options,
    /// TODO: This should not be necessary?
    evolver.reset(
        //   new LinearEvolver(*(mass_matrix), *(stiff_matrix), *(out)));
-       new MachEvolver(ess_bdr,
+       new MISOEvolver(ess_bdr,
                        nullptr,
                        mass.get(),
                        nullptr,
@@ -135,4 +135,4 @@ template class AdvectionSolver<1>;
 template class AdvectionSolver<2>;
 template class AdvectionSolver<3>;
 
-}  // namespace mach
+}  // namespace miso

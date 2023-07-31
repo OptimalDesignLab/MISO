@@ -1,11 +1,11 @@
-#ifndef MACH_IRROTATIONAL_PROJECTOR
-#define MACH_IRROTATIONAL_PROJECTOR
+#ifndef MISO_IRROTATIONAL_PROJECTOR
+#define MISO_IRROTATIONAL_PROJECTOR
 
 #include "mfem.hpp"
 
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 /// Forward declarations of mesh sens integrators
 class DiffusionIntegratorMeshSens;
@@ -52,12 +52,12 @@ class IrrotationalProjector : public mfem::Operator
 {
 public:
    /// Used to set inputs in the operator
-   friend void setInputs(IrrotationalProjector &op, const MachInputs &inputs);
+   friend void setInputs(IrrotationalProjector &op, const MISOInputs &inputs);
 
    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
    // compute the Nedelec DoFs of the irrotational portion, 'y', of
    // this vector field.  The resulting GridFunction will satisfy Curl y = 0
-   // to machine precision.
+   // to misoine precision.
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    /// \brief Reverse-mode differentiation of IrrotationalProjector::Mult
@@ -103,6 +103,6 @@ private:
    mfem::Array<int> ess_bdr, ess_bdr_tdofs;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

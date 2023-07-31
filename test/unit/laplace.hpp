@@ -1,9 +1,9 @@
-#ifndef MACH_LAPLACE
-#define MACH_LAPLACE
+#ifndef MISO_LAPLACE
+#define MISO_LAPLACE
 
 #include "viscous_integ.hpp"
 
-namespace mach
+namespace miso
 {
 
 /// Volume integrator for scalar, second-order operator
@@ -169,6 +169,6 @@ private:
    int deg; 
 };
 
-} // namespace mach
+} // namespace miso
 
 #endif

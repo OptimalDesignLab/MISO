@@ -1,5 +1,5 @@
-#ifndef MACH_MESH_MOVEMENT
-#define MACH_MESH_MOVEMENT
+#ifndef MISO_MESH_MOVEMENT
+#define MISO_MESH_MOVEMENT
 
 #include "mfem.hpp"
 
@@ -10,7 +10,7 @@ namespace mfem
 class Coefficient;
 }  // namespace mfem
 
-namespace mach
+namespace miso
 {
 class MeshMovementSolver : public AbstractSolver
 {
@@ -93,6 +93,6 @@ private:
    // static double MuFunc(const mfem::Vector &x, int ie);
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

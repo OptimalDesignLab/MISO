@@ -1,5 +1,5 @@
-#ifndef MACH_SBP_OPERATORS
-#define MACH_SBP_OPERATORS
+#ifndef MISO_SBP_OPERATORS
+#define MISO_SBP_OPERATORS
 
 namespace mfem
 {

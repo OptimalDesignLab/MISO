@@ -1,5 +1,5 @@
-#ifndef MACH_EULER
-#define MACH_EULER
+#ifndef MISO_EULER
+#define MISO_EULER
 
 //#include <fstream>
 
@@ -10,7 +10,7 @@
 
 // using adept::adouble;
 
-namespace mach
+namespace miso
 {
 /// Solver for inviscid flow problems
 /// dim - number of spatial dimensions (1, 2, or 3)
@@ -63,8 +63,8 @@ public:
    void setSolutionError(void (*u_exact)(const mfem::Vector &, mfem::Vector &));
 
 protected:
-   /// free-stream Mach number
-   double mach_fs;
+   /// free-stream MISO number
+   double miso_fs;
    /// free-stream angle of attack
    double aoa_fs;
    /// index of dimension corresponding to nose to tail axis
@@ -153,6 +153,6 @@ protected:
        MPI_Comm comm);
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

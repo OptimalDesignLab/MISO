@@ -121,7 +121,7 @@ TEST_CASE("MeshDependentVectorCoefficient::EvalRevDiff",
 {
    using namespace mfem;
    // using namespace electromag_data;
-   using namespace mach;
+   using namespace miso;
 
    constexpr double eps_fd = 1e-5;
    constexpr int dim = 3;
@@ -214,7 +214,7 @@ TEST_CASE("FunctionCoefficient::EvalRevDiff",
 {
    using namespace mfem;
    // using namespace electromag_data;
-   using namespace mach;
+   using namespace miso;
 
    constexpr double eps_fd = 1e-5;
    constexpr int dim = 3;
@@ -294,7 +294,7 @@ TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
 {
    using namespace mfem;
    // using namespace electromag_data;
-   using namespace mach;
+   using namespace miso;
 
    constexpr double eps_fd = 1e-5;
    constexpr int dim = 3;
@@ -317,7 +317,7 @@ TEST_CASE("SteinmetzCoefficient::EvalRevDiff",
       VectorFunctionCoefficient pert(dim, electromag_data::randVectorState);
       A.ProjectCoefficient(pert);
 
-      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, A);
+      miso::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, A);
 
       for (int j = 0; j < fes.GetNE(); j++)
       {
@@ -376,7 +376,7 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
           "[SteinmetzVectorDiffCoefficient]")
 {
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    constexpr double eps_fd = 1e-5;
    constexpr int dim = 3;
@@ -396,8 +396,8 @@ TEST_CASE("SteinmetzVectorDiffCoefficient::Eval",
       VectorFunctionCoefficient pert(dim, electromag_data::randVectorState);
       A.ProjectCoefficient(pert);
 
-      mach::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, A);
-      mach::SteinmetzVectorDiffCoefficient d_coeff(1, 2, 4, 0.5, 0.6, A);
+      miso::SteinmetzCoefficient coeff(1, 2, 4, 0.5, 0.6, A);
+      miso::SteinmetzVectorDiffCoefficient d_coeff(1, 2, 4, 0.5, 0.6, A);
 
       for (int j = 0; j < fes.GetNE(); j++)
       {
@@ -461,7 +461,7 @@ TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
           "[ReluctivityCoefficient]")
 {
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    constexpr double eps_fd = 1e-5;
    constexpr int dim = 3;
@@ -491,7 +491,7 @@ TEST_CASE("ReluctivityCoefficient::EvalStateDeriv",
       auto h = material_library["hiperco50"]["H"].get<std::vector<double>>();
       // auto b = material_library["team13"]["B"].get<std::vector<double>>();
       // auto h = material_library["team13"]["H"].get<std::vector<double>>();
-      mach::ReluctivityCoefficient coeff(b, h);
+      miso::ReluctivityCoefficient coeff(b, h);
 
       for (int j = 0; j < fes.GetNE(); j++)
       {

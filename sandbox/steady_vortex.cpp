@@ -13,7 +13,7 @@ constexpr bool entvar = false;
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
       l2_error = (static_cast<EulerSolver<2, entvar>&>(*solver)
                             .calcConservativeVarsL2Error(uexact, 0));
       res_error = solver->calcResidualNorm();
-      double drag = abs(solver->calcOutput("drag") - (-1 / mach::euler::gamma));
+      double drag = abs(solver->calcOutput("drag") - (-1 / miso::euler::gamma));
       double entropy = solver->calcOutput("entropy");
 
       out->precision(15);
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
       *out << "\nEntropy error = "
            << fabs(entropy - calcEntropyTotalExact()) << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

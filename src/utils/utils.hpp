@@ -1,5 +1,5 @@
-#ifndef MACH_UTILS
-#define MACH_UTILS
+#ifndef MISO_UTILS
+#define MISO_UTILS
 
 #include <functional>
 #include <exception>
@@ -8,9 +8,9 @@
 
 #include "mfem.hpp"
 
-#include "mach_types.hpp"
+#include "miso_types.hpp"
 
-namespace mach
+namespace miso
 {
 /// Perform quadratic interpolation based on (x0,y0,dydx0) and (x1,y1)
 /// \param[in] x0 - location of first dependent data point
@@ -21,12 +21,12 @@ namespace mach
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1);
 
 /// Handles (high-level) exceptions in both serial and parallel
-class MachException : public std::exception
+class MISOException : public std::exception
 {
 public:
    /// Class constructor.
    /// \param[in] err_msg - the error message to be printed
-   MachException(std::string err_msg) : error_msg(std::move(std::move(err_msg)))
+   MISOException(std::string err_msg) : error_msg(std::move(std::move(err_msg)))
    { }
 
    /// Overwrites inherieted member that returns a c-string.
@@ -134,7 +134,7 @@ mfem::HypreParVector bufferToHypreParVector(
 //    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
 //    // compute the Nedelec DoFs of the irrotational portion, 'y', of
 //    // this vector field.  The resulting GridFunction will satisfy Curl y = 0
-//    // to machine precision.
+//    // to misoine precision.
 //    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
 //    /// \brief Reverse-mode differentiation of IrrotationalProjector::Mult
@@ -264,6 +264,6 @@ void transferSolution(MeshType &old_mesh,
                       const GridFunType &in,
                       GridFunType &out);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

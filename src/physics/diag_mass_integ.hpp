@@ -1,9 +1,9 @@
-#ifndef MACH_DIAG_MASS_INTEG
-#define MACH_DIAG_MASS_INTEG
+#ifndef MISO_DIAG_MASS_INTEG
+#define MISO_DIAG_MASS_INTEG
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for diagonal mass matrices that arise in SBP discretizations
 class DiagMassIntegrator : public mfem::BilinearFormIntegrator
@@ -31,6 +31,6 @@ private:
    bool space_vary_dt;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

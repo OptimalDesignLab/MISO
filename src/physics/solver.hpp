@@ -1,5 +1,5 @@
-#ifndef MACH_SOLVER
-#define MACH_SOLVER
+#ifndef MISO_SOLVER
+#define MISO_SOLVER
 
 #include <fstream>
 #include <functional>
@@ -10,11 +10,11 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "mach_integrator.hpp"
-#include "mach_input.hpp"
-#include "mach_output.hpp"
-#include "mach_residual.hpp"
-#include "mach_types.hpp"
+#include "miso_integrator.hpp"
+#include "miso_input.hpp"
+#include "miso_output.hpp"
+#include "miso_residual.hpp"
+#include "miso_types.hpp"
 #include "utils.hpp"
 
 #ifdef MFEM_USE_PUMI
@@ -31,7 +31,7 @@ class Mesh2;
 #ifdef MFEM_USE_EGADS
 #include "gmi_egads.h"
 #endif  // MFEM_USE_EGADS
-namespace mach
+namespace miso
 {
 struct pumiDeleter
 {
@@ -42,13 +42,13 @@ struct pumiDeleter
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 #endif
 
-namespace mach
+namespace miso
 {
-class MachEvolver;
-class MachLoad;
+class MISOEvolver;
+class MISOLoad;
 
 /// Serves as a base class for specific PDE solvers
 class AbstractSolver
@@ -370,19 +370,19 @@ public:
 
    inline virtual void solveForState(double *state)
    {
-      MachInputs inputs;
+      MISOInputs inputs;
       solveForState(inputs, state);
    }
 
    inline virtual void solveForState(mfem::HypreParVector &state)
    {
-      MachInputs inputs;
+      MISOInputs inputs;
       solveForState(inputs, state);
    }
 
-   virtual void solveForState(const MachInputs &inputs, double *state);
+   virtual void solveForState(const MISOInputs &inputs, double *state);
 
-   virtual void solveForState(const MachInputs &inputs,
+   virtual void solveForState(const MISOInputs &inputs,
                               mfem::HypreParVector &state);
 
    /// Solve for the adjoint based on current mesh, solver, etc.
@@ -442,7 +442,7 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating functional
    /// \return scalar value of estimated functional value
-   double calcOutput(const std::string &fun, const MachInputs &inputs);
+   double calcOutput(const std::string &fun, const MISOInputs &inputs);
 
    /// Evaluates and returns the partial derivative of output functional
    /// specifed by `of` with respect to the input specified by `wrt`
@@ -453,7 +453,7 @@ public:
    /// \param[out] partial - the partial with respect to a scalar-valued input
    void calcOutputPartial(const std::string &of,
                           const std::string &wrt,
-                          const MachInputs &inputs,
+                          const MISOInputs &inputs,
                           double &partial);
 
    /// Evaluates and returns the partial derivative of output functional
@@ -465,7 +465,7 @@ public:
    /// \param[out] partial - the partial with respect to a vector-valued input
    void calcOutputPartial(const std::string &of,
                           const std::string &wrt,
-                          const MachInputs &inputs,
+                          const MISOInputs &inputs,
                           double *partial);
 
    /// Evaluates and returns the partial derivative of output functional
@@ -477,7 +477,7 @@ public:
    /// \param[out] partial - the partial with respect to a vector-valued input
    void calcOutputPartial(const std::string &of,
                           const std::string &wrt,
-                          const MachInputs &inputs,
+                          const MISOInputs &inputs,
                           mfem::HypreParVector &partial);
 
    /// Compute the residual norm based on the current solution in `u`
@@ -518,17 +518,17 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \param[out] residual - the residual
-   void calcResidual(const MachInputs &inputs, double *res_buffer) const;
+   void calcResidual(const MISOInputs &inputs, double *res_buffer) const;
 
    /// Compute the residual based on inputs and store the it in `residual`
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \param[out] residual - the residual
-   void calcResidual(const MachInputs &inputs,
+   void calcResidual(const MISOInputs &inputs,
                      mfem::HypreParVector &residual) const;
 
    /// Set inputs for residual integrators and assemble state jacobian
-   void linearize(const MachInputs &inputs);
+   void linearize(const MISOInputs &inputs);
 
    /// Compute vector jacobian product for derivative with respect to a scalar
    /// \param[in] residual_bar - multiplies jacobian on the left hand side
@@ -707,11 +707,11 @@ protected:
    /// the spatial residual (a semilinear form)
    std::unique_ptr<NonlinearFormType> res;
    /// the spatial residual /* only for demonstration */
-   std::unique_ptr<MachResidual> new_res;
+   std::unique_ptr<MISOResidual> new_res;
    /// the stiffness matrix bilinear form
    std::unique_ptr<BilinearFormType> stiff;
    /// the load vector linear form
-   std::unique_ptr<MachLoad> load;
+   std::unique_ptr<MISOLoad> load;
    /// entropy/energy that is needed for RRK methods
    std::unique_ptr<NonlinearFormType> ent;
 
@@ -723,7 +723,7 @@ protected:
    /// variables
    std::map<std::string, mfem::HypreParVector> ext_tvs;
    /// collection of integrators for the residual
-   std::vector<MachIntegrator> res_integrators;
+   std::vector<MISOIntegrator> res_integrators;
    /// map of linear forms that will compute
    /// \psi^T \frac{\partial R}{\partial field}
    /// for each field the residual depends on
@@ -741,7 +741,7 @@ protected:
    /// time-marching method (might be NULL)
    std::unique_ptr<mfem::ODESolver> ode_solver;
    /// the operator used for time-marching ODEs
-   std::unique_ptr<MachEvolver> evolver;
+   std::unique_ptr<MISOEvolver> evolver;
 
    /// newton solver for the steady problem
    std::unique_ptr<mfem::NewtonSolver> newton_solver;
@@ -762,7 +762,7 @@ protected:
    std::vector<mfem::Array<int>> bndry_marker;
 
    /// map of outputs
-   std::map<std::string, MachOutput> outputs;
+   std::map<std::string, MISOOutput> outputs;
 
    //--------------------------------------------------------------------------
 
@@ -934,45 +934,45 @@ protected:
                   MPI_Comm comm = MPI_COMM_WORLD);
 
    /// Adds domain integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
+   /// reference to it to in fun_integrators as a MISOIntegrator
    /// \param[in] fun - specifies the desired functional
    /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addResidualDomainIntegrator(T *integrator)
    {
       res->AddDomainIntegrator(integrator);
       res_integrators.emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
+      miso::addSensitivityIntegrator(
           *integrator, res_fields, res_sens, res_scalar_sens);
    }
 
    /// Adds interface integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
+   /// reference to it to in fun_integrators as a MISOIntegrator
    /// \param[in] fun - specifies the desired functional
    /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addResidualInteriorFaceIntegrator(T *integrator)
    {
       res->AddInteriorFaceIntegrator(integrator);
       res_integrators.emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
+      miso::addSensitivityIntegrator(
           *integrator, res_fields, res_sens, res_scalar_sens);
    }
 
    /// Adds boundary integrator to the nonlinear form for `fun`, and adds
-   /// reference to it to in fun_integrators as a MachIntegrator
+   /// reference to it to in fun_integrators as a MISOIntegrator
    /// \param[in] fun - specifies the desired functional
    /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addResidualBdrFaceIntegrator(T *integrator,
                                      mfem::Array<int> &bdr_marker)
    {
       res->AddBdrFaceIntegrator(integrator, bdr_marker);
       res_integrators.emplace_back(*integrator);
-      mach::addSensitivityIntegrator(
+      miso::addSensitivityIntegrator(
           *integrator, res_fields, res_sens, res_scalar_sens);
    }
 
@@ -1020,6 +1020,6 @@ SolverPtr createSolver(const std::string &opt_file_name,
    return createSolver<DerivedSolver>(json_options, move(smesh), comm);
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

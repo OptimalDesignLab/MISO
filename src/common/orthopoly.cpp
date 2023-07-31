@@ -6,7 +6,7 @@
 using namespace std;
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 void getLobattoQuadrature(const int num_nodes, Vector &x, Vector &w)
 {
@@ -146,7 +146,7 @@ void getVandermondeForSeg(const Vector &x, const int degree, DenseMatrix &V)
    for (int r = 0; r <= degree; ++r)
    {
       V.GetColumnReference(ptr, poly);
-      mach::jacobiPoly(x, 0.0, 0.0, r, poly);
+      miso::jacobiPoly(x, 0.0, 0.0, r, poly);
       ptr += 1;
    }
 }
@@ -167,10 +167,10 @@ void getVandermondeForTri(const Vector &x,
       for (int j = 0; j <= r; ++j)
       {
          V.GetColumnReference(ptr, poly);
-         mach::prorioPoly(x, y, r - j, j, poly);
+         miso::prorioPoly(x, y, r - j, j, poly);
          ptr += 1;
       }
    }
 }
 
-}  // namespace mach
+}  // namespace miso

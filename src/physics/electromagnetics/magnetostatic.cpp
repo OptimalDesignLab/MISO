@@ -35,34 +35,34 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
    if (!component["linear"].get<bool>())
    {
       std::unique_ptr<mfem::Coefficient> lin_coeff;
-      std::unique_ptr<mach::StateCoefficient> nonlin_coeff;
+      std::unique_ptr<miso::StateCoefficient> nonlin_coeff;
 
       auto mu_r = materials[material]["mu_r"].get<double>();
       lin_coeff.reset(new mfem::ConstantCoefficient(1.0 / (mu_r * mu_0)));
 
       // if (material == "team13")
       // {
-      //    nonlin_coeff.reset(new mach::team13ReluctivityCoefficient());
+      //    nonlin_coeff.reset(new miso::team13ReluctivityCoefficient());
       // }
       // else
       // {
       auto b = materials[material]["B"].get<std::vector<double>>();
       auto h = materials[material]["H"].get<std::vector<double>>();
-      nonlin_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+      nonlin_coeff.reset(new miso::ReluctivityCoefficient(b, h));
       // }
 
-      temp_coeff.reset(new mach::ParameterContinuationCoefficient(
+      temp_coeff.reset(new miso::ParameterContinuationCoefficient(
           move(lin_coeff), move(nonlin_coeff)));
 
       // if (material == "team13")
       // {
-      //    temp_coeff.reset(new mach::team13ReluctivityCoefficient());
+      //    temp_coeff.reset(new miso::team13ReluctivityCoefficient());
       // }
       // else
       // {
       // auto b = materials[material]["B"].get<std::vector<double>>();
       // auto h = materials[material]["H"].get<std::vector<double>>();
-      // temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+      // temp_coeff.reset(new miso::ReluctivityCoefficient(b, h));
       // }
    }
    else
@@ -466,7 +466,7 @@ void team13_current(const xdouble *X, xdouble *J)
 
 }  // anonymous namespace
 
-namespace mach
+namespace miso
 {
 MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json &json_options,
                                          std::unique_ptr<mfem::Mesh> smesh,
@@ -766,7 +766,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    {
       FunctionalOutput out(*fes, res_fields);
       out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(*nu));
-      // MachOutput mout(std::move(out));
+      // MISOOutput mout(std::move(out));
       outputs.emplace(fun, std::move(out));
    }
    else if (fun == "ACLoss")
@@ -803,7 +803,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else
    {
-      throw MachException("Output with name " + fun +
+      throw MISOException("Output with name " + fun +
                           " not supported by "
                           "MagnetostaticSolver!\n");
    }
@@ -818,12 +818,12 @@ void MagnetostaticSolver::constructForms()
 {
    MagnetostaticResidual mres(
        *fes, res_fields, *current_coeff, *mag_coeff, *nu);
-   new_res.reset(new MachResidual(std::move(mres)));
+   new_res.reset(new MISOResidual(std::move(mres)));
    // mass.reset(new BilinearFormType(fes.get()));
    res.reset(new NonlinearFormType(fes.get()));
    magnetostatic_load.reset(
        new MagnetostaticLoad(*fes, *current_coeff, *mag_coeff, *nu));
-   load.reset(new MachLoad(*magnetostatic_load));
+   load.reset(new MISOLoad(*magnetostatic_load));
    // old_load.reset(new ParGridFunction(fes.get()));
    ent.reset(new ParNonlinearForm(fes.get()));
 }
@@ -1127,7 +1127,7 @@ bool MagnetostaticSolver::iterationExit(int iter,
    }
    else
    {
-      throw MachException("MagnetostaticSolver requires steady time-dis!\n");
+      throw MISOException("MagnetostaticSolver requires steady time-dis!\n");
    }
 }
 
@@ -1164,7 +1164,7 @@ double MagnetostaticSolver::calcStepSize(int iter,
    }
    else
    {
-      throw MachException("MagnetostaticSolver requires steady time-dis!\n");
+      throw MISOException("MagnetostaticSolver requires steady time-dis!\n");
    }
 }
 
@@ -1196,7 +1196,7 @@ double MagnetostaticSolver::calcStepSize(int iter,
 //    }
 //    else
 //    {
-//    throw MachException("Unsupported nonlinear solver type!\n"
+//    throw MISOException("Unsupported nonlinear solver type!\n"
 //    "\tavilable options are: newton, inexactnewton\n");
 //    }
 
@@ -2657,7 +2657,7 @@ double MagnetostaticSolver::mag_mu_r = 0.0;
 double MagnetostaticSolver::fill_factor = 0.0;
 double MagnetostaticSolver::current_density = 0.0;
 
-void setInputs(MagnetostaticLoad &load, const MachInputs &inputs)
+void setInputs(MagnetostaticLoad &load, const MISOInputs &inputs)
 {
    setInputs(load.current_load, inputs);
    setInputs(load.magnetic_load, inputs);
@@ -2699,7 +2699,7 @@ int getSize(const MagnetostaticResidual &residual)
    return getSize(residual.nlf);
 }
 
-void setInputs(MagnetostaticResidual &residual, const MachInputs &inputs)
+void setInputs(MagnetostaticResidual &residual, const MISOInputs &inputs)
 {
    setInputs(residual.nlf, inputs);
    setInputs(*residual.load, inputs);
@@ -2712,7 +2712,7 @@ void setOptions(MagnetostaticResidual &residual, const nlohmann::json &options)
 }
 
 void evaluate(MagnetostaticResidual &residual,
-              const MachInputs &inputs,
+              const MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    evaluate(residual.nlf, inputs, res_vec);
@@ -2721,10 +2721,10 @@ void evaluate(MagnetostaticResidual &residual,
 }
 
 mfem::Operator &getJacobian(MagnetostaticResidual &residual,
-                            const MachInputs &inputs,
+                            const MISOInputs &inputs,
                             std::string wrt)
 {
    return getJacobian(residual.nlf, inputs, std::move(wrt));
 }
 
-}  // namespace mach
+}  // namespace miso

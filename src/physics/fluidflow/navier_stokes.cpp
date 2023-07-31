@@ -9,7 +9,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace miso
 {
 template <int dim, bool entvar>
 NavierStokesSolver<dim, entvar>::NavierStokesSolver(
@@ -41,7 +41,7 @@ void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    {
       if (dim != 2)
       {
-         throw MachException("Viscous MMS problem only available for 2D!");
+         throw MISOException("Viscous MMS problem only available for 2D!");
       }
       this->res->AddDomainIntegrator(
           new NavierStokesMMSIntegrator(re_fs, pr_fs));
@@ -198,7 +198,7 @@ void NavierStokesSolver<dim, entvar>::addOutput(const std::string &fun,
          drag_dir(this->iroll) = cos(this->aoa_fs);
          drag_dir(this->ipitch) = sin(this->aoa_fs);
       }
-      drag_dir *= 1.0 / pow(this->mach_fs, 2.0);  // to get non-dimensional Cd
+      drag_dir *= 1.0 / pow(this->miso_fs, 2.0);  // to get non-dimensional Cd
 
       FunctionalOutput out(*(this->fes), this->res_fields);
       out.addOutputBdrFaceIntegrator(new SurfaceForce<dim>(this->diff_stack,
@@ -228,7 +228,7 @@ void NavierStokesSolver<dim, entvar>::addOutput(const std::string &fun,
          lift_dir(this->iroll) = -sin(this->aoa_fs);
          lift_dir(this->ipitch) = cos(this->aoa_fs);
       }
-      lift_dir *= 1.0 / pow(this->mach_fs, 2.0);  // to get non-dimensional Cl
+      lift_dir *= 1.0 / pow(this->miso_fs, 2.0);  // to get non-dimensional Cl
 
       FunctionalOutput out(*(this->fes), this->res_fields);
       out.addOutputBdrFaceIntegrator(new SurfaceForce<dim>(this->diff_stack,
@@ -252,7 +252,7 @@ void NavierStokesSolver<dim, entvar>::addOutput(const std::string &fun,
    }
    else
    {
-      throw MachException("Output with name " + fun +
+      throw MISOException("Output with name " + fun +
                           " not supported by "
                           "NavierStokesSolver!\n");
    }
@@ -265,7 +265,7 @@ void NavierStokesSolver<dim, entvar>::getViscousInflowState(Vector &q_in)
                             .template get<vector<double>>();
    if (tmp.size() != dim + 2)
    {
-      throw MachException(
+      throw MISOException(
           "inflow-state option has wrong number of entries"
           " for problem dimension!");
    }
@@ -282,7 +282,7 @@ void NavierStokesSolver<dim, entvar>::getViscousOutflowState(Vector &q_out)
                             .template get<vector<double>>();
    if (tmp.size() != dim + 2)
    {
-      throw MachException(
+      throw MISOException(
           "outflow-state option has wrong number of entries"
           " for problem dimension!");
    }
@@ -364,4 +364,4 @@ void viscousMMSExact(const mfem::Vector &x, mfem::Vector &u)
    u(2) *= u(0);
 }
 
-}  // namespace mach
+}  // namespace miso

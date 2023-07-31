@@ -1,13 +1,13 @@
-#ifndef MACH_MFEM_COMMON_INTEG
-#define MACH_MFEM_COMMON_INTEG
+#ifndef MISO_MFEM_COMMON_INTEG
+#define MISO_MFEM_COMMON_INTEG
 
 #include "mfem.hpp"
 
-#include "mach_integrator.hpp"
+#include "miso_integrator.hpp"
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 class DiffusionIntegratorMeshSens final : public mfem::LinearFormIntegrator
 {
@@ -280,7 +280,7 @@ class VectorFEDomainLFCurlIntegratorMeshSens final
 {
 public:
    VectorFEDomainLFCurlIntegratorMeshSens(
-       mach::VectorFEDomainLFCurlIntegrator &integ)
+       miso::VectorFEDomainLFCurlIntegrator &integ)
     : integ(integ), adjoint(nullptr)
    { }
 
@@ -298,7 +298,7 @@ public:
 
 private:
    /// reference to primal integrator
-   mach::VectorFEDomainLFCurlIntegrator &integ;
+   miso::VectorFEDomainLFCurlIntegrator &integ;
    /// the adjoint to use when evaluating d(psi^T f)/dX
    const mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
@@ -360,7 +360,7 @@ class VectorFEBoundaryTangentLFIntegratorMeshSens final
 {
 public:
    VectorFEBoundaryTangentLFIntegratorMeshSens(
-      mach::VectorFEBoundaryTangentLFIntegrator &integ)
+      miso::VectorFEBoundaryTangentLFIntegrator &integ)
    : integ(integ), adjoint(nullptr)
    { }
 
@@ -380,7 +380,7 @@ space
 
 private:
    /// reference to primal integrator
-   mach::VectorFEBoundaryTangentLFIntegrator &integ;
+   miso::VectorFEBoundaryTangentLFIntegrator &integ;
    /// the adjoint to use when evaluating d(psi^T f)/dX
    const mfem::GridFunction *adjoint;
 #ifndef MFEM_THREAD_SAFE
@@ -600,6 +600,6 @@ public:
                                Vector &elvect) override;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

@@ -38,4 +38,4 @@ CheckOptions:
 
 WarningsAsErrors: '*'
 
-HeaderFilterRegex: 'mach/src/'
+HeaderFilterRegex: 'miso/src/'

@@ -1,5 +1,5 @@
-#ifndef MACH_KDTREE
-#define MACH_KDTREE
+#ifndef MISO_KDTREE
+#define MISO_KDTREE
 
 #include <algorithm>
 #include <array>
@@ -10,7 +10,7 @@
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// Class for representing a point
 /// \tparam coord_type - a numeric type
@@ -299,6 +299,6 @@ int main() {
 }
 #endif
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

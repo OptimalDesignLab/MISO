@@ -32,7 +32,7 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
 {
    using namespace mfem;
    using namespace euler_data;
-   using namespace mach;
+   using namespace miso;
 
    const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
@@ -61,8 +61,8 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
          // std::unique_ptr<Coefficient> q2(new FunctionCoefficient(func, funcRevDiff));
          std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
                         1, 2, 4, 0.5, 0.6, A));
-         // std::unique_ptr<mach::MeshDependentCoefficient> Q;
-         // Q.reset(new mach::MeshDependentCoefficient());
+         // std::unique_ptr<miso::MeshDependentCoefficient> Q;
+         // Q.reset(new miso::MeshDependentCoefficient());
          // Q->addCoefficient(1, move(q1)); 
          // Q->addCoefficient(2, move(q2));
          LinearForm res(&fes);
@@ -81,7 +81,7 @@ TEST_CASE("DomainResIntegrator::AssembleElementVector",
          // build the nonlinear form for d(psi^T R)/dx 
          NonlinearForm dfdx_form(mesh_fes);
          dfdx_form.AddDomainIntegrator(
-            new mach::DomainResIntegrator(*q2, &adjoint));
+            new miso::DomainResIntegrator(*q2, &adjoint));
 
          // initialize the vector that we use to perturb the mesh nodes
          GridFunction v(mesh_fes);
@@ -119,7 +119,7 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
 {
    using namespace mfem;
    using namespace euler_data;
-   using namespace mach;
+   using namespace miso;
 
    const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
@@ -152,8 +152,8 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
          std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
          std::unique_ptr<Coefficient> q2(new SteinmetzCoefficient(
                         1, 2, 4, 0.5, 0.6, A));
-         std::unique_ptr<mach::MeshDependentCoefficient> Q;
-         // Q.reset(new mach::MeshDependentCoefficient());
+         std::unique_ptr<miso::MeshDependentCoefficient> Q;
+         // Q.reset(new miso::MeshDependentCoefficient());
          // Q->addCoefficient(1, move(q1)); 
          // Q->addCoefficient(2, move(q2));
          std::unique_ptr<VectorCoefficient> QV(
@@ -172,7 +172,7 @@ TEST_CASE("ThermalSensIntegrator::AssembleElementVector",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx_form(fesa.get());
          dfdx_form.AddDomainIntegrator(
-            new mach::ThermalSensIntegrator(*QV, &adjoint));
+            new miso::ThermalSensIntegrator(*QV, &adjoint));
 
          // initialize the vector that we use to perturb the vector potential
          GridFunction v(fesa.get());

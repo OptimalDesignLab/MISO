@@ -1,10 +1,10 @@
-#ifndef MACH_INVISCID_INTEG
-#define MACH_INVISCID_INTEG
+#ifndef MISO_INVISCID_INTEG
+#define MISO_INVISCID_INTEG
 
 #include "adept.h"
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for one-point inviscid flux functions
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
@@ -712,7 +712,7 @@ protected:
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "inviscid_integ_def.hpp"
 

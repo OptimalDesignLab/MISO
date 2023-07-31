@@ -1,4 +1,4 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       mesh_move_integ.cpp
       mesh_move_integ.hpp
@@ -6,7 +6,7 @@ target_sources(mach
       mesh_movement.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

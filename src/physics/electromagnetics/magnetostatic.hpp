@@ -1,5 +1,5 @@
-#ifndef MACH_MAGNETOSTATIC
-#define MACH_MAGNETOSTATIC
+#ifndef MISO_MAGNETOSTATIC
+#define MISO_MAGNETOSTATIC
 
 #include <memory>
 #include <mpi.h>
@@ -10,17 +10,17 @@
 #include "electromag_integ.hpp"
 #include "coefficient.hpp"
 #include "current_load.hpp"
-#include "mach_load.hpp"
-#include "mach_nonlinearform.hpp"
+#include "miso_load.hpp"
+#include "miso_nonlinearform.hpp"
 #include "magnetic_load.hpp"
 #include "solver.hpp"
 
-namespace mach
+namespace miso
 {
 class MagnetostaticLoad final
 {
 public:
-   friend void setInputs(MagnetostaticLoad &load, const MachInputs &inputs);
+   friend void setInputs(MagnetostaticLoad &load, const MISOInputs &inputs);
 
    friend void setOptions(MagnetostaticLoad &load,
                           const nlohmann::json &options);
@@ -55,17 +55,17 @@ public:
    friend int getSize(const MagnetostaticResidual &residual);
 
    friend void setInputs(MagnetostaticResidual &residual,
-                         const MachInputs &inputs);
+                         const MISOInputs &inputs);
 
    friend void setOptions(MagnetostaticResidual &residual,
                           const nlohmann::json &options);
 
    friend void evaluate(MagnetostaticResidual &residual,
-                        const MachInputs &inputs,
+                        const MISOInputs &inputs,
                         mfem::Vector &res_vec);
 
    friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
-                                      const MachInputs &inputs,
+                                      const MISOInputs &inputs,
                                       std::string wrt);
 
    MagnetostaticResidual(
@@ -81,7 +81,7 @@ public:
    }
 
 private:
-   MachNonlinearForm nlf;
+   MISONonlinearForm nlf;
    /// Need to store MagnetostaticLoad in pointer since underlying load types
    /// are not yet correctly moveable
    std::unique_ptr<MagnetostaticLoad> load;
@@ -272,7 +272,7 @@ private:
    void constructSigma();
 
 public:
-   /// TODO: throw MachException if constructCurrent not called first
+   /// TODO: throw MISOException if constructCurrent not called first
    ///       introdue some current constructed flag?
    /// assemble vector associated with current source
    /// \note - constructCurrent must be called before calling this
@@ -298,7 +298,7 @@ public:
    // double getFunctionalCurrentDensitySensitivity(const std::string &fun);
 
 private:
-   /// TODO: throw MachException if constructMagnetization or
+   /// TODO: throw MISOException if constructMagnetization or
    ///       assembleCurrentSource not called first
    /// \brief assemble magnetization source terms into rhs vector and add them
    ///        with the current source terms
@@ -509,6 +509,6 @@ private:
        MPI_Comm comm);
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

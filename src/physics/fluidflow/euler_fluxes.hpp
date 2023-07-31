@@ -1,7 +1,7 @@
 /// Functions related to Euler equations
 
-#ifndef MACH_EULER_FLUXES
-#define MACH_EULER_FLUXES
+#ifndef MISO_EULER_FLUXES
+#define MISO_EULER_FLUXES
 
 #include <algorithm>  // std::max
 
@@ -11,7 +11,7 @@
 
 using adept::adouble;
 
-namespace mach
+namespace miso
 {
 /// For constants related to the Euler equations
 namespace euler
@@ -870,7 +870,7 @@ void calcFluxJacState(const mfem::Vector &x,
    stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(),
+   miso::calcBoundaryFlux<adouble, dim>(dir_a.data(),
                                         q_ref_a.data(),
                                         q_a.data(),
                                         work_vec_a.data(),
@@ -1037,6 +1037,6 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

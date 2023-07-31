@@ -4,7 +4,7 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 double ParameterContinuationCoefficient::lambda = 0.0;
 
@@ -324,7 +324,7 @@ double team13ReluctivityCoefficient::Eval(ElementTransformation &trans,
    // {
    //    if (!isfinite(nu))
    //    {
-   //       throw MachException("nan!");
+   //       throw MISOException("nan!");
    //    }
    // }
    // catch(const std::exception& e)
@@ -359,7 +359,7 @@ double team13ReluctivityCoefficient::EvalStateDeriv(
    // {
    //    if (!isfinite(dnudb))
    //    {
-   //       throw MachException("nan!");
+   //       throw MISOException("nan!");
    //    }
    // }
    // catch(const std::exception& e)
@@ -560,4 +560,4 @@ double ElementFunctionCoefficient::Eval(ElementTransformation &trans,
    }
 }
 
-}  // namespace mach
+}  // namespace miso

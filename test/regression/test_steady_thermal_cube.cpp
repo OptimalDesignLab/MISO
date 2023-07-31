@@ -7,7 +7,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
@@ -109,7 +109,7 @@ TEST_CASE("Thermal Cube Solver Steady Regression Test",
 
             solver->setFieldValue(*state, u0);
 
-            MachInputs inputs;
+            MISOInputs inputs;
             solver->solveForState(inputs, *state);
             double l2_error = solver->calcL2Error(*state, u0);
             std::cout << "l2_error: " << l2_error << "\n";

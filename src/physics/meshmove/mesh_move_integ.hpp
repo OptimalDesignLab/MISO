@@ -1,9 +1,9 @@
-#ifndef MACH_MESH_MOVE_INTEG
-#define MACH_MESH_MOVE_INTEG
+#ifndef MISO_MESH_MOVE_INTEG
+#define MISO_MESH_MOVE_INTEG
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /** Integrator for the linear elasticity form:
     a(u,v) = (lambda div(u), div(v)) + (2 mu e(u), e(v)),
@@ -29,6 +29,6 @@ public:
                               mfem::Vector &elvect) override;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

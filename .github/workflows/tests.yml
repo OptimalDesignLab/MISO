@@ -1,4 +1,4 @@
-name: Mach Tests
+name: MISO Tests
 
 on: [push]
 
@@ -282,15 +282,15 @@ jobs:
           message(FATAL_ERROR "Build failed")
         endif()
 
-    - name: Clone Mach
+    - name: Clone MISO
       uses: actions/checkout@v2
       with:
-        path: mach
+        path: miso
 
-    - name: Create Mach Build Environment
-      run: cmake -E make_directory ${GITHUB_WORKSPACE}/mach/build
+    - name: Create MISO Build Environment
+      run: cmake -E make_directory ${GITHUB_WORKSPACE}/miso/build
 
-    - name: Configure Mach
+    - name: Configure MISO
       shell: cmake -P {0}
       run: |
         set(ENV{CC} ${{ matrix.config.cc }})
@@ -301,8 +301,8 @@ jobs:
 
         execute_process(
           COMMAND cmake
-            -S mach
-            -B mach/build
+            -S miso
+            -B miso/build
             -D CMAKE_BUILD_TYPE=$ENV{BUILD_TYPE}
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=ninja
@@ -319,7 +319,7 @@ jobs:
           message(FATAL_ERROR "Bad exit status")
         endif()
 
-    - name: Build Mach
+    - name: Build MISO
       shell: cmake -P {0}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
@@ -338,7 +338,7 @@ jobs:
         # execute_process(COMMAND ccache -z)
 
         execute_process(
-          COMMAND cmake --build mach/build
+          COMMAND cmake --build miso/build
           RESULT_VARIABLE result
           OUTPUT_VARIABLE output
           ERROR_VARIABLE output
@@ -351,7 +351,7 @@ jobs:
           message(FATAL_ERROR "Build failed")
         endif()
 
-    - name: Build Mach Tests
+    - name: Build MISO Tests
       shell: cmake -P {0}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
@@ -370,7 +370,7 @@ jobs:
         # execute_process(COMMAND ccache -z)
 
         execute_process(
-          COMMAND cmake --build mach/build --target build_tests
+          COMMAND cmake --build miso/build --target build_tests
           RESULT_VARIABLE result
           OUTPUT_VARIABLE output
           ERROR_VARIABLE output
@@ -383,8 +383,8 @@ jobs:
           message(FATAL_ERROR "Build failed")
         endif()
 
-    - name: Test Mach
-      working-directory: mach/build
+    - name: Test MISO
+      working-directory: miso/build
       shell: bash
       run: ctest --output-on-failure
 

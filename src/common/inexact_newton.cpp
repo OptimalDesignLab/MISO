@@ -4,7 +4,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 namespace mfem
 {

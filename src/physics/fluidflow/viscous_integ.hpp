@@ -1,10 +1,10 @@
-#ifndef MACH_VISCOUS_INTEG
-#define MACH_VISCOUS_INTEG
+#ifndef MISO_VISCOUS_INTEG
+#define MISO_VISCOUS_INTEG
 
 #include "adept.h"
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for symmetric viscous terms
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
@@ -355,7 +355,7 @@ protected:
 #endif
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "viscous_integ_def.hpp"
 

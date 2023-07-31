@@ -1,9 +1,9 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       sbp_operators.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

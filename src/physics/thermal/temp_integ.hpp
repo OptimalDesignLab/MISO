@@ -1,10 +1,10 @@
-#ifndef MACH_TEMP_INTEGRATOR
-#define MACH_TEMP_INTEGRATOR
+#ifndef MISO_TEMP_INTEGRATOR
+#define MISO_TEMP_INTEGRATOR
 
 #include "mfem.hpp"
 #include "solver.hpp"
 
-namespace mach
+namespace miso
 {
 class AggregateIntegratorNumerator : public mfem::NonlinearFormIntegrator
 {
@@ -260,6 +260,6 @@ private:
 #endif
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

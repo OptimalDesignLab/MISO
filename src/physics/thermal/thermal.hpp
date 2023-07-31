@@ -1,5 +1,5 @@
-#ifndef MACH_THERMAL
-#define MACH_THERMAL
+#ifndef MISO_THERMAL
+#define MISO_THERMAL
 
 #include "mfem.hpp"
 #include "adept.h"
@@ -15,10 +15,10 @@
 #include <limits>
 #include <random>
 
-namespace mach
+namespace miso
 {
-class MachLoad;
-class MachLinearForm;
+class MISOLoad;
+class MISOLinearForm;
 
 class ThermalSolver : public AbstractSolver
 {
@@ -73,7 +73,7 @@ public:
 
 private:
    /// linear form object that allows setting inputs/assembling
-   std::unique_ptr<MachLinearForm> therm_load;
+   std::unique_ptr<MISOLinearForm> therm_load;
    /// Magnetic vector potential A grid function (not owned)
    GridFunType *a_field;
 
@@ -195,13 +195,13 @@ private:
        MPI_Comm comm);
 };
 
-class ThermalEvolver : public MachEvolver
+class ThermalEvolver : public MISOEvolver
 {
 public:
    ThermalEvolver(mfem::Array<int> ess_bdr,
                   BilinearFormType *mass,
                   mfem::ParNonlinearForm *res,
-                  MachLoad *load,
+                  MISOLoad *load,
                   std::ostream &outstream,
                   double start_time,
                   mfem::VectorCoefficient *flux_coeff);
@@ -216,6 +216,6 @@ private:
    mfem::VectorCoefficient *flux_coeff;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

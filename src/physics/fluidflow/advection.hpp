@@ -1,11 +1,11 @@
-#ifndef MACH_ADVECTION
-#define MACH_ADVECTION
+#ifndef MISO_ADVECTION
+#define MISO_ADVECTION
 
 #include "mfem.hpp"
 
 #include "solver.hpp"
 
-namespace mach
+namespace miso
 {
 /// Defines the velocity field used by the AdvectionSolver class
 /// \param[in] x - location at which to evaluate the velocity
@@ -145,6 +145,6 @@ protected:
    int getNumState() override { return 1; }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

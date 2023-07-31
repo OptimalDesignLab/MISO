@@ -1,5 +1,5 @@
-#ifndef MACH_EULER_SENS_INTEG
-#define MACH_EULER_SENS_INTEG
+#ifndef MISO_EULER_SENS_INTEG
+#define MISO_EULER_SENS_INTEG
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -7,7 +7,7 @@
 #include "mesh_sens_integ.hpp"
 #include "euler_fluxes.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for the mesh sensitivity of the Ismail-Roe domain integrator
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
@@ -85,7 +85,7 @@ protected:
    adept::Stack &stack;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "euler_sens_integ_def.hpp"
 

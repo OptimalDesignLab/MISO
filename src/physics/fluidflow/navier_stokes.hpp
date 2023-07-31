@@ -1,11 +1,11 @@
-#ifndef MACH_NAVIER_STOKES
-#define MACH_NAVIER_STOKES
+#ifndef MISO_NAVIER_STOKES
+#define MISO_NAVIER_STOKES
 
 #include "mfem.hpp"
 
 #include "euler.hpp"
 
-namespace mach
+namespace miso
 {
 /// Solver for Navier-Stokes flows
 /// dim - number of spatial dimensions (1, 2, or 3)
@@ -63,7 +63,7 @@ protected:
 /// interfaces."  See also Fisher's thesis in the appendix, but note that the
 /// value of alpha listed there is incorrect!!!
 /// \param[in] Re - Reynolds number
-/// \param[in] Ma - Mach number
+/// \param[in] Ma - MISO number
 /// \param[in] v - velocity ration u/u_L
 /// \returns the right hand side of Equation (7.5)
 double shockEquation(double Re, double Ma, double v);
@@ -78,6 +78,6 @@ void shockExact(const mfem::Vector &x, mfem::Vector &u);
 /// \param[out] u - conservative variables stored as a 4-vector
 void viscousMMSExact(const mfem::Vector &x, mfem::Vector &u);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

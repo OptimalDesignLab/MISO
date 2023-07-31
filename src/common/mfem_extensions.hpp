@@ -3,7 +3,7 @@
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// Backward Euler pseudo-transient continuation solver
 class PseudoTransientSolver : public mfem::ODESolver
@@ -35,6 +35,6 @@ protected:
    std::ostream *out;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

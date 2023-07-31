@@ -10,7 +10,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // function to match patch elements
 void checkNeighbour(const std::string &, int);
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
    // Parse command-line options
    OptionsParser args(argc, argv);
-   const char *options_file = "mach_options.json";
+   const char *options_file = "miso_options.json";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");
    args.Parse();
