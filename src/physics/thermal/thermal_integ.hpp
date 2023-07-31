@@ -236,6 +236,55 @@ private:
 #endif
 };
 
+class InternalConvectionInterfaceIntegrator
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setInputs(InternalConvectionInterfaceIntegrator &integ,
+                         const MachInputs &inputs);
+
+   void AssembleFaceVector(const mfem::FiniteElement &el1,
+                           const mfem::FiniteElement &el2,
+                           mfem::FaceElementTransformations &trans,
+                           const mfem::Vector &elfun,
+                           mfem::Vector &elvect) override;
+
+   void AssembleFaceGrad(const mfem::FiniteElement &el1,
+                         const mfem::FiniteElement &el2,
+                         mfem::FaceElementTransformations &trans,
+                         const mfem::Vector &elfun,
+                         mfem::DenseMatrix &elmat) override;
+
+   InternalConvectionInterfaceIntegrator(double h = 1.0,
+                                         double theta_f = 1.0,
+                                         std::string name = "",
+                                         double alpha = 1.0)
+    : h(h),
+      theta_f(theta_f),
+      name(std::move(name)),
+      alpha(alpha)
+   { }
+
+private:
+   /// Convection coefficient
+   double h;
+   /// Fluid temperature
+   double theta_f;
+   /// name of the interface to apply the integrator to
+   std::string name;
+   /// scales the terms; can be used to move to rhs/lhs
+   double alpha;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+
+   mfem::DenseMatrix elmat11;
+   mfem::DenseMatrix elmat22;
+#endif
+   friend class InternalConvectionInterfaceIntegratorMeshRevSens;
+};
+
 class ConvectionBCIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:

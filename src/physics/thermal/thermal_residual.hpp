@@ -82,7 +82,7 @@ private:
    /// Nonlinear form that handles the weak form
    MachNonlinearForm res;
    /// coefficient for weakly imposed boundary conditions
-   std::unique_ptr<mfem::Coefficient> g;
+   std::unique_ptr<MeshDependentCoefficient> g;
    // Material dependent coefficient representing thermal conductivity
    std::unique_ptr<MeshDependentCoefficient> kappa;
    /// Material dependent coefficient representing density
@@ -101,9 +101,22 @@ private:
        mfem::ParFiniteElementSpace &fes,
        const nlohmann::json &prec_options)
    {
-      auto amg = std::make_unique<mfem::HypreBoomerAMG>();
-      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
-      return amg;
+      auto prec_type = prec_options["type"].get<std::string>();
+      if (prec_type == "hypreboomeramg")
+      {
+         auto amg = std::make_unique<mfem::HypreBoomerAMG>();
+         amg->SetPrintLevel(prec_options["printlevel"].get<int>());
+         return amg;
+      }
+      else if (prec_type == "hypreilu")
+      {
+         auto ilu = std::make_unique<mfem::HypreILU>();
+         HYPRE_ILUSetType(*ilu, prec_options["ilu-type"]);
+         HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"]);
+         HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"]);
+         HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"]);
+      }
+      return nullptr;
    }
 };
 

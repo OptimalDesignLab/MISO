@@ -335,6 +335,121 @@ TEST_CASE("ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect
    }
 }
 
+TEST_CASE("InternalConvectionInterfaceIntegrator::AssembleFaceGrad")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   
+   // assign attributes to left and right sides
+   for (int i = 0; i < mesh.GetNE(); ++i)
+   {
+      auto *elem = mesh.GetElement(i);
+
+      Array<int> verts;
+      elem->GetVertices(verts);
+
+      bool left = true;
+      for (int i = 0; i < verts.Size(); ++i)
+      {
+         auto *vtx = mesh.GetVertex(verts[i]);
+         if (vtx[0] <= 0.5)
+         {
+            left = left;
+         }
+         else
+         {
+            left = false;
+         }
+      }
+      if (left)
+      {
+         elem->SetAttribute(1);
+      }
+      else
+      {
+         elem->SetAttribute(2);
+      }
+   }
+
+   // add internal boundary elements
+   for (int i = 0; i < mesh.GetNumFaces(); ++i)
+   {
+      int e1, e2;
+      mesh.GetFaceElements(i, &e1, &e2);
+      if (e1 >= 0 && e2 >= 0 && mesh.GetAttribute(e1) != mesh.GetAttribute(e2))
+      {
+         // This is the internal face between attributes.
+         auto *new_elem = mesh.GetFace(i)->Duplicate(&mesh);
+         new_elem->SetAttribute(5);
+         mesh.AddBdrElement(new_elem);
+      }
+   }
+   mesh.FinalizeTopology(); // Finalize to build relevant tables
+   mesh.Finalize();
+   mesh.SetAttributes(); 
+   mesh.EnsureNodes();
+
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         mfem::Array<int> bdr_attr(mesh.bdr_attributes.Max());
+         bdr_attr = 0;
+         bdr_attr[4] = 1;
+         res.AddInternalBoundaryFaceIntegrator(
+            new mach::InternalConvectionInterfaceIntegrator(1.0, 1.0),
+            bdr_attr);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         // std::cout << "jac_v: ";
+         // jac_v.Print(mfem::out, jac_v.Size());
+
+         // std::cout << "jac_v_fd: ";
+         jac_v_fd.Print(mfem::out, jac_v_fd.Size());
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
 TEST_CASE("ConvectionBCIntegrator::AssembleFaceGrad")
 {
    using namespace mfem;

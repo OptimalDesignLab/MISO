@@ -933,6 +933,23 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
 {
    int ndof1 = el1.GetDof();
    int ndof2 = el2.GetDof();
+   elvect.SetSize(ndof1 + ndof2);
+   elvect = 0.0;
+
+   /// Don't apply the integrator if the domain attributes are the same and have
+   /// been explicitly skipped
+   auto skip =
+       [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
+   {
+      const auto same = elem1_attr == elem2_attr;
+      return same ? attr == elem1_attr : false;
+   };
+
+   if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
+       skip_attrs.end())
+   {
+      return;
+   }
 
    int dim = el1.GetDim();
 
@@ -974,11 +991,11 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
    mfem::Vector elfun1(elfun.GetData(), ndof1);
    mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
 
-   elvect.SetSize(ndof1 + ndof2);
+   // elvect.SetSize(ndof1 + ndof2);
    mfem::Vector elvect1(elvect.GetData(), ndof1);
    mfem::Vector elvect2(elvect.GetData() + ndof1, ndof2);
 
-   elvect = 0.0;
+   // elvect = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       // Set the integration point in the face and the neighboring element
@@ -1056,6 +1073,24 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
    int ndof2 = el2.GetDof();
    int ndof = ndof1 + ndof2;
 
+   elmat.SetSize(ndof);
+   elmat = 0.0;
+
+   /// Don't apply the integrator if the domain attributes are the same and have
+   /// been explicitly skipped
+   auto skip =
+       [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
+   {
+      const auto same = elem1_attr == elem2_attr;
+      return same ? attr == elem1_attr : false;
+   };
+
+   if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
+       skip_attrs.end())
+   {
+      return;
+   }
+
    int dim = el1.GetDim();
 
 #ifdef MFEM_THREAD_SAFE
@@ -1092,8 +1127,6 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
    mfem::Vector elfun1(elfun.GetData(), ndof1);
    mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
 
-   elmat.SetSize(ndof);
-
    elmat11.SetSize(ndof1);
    elmat12.SetSize(ndof1, ndof2);
    elmat21.SetSize(ndof2, ndof1);
@@ -1106,7 +1139,6 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
       ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
    }
 
-   elmat = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       // Set the integration point in the face and the neighboring element
@@ -1300,11 +1332,30 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    const int mesh_ndof2 = mesh_el2.GetDof();
    const int mesh_face_ndof = trans.GetFE()->GetDof();
 
+   const int space_dim = trans.GetSpaceDim();
+   mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
+   mesh_coords_bar = 0.0;
+
+   const auto &skip_attrs = integ.skip_attrs;
+   /// Don't apply the integrator if the domain attributes are the same and have
+   /// been explicitly skipped
+   auto skip =
+       [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
+   {
+      const auto same = elem1_attr == elem2_attr;
+      return same ? attr == elem1_attr : false;
+   };
+
+   if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
+       skip_attrs.end())
+   {
+      return;
+   }
+
    const int ndof1 = el1.GetDof();
    const int ndof2 = el2.GetDof();
 
    int dim = el1.GetDim();
-   const int space_dim = trans.GetSpaceDim();
 
    /// get the proper element, transformation, and state vector
 #ifdef MFEM_THREAD_SAFE
@@ -1423,13 +1474,13 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    auto &model = integ.model;
    auto &mu = integ.mu;
 
-   mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
+   // mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
    mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(),
                                  space_dim * mesh_ndof1);
    mfem::Vector mesh_coords_bar2(
        mesh_coords_bar.GetData() + space_dim * mesh_ndof1,
        space_dim * mesh_ndof2);
-   mesh_coords_bar = 0.0;
+   // mesh_coords_bar = 0.0;
    mesh_coords_face_bar = 0.0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {

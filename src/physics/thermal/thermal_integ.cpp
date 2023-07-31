@@ -682,6 +682,165 @@ void ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 }
 
+void setInputs(InternalConvectionInterfaceIntegrator &integ,
+               const MachInputs &inputs)
+{
+   if (!integ.name.empty())
+   {
+      setValueFromInputs(inputs, "h_c:" + integ.name, integ.h);
+      setValueFromInputs(inputs, "fluid_temp:" + integ.name, integ.theta_f);
+   }
+   else
+   {
+      setValueFromInputs(inputs, "h_c", integ.h);
+      setValueFromInputs(inputs, "fluid_temp", integ.theta_f);
+   }
+}
+
+void InternalConvectionInterfaceIntegrator::AssembleFaceVector(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::Vector &elvect)
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+#endif
+
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   elvect.SetSize(ndof1 + ndof2);
+   mfem::Vector elvect1(elvect.GetData(), ndof1);
+   mfem::Vector elvect2(elvect.GetData() + ndof1, ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder()) + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elvect = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      const double w = alpha * ip.weight * trans.Weight();
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+
+      const double temp1 = elfun1 * shape1;
+      const double temp2 = elfun2 * shape2;
+
+      const double val1 = h * (temp1 - theta_f);
+      const double val2 = h * (temp2 - theta_f);
+
+      elvect1.Add(w * val1, shape1);
+      elvect2.Add(w * val2, shape2);
+   }
+}
+
+void InternalConvectionInterfaceIntegrator::AssembleFaceGrad(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun,
+    mfem::DenseMatrix &elmat)
+{
+   int ndof1 = el1.GetDof();
+   int ndof2 = el2.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+
+   mfem::DenseMatrix elmat11;
+   mfem::DenseMatrix elmat22;
+#endif
+
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+
+   mfem::Vector elfun1(elfun.GetData(), ndof1);
+   mfem::Vector elfun2(elfun.GetData() + ndof1, ndof2);
+
+   elmat.SetSize(ndof1 + ndof2);
+
+   elmat11.SetSize(ndof1);
+   elmat22.SetSize(ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   elmat = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      const double w = alpha * ip.weight * trans.Face->Weight();
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+
+      // const double temp1 = elfun1 * shape1;
+      // const double temp2 = elfun2 * shape2;
+
+      // const double val1 = h * (temp1 - theta_f);
+      // const double val2 = h * (temp2 - theta_f);
+
+      // elvect1.Add(w * val1, shape1);
+      // elvect2.Add(w * val2, shape2);
+
+      MultVVt(shape1, elmat11);
+      elmat11 *= w * h;
+
+      MultVVt(shape2, elmat22);
+      elmat22 *= w * h;
+
+      for (int j = 0; j < ndof1; ++j)
+      {
+         for (int k = 0; k < ndof1; ++k)
+         {
+            elmat(j, k) += elmat11(j, k);
+         }
+      }
+
+      for (int j = 0; j < ndof2; ++j)
+      {
+         for (int k = 0; k < ndof2; ++k)
+         {
+            elmat(j + ndof1, k + ndof1) += elmat22(j, k);
+         }
+      }
+   }
+}
+
 void ConvectionBCIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,
     const mfem::FiniteElement &el2,
