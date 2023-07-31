@@ -430,8 +430,9 @@ ThermalResidual::ThermalResidual(
                auto *integ = new InternalConvectionInterfaceIntegrator(
                    h_c, theta_f, name);
                res.addInternalBoundaryFaceIntegrator(integ, attrs);
-               
-               // auto *integ = new ThermalContactResistanceIntegrator(h_c, name);
+
+               // auto *integ = new ThermalContactResistanceIntegrator(h_c,
+               // name);
                // // setInputs(*integ, {{"h_c", h_c}});
                // res.addInternalBoundaryFaceIntegrator(integ, attrs);
 

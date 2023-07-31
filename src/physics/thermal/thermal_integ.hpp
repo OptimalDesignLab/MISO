@@ -259,10 +259,7 @@ public:
                                          double theta_f = 1.0,
                                          std::string name = "",
                                          double alpha = 1.0)
-    : h(h),
-      theta_f(theta_f),
-      name(std::move(name)),
-      alpha(alpha)
+    : h(h), theta_f(theta_f), name(std::move(name)), alpha(alpha)
    { }
 
 private:
