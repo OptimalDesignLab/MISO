@@ -1,4 +1,4 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       coefficient.cpp
       coefficient.hpp
@@ -11,10 +11,10 @@ target_sources(mach
       functional_output.hpp
       inexact_newton.cpp
       inexact_newton.hpp
-      mach_linearform.cpp
-      mach_linearform.hpp
-      mach_output.hpp
-      mach_residual.hpp
+      miso_linearform.cpp
+      miso_linearform.hpp
+      miso_output.hpp
+      miso_residual.hpp
       material_library.hpp
       mfem_extensions.cpp
       mfem_extensions.hpp
@@ -26,7 +26,7 @@ target_sources(mach
       surface_def.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

@@ -7,11 +7,11 @@
 #include "egads.h"
 #endif
 
-#include "mach_egads.hpp"
+#include "miso_egads.hpp"
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 void mapSurfaceMesh(const std::string &old_model_file,
                     const std::string &new_model_file,
@@ -135,7 +135,7 @@ void mapSurfaceMesh(const std::string &old_model_file,
    }
 #else
    throw std::runtime_error(
-       "Mach not built with EGADS support!\n"
+       "MISO not built with EGADS support!\n"
        "\tmapSurfaceMesh unavailable!\n");
 #endif
 }
@@ -214,7 +214,7 @@ void mapSurfaceMesh(const std::string &old_model_file,
 //             int error2 = EG_getGlobal(newtess, global, &ptype, &pindex,
 //             s_coords); if (error2 != 0)
 //             {
-//                //throw MachException("getNewBoundaryNodes()\n Failed to
+//                //throw MISOException("getNewBoundaryNodes()\n Failed to
 //                retrieve new coordinates at node "<< global <<"!");
 //             }
 //             disp(0) = s_coords[0] - xold.x();
@@ -225,7 +225,7 @@ void mapSurfaceMesh(const std::string &old_model_file,
 //    }
 //    else
 //    {
-//       //throw MachException("getNewBoundaryNodes()\n Remap of boundary nodes
+//       //throw MISOException("getNewBoundaryNodes()\n Remap of boundary nodes
 //       has failed!");
 //    }
 
@@ -276,4 +276,4 @@ void mapSurfaceMesh(const std::string &old_model_file,
 // }
 
 // #endif
-}  // namespace mach
+}  // namespace miso

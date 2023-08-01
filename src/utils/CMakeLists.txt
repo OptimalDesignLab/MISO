@@ -1,17 +1,17 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       div_free_projector.cpp
       div_free_projector.hpp
       irrotational_projector.cpp
       irrotational_projector.hpp
       kdtree.hpp
-      mach_types.hpp
+      miso_types.hpp
       utilities.hpp
       utils.cpp
       utils.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
      "${CMAKE_CURRENT_SOURCE_DIR}"
 )

@@ -2,15 +2,15 @@
 
 #include "mfem.hpp"
 
-#include "mach_input.hpp"
-#include "mach_integrator.hpp"
+#include "miso_input.hpp"
+#include "miso_integrator.hpp"
 #include "functional_output.hpp"
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
-void setInputs(FunctionalOutput &output, const MachInputs &inputs)
+void setInputs(FunctionalOutput &output, const MISOInputs &inputs)
 {
    for (const auto &in : inputs)
    {
@@ -36,7 +36,7 @@ void setOptions(FunctionalOutput &output, const nlohmann::json &options)
    setOptions(output.integs, options);
 }
 
-double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
+double calcOutput(FunctionalOutput &output, const MISOInputs &inputs)
 {
    setInputs(output, inputs);
 
@@ -46,14 +46,14 @@ double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
 
 double calcOutputPartial(FunctionalOutput &output,
                          const std::string &wrt,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
 {
    return NAN;
 }
 
 void calcOutputPartial(FunctionalOutput &output,
                        const std::string &wrt,
-                       const MachInputs &inputs,
+                       const MISOInputs &inputs,
                        HypreParVector &partial)
 {
    setInputs(output, inputs);
@@ -74,4 +74,4 @@ void calcOutputPartial(FunctionalOutput &output,
    }
 }
 
-}  // namespace mach
+}  // namespace miso

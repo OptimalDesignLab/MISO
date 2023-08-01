@@ -1,14 +1,14 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
-#include "mach_linearform.hpp"
+#include "miso_input.hpp"
+#include "miso_linearform.hpp"
 #include "mfem_common_integ.hpp"
 #include "magnetic_load.hpp"
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
                            VectorCoefficient &mag_coeff,
@@ -21,14 +21,14 @@ MagneticLoad::MagneticLoad(ParFiniteElementSpace &pfes,
                            std::make_tuple("mesh_coords"),
                            std::forward_as_tuple(mesh_fes, mesh_gf.GetData()));
 
-   lf.addDomainIntegrator(new mach::VectorFEDomainLFCurlIntegrator(nuM, -1.0));
+   lf.addDomainIntegrator(new miso::VectorFEDomainLFCurlIntegrator(nuM, -1.0));
    /// only needed if magnets are on the boundary and not normal to boundary
-   // lf.addBdrFaceIntegrator(new mach::VectorFEBoundaryTangentLFIntegrator(nuM,
+   // lf.addBdrFaceIntegrator(new miso::VectorFEBoundaryTangentLFIntegrator(nuM,
    // -1.0));
 }
 
 /// set inputs should include fields, so things can check it they're "dirty"
-void setInputs(LegacyMagneticLoad &load, const MachInputs &inputs)
+void setInputs(LegacyMagneticLoad &load, const MISOInputs &inputs)
 {
    auto it = inputs.find("mesh_coords");
    if (it != inputs.end())
@@ -91,4 +91,4 @@ void LegacyMagneticLoad::assembleLoad()
    scratch.ParallelAssemble(load);
 }
 
-}  // namespace mach
+}  // namespace miso

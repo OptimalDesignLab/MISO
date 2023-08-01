@@ -5,7 +5,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace miso
 {
 /// performs the Hadamard (elementwise) product: `v(i) = v1(i)*v2(i)`
 void multiplyElementwise(const Vector &v1, const Vector &v2, Vector &v)
@@ -331,7 +331,7 @@ double secant(const std::function<double(double)> &func,
    }
    if (iter > maxiter)
    {
-      throw MachException("secant: maximum number of iterations exceeded");
+      throw MISOException("secant: maximum number of iterations exceeded");
    }
    return x;
 }
@@ -415,7 +415,7 @@ void buildInterpolation(int dim,
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "Other dimension interpolation has not been implemented yet.\n");
    }
 
@@ -467,7 +467,7 @@ void buildInterpolation(int dim,
          }
          else
          {
-            throw MachException(
+            throw MISOException(
                 "Other dimension interpolation has not been implemented "
                 "yet.\n");
          }
@@ -522,7 +522,7 @@ void buildLSInterpolation(int dim,
    }
    else
    {
-      throw MachException("buildLSInterpolation: dim must be 3 or less.\n");
+      throw MISOException("buildLSInterpolation: dim must be 3 or less.\n");
    }
 
    // Construct the generalized Vandermonde matrix
@@ -717,10 +717,10 @@ void transferSolution(MeshType &old_mesh,
                       const GridFunType &in,
                       GridFunType &out)
 {
-   throw MachException(
+   throw MISOException(
        "transferSolution requires GSLIB!"
        "\trecompile MFEM with GSLIB!");
 }
 #endif
 
-}  // namespace mach
+}  // namespace miso

@@ -45,7 +45,7 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
       q(di + 1) = rhou[di];
    }
    // viscosity coefficient
-   double mu = mach::calcSutherlandViscosity<double, dim>(q) / Re;
+   double mu = miso::calcSutherlandViscosity<double, dim>(q) / Re;
    // spatial derivatives of entropy variables
    // for (int j = 0; j < dim; ++j)
    // {
@@ -62,7 +62,7 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
    for (int j = 0; j < dim; ++j)
    {
       del_w.GetColumn(j, del_wxj);
-      mach::calcdQdWProduct<double, dim>(q.GetData(), del_wxj.GetData(),
+      miso::calcdQdWProduct<double, dim>(q.GetData(), del_wxj.GetData(),
                                          del_qxj.GetData());
       del_vxj(dim + 1, j) = (gami * del_qxj(dim + 1)) / q(0);
       del_vxj(0, j) = del_qxj(0);
@@ -74,7 +74,7 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
 
          del_vxj(dim + 1, j) += gami * (q(i) * q(i) * del_qxj(0)) / (2 * q(0) * q(0) * q(0));
       }
-      del_vxj(dim + 1, j) -= mach::pressure<double, dim>(q) * del_qxj(0) / (q(0) * q(0));
+      del_vxj(dim + 1, j) -= miso::pressure<double, dim>(q) * del_qxj(0) / (q(0) * q(0));
       del_vxj(dim + 1, j) *= mu * gamma / (Pr * gami);
    }
 
@@ -119,7 +119,7 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
                cdel_wxj(di) = 0;
             }
             del_w.GetColumn(j, del_wxj);
-            mach::applyCijMatrix<double, dim>(i, j, mu, Pr, q.GetData(), del_wxj.GetData(), cdel_wxj.GetData());
+            miso::applyCijMatrix<double, dim>(i, j, mu, Pr, q.GetData(), del_wxj.GetData(), cdel_wxj.GetData());
             for (int k = 0; k < dim + 2; ++k)
             {
                cdwij(k) += cdel_wxj(k);
@@ -149,13 +149,13 @@ TEMPLATE_TEST_CASE_SIG("navierstokes flux functions, etc, produce correct values
 
    SECTION("applyViscousScaling is correct")
    {
-      double mu_Re = mach::calcSutherlandViscosity<double, dim>(q.GetData());
+      double mu_Re = miso::calcSutherlandViscosity<double, dim>(q.GetData());
       mu_Re /= Re;
       // get flux using c_{hat} matrices
       for (int i = 0; i < dim; ++i)
       {      
          // no need to initialize `cdwij` here, it's done in the function itself
-         mach::applyViscousScaling<double, dim>(i, mu_Re, Pr, q.GetData(), del_w.GetData(), cdwij.GetData());
+         miso::applyViscousScaling<double, dim>(i, mu_Re, Pr, q.GetData(), del_w.GetData(), cdwij.GetData());
          for (int s = 0; s < dim + 2; ++s)
          {
             fcdwij(s, i) = cdwij(s);

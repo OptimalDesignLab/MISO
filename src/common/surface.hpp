@@ -1,12 +1,12 @@
-#ifndef MACH_SURFACE
-#define MACH_SURFACE
+#ifndef MISO_SURFACE
+#define MISO_SURFACE
 
 #include "mfem.hpp"
 
 #include "kdtree.hpp"
 #include "utils.hpp"
 
-namespace mach
+namespace miso
 {
 /// A geometry representation for distance calculations
 /// \tparam dim - number of spatial dimensions (only `dim=2` is tested)
@@ -87,11 +87,11 @@ private:
 
    double solveConstrained()
    {
-      throw MachException("solveConstrained is not implemented yet!");
+      throw MISOException("solveConstrained is not implemented yet!");
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "surface_def.hpp"
 

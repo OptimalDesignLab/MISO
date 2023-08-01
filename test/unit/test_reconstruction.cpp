@@ -76,7 +76,7 @@ TEST_CASE("Reconstruction operator passed the test... ",
       }
    }
 
-   mach::buildInterpolation(dim, order, x_cent, x_quad, interp);
+   miso::buildInterpolation(dim, order, x_cent, x_quad, interp);
 
    //std::cout << "Check the accuracy:\n";
    mfem::Vector x_coord(num_cent), x_coord_interp(num_quad);
@@ -189,7 +189,7 @@ TEMPLATE_TEST_CASE_SIG("Least-squares reconstruction operator is accurate.",
    {
       for (int degree = 1; degree <= 4; ++degree)
       {
-         mach::buildLSInterpolation(dim, degree, x_cent, x_quad, interp);
+         miso::buildLSInterpolation(dim, degree, x_cent, x_quad, interp);
          // check that interp exactly interpolates all total degree polynomials
          for (int p = 0; p <= degree; ++p)
          {
@@ -210,7 +210,7 @@ TEMPLATE_TEST_CASE_SIG("Least-squares reconstruction operator is accurate.",
    {
       for (int degree = 1; degree <= 2; ++degree)
       {
-         mach::buildLSInterpolation(dim, degree, x_cent, x_quad, interp);
+         miso::buildLSInterpolation(dim, degree, x_cent, x_quad, interp);
          // check that interp exactly interpolates all total degree polynomials
          for (int p = 0; p <= degree; ++p)
          {
@@ -235,7 +235,7 @@ TEMPLATE_TEST_CASE_SIG("Least-squares reconstruction operator is accurate.",
    {
       for (int degree = 1; degree <= 1; ++degree)
       {
-         mach::buildLSInterpolation(dim, degree, x_cent, x_quad, interp);
+         miso::buildLSInterpolation(dim, degree, x_cent, x_quad, interp);
          // check that interp exactly interpolates all total degree polynomials
          for (int p = 0; p <= degree; ++p)
          {

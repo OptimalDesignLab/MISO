@@ -2,11 +2,11 @@
 #include <iostream>
 
 #include "mfem.hpp"
-#include "mach.hpp"
+#include "miso.hpp"
 
 // using namespace std;
 // using namespace mfem;
-// using namespace mach;
+// using namespace miso;
 
 static double theta0;
 static double t_final;
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
    MPI_Init(&argc, &argv);
    int rank;
    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   out = mach::getOutStream(rank); 
+   out = miso::getOutStream(rank); 
 
    // Parse command-line options
    mfem::OptionsParser args(argc, argv);
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
    try
    {
       // construct the solver
-      mach::JouleSolver solver(opt_file_name);
+      miso::JouleSolver solver(opt_file_name);
       solver.initDerived();
       solver.setInitialCondition(initialTemperature);
       *out << "Solving..." << std::endl;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
       *out << "Solving done." << std::endl;
       solver.printSolution("joule_out");
    }
-   catch (mach::MachException &exception)
+   catch (miso::MISOException &exception)
    {
       exception.print_message();
    }

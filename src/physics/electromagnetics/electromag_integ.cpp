@@ -3,7 +3,7 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 double calcMagneticEnergy(ElementTransformation &trans,
                           const IntegrationPoint &ip,
@@ -266,7 +266,7 @@ void CurlCurlNLFIntegrator::AssembleElementGrad(
          //       {
          //          if (!isfinite(elmat(i,j)))
          //          {
-         //             throw MachException("nan!");
+         //             throw MISOException("nan!");
          //          }
          //       }
          //       catch(const std::exception& e)
@@ -2584,7 +2584,7 @@ void ThermalSensIntegrator::AssembleRHSElementVect(
    }
 }
 
-void setInputs(DCLossFunctionalIntegrator &integ, const MachInputs &inputs)
+void setInputs(DCLossFunctionalIntegrator &integ, const MISOInputs &inputs)
 {
    auto it = inputs.find("current_density");
    if (it != inputs.end())
@@ -2652,7 +2652,7 @@ double DCLossFunctionalIntegrator::GetElementEnergy(
 }
 
 void setInputs(HybridACLossFunctionalIntegrator &integ,
-               const MachInputs &inputs)
+               const MISOInputs &inputs)
 {
    auto it = inputs.find("diam");
    if (it != inputs.end())
@@ -3391,4 +3391,4 @@ void ForceIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
-}  // namespace mach
+}  // namespace miso

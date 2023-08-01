@@ -5,11 +5,11 @@
 
 #include "mfem.hpp"
 
-#include "mach.hpp"
+#include "miso.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 void uinit(const Vector &x, Vector& u0);
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

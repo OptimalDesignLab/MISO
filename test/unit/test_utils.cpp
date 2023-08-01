@@ -14,7 +14,7 @@ TEST_CASE("Testing secant method", "[secant]")
    {
       return exp(x) - 1;
    };
-   double x = mach::secant(expfun, 0.5, M_PI, ftol, xtol, maxiter);
+   double x = miso::secant(expfun, 0.5, M_PI, ftol, xtol, maxiter);
    std::cout << "Solution 1 = " << x << std::endl;
    REQUIRE( x == Approx(0.0).margin(xtol) );
 
@@ -23,7 +23,7 @@ TEST_CASE("Testing secant method", "[secant]")
    {
       return sin(exp(x));
    };
-   x = mach::secant(logfun, 0, M_PI, ftol, xtol, maxiter);
+   x = miso::secant(logfun, 0, M_PI, ftol, xtol, maxiter);
    std::cout << "Solution 2 = " << x << std::endl;
    REQUIRE( x == Approx(log(M_PI)).margin(xtol) );
 

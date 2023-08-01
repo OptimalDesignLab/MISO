@@ -13,7 +13,7 @@ constexpr bool entvar = false;
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
       mfem::out << "\nfinal residual norm = " << solver->calcResidualNorm()
                 << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

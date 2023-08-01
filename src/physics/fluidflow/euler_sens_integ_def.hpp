@@ -1,5 +1,5 @@
-#ifndef MACH_EULER_SENS_INTEG_DEF
-#define MACH_EULER_SENS_INTEG_DEF
+#ifndef MISO_EULER_SENS_INTEG_DEF
+#define MISO_EULER_SENS_INTEG_DEF
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -8,7 +8,7 @@
 #include "euler_fluxes.hpp"
 #include "euler_sens_integ.hpp"
 
-namespace mach
+namespace miso
 {
 using adept::adouble;
 
@@ -49,13 +49,13 @@ void SlipWallBCMeshSens<dim, entvar>::calcFluxBar(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(u.Size());
-   mach::calcSlipWallFlux<adouble, dim, entvar>(
+   miso::calcSlipWallFlux<adouble, dim, entvar>(
        x_a.data(), dir_a.data(), u_a.data(), flux_a.data());
    adept::set_gradients(flux_a.data(), flux_bar.Size(), flux_bar.GetData());
    this->stack.compute_adjoint();
    adept::get_gradients(dir_a.data(), dir.Size(), dir_bar.GetData());
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

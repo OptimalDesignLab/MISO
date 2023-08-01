@@ -9,7 +9,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
@@ -130,7 +130,7 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
 
             auto state = solver->getNewField();
             solver->setFieldValue(*state, aexact);
-            MachInputs inputs {
+            MISOInputs inputs {
                {"state", state->GetData()}
             };
             solver->solveForState(inputs, *state);

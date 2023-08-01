@@ -1,4 +1,4 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       advection.cpp
       advection.hpp
@@ -27,7 +27,7 @@ target_sources(mach
       viscous_integ.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

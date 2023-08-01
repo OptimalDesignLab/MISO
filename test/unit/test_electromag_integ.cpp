@@ -35,7 +35,7 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - linear",
          LinearCoefficient nu(1.0);
 
          res.AddDomainIntegrator(
-            new mach::CurlCurlNLFIntegrator(nu));
+            new miso::CurlCurlNLFIntegrator(nu));
 
          // initialize state; here we randomly perturb a constant state
          ParGridFunction A(&fes);
@@ -100,10 +100,10 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad",
 
          NonlinearForm res(fes.get());
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new LinearCoefficient());
 
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(*nu));
+         res.AddDomainIntegrator(new miso::CurlCurlNLFIntegrator(*nu));
 
          // GridFunction A(fes.get());
          // VectorFunctionCoefficient a0(3, [](const Vector &x, Vector &a)
@@ -183,11 +183,11 @@ TEST_CASE("CurlCurlNLFIntegrator::AssembleElementGrad - Nonlinear",
          VectorFunctionCoefficient pert(3, randBaselineVectorPert);
          a.ProjectCoefficient(pert);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new NonLinearCoefficient());
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::CurlCurlNLFIntegrator(*nu));
+         res.AddDomainIntegrator(new miso::CurlCurlNLFIntegrator(*nu));
 
          // initialize the vector that the Jacobian multiplies
          GridFunction v(fes.get());
@@ -253,7 +253,7 @@ TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
 
          // we use res for finite-difference approximation
          NonlinearForm res(&fes);
-         auto *integ = new mach::CurlCurlNLFIntegrator(nu);
+         auto *integ = new miso::CurlCurlNLFIntegrator(nu);
          res.AddDomainIntegrator(integ);
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -263,7 +263,7 @@ TEST_CASE("CurlCurlNLFIntegratorMeshSens::AssembleRHSElementVect")
          // evaluate d(psi^T R)/dx and contract with v
          LinearForm dfdx(&mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::CurlCurlNLFIntegratorMeshSens(state, adjoint, *integ));
+            new miso::CurlCurlNLFIntegratorMeshSens(state, adjoint, *integ));
          dfdx.Assemble();
          double dfdx_v = dfdx * v;
 
@@ -321,7 +321,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
             mesh.get(), rt_fec.get()));
 
          /// We use a linear coefficient since the magnets are linear
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new LinearCoefficient());
 
          // initialize magnetization source and adjoint; here we randomly perturb a constant state
@@ -330,7 +330,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          VectorFunctionCoefficient mag(3, vectorFunc, vectorFuncRevDiff);
 
          // /// Costruct coefficient
-         // mach::VectorMeshDependentCoefficient mag(dim);
+         // miso::VectorMeshDependentCoefficient mag(dim);
          // std::unique_ptr<mfem::VectorCoefficient> coeff1(
          //    new VectorFunctionCoefficient(dim, vectorFunc, vectorFuncRevDiff));
          // std::unique_ptr<mfem::VectorCoefficient> coeff2(
@@ -353,7 +353,7 @@ TEST_CASE("VectorFECurldJdXIntegerator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFECurldJdXIntegerator(nu.get(), &M, &adjoint, &mag));
+            new miso::VectorFECurldJdXIntegerator(nu.get(), &M, &adjoint, &mag));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -432,7 +432,7 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          VectorFunctionCoefficient current(3, vectorFunc, vectorFuncRevDiff);
 
          /// Costruct coefficient
-         // mach::VectorMeshDependentCoefficient current(dim);
+         // miso::VectorMeshDependentCoefficient current(dim);
          // std::unique_ptr<mfem::VectorCoefficient> coeff1(
          //    new VectorFunctionCoefficient(dim, vectorFunc, vectorFuncRevDiff));
          // std::unique_ptr<mfem::VectorCoefficient> coeff2(
@@ -455,7 +455,7 @@ TEST_CASE("VectorFEMassdJdXIntegerator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFEMassdJdXIntegerator(&J, &adjoint, &current));
+            new miso::VectorFEMassdJdXIntegerator(&J, &adjoint, &current));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -536,7 +536,7 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          VectorFunctionCoefficient current(3, vectorFunc, vectorFuncRevDiff);
 
          /// Costruct coefficient
-         // mach::VectorMeshDependentCoefficient current(dim);
+         // miso::VectorMeshDependentCoefficient current(dim);
          // std::unique_ptr<mfem::VectorCoefficient> coeff1(
          //    new VectorFunctionCoefficient(dim, vectorFunc, vectorFuncRevDiff));
          // std::unique_ptr<mfem::VectorCoefficient> coeff2(
@@ -559,7 +559,7 @@ TEST_CASE("VectorFEWeakDivergencedJdXIntegrator::AssembleRHSElementVect",
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFEWeakDivergencedJdXIntegrator(&c, &adjoint, &current));
+            new miso::VectorFEWeakDivergencedJdXIntegrator(&c, &adjoint, &current));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -634,7 +634,7 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
          VectorFunctionCoefficient pert(3, randVectorState);
 
          /// Costruct coefficient
-         mach::VectorMeshDependentCoefficient current(dim);
+         miso::VectorMeshDependentCoefficient current(dim);
          std::unique_ptr<mfem::VectorCoefficient> coeff1(
             new VectorFunctionCoefficient(dim, vectorFunc, vectorFuncRevDiff));
          std::unique_ptr<mfem::VectorCoefficient> coeff2(
@@ -655,7 +655,7 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
          // build the nonlinear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::VectorFEDomainLFMeshSensInteg(&adjoint, current));
+            new miso::VectorFEDomainLFMeshSensInteg(&adjoint, current));
          dfdx.Assemble();
 
          // initialize the vector that we use to perturb the mesh nodes
@@ -730,7 +730,7 @@ TEST_CASE("VectorFEDomainLFMeshSensInteg::AssembleRHSElementVect"
 //          // build the linear form for d(psi^T R)/dx 
 //          LinearForm dfdx(mesh_fes);
 //          dfdx.AddDomainIntegrator(
-//             new mach::GridFuncMeshSensIntegrator(&adjoint, &current));
+//             new miso::GridFuncMeshSensIntegrator(&adjoint, &current));
 //          dfdx.Assemble();
 
 //          GridFunction dFdX_gf(mesh_fes);
@@ -809,12 +809,12 @@ TEST_CASE("MagneticEnergyIntegrator::GetEnergy")
          });
          A.ProjectCoefficient(pert);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new NonLinearCoefficient());
 
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::MagneticEnergyIntegrator(*nu));
+            new miso::MagneticEnergyIntegrator(*nu));
 
          const double fun = functional.GetEnergy(A);
          const double b_mag = 2.0;
@@ -857,7 +857,7 @@ TEST_CASE("MagneticEnergyIntegrator::AssembleElementVector")
 
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(
-            new mach::MagneticEnergyIntegrator(nu));
+            new miso::MagneticEnergyIntegrator(nu));
 
          // initialize the vector that dJdu multiplies
          GridFunction p(&fes);
@@ -918,7 +918,7 @@ TEST_CASE("MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect")
          GridFunction A(&fes);
          A.ProjectCoefficient(pert);
 
-         auto *integ = new mach::MagneticEnergyIntegrator(nu);
+         auto *integ = new miso::MagneticEnergyIntegrator(nu);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
 
@@ -929,7 +929,7 @@ TEST_CASE("MagneticEnergyIntegratorMeshSens::AssembleRHSElementVect")
          // evaluate dJdx and compute its product with p
          LinearForm dJdx(&mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::MagneticEnergyIntegratorMeshSens(A, *integ));
+            new miso::MagneticEnergyIntegratorMeshSens(A, *integ));
          dJdx.Assemble();
          double dJdx_dot_p = dJdx * p;
 
@@ -985,12 +985,12 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementVector",
          VectorFunctionCoefficient pert(3, randVectorState);
          q.ProjectCoefficient(pert);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             // new LinearCoefficient());
             new NonLinearCoefficient());
 
          functional.AddDomainIntegrator(
-            new mach::MagneticCoenergyIntegrator(q, nu.get()));
+            new miso::MagneticCoenergyIntegrator(q, nu.get()));
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
@@ -1055,21 +1055,21 @@ TEST_CASE("MagneticCoenergyIntegrator::AssembleElementRHSVect",
          VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new NonLinearCoefficient());
 
          // evaluate dJdx and compute its product with v
          // GridFunction dJdx(*x_nodes);
          LinearForm dJdx(mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::MagneticCoenergyIntegrator(q, nu.get()));
+            new miso::MagneticCoenergyIntegrator(q, nu.get()));
          dJdx.Assemble();
          double dJdx_dot_v = dJdx * v;
 
          // now compute the finite-difference approximation...
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::MagneticCoenergyIntegrator(q, nu.get()));
+            new miso::MagneticCoenergyIntegrator(q, nu.get()));
 
          double delta = 1e-5;
          GridFunction x_pert(*x_nodes);
@@ -1129,7 +1129,7 @@ TEST_CASE("BNormIntegrator::GetElementEnergy",
 
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::BNormIntegrator());
+            new miso::BNormIntegrator());
 
 
          const double fun = functional.GetEnergy(A);
@@ -1176,7 +1176,7 @@ TEST_CASE("BNormIntegrator::AssembleElementVector",
          q.ProjectCoefficient(pert);
 
          functional.AddDomainIntegrator(
-            new mach::BNormIntegrator());
+            new miso::BNormIntegrator());
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
@@ -1246,14 +1246,14 @@ TEST_CASE("BNormdJdX::AssembleRHSElementVect",
          // GridFunction dJdx(*x_nodes);
          LinearForm dJdx(mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::BNormdJdx(A));
+            new miso::BNormdJdx(A));
          dJdx.Assemble();
          double dJdx_dot_v = dJdx * v;
 
          // now compute the finite-difference approximation...
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::BNormIntegrator());
+            new miso::BNormIntegrator());
 
          double delta = 1e-5;
          GridFunction x_pert(*x_nodes);
@@ -1309,11 +1309,11 @@ TEST_CASE("nuBNormIntegrator::AssembleElementVector",
          VectorFunctionCoefficient pert(3, randVectorState);
          q.ProjectCoefficient(pert);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new NonLinearCoefficient());
 
          functional.AddDomainIntegrator(
-            new mach::nuBNormIntegrator(nu.get()));
+            new miso::nuBNormIntegrator(nu.get()));
 
          // initialize the vector that dJdu multiplies
          GridFunction v(fes.get());
@@ -1379,21 +1379,21 @@ TEST_CASE("nuBNormdJdX::AssembleRHSElementVect",
          VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new NonLinearCoefficient());
 
          // evaluate dJdx and compute its product with v
          // GridFunction dJdx(*x_nodes);
          LinearForm dJdx(mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::nuBNormdJdx(q, nu.get()));
+            new miso::nuBNormdJdx(q, nu.get()));
          dJdx.Assemble();
          double dJdx_dot_v = dJdx * v;
 
          // now compute the finite-difference approximation...
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::nuBNormIntegrator(nu.get()));
+            new miso::nuBNormIntegrator(nu.get()));
 
          double delta = 1e-5;
          GridFunction x_pert(*x_nodes);
@@ -1455,21 +1455,21 @@ TEST_CASE("nuFuncIntegrator::AssembleRHSElementVect",
          VectorFunctionCoefficient v_rand(dim, randVectorState);
          v.ProjectCoefficient(v_rand);
 
-         std::unique_ptr<mach::StateCoefficient> nu(
+         std::unique_ptr<miso::StateCoefficient> nu(
             new NonLinearCoefficient());
 
          // evaluate dJdx and compute its product with v
          // GridFunction dJdx(*x_nodes);
          LinearForm dJdx(mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::nuFuncIntegrator(&q, nu.get()));
+            new miso::nuFuncIntegrator(&q, nu.get()));
          dJdx.Assemble();
          double dJdx_dot_v = dJdx * v;
 
          // now compute the finite-difference approximation...
          NonlinearForm functional(fes.get());
          functional.AddDomainIntegrator(
-            new mach::nuFuncIntegrator(nu.get()));
+            new miso::nuFuncIntegrator(nu.get()));
 
          double delta = 1e-5;
          GridFunction x_pert(*x_nodes);
@@ -1531,7 +1531,7 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
          auto current_density = 1.0; // current density magnitude
 
          functional.AddDomainIntegrator(
-            new mach::DCLossFunctionalIntegrator(sigma, current, current_density));
+            new miso::DCLossFunctionalIntegrator(sigma, current, current_density));
 
          const auto R_dc = 1.0 / (sigma_val); // length / (sigma * area)
          const auto loss = std::pow(current_density, 2) * R_dc;
@@ -1545,7 +1545,7 @@ TEST_CASE("DCLossFunctionalIntegrator::GetEnergy",
    }
 }
 
-namespace mach
+namespace miso
 {
 /// Compute the finite-difference approximation of the derivative of the
 /// magnetic energy with respect to B
@@ -1608,8 +1608,8 @@ TEST_CASE("calcMagneticEnergy")
    mesh->EnsureNodes();
 
    const double lin_nu_val = 0.42;
-   std::unique_ptr<mach::StateCoefficient> lin_nu(new LinearCoefficient(lin_nu_val));
-   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+   std::unique_ptr<miso::StateCoefficient> lin_nu(new LinearCoefficient(lin_nu_val));
+   std::unique_ptr<miso::StateCoefficient> nu(new NonLinearCoefficient());
 
    /// construct elements
    int p = 1;
@@ -1635,10 +1635,10 @@ TEST_CASE("calcMagneticEnergy")
          const IntegrationPoint &ip = ir->IntPoint(i);
          trans.SetIntPoint(&ip);
 
-         double lin_en = mach::calcMagneticEnergy(trans, ip, *lin_nu, B_mag);
+         double lin_en = miso::calcMagneticEnergy(trans, ip, *lin_nu, B_mag);
          REQUIRE(lin_en == Approx(0.5*pow(B_mag, 2)*lin_nu_val).epsilon(1e-8));
 
-         double en = mach::calcMagneticEnergy(trans, ip, *nu, B_mag);
+         double en = miso::calcMagneticEnergy(trans, ip, *nu, B_mag);
          REQUIRE(en == Approx(nonlin_energy(B_mag)).epsilon(1e-8));
          // std::cout << "lin_en: " << lin_en << " en: " << en << "\n";
       }
@@ -1661,8 +1661,8 @@ TEST_CASE("calcMagneticEnergyDot")
                                      1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
 
-   // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
-   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+   // std::unique_ptr<miso::StateCoefficient> nu(new LinearCoefficient(0.75));
+   std::unique_ptr<miso::StateCoefficient> nu(new NonLinearCoefficient());
 
    /// construct elements
    int p = 1;
@@ -1686,8 +1686,8 @@ TEST_CASE("calcMagneticEnergyDot")
          const IntegrationPoint &ip = ir->IntPoint(i);
          trans.SetIntPoint(&ip);
 
-         double dWdB = mach::calcMagneticEnergyDot(trans, ip, *nu, B_mag);
-         double dWdB_fd = mach::calcMagneticEnergyFD(trans, ip, *nu, B_mag);
+         double dWdB = miso::calcMagneticEnergyDot(trans, ip, *nu, B_mag);
+         double dWdB_fd = miso::calcMagneticEnergyFD(trans, ip, *nu, B_mag);
          REQUIRE(dWdB == Approx(dWdB_fd).epsilon(1e-10));
       }
    }
@@ -1709,8 +1709,8 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
                                      1.0, 1.0, 1.0, true)));
    mesh->EnsureNodes();
 
-   // std::unique_ptr<mach::StateCoefficient> nu(new LinearCoefficient(0.75));
-   std::unique_ptr<mach::StateCoefficient> nu(new NonLinearCoefficient());
+   // std::unique_ptr<miso::StateCoefficient> nu(new LinearCoefficient(0.75));
+   std::unique_ptr<miso::StateCoefficient> nu(new NonLinearCoefficient());
 
    /// construct elements
    int p = 1;
@@ -1734,8 +1734,8 @@ TEST_CASE("calcMagneticEnergyDoubleDot")
          const IntegrationPoint &ip = ir->IntPoint(i);
          trans.SetIntPoint(&ip);
 
-         double d2WdB2 = mach::calcMagneticEnergyDoubleDot(trans, ip, *nu, B_mag);
-         double d2WdB2_fd = mach::calcMagneticEnergyDoubleFD(trans, ip, *nu, B_mag);
+         double d2WdB2 = miso::calcMagneticEnergyDoubleDot(trans, ip, *nu, B_mag);
+         double d2WdB2_fd = miso::calcMagneticEnergyDoubleFD(trans, ip, *nu, B_mag);
          REQUIRE(d2WdB2 == Approx(d2WdB2_fd).epsilon(1e-10));
       }
    }
@@ -1781,13 +1781,13 @@ TEST_CASE("ForceIntegrator::GetElementEnergy")
 
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(
-            new mach::ForceIntegrator(nu, v));
+            new miso::ForceIntegrator(nu, v));
 
          auto force = functional.GetEnergy(A);
 
          NonlinearForm energy(&fes);
          energy.AddDomainIntegrator(
-            new mach::MagneticEnergyIntegrator(nu));
+            new miso::MagneticEnergyIntegrator(nu));
          
          add(x_nodes, -delta, v, x_nodes);
          auto dWds = -energy.GetEnergy(A);
@@ -1841,7 +1841,7 @@ TEST_CASE("ForceIntegrator::AssembleElementVector")
 
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(
-            new mach::ForceIntegrator(nu, v));
+            new miso::ForceIntegrator(nu, v));
 
          // initialize the vector that dJdu multiplies
          GridFunction p(&fes);
@@ -1902,7 +1902,7 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
          GridFunction A(&fes);
          A.ProjectCoefficient(pert);
 
-         auto *integ = new mach::ForceIntegrator(nu, v);
+         auto *integ = new miso::ForceIntegrator(nu, v);
          NonlinearForm functional(&fes);
          functional.AddDomainIntegrator(integ);
 
@@ -1913,7 +1913,7 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
          // evaluate dJdx and compute its product with p
          LinearForm dJdx(&mesh_fes);
          dJdx.AddDomainIntegrator(
-            new mach::ForceIntegratorMeshSens(A, *integ));
+            new miso::ForceIntegratorMeshSens(A, *integ));
          dJdx.Assemble();
          double dJdx_dot_p = dJdx * p;
 
@@ -1967,14 +1967,14 @@ TEST_CASE("ForceIntegratorMeshSens::AssembleRHSElementVect")
 //          VectorFunctionCoefficient pert(3, randBaselineVectorPert);
 //          a.ProjectCoefficient(pert);
 
-//          std::unique_ptr<mach::StateCoefficient> nu(
+//          std::unique_ptr<miso::StateCoefficient> nu(
 //             new NonLinearCoefficient());
 
 //          std::unique_ptr<mfem::VectorCoefficient> mag(
 //             new mfem::VectorFunctionCoefficient(3, mag_func));
 
 //          NonlinearForm res(fes.get());
-//          res.AddDomainIntegrator(new mach::MagnetizationIntegrator(nu.get(),
+//          res.AddDomainIntegrator(new miso::MagnetizationIntegrator(nu.get(),
 //                                                                    mag.get()));
 
 //          // initialize the vector that the Jacobian multiplies

@@ -1,9 +1,9 @@
-#ifndef MACH_UTILITIES
-#define MACH_UTILITIES
+#ifndef MISO_UTILITIES
+#define MISO_UTILITIES
 
 #include "json.hpp"
 #include "kdtree.hpp"
-#include "mach_types.hpp"
+#include "miso_types.hpp"
 #include "utils.hpp"
 
 #endif

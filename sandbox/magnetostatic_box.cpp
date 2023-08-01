@@ -6,7 +6,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 
 int main(int argc, char *argv[])
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
       // solver.printAdjoint("co-energy-adjoint");
       solver->verifyMeshSensitivities();
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

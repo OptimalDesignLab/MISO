@@ -4,7 +4,7 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 void ElasticityPositionIntegrator::AssembleElementVector(
     const FiniteElement &el,
@@ -29,4 +29,4 @@ void ElasticityPositionIntegrator::AssembleElementVector(
    elmat.Mult(disp, elvect);
 }
 
-}  // namespace mach
+}  // namespace miso

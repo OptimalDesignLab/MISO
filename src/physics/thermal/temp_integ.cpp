@@ -4,7 +4,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace miso
 {
 double AggregateIntegratorNumerator::GetElementEnergy(
     const FiniteElement &el,
@@ -481,4 +481,4 @@ void TempResIntegrator::AssembleElementVector(const mfem::FiniteElement &elx,
    }
 }
 
-}  // namespace mach
+}  // namespace miso

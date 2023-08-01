@@ -3,14 +3,14 @@ function(create_egads_tests source_list data_files)
       add_executable("${X}.bin" "${X}.cpp" "../regression_test_main.cpp" ${data_files})
       add_dependencies("${X}.bin" copy-egads-data-files)
       add_dependencies(build_tests "${X}.bin")
-      target_link_libraries("${X}.bin" PRIVATE mach "${EGADS_LIBRARIES}" Catch)
+      target_link_libraries("${X}.bin" PRIVATE miso "${EGADS_LIBRARIES}" Catch)
       target_include_directories("${X}.bin" PRIVATE "${CMAKE_SOURCE_DIR}" "${EGADS_INCLUDE_DIRS}")
       add_test(NAME "${X}" COMMAND "${X}.bin") 
       # configure_file("${X}_options.json" "${X}_options.json" COPYONLY)
    endforeach()
 endfunction(create_egads_tests)
 
-# for all targets created in this file, include the main dir (containing mach.hpp)
+# for all targets created in this file, include the main dir (containing miso.hpp)
 #include_directories(BEFORE ${PROJECT_SOURCE_DIR})
 
 # group together all regression tests

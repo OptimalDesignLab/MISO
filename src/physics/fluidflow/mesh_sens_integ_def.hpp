@@ -1,5 +1,5 @@
-#ifndef MACH_MESH_SENS_INTEG_DEF
-#define MACH_MESH_SENS_INTEG_DEF
+#ifndef MISO_MESH_SENS_INTEG_DEF
+#define MISO_MESH_SENS_INTEG_DEF
 
 #include "mfem.hpp"
 
@@ -7,7 +7,7 @@
 #include "sbp_fe.hpp"
 #include "mesh_sens_integ.hpp"
 
-namespace mach
+namespace miso
 {
 template <typename Derived>
 void DyadicMeshSensIntegrator<Derived>::AssembleRHSElementVect(
@@ -96,7 +96,7 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
     mfem::ElementTransformation &trans,
     mfem::Vector &elvect)
 {
-   throw MachException(
+   throw MISOException(
        "BoundaryMeshSensIntegrator::AssembleRHSElementVect()\n"
        "\tUse AddBdrFaceIntegrator not AddBoundaryIntegrator");
 
@@ -150,7 +150,7 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
    //               break;
    //       case 2: sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
    //               break;
-   //       default: throw mach::MachException(
+   //       default: throw miso::MISOException(
    //          "BoundaryMeshSensIntegrator::AssembleFaceVector())\n"
    //          "\tcannot handle given dimension");
    //    }
@@ -251,7 +251,7 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "BoundaryMeshSensIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -298,6 +298,6 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

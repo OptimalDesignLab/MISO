@@ -9,7 +9,7 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 LEAnalogySolver::LEAnalogySolver(const nlohmann::json &options,
                                  std::unique_ptr<Mesh> smesh,
@@ -19,13 +19,13 @@ LEAnalogySolver::LEAnalogySolver(const nlohmann::json &options,
    if (options["space-dis"]["degree"] !=
        mesh->GetNodes()->FESpace()->GetOrder(0))
    {
-      throw MachException(
+      throw MISOException(
           "Linear Elasticity mesh movement solver must use same "
           "degree as mesh order!\n");
    }
    if (options["space-dis"]["basis-type"] != "H1")
    {
-      throw MachException(
+      throw MISOException(
           "Linear Elasticity mesh movement solver must use H1 "
           "basis functions\n");
    }
@@ -68,7 +68,7 @@ double LEAnalogySolver::calcStepSize(int iter,
    }
    else
    {
-      throw MachException("LEAnalogySolver requires steady time-dis!\n");
+      throw MISOException("LEAnalogySolver requires steady time-dis!\n");
    }
 }
 
@@ -81,7 +81,7 @@ void LEAnalogySolver::initialHook(const ParGridFunction &state)
    }
    else
    {
-      throw MachException("LEAnalogySolver requires steady time-dis!\n");
+      throw MISOException("LEAnalogySolver requires steady time-dis!\n");
    }
 }
 
@@ -101,7 +101,7 @@ bool LEAnalogySolver::iterationExit(int iter,
    }
    else
    {
-      throw MachException("LEAnalogySolver requires steady time-dis!\n");
+      throw MISOException("LEAnalogySolver requires steady time-dis!\n");
    }
 }
 
@@ -149,4 +149,4 @@ void LEAnalogySolver::setEssentialBoundaries()
    res->SetEssentialTrueDofs(ess_tdof_list);
 }
 
-}  // namespace mach
+}  // namespace miso

@@ -15,7 +15,7 @@
 // namespace
 // {
 
-// using namespace mach;
+// using namespace miso;
 
 // void getDivFreeCurrentMeshSens(mfem::ParFiniteElementSpace *mesh_fes,
 //                                mfem::ParFiniteElementSpace *h1_fes,
@@ -151,7 +151,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -295,7 +295,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -313,7 +313,7 @@
 
 //          nlohmann::json options = getBoxOptions(p);
 //          // generate initial tet mesh
-//          mach::MagnetostaticSolver solver(options, move(init_mesh));
+//          miso::MagnetostaticSolver solver(options, move(init_mesh));
 //          solver.initDerived();
 
 //          auto *mesh = solver.getMesh();
@@ -350,7 +350,7 @@
 //          // back step
 //          {
 //             auto back_mesh = getMesh(mesh_el,2);
-//             mach::MagnetostaticSolver back_solver(options, move(back_mesh));
+//             miso::MagnetostaticSolver back_solver(options, move(back_mesh));
 //             auto *b_mesh = back_solver.getMesh();
 //             auto *back_pert(static_cast<ParGridFunction*>(b_mesh->GetNodes()));
 //             back_pert->Add(-delta, v);
@@ -365,7 +365,7 @@
 //          {
 //             auto forward_mesh = getMesh(mesh_el,2);
 
-//             mach::MagnetostaticSolver forward_solver(options, move(forward_mesh));
+//             miso::MagnetostaticSolver forward_solver(options, move(forward_mesh));
 
 //             auto *f_mesh = forward_solver.getMesh();
 //             auto *forward_pert(static_cast<ParGridFunction*>(f_mesh->GetNodes()));
@@ -389,7 +389,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -407,7 +407,7 @@
 
 //          nlohmann::json options = getBoxOptions(p);
 //          // generate initial tet mesh
-//          mach::MagnetostaticSolver solver(options, move(init_mesh));
+//          miso::MagnetostaticSolver solver(options, move(init_mesh));
 //          solver.initDerived();
 //          solver.solveForState();
 
@@ -422,7 +422,7 @@
 //          J -= delta;
 //          back_options["problem-opts"]["current_density"] = J;
 
-//          mach::MagnetostaticSolver back_solver(back_options, move(mesh));
+//          miso::MagnetostaticSolver back_solver(back_options, move(mesh));
 //          back_solver.initDerived();
 //          back_solver.solveForState();
 //          dRdJ_cd = back_solver.getResidual();
@@ -435,7 +435,7 @@
 //          J += 2*delta;
 //          forward_options["problem-opts"]["current_density"] = J;
 
-//          mach::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
+//          miso::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
 //          forward_solver.initDerived();
 //          forward_solver.solveForState();
 //          *dRdJ_cd += *(forward_solver.getResidual());
@@ -454,7 +454,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -472,7 +472,7 @@
 
 //          nlohmann::json options = getBoxOptions(p);
 //          // generate initial tet mesh
-//          mach::MagnetostaticSolver solver(options, move(init_mesh));
+//          miso::MagnetostaticSolver solver(options, move(init_mesh));
 //          solver.initDerived();
 //          solver.solveForState();
 
@@ -488,7 +488,7 @@
 //             J -= delta;
 //             back_options["problem-opts"]["current_density"] = J;
 
-//             mach::MagnetostaticSolver back_solver(back_options, move(mesh));
+//             miso::MagnetostaticSolver back_solver(back_options, move(mesh));
 //             back_solver.initDerived();
 //             back_solver.solveForState();
 //             dWdJ_cd -= back_solver.calcOutput("co-energy");
@@ -502,7 +502,7 @@
 //             J += delta;
 //             forward_options["problem-opts"]["current_density"] = J;
 
-//             mach::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
+//             miso::MagnetostaticSolver forward_solver(forward_options, move(forward_mesh));
 //             forward_solver.initDerived();
 //             forward_solver.solveForState();
 //             dWdJ_cd += forward_solver.calcOutput("co-energy");
@@ -521,7 +521,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -561,7 +561,7 @@
 //          v.ProjectCoefficient(v_rand);
 
 //          /// Costruct coefficient
-//          mach::VectorMeshDependentCoefficient current(dim);
+//          miso::VectorMeshDependentCoefficient current(dim);
 //          std::unique_ptr<mfem::VectorCoefficient> coeff1(
 //             new VectorFunctionCoefficient(dim, func, funcRevDiff));
 //          std::unique_ptr<mfem::VectorCoefficient> coeff2(
@@ -715,7 +715,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -851,7 +851,7 @@
 
 //          nlohmann::json options = getBoxOptions(p);
 
-//          mach::MagnetostaticSolver solver(options, move(init_mesh));
+//          miso::MagnetostaticSolver solver(options, move(init_mesh));
 //          solver.initDerived();
 //          solver.solveForState();
 //          solver.printSolution("state", 0);
@@ -879,10 +879,10 @@
 //          {
 //             auto back_mesh = getMesh(mesh_el,2);
 
-//             mach::GridFunType back_pert(*static_cast<mach::GridFunType*>(back_mesh->GetNodes()));
+//             miso::GridFunType back_pert(*static_cast<miso::GridFunType*>(back_mesh->GetNodes()));
 //             back_pert.Add(-delta, v);
 //             back_mesh->SetNodes(back_pert);
-//             mach::MagnetostaticSolver back_solver(options, move(back_mesh));
+//             miso::MagnetostaticSolver back_solver(options, move(back_mesh));
 //             back_solver.initDerived();
 //             back_solver.solveForState();
 //             dJdX_v_cd -= back_solver.calcOutput("co-energy");
@@ -895,7 +895,7 @@
 //             GridFunction forward_pert(*forward_mesh->GetNodes());
 //             forward_pert.Add(delta, v);
 //             forward_mesh->SetNodes(forward_pert);
-//             mach::MagnetostaticSolver forward_solver(options, move(forward_mesh));
+//             miso::MagnetostaticSolver forward_solver(options, move(forward_mesh));
 //             forward_solver.initDerived();
 //             forward_solver.solveForState();
 //             double forward_energy = forward_solver.calcOutput("co-energy");
@@ -912,7 +912,7 @@
 //             GridFunction forward_pert(*forward_mesh->GetNodes());
 //             forward_pert.Add(fd_delta, v);
 //             forward_mesh->SetNodes(forward_pert);
-//             mach::MagnetostaticSolver forward_solver(options, move(forward_mesh));
+//             miso::MagnetostaticSolver forward_solver(options, move(forward_mesh));
 //             forward_solver.initDerived();
 //             forward_solver.solveForState();
 //             dJdX_v_fd += forward_solver.calcOutput("co-energy");
@@ -934,7 +934,7 @@
 // {
 //    using namespace mfem;
 //    using namespace electromag_data;
-//    using namespace mach;
+//    using namespace miso;
 
 //    const int dim = 3;
 //    const double delta = 1e-5;
@@ -947,7 +947,7 @@
 //       {
 //          nlohmann::json options = getWireOptions(p);
 //          // generate initial tet mesh
-//          mach::MagnetostaticSolver solver(options, nullptr);
+//          miso::MagnetostaticSolver solver(options, nullptr);
 //          solver.initDerived();
 
 //          auto *mesh = solver.getMesh();
@@ -989,7 +989,7 @@
 //          double dJdX_v_cd = 0.0;
 //          // back step
 
-//             mach::MagnetostaticSolver back_solver(options, nullptr);
+//             miso::MagnetostaticSolver back_solver(options, nullptr);
 //             auto *b_mesh = back_solver.getMesh();
 //             auto *back_pert(static_cast<ParGridFunction*>(b_mesh->GetNodes()));
 //             back_pert->Add(-delta, v);
@@ -1002,7 +1002,7 @@
 
 //          // forward step
 
-//             mach::MagnetostaticSolver forward_solver(options, nullptr);
+//             miso::MagnetostaticSolver forward_solver(options, nullptr);
 //             auto *f_mesh = forward_solver.getMesh();
 //             auto *forward_pert(static_cast<ParGridFunction*>(f_mesh->GetNodes()));
 //             forward_pert->Add(delta, v);

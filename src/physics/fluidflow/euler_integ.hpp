@@ -1,5 +1,5 @@
-#ifndef MACH_EULER_INTEG
-#define MACH_EULER_INTEG
+#ifndef MISO_EULER_INTEG
+#define MISO_EULER_INTEG
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -7,7 +7,7 @@
 #include "inviscid_integ.hpp"
 #include "euler_fluxes.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for the Euler flux over an element
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
@@ -593,7 +593,7 @@ public:
    { }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "euler_integ_def.hpp"
 

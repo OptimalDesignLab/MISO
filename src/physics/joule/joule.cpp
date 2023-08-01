@@ -6,7 +6,7 @@
 using namespace std;
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 /// TODO: read options file and construct options files for EM and
 JouleSolver::JouleSolver(const std::string &opt_file_name,
@@ -34,7 +34,7 @@ JouleSolver::JouleSolver(const std::string &opt_file_name,
       }
       else
       {
-         throw MachException(
+         throw MISOException(
              "JouleSolver::JouleSolver()\n"
              "\tMesh file has no extension!\n");
       }
@@ -55,7 +55,7 @@ JouleSolver::JouleSolver(const std::string &opt_file_name,
       }
       else
       {
-         throw MachException(
+         throw MISOException(
              "JouleSolver::JouleSolver()\n"
              "\tModel file has no extension!\n");
       }
@@ -145,4 +145,4 @@ void JouleSolver::solveForAdjoint(const std::string &fun)
    }
 }
 
-}  // namespace mach
+}  // namespace miso

@@ -61,7 +61,7 @@ TEST_CASE( "calc/solveDistance applied to linear segment", "[surface]")
    SnapNodes(*mesh);
 
    // Construct the surface object
-   mach::Surface<2> surf(*mesh);
+   miso::Surface<2> surf(*mesh);
 
    // Get the relevant element transformation
    ElementTransformation *trans = mesh->GetElementTransformation(0);
@@ -128,7 +128,7 @@ TEST_CASE( "calc/solveDistance applied to quadratic segment", "[surface]")
    //sol_ofs.close();
 
    // Construct the surface object
-   mach::Surface<2> surf(*mesh);
+   miso::Surface<2> surf(*mesh);
 
    // Get the relevant element transformation
    ElementTransformation *trans = mesh->GetElementTransformation(0);
@@ -211,7 +211,7 @@ TEST_CASE( "calc/solveDistance applied to cubic segment", "[surface]")
    //sol_ofs.close();
 
    // Construct the surface object
-   mach::Surface<2> surf(*mesh);
+   miso::Surface<2> surf(*mesh);
 
    // Get the relevant element transformation
    ElementTransformation *trans = mesh->GetElementTransformation(0);
@@ -290,7 +290,7 @@ TEST_CASE( "calcDistance applied to linear mesh", "[surface]")
    //sol_ofs.close();
 
    // Construct the surface object
-   mach::Surface<2> surf(*mesh);
+   miso::Surface<2> surf(*mesh);
 
    // Test 1: Closest point on a vertex
    Vector x(2);
@@ -360,7 +360,7 @@ TEST_CASE( "calcDistance applied to quadratic mesh", "[surface]")
    //sol_ofs.close();
 
    // Construct the surface object
-   mach::Surface<2> surf(*mesh);
+   miso::Surface<2> surf(*mesh);
 
    // Test 1: closest point inside an element
    Vector x(2);
@@ -430,7 +430,7 @@ TEST_CASE( "calcDistance applied to cubic mesh", "[surface]")
    //sol_ofs.close();
 
    // Construct the surface object
-   mach::Surface<2> surf(*mesh);
+   miso::Surface<2> surf(*mesh);
 
    // Test 1: closest point inside an element
    Vector x(2);

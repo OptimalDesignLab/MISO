@@ -18,7 +18,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 namespace
 {
@@ -100,7 +100,7 @@ TEST_CASE("HybridACLossFunctionalIntegrator::GetEnergy",
    int n = 3;
 
    functional.AddDomainIntegrator(
-      new mach::HybridACLossFunctionalIntegrator(sigma, frequency, d, fill_factor));
+      new miso::HybridACLossFunctionalIntegrator(sigma, frequency, d, fill_factor));
 
    const auto b_mag = 1.0;
    const auto loss = n * M_PI * l * std::pow(d, 4) * sigma_val

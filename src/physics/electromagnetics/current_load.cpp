@@ -3,16 +3,16 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "mfem_common_integ.hpp"
 #include "current_load.hpp"
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 /// set inputs should include fields, so things can check if they're "dirty"
-void setInputs(CurrentLoad &load, const MachInputs &inputs)
+void setInputs(CurrentLoad &load, const MISOInputs &inputs)
 {
    setInputs(load.div_free_proj, inputs);
 
@@ -223,4 +223,4 @@ void CurrentLoad::assembleLoad()
    scratch.ParallelAssemble(load);
 }
 
-}  // namespace mach
+}  // namespace miso

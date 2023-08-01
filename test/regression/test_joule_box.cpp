@@ -10,7 +10,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto em_options = R"(
@@ -205,7 +205,7 @@ TEST_CASE("Joule Box Solver Regression Test",
                                                                move(em_mesh));
             auto em_state = em_solver->getNewField();
             em_solver->setFieldValue(*em_state, aexact);
-            MachInputs em_inputs;
+            MISOInputs em_inputs;
             em_solver->solveForState(em_inputs, *em_state);
 
             auto therm_solver = createSolver<ThermalSolver>(therm_options, 
@@ -214,7 +214,7 @@ TEST_CASE("Joule Box Solver Regression Test",
             // therm_solver->setResidualInput("mvp", *em_state);
             therm_solver->setFieldValue(*therm_state, initialTemp);
 
-            MachInputs therm_inputs = {
+            MISOInputs therm_inputs = {
                {"mvp", em_state->GetData()}
             };
             therm_solver->solveForState(therm_inputs, *therm_state);

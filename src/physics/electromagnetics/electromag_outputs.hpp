@@ -1,5 +1,5 @@
-#ifndef MACH_ELECTROMAG_OUTPUT
-#define MACH_ELECTROMAG_OUTPUT
+#ifndef MISO_ELECTROMAG_OUTPUT
+#define MISO_ELECTROMAG_OUTPUT
 
 #include <unordered_set>
 #include <vector>
@@ -9,15 +9,15 @@
 
 #include "electromag_integ.hpp"
 #include "functional_output.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 class ForceFunctional final
 {
 public:
    friend inline void setInputs(ForceFunctional &output,
-                                const MachInputs &inputs)
+                                const MISOInputs &inputs)
    {
       setInputs(output.output, inputs);
    }
@@ -26,21 +26,21 @@ public:
                           const nlohmann::json &options);
 
    friend inline double calcOutput(ForceFunctional &output,
-                                   const MachInputs &inputs)
+                                   const MISOInputs &inputs)
    {
       return calcOutput(output.output, inputs);
    }
 
    friend inline double calcOutputPartial(ForceFunctional &output,
                                           const std::string &wrt,
-                                          const MachInputs &inputs)
+                                          const MISOInputs &inputs)
    {
       return calcOutputPartial(output.output, wrt, inputs);
    }
 
    friend inline void calcOutputPartial(ForceFunctional &output,
                                         const std::string &wrt,
-                                        const MachInputs &inputs,
+                                        const MISOInputs &inputs,
                                         mfem::HypreParVector &partial)
    {
       calcOutputPartial(output.output, wrt, inputs, partial);
@@ -50,7 +50,7 @@ public:
        mfem::ParFiniteElementSpace &fes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
        const nlohmann::json &options,
-       mach::StateCoefficient &nu)
+       miso::StateCoefficient &nu)
     : output(fes, fields), fields(&fields)
    {
       setOptions(*this, options);
@@ -69,7 +69,7 @@ class TorqueFunctional final
 {
 public:
    friend inline void setInputs(TorqueFunctional &output,
-                                const MachInputs &inputs)
+                                const MISOInputs &inputs)
    {
       setInputs(output.output, inputs);
    }
@@ -78,21 +78,21 @@ public:
                           const nlohmann::json &options);
 
    friend inline double calcOutput(TorqueFunctional &output,
-                                   const MachInputs &inputs)
+                                   const MISOInputs &inputs)
    {
       return calcOutput(output.output, inputs);
    }
 
    friend inline double calcOutputPartial(TorqueFunctional &output,
                                           const std::string &wrt,
-                                          const MachInputs &inputs)
+                                          const MISOInputs &inputs)
    {
       return calcOutputPartial(output.output, wrt, inputs);
    }
 
    friend inline void calcOutputPartial(TorqueFunctional &output,
                                         const std::string &wrt,
-                                        const MachInputs &inputs,
+                                        const MISOInputs &inputs,
                                         mfem::HypreParVector &partial)
    {
       calcOutputPartial(output.output, wrt, inputs, partial);
@@ -102,7 +102,7 @@ public:
        mfem::ParFiniteElementSpace &fes,
        std::unordered_map<std::string, mfem::ParGridFunction> &fields,
        const nlohmann::json &options,
-       mach::StateCoefficient &nu)
+       miso::StateCoefficient &nu)
     : output(fes, fields), fields(&fields)
    {
       setOptions(*this, options);
@@ -163,6 +163,6 @@ inline void setOptions(TorqueFunctional &output, const nlohmann::json &options)
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef MACH_VISCOUS_INTEG_DEF
-#define MACH_VISCOUS_INTEG_DEF
+#ifndef MISO_VISCOUS_INTEG_DEF
+#define MISO_VISCOUS_INTEG_DEF
 
 #include "mfem.hpp"
 
@@ -7,7 +7,7 @@
 #include "utils.hpp"
 #include "viscous_integ.hpp"
 
-namespace mach
+namespace miso
 {
 template <typename Derived>
 void SymmetricViscousIntegrator<Derived>::AssembleElementVector(
@@ -250,7 +250,7 @@ double ViscousBoundaryIntegrator<Derived>::GetFaceEnergy(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -341,7 +341,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceVector(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -465,7 +465,7 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -580,6 +580,6 @@ void ViscousBoundaryIntegrator<Derived>::AssembleFaceGrad(
    }        // k/i loop
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

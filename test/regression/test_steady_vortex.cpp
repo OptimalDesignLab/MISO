@@ -10,14 +10,14 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
 {
    "print-options": false,
    "flow-param": {
-      "mach": 1.0,
+      "miso": 1.0,
       "aoa": 0.0
    },
    "space-dis": {
@@ -139,7 +139,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
             "boundaries": [0, 0, 0, 1]
          })"_json;
          solver->createOutput("drag", drag_opts);
-         double drag_error = fabs(solver->calcOutput("drag") - (-1 /mach::euler::gamma));
+         double drag_error = fabs(solver->calcOutput("drag") - (-1 /miso::euler::gamma));
          REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }

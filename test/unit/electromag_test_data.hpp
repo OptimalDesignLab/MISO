@@ -77,7 +77,7 @@ void vectorFunc2RevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::
 }
 
 /// Simple linear coefficient for testing CurlCurlNLFIntegrator
-class LinearCoefficient : public mach::StateCoefficient
+class LinearCoefficient : public miso::StateCoefficient
 {
 public:
    LinearCoefficient(double val = 1.0) : value(val) {}
@@ -101,7 +101,7 @@ private:
 };
 
 /// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator
-class NonLinearCoefficient : public mach::StateCoefficient
+class NonLinearCoefficient : public miso::StateCoefficient
 {
 public:
    NonLinearCoefficient() {};

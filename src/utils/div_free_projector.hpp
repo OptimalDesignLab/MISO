@@ -1,11 +1,11 @@
-#ifndef MACH_DIV_FREE_PROJECTOR
-#define MACH_DIV_FREE_PROJECTOR
+#ifndef MISO_DIV_FREE_PROJECTOR
+#define MISO_DIV_FREE_PROJECTOR
 
 #include "mfem.hpp"
 
 #include "irrotational_projector.hpp"
 
-namespace mach
+namespace miso
 {
 /// This class computes the divergence free portion of a vector field.
 /// This vector field must be discretized using Nedelec basis
@@ -14,7 +14,7 @@ class DivergenceFreeProjector : public IrrotationalProjector
 {
 public:
    /// Used to set inputs in the operator
-   friend void setInputs(DivergenceFreeProjector &op, const MachInputs &inputs);
+   friend void setInputs(DivergenceFreeProjector &op, const MISOInputs &inputs);
 
    // Given a GridFunction 'x' of Nedelec DoFs for an arbitrary vector field,
    // compute the Nedelec DoFs of the divergence free portion, 'y', of
@@ -42,6 +42,6 @@ private:
    mutable mfem::ParGridFunction psi_irrot;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

@@ -6,7 +6,7 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 void DiffusionIntegratorMeshSens::AssembleRHSElementVect(
     const mfem::FiniteElement &mesh_el,
@@ -1498,4 +1498,4 @@ double MassResIntegrator::GetElementEnergy(const FiniteElement &elx,
 
 #endif
 
-}  // namespace mach
+}  // namespace miso

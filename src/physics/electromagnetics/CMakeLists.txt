@@ -1,4 +1,4 @@
-target_sources(mach
+target_sources(miso
    PRIVATE
       current_load.cpp
       current_load.hpp
@@ -12,7 +12,7 @@ target_sources(mach
       magnetostatic.hpp
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${CMAKE_CURRENT_SOURCE_DIR}"
 )

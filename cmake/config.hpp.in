@@ -1,5 +1,5 @@
-#ifndef MACH_CONFIG_HEADER
-#define MACH_CONFIG_HEADER
+#ifndef MISO_CONFIG_HEADER
+#define MISO_CONFIG_HEADER
 
 /// Enable define guards for EGADS 
 #cmakedefine MFEM_USE_EGADS

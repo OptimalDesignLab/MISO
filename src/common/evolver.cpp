@@ -1,14 +1,14 @@
 #include <iostream>
 
 #include "utils.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "evolver.hpp"
 
 using namespace mfem;
 
-using namespace mach;
+using namespace miso;
 
-namespace mach
+namespace miso
 {
 void ODESystemOperator::Mult(const mfem::Vector &k, mfem::Vector &r) const
 {
@@ -16,7 +16,7 @@ void ODESystemOperator::Mult(const mfem::Vector &k, mfem::Vector &r) const
    // Use x_work to store x + dt*k
    add(1.0, *x, dt, k, x_work);
    auto inputs =
-       MachInputs({{"state", x_work.GetData()}, {"dxdt", k.GetData()}});
+       MISOInputs({{"state", x_work.GetData()}, {"dxdt", k.GetData()}});
    evaluate(*res, inputs, r);
 }
 
@@ -24,12 +24,12 @@ Operator &ODESystemOperator::GetGradient(const mfem::Vector &k) const
 {
    // Use x_work to store x + dt*k
    add(1.0, *x, dt, k, x_work);
-   auto inputs = MachInputs(
+   auto inputs = MISOInputs(
        {{"dt", dt}, {"state", x_work.GetData()}, {"dxdt", k.GetData()}});
    return getJacobian(*res, inputs, "dxdt");
 }
 
-class MachEvolver::SystemOperator : public mfem::Operator
+class MISOEvolver::SystemOperator : public mfem::Operator
 {
 public:
    /// Nonlinear operator of the form that combines the mass, res, stiff,
@@ -45,7 +45,7 @@ public:
                   ParNonlinearForm *_nonlinear_mass,
                   ParBilinearForm *_mass,
                   ParNonlinearForm *_res,
-                  MachLoad *_load)
+                  MISOLoad *_load)
     : Operator(((_nonlinear_mass != nullptr)
                     ? _nonlinear_mass->FESpace()->GetTrueVSize()
                 : (_mass != nullptr) ? _mass->FESpace()->GetTrueVSize()
@@ -113,7 +113,7 @@ public:
       // }
       if (load != nullptr)
       {
-         mach::addLoad(*load, r);
+         miso::addLoad(*load, r);
          r.SetSubVector(ess_tdof_list, 0.0);
       }
       if (mass != nullptr)
@@ -198,7 +198,7 @@ private:
    ParBilinearForm *mass;
    ParNonlinearForm *res;
    // BilinearFormType *stiff;
-   MachLoad *load;
+   MISOLoad *load;
    // mfem::HypreParVector *load_tv;
    // mutable HypreParMatrix *jac;
    mutable OperatorHandle jac;
@@ -212,12 +212,12 @@ private:
    Array<int> ess_tdof_list;
 };
 
-MachEvolver::MachEvolver(Array<int> &ess_bdr,
+MISOEvolver::MISOEvolver(Array<int> &ess_bdr,
                          NonlinearFormType *_nonlinear_mass,
                          BilinearFormType *_mass,
                          NonlinearFormType *_res,
                          BilinearFormType *_stiff,
-                         MachLoad *_load,
+                         MISOLoad *_load,
                          NonlinearFormType *_ent,
                          std::ostream &outstream,
                          double start_time,
@@ -243,7 +243,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
 {
    if ((_mass != nullptr) && (_nonlinear_mass != nullptr))
    {
-      throw MachException(
+      throw MISOException(
           "Cannot use a linear and nonlinear mass operator "
           "simultaneously");
    }
@@ -271,7 +271,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       }
       else
       {
-         throw MachException("Unsupported assembly level for mass matrix!");
+         throw MISOException("Unsupported assembly level for mass matrix!");
       }
       mass_solver = CGSolver(_mass->ParFESpace()->GetComm());
       mass_solver.SetPreconditioner(*mass_prec);
@@ -302,7 +302,7 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
       }
       else
       {
-         throw MachException(
+         throw MISOException(
              "Unsupported assembly level"
              "for stiffness matrix!");
       }
@@ -311,13 +311,13 @@ MachEvolver::MachEvolver(Array<int> &ess_bdr,
        new SystemOperator(ess_bdr, _nonlinear_mass, _mass, _res, _load));
 }
 
-MachEvolver::~MachEvolver() = default;
+MISOEvolver::~MISOEvolver() = default;
 
-void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
+void MISOEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
 {
    if (nonlinear_mass != nullptr)
    {
-      throw MachException("Cannot use MachEvolver::Mult with nonlinear mass");
+      throw MISOException("Cannot use MISOEvolver::Mult with nonlinear mass");
    }
 
    if (res != nullptr)
@@ -340,7 +340,7 @@ void MachEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
    y *= -1.0;
 }
 
-void MachEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
+void MISOEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
 {
    setOperParameters(dt, &x);
    Vector zero;  // empty vector is interpreted as zero r.h.s. by NewtonSolver
@@ -357,7 +357,7 @@ void MachEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
    }
 }
 
-void MachEvolver::ImplicitSolve(const double dt_stage,
+void MISOEvolver::ImplicitSolve(const double dt_stage,
                                 const double dt,
                                 const Vector &x,
                                 Vector &k)
@@ -372,49 +372,49 @@ void MachEvolver::ImplicitSolve(const double dt_stage,
    }
 }
 
-void MachEvolver::SetLinearSolver(Solver *_linsolver)
+void MISOEvolver::SetLinearSolver(Solver *_linsolver)
 {
    linsolver = _linsolver;
 }
 
-void MachEvolver::SetNewtonSolver(NewtonSolver *_newton)
+void MISOEvolver::SetNewtonSolver(NewtonSolver *_newton)
 {
    newton = _newton;
    newton->SetOperator(*combined_oper);
 }
 
-mfem::Operator &MachEvolver::GetGradient(const mfem::Vector &x) const
+mfem::Operator &MISOEvolver::GetGradient(const mfem::Vector &x) const
 {
    return combined_oper->GetGradient(x);
 }
 
-double MachEvolver::Entropy(const mfem::Vector &x)
+double MISOEvolver::Entropy(const mfem::Vector &x)
 {
    if (ent == nullptr)
    {
-      throw MachException("MachEvolver::Entropy(): ent member not defined!");
+      throw MISOException("MISOEvolver::Entropy(): ent member not defined!");
    }
    return ent->GetEnergy(x);
 }
 
-double MachEvolver::EntropyChange(double dt,
+double MISOEvolver::EntropyChange(double dt,
                                   const mfem::Vector &x,
                                   const mfem::Vector &k)
 {
    /// even though it is not used here, ent should be defined
    if (ent == nullptr)
    {
-      throw MachException("MachEvolver::EntropyChange(): ent not defined!");
+      throw MISOException("MISOEvolver::EntropyChange(): ent not defined!");
    }
    add(x, dt, k, x_work);
    return res->GetEnergy(x_work);
 }
 
-void MachEvolver::setOperParameters(double dt,
+void MISOEvolver::setOperParameters(double dt,
                                     const mfem::Vector *x,
                                     double dt_stage)
 {
    combined_oper->setParameters(dt, x, dt_stage);
 }
 
-}  // namespace mach
+}  // namespace miso

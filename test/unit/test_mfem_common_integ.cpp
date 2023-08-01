@@ -65,7 +65,7 @@ TEST_CASE("DiffusionIntegratorMeshSens::AssembleRHSElementVect")
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::DiffusionIntegratorMeshSens;
+         auto integ = new miso::DiffusionIntegratorMeshSens;
          integ->setState(state);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
@@ -148,7 +148,7 @@ TEST_CASE("VectorFEWeakDivergenceIntegratorMeshSens::AssembleRHSElementVect")
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFEWeakDivergenceIntegratorMeshSens;
+         auto integ = new miso::VectorFEWeakDivergenceIntegratorMeshSens;
          integ->setState(state);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
@@ -230,7 +230,7 @@ TEST_CASE("VectorFECurlIntegratorMeshSens::AssembleRHSElementVect - (u, curl v)"
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFECurlIntegratorMeshSens;
+         auto integ = new miso::VectorFECurlIntegratorMeshSens;
          integ->setState(state);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
@@ -311,7 +311,7 @@ TEST_CASE("VectorFECurlIntegratorMeshSens::AssembleRHSElementVect - (curl u, v)"
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFECurlIntegratorMeshSens;
+         auto integ = new miso::VectorFECurlIntegratorMeshSens;
          integ->setState(state);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
@@ -390,7 +390,7 @@ TEST_CASE("VectorFEMassIntegratorMeshSens::AssembleRHSElementVect")
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFEMassIntegratorMeshSens;
+         auto integ = new miso::VectorFEMassIntegratorMeshSens;
          integ->setState(state);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
@@ -470,7 +470,7 @@ TEST_CASE("VectorFEDomainLFIntegratorMeshSens::AssembleRHSElementVect")
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFEDomainLFIntegratorMeshSens(vec_coeff);
+         auto integ = new miso::VectorFEDomainLFIntegratorMeshSens(vec_coeff);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
 
@@ -534,7 +534,7 @@ TEST_CASE("VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect")
          VectorConstantCoefficient vec_coeff(vec);
          // we use b for finite-difference approximation
          ParLinearForm b(&fes);
-         auto *primal = new mach::VectorFEDomainLFCurlIntegrator(vec_coeff);
+         auto *primal = new miso::VectorFEDomainLFCurlIntegrator(vec_coeff);
          b.AddDomainIntegrator(primal);
 
          // initialize state and adjoint; here we randomly perturb a constant state
@@ -544,7 +544,7 @@ TEST_CASE("VectorFEDomainLFCurlIntegratorMeshSens::AssembleRHSElementVect")
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFEDomainLFCurlIntegratorMeshSens(*primal);
+         auto integ = new miso::VectorFEDomainLFCurlIntegratorMeshSens(*primal);
          integ->setAdjoint(adjoint);
          dfdx.AddDomainIntegrator(integ);
 
@@ -610,7 +610,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
          VectorConstantCoefficient vec_coeff(vec);
          // we use b for finite-difference approximation
          ParLinearForm b(&fes);
-         auto *primal = new mach::VectorFEBoundaryTangentLFIntegrator(vec_coeff);
+         auto *primal = new miso::VectorFEBoundaryTangentLFIntegrator(vec_coeff);
          b.AddBoundaryIntegrator(primal);
 
          // initialize state and adjoint; here we randomly perturb a constant state
@@ -620,7 +620,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 
          // build the nonlinear form for d(psi^T R)/dx 
          ParLinearForm dfdx(&mesh_fes);
-         auto integ = new mach::VectorFEBoundaryTangentLFIntegratorMeshSens(*primal);
+         auto integ = new miso::VectorFEBoundaryTangentLFIntegratorMeshSens(*primal);
          integ->setAdjoint(adjoint);
          dfdx.AddBdrFaceIntegrator(integ);
 
@@ -690,7 +690,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 
 //          // ConstantCoefficient Q(1.0);
 //          // FunctionCoefficient Q(func, funcRevDiff);
-//          mach::SteinmetzCoefficient Q(1, 2, 4, 0.5, 0.6, A);
+//          miso::SteinmetzCoefficient Q(1, 2, 4, 0.5, 0.6, A);
 
 //          // initialize state; here we randomly perturb a constant state
 //          GridFunction q(fes.get());
@@ -706,14 +706,14 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // GridFunction dJdx(*x_nodes);
 //          LinearForm dJdx(mesh_fes);
 //          dJdx.AddDomainIntegrator(
-//             new mach::TestLFMeshSensIntegrator(Q));
+//             new miso::TestLFMeshSensIntegrator(Q));
 //          dJdx.Assemble();
 //          double dJdx_dot_v = dJdx * v;
 
 //          // now compute the finite-difference approximation...
 //          NonlinearForm functional(fes.get());
 //          functional.AddDomainIntegrator(
-//             new mach::TestLFIntegrator(Q));
+//             new miso::TestLFIntegrator(Q));
 
 //          double delta = 1e-5;
 //          GridFunction x_pert(*x_nodes);
@@ -765,8 +765,8 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // we use res for finite-difference approximation
 //          std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
 //          std::unique_ptr<Coefficient> q2(new ConstantCoefficient(2));
-//          std::unique_ptr<mach::MeshDependentCoefficient> Q;
-//          Q.reset(new mach::MeshDependentCoefficient());
+//          std::unique_ptr<miso::MeshDependentCoefficient> Q;
+//          Q.reset(new miso::MeshDependentCoefficient());
 //          Q->addCoefficient(1, move(q1)); 
 //          Q->addCoefficient(2, move(q2));
 //          LinearForm res(fes.get());
@@ -786,7 +786,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // build the nonlinear form for d(psi^T R)/dx 
 //          NonlinearForm dfdx_form(mesh_fes);
 //          dfdx_form.AddDomainIntegrator(
-//             new mach::DomainResIntegrator(*Q, &adjoint));
+//             new miso::DomainResIntegrator(*Q, &adjoint));
 
 //          // initialize the vector that we use to perturb the mesh nodes
 //          GridFunction v(mesh_fes);
@@ -860,7 +860,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // build the nonlinear form for d(psi^T R)/dx 
 //          NonlinearForm dfdx_form(mesh_fes);
 //          dfdx_form.AddDomainIntegrator(
-//             new mach::MassResIntegrator(*Q,
+//             new miso::MassResIntegrator(*Q,
 //                &state, &adjoint));
 
 //          // initialize the vector that we use to perturb the mesh nodes
@@ -924,8 +924,8 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // we use res for finite-difference approximation
 //          std::unique_ptr<Coefficient> q1(new ConstantCoefficient(1));
 //          std::unique_ptr<Coefficient> q2(new ConstantCoefficient(2));
-//          std::unique_ptr<mach::MeshDependentCoefficient> Q;
-//          Q.reset(new mach::MeshDependentCoefficient());
+//          std::unique_ptr<miso::MeshDependentCoefficient> Q;
+//          Q.reset(new miso::MeshDependentCoefficient());
 //          Q->addCoefficient(1, move(q1)); 
 //          Q->addCoefficient(2, move(q2));
 //          BilinearForm res(fes.get());
@@ -945,7 +945,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // build the nonlinear form for d(psi^T R)/dx 
 //          NonlinearForm dfdx_form(mesh_fes);
 //          dfdx_form.AddDomainIntegrator(
-//             new mach::DiffusionResIntegrator(*Q,
+//             new miso::DiffusionResIntegrator(*Q,
 //                &state, &adjoint));
 
 //          // initialize the vector that we use to perturb the mesh nodes
@@ -1024,7 +1024,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // build the nonlinear form for d(psi^T R)/dx 
 //          LinearForm dfdx(mesh_fes);
 //          dfdx.AddDomainIntegrator(
-//             new mach::DiffusionResIntegrator(*Q,
+//             new miso::DiffusionResIntegrator(*Q,
 //                &state, &adjoint));
 
 //          // initialize the vector that we use to perturb the mesh nodes
@@ -1106,7 +1106,7 @@ TEST_CASE("VectorFEBoundaryTangentLFIntegratorMeshSens::AssembleRHSElementVect")
 //          // build the nonlinear form for d(psi^T R)/dx 
 //          LinearForm dfdx_form(mesh_fes);
 //          dfdx_form.AddBdrFaceIntegrator(
-//             new mach::BoundaryNormalResIntegrator(*Q,
+//             new miso::BoundaryNormalResIntegrator(*Q,
 //                &state, &adjoint), attr);
 
 //          // initialize the vector that we use to perturb the mesh nodes

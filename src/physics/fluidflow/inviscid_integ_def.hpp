@@ -1,5 +1,5 @@
-#ifndef MACH_INVISCID_INTEG_DEF
-#define MACH_INVISCID_INTEG_DEF
+#ifndef MISO_INVISCID_INTEG_DEF
+#define MISO_INVISCID_INTEG_DEF
 
 #include "mfem.hpp"
 
@@ -7,7 +7,7 @@
 #include "sbp_fe.hpp"
 #include "inviscid_integ.hpp"
 
-namespace mach
+namespace miso
 {
 template <typename Derived>
 double InviscidIntegrator<Derived>::GetElementEnergy(
@@ -443,7 +443,7 @@ double InviscidBoundaryIntegrator<Derived>::GetFaceEnergy(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "InviscidBoundaryIntegrator::GetFaceEnergy())\n"
           "\tcannot handle given dimension");
    }
@@ -499,7 +499,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceVector(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -563,7 +563,7 @@ void InviscidBoundaryIntegrator<Derived>::AssembleFaceGrad(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "InviscidBoundaryIntegrator::AssembleFaceGrad())\n"
           "\tcannot handle given dimension");
    }
@@ -631,7 +631,7 @@ double InviscidFaceIntegrator<Derived>::GetFaceEnergy(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -700,7 +700,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceVector(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -772,7 +772,7 @@ void InviscidFaceIntegrator<Derived>::AssembleFaceGrad(
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "InviscidBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -896,6 +896,6 @@ void NonlinearMassIntegrator<Derived>::AssembleElementGrad(
    elmat *= alpha;
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

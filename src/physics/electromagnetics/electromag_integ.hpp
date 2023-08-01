@@ -1,15 +1,15 @@
-#ifndef MACH_ELECTROMAG_INTEG
-#define MACH_ELECTROMAG_INTEG
+#ifndef MISO_ELECTROMAG_INTEG
+#define MISO_ELECTROMAG_INTEG
 
 #include <unordered_set>
 
 #include "mfem.hpp"
 
-#include "mach_types.hpp"
-#include "mach_input.hpp"
-#include "mach_integrator.hpp"
+#include "miso_types.hpp"
+#include "miso_input.hpp"
+#include "miso_integrator.hpp"
 
-namespace mach
+namespace miso
 {
 class AbstractSolver;
 class StateCoefficient;
@@ -563,7 +563,7 @@ space
 
    friend void setInput(MagneticCoenergyIntegrator &integ,
                         const std::string &name,
-                        const MachInput &input);
+                        const MISOInput &input);
 
 private:
    /// the current state to use when evaluating \frac{\partial J}{\partial X}
@@ -596,7 +596,7 @@ private:
 
 inline void setInput(MagneticCoenergyIntegrator &integ,
          const std::string &name,
-         const MachInput &input)
+         const MISOInput &input)
 {
    // do nothing yet
 }
@@ -823,7 +823,7 @@ public:
    /// \brief allows changing the frequency and diameter of the strands for AC
    /// loss calculation
    friend void setInputs(DCLossFunctionalIntegrator &integ,
-                         const MachInputs &inputs);
+                         const MISOInputs &inputs);
 
    /// \brief - Compute DC copper losses in the domain
    /// \param[in] sigma - the electrical conductivity coefficient
@@ -860,7 +860,7 @@ public:
    /// \brief allows changing the frequency and diameter of the strands for AC
    /// loss calculation
    friend void setInputs(HybridACLossFunctionalIntegrator &integ,
-                         const MachInputs &inputs);
+                         const MISOInputs &inputs);
 
    /// \brief - Compute AC copper losses in the domain based on a hybrid
    ///          analytical-FEM approach
@@ -1003,6 +1003,6 @@ inline void addSensitivityIntegrator<ForceIntegrator>(
            new ForceIntegratorMeshSens(res_fields.at("state"), primal_integ));
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

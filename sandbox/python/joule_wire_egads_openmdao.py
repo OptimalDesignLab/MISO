@@ -1,7 +1,7 @@
-from mach import omEGADS, omMeshMove, omMachState, Mesh, Vector
+from miso import omEGADS, omMeshMove, omMISOState, Mesh, Vector
 import openmdao.api as om
 
-from mach import MachSolver
+from miso import MISOSolver
 
 mesh_options = {
     'mesh': {
@@ -195,17 +195,17 @@ if __name__ == "__main__":
                                                   tess_file='wire.eto'))
     model.connect('des_vars.radius', 'surf_mesh_move.radius')
     
-    meshMoveSolver = MachSolver("MeshMovement", mesh_options, problem.comm)
+    meshMoveSolver = MISOSolver("MeshMovement", mesh_options, problem.comm)
     model.add_subsystem('vol_mesh_move', omMeshMove(solver=meshMoveSolver))
     model.connect('surf_mesh_move.surf_mesh_disp', 'vol_mesh_move.surf_mesh_disp')
 
-    emSolver = MachSolver("Magnetostatic", em_options, problem.comm)
-    model.add_subsystem('em_solver', omMachState(solver=emSolver, 
+    emSolver = MISOSolver("Magnetostatic", em_options, problem.comm)
+    model.add_subsystem('em_solver', omMISOState(solver=emSolver, 
                                                  initial_condition=Vector([0.0, 0.0, 0.0])))
     model.connect('vol_mesh_move.vol_mesh_coords', 'em_solver.mesh-coords')
 
-    thermalSolver = MachSolver("Thermal", thermal_options, problem.comm)
-    model.add_subsystem('thermal_solver', omMachState(solver=thermalSolver,
+    thermalSolver = MISOSolver("Thermal", thermal_options, problem.comm)
+    model.add_subsystem('thermal_solver', omMISOState(solver=thermalSolver,
                                                       initial_condition=300.0))
     model.connect('vol_mesh_move.vol_mesh_coords', 'thermal_solver.mesh-coords')
     model.connect('em_solver.state', 'thermal_solver.mvp')

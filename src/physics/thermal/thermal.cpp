@@ -8,8 +8,8 @@
 #include "thermal.hpp"
 #include "utils.hpp"
 
-#include "mach_load.hpp"
-#include "mach_linearform.hpp"
+#include "miso_load.hpp"
+#include "miso_linearform.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -35,7 +35,7 @@ void test_flux_func(const Vector &x, double time, Vector &y)
 
 }  // anonymous namespace
 
-namespace mach
+namespace miso
 {
 ThermalSolver::ThermalSolver(const nlohmann::json &options,
                              std::unique_ptr<mfem::Mesh> smesh,
@@ -441,7 +441,7 @@ void ThermalSolver::constructConvection()
       }
       else
       {
-         throw MachException(
+         throw MISOException(
              "Using convection boundary condition without"
              "specifying heat transfer coefficient!\n");
       }
@@ -654,8 +654,8 @@ void ThermalSolver::constructForms()
 {
    mass.reset(new BilinearFormType(fes.get()));
    res.reset(new ParNonlinearForm(fes.get()));
-   therm_load.reset(new MachLinearForm(*fes, res_fields));
-   load.reset(new MachLoad(*therm_load));
+   therm_load.reset(new MISOLinearForm(*fes, res_fields));
+   load.reset(new MISOLoad(*therm_load));
 }
 
 void ThermalSolver::addMassIntegrators(double alpha)
@@ -715,7 +715,7 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
 {
    // auto *load_lf = dynamic_cast<ParLinearForm*>(load.get());
    // if (!load_lf)
-   //    throw MachException("Couldn't cast load to LinearFormType!\n");
+   //    throw MISOException("Couldn't cast load to LinearFormType!\n");
 
    /// determine type of flux function
    auto &bcs = options["bcs"];
@@ -731,12 +731,12 @@ void ThermalSolver::addLoadBoundaryIntegrators(double alpha)
          }
          else
          {
-            throw MachException("Specified flux function not supported!\n");
+            throw MISOException("Specified flux function not supported!\n");
          }
       }
       else
       {
-         throw MachException(
+         throw MISOException(
              "Must specify outflux type if using outflux "
              "boundary conditions!");
       }
@@ -767,11 +767,11 @@ void ThermalSolver::constructEvolver()
 ThermalEvolver::ThermalEvolver(Array<int> ess_bdr,
                                BilinearFormType *mass,
                                ParNonlinearForm *res,
-                               MachLoad *load,
+                               MISOLoad *load,
                                std::ostream &outstream,
                                double start_time,
                                VectorCoefficient *_flux_coeff)
- : MachEvolver(ess_bdr,
+ : MISOEvolver(ess_bdr,
                nullptr,
                mass,
                res,
@@ -788,11 +788,11 @@ void ThermalEvolver::Mult(const mfem::Vector &x, mfem::Vector &y) const
    if (flux_coeff != nullptr)
    {
       flux_coeff->SetTime(t);
-      MachInputs inputs({{"time", t}});
+      MISOInputs inputs({{"time", t}});
       setInputs(*load, inputs);
    }
 
-   MachEvolver::Mult(x, y);
+   MISOEvolver::Mult(x, y);
 }
 
 void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
@@ -801,11 +801,11 @@ void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x, Vector &k)
    if (flux_coeff != nullptr)
    {
       flux_coeff->SetTime(t);
-      MachInputs inputs({{"time", t}});
+      MISOInputs inputs({{"time", t}});
       setInputs(*load, inputs);
    }
 
-   MachEvolver::ImplicitSolve(dt, x, k);
+   MISOEvolver::ImplicitSolve(dt, x, k);
 }
 
-}  // namespace mach
+}  // namespace miso

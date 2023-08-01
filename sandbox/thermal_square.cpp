@@ -6,7 +6,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 static double temp_0;
 
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
       std::cout << "\n|| rho_h - rho ||_{L^2} = " 
                 << solver->calcL2Error(ExactSolution) << '\n' << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

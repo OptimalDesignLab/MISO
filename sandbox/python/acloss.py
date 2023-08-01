@@ -2,15 +2,15 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mach import MachSolver, Mesh, Vector
+from miso import MISOSolver, Mesh, Vector
 
 
 options = {
     "silent": False,
     "print-options": False,
     "mesh": {
-        "file": "../../mach/test/data/testSolver/wire.smb",
-        "model-file": "../../mach/test/data/testSolver/wire.egads"
+        "file": "../../miso/test/data/testSolver/wire.smb",
+        "model-file": "../../miso/test/data/testSolver/wire.egads"
     },
     "space-dis": {
         "basis-type": "nedelec",
@@ -122,7 +122,7 @@ def calcFEMLoss(solver, state, current_density, fill_factor, n, r_s, freq):
 
 
 if __name__ == "__main__":
-    solver = MachSolver("Magnetostatic", options)
+    solver = MISOSolver("Magnetostatic", options)
     solver.createOutput("ACLoss");
     solver.createOutput("DCLoss");
 

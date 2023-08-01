@@ -7,7 +7,7 @@
 
 #include "utils.hpp"
 #include "coefficient.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "current_load.hpp"
 
 void simpleCurrent(const mfem::Vector &x,
@@ -42,7 +42,7 @@ void box2CurrentSourceRevDiff(const mfem::Vector &x,
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-using namespace mach;
+using namespace miso;
 using namespace mfem;
 // using adept::adouble;
 // static adept::Stack diff_stack;
@@ -86,9 +86,9 @@ TEST_CASE("CurrentLoad setInputs")
 
    CurrentLoad load(fes, current_coeff);
 
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density", 1.0}
    });
 
@@ -150,10 +150,10 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
 
    CurrentLoad load(fes, current_coeff);
 
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    auto current_density = 1e6;
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density", current_density}
    });
    setInputs(ml, inputs);
@@ -209,14 +209,14 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
                                            simpleCurrentRevDiff);
 
    CurrentLoad load(fes, current_coeff);
-   MachLoad ml(load);
+   MISOLoad ml(load);
 
    // extract mesh nodes and get their finite-element space
    auto &x_nodes = *dynamic_cast<mfem::ParGridFunction*>(mesh->GetNodes());
    auto &mesh_fes = *x_nodes.ParFESpace();
 
    auto current_density = 1e6;
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density", current_density},
       {"mesh_coords", x_nodes.GetData()}
    });

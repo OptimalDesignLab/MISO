@@ -3,7 +3,7 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "irrotational_projector.hpp"
 #include "electromag_test_data.hpp"
 
@@ -40,7 +40,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt in")
 
          auto ir_order = h1_fes.GetElementTransformation(0)->OrderW()
                            + 2 * fes.GetFE(0)->GetOrder();
-         mach::IrrotationalProjector op(h1_fes, fes, ir_order);
+         miso::IrrotationalProjector op(h1_fes, fes, ir_order);
 
          // initialize the vector that the Jacobian multiplies
          ParGridFunction p(&fes);
@@ -98,7 +98,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt mesh_coords")
 
          // extract mesh nodes and get their finite-element space
          auto &x_nodes = dynamic_cast<ParGridFunction&>(*mesh.GetNodes());
-         auto inputs = mach::MachInputs({
+         auto inputs = miso::MISOInputs({
             {"mesh_coords", x_nodes.GetData()}
          });
          auto &mesh_fes = *x_nodes.ParFESpace();
@@ -110,7 +110,7 @@ TEST_CASE("IrrotationalProjector::vectorJacobianProduct wrt mesh_coords")
 
          auto ir_order = h1_fes.GetElementTransformation(0)->OrderW()
                            + 2 * fes.GetFE(0)->GetOrder();
-         mach::IrrotationalProjector op(h1_fes, fes, ir_order);
+         miso::IrrotationalProjector op(h1_fes, fes, ir_order);
 
          // initialize the vector that the Jacobian multiplies
          ParGridFunction p(&fes);
