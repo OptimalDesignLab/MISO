@@ -87,9 +87,9 @@ private:
    std::unique_ptr<MeshDependentCoefficient> kappa;
    /// Material dependent coefficient representing density
    std::unique_ptr<MeshDependentCoefficient> rho;
-   /// Material dependent coefficient representing specific heat
-   /// (at constant volume)
-   std::unique_ptr<MeshDependentCoefficient> cv;
+   // /// Material dependent coefficient representing specific heat
+   // /// (at constant volume)
+   // std::unique_ptr<MeshDependentCoefficient> cv;
 
    /// Right-hand-side load vector to apply to residual
    mfem::Vector load;

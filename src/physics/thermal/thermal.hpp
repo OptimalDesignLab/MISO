@@ -26,6 +26,14 @@ private:
    // Material dependent coefficient representing thermal conductivity
    MeshDependentCoefficient kappa;  // Making a member of ThermalSolver instead
                                     // so can be used to compute outputs
+
+   /// Code that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   void derivedPDETerminalHook(int iter,
+                               double t_final,
+                               const mfem::Vector &state) override;
 };
 
 }  // namespace mach

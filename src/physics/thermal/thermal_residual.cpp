@@ -19,6 +19,9 @@ int getSize(const ThermalResidual &residual) { return getSize(residual.res); }
 
 void setInputs(ThermalResidual &residual, const mach::MachInputs &inputs)
 {
+   residual.kappa->setInputs(inputs);
+   residual.rho->setInputs(inputs);
+
    setInputs(residual.res, inputs);
 
    setVectorFromInputs(inputs, "thermal_load", residual.load);
@@ -175,80 +178,11 @@ ThermalResidual::ThermalResidual(
    kappa(
        constructMaterialCoefficient("kappa", options["components"], materials)),
    rho(constructMaterialCoefficient("rho", options["components"], materials)),
-   cv(constructMaterialCoefficient("cv", options["components"], materials)),
+   // cv(constructMaterialCoefficient("cv", options["components"], materials)),
    prec(constructPreconditioner(fes, options["lin-prec"]))
 
 {
-   const auto &components = options["components"];
-
-   std::vector<int> diffusion_attrs;
-   std::vector<int> l2_proj_attrs;
-   for (const auto &component : components)
-   {
-      const auto &component_attrs = component["attrs"];
-      if (component.contains("tags"))
-      {
-         if (component["tags"].contains("thermal-model"))
-         {
-            const auto &therm_model = component["tags"]["thermal-model"];
-            if (therm_model["type"] == "diffusion")
-            {
-               diffusion_attrs.insert(std::end(diffusion_attrs),
-                                      std::begin(component_attrs),
-                                      std::end(component_attrs));
-            }
-            else if (therm_model["type"] == "l2-projection")
-            {
-               l2_proj_attrs.insert(std::end(l2_proj_attrs),
-                                    std::begin(component_attrs),
-                                    std::end(component_attrs));
-               for (const auto &attr : component_attrs)
-               {
-                  auto tmp = std::make_unique<mfem::ConstantCoefficient>(
-                      therm_model["value"]);
-                  g->addCoefficient(attr, std::move(tmp));
-               }
-            }
-            else
-            {
-               std::string err_msg = "Unknown thermal model type: \"";
-               err_msg += therm_model["type"];
-               err_msg += "\"!\n";
-               throw MachException(err_msg);
-            }
-         }
-         else
-         {
-            diffusion_attrs.insert(std::end(diffusion_attrs),
-                                   std::begin(component_attrs),
-                                   std::end(component_attrs));
-         }
-      }
-      else
-      {
-         diffusion_attrs.insert(std::end(diffusion_attrs),
-                                std::begin(component_attrs),
-                                std::end(component_attrs));
-      }
-   }
-
-   std::cout << "diffusion attrs: ";
-   for (const auto &attr : diffusion_attrs)
-   {
-      std::cout << attr << ", ";
-   }
-   std::cout << "\n";
-
-   std::cout << "l2 proj attrs: ";
-   for (const auto &attr : l2_proj_attrs)
-   {
-      std::cout << attr << ", ";
-   }
-   std::cout << "\n";
-
-   res.addDomainIntegrator(new NonlinearDiffusionIntegrator(*kappa),
-                           diffusion_attrs);
-   res.addDomainIntegrator(new L2ProjectionIntegrator(*g), l2_proj_attrs);
+   res.addDomainIntegrator(new NonlinearDiffusionIntegrator(*kappa));
 
    const auto &basis_type =
        options["space-dis"]["basis-type"].get<std::string>();
@@ -260,10 +194,10 @@ ThermalResidual::ThermalResidual(
       if (mu < 0)
       {
          auto degree = options["space-dis"]["degree"].get<double>();
-         mu = pow(degree + 1, 2);
+         mu = pow(degree + 1, 3);
       }
       res.addInteriorFaceIntegrator(
-          new DGInteriorFaceDiffusionIntegrator(*kappa, mu, l2_proj_attrs));
+          new DGInteriorFaceDiffusionIntegrator(*kappa, mu));
       std::cout << "adding sipg integ!\n";
    }
 
@@ -333,7 +267,7 @@ ThermalResidual::ThermalResidual(
             if (mu < 0)
             {
                auto degree = options["space-dis"]["degree"].get<double>();
-               mu = pow(degree + 1, 2);
+               mu = pow(degree + 1, 3);
             }
             std::cout << "mu: " << mu << "\n";
             res.addBdrFaceIntegrator(
@@ -358,7 +292,7 @@ ThermalResidual::ThermalResidual(
          if (mu < 0)
          {
             auto degree = options["space-dis"]["degree"].get<double>();
-            mu = pow(degree + 1, 2);
+            mu = pow(degree + 1, 3);
          }
          std::cout << "mu: " << mu << "\n";
          res.addBdrFaceIntegrator(
@@ -386,15 +320,12 @@ ThermalResidual::ThermalResidual(
                if (mu < 0)
                {
                   auto degree = options["space-dis"]["degree"].get<double>();
-                  mu = pow(degree + 1, 2);
+                  mu = pow(degree + 1, 3);
                }
 
                res.addInternalBoundaryFaceIntegrator(
-                   new DGInteriorFaceDiffusionIntegrator(
-                       *kappa, mu, l2_proj_attrs, -1),
+                   new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
                    attrs);
-               //  new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
-               //  attrs);
 
                const auto h_c = intr["h_c"].get<double>();
 
@@ -416,12 +347,11 @@ ThermalResidual::ThermalResidual(
                if (mu < 0)
                {
                   auto degree = options["space-dis"]["degree"].get<double>();
-                  mu = pow(degree + 1, 2);
+                  mu = pow(degree + 1, 3);
                }
 
                res.addInternalBoundaryFaceIntegrator(
-                   new DGInteriorFaceDiffusionIntegrator(
-                       *kappa, mu, l2_proj_attrs, -1),
+                   new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
                    attrs);
 
                const auto h_c = intr["h_c"].get<double>();

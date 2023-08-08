@@ -42,6 +42,9 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
    mach::ParaViewLogger paraview("thermal_solvers", &mesh());
    paraview.registerField("state", fields.at("state").gridFunc());
    paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
+   paraview.registerField(
+       "residual",
+       dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
    addLogger(std::move(paraview), {});
 }
 
@@ -80,12 +83,36 @@ void ThermalSolver::addOutput(const std::string &fun,
       IEAggregateFunctional out(*fes, fields, options);
       outputs.emplace(fun, std::move(out));
    }
+   else if (fun.rfind("average_state", 0) == 0)
+   {
+      mfem::ParFiniteElementSpace *fes = nullptr;
+      if (options.contains("state"))
+      {
+         auto field_name = options["state"].get<std::string>();
+         fes = &fields.at(field_name).space();
+      }
+      else
+      {
+         fes = &PDESolver::fes();
+      }
+      StateAverageFunctional out(*fes, fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
    else
    {
       throw MachException("Output with name " + fun +
                           " not supported by "
                           "ThermalSolver!\n");
    }
+}
+
+void ThermalSolver::derivedPDETerminalHook(int iter,
+                                           double t_final,
+                                           const mfem::Vector &state)
+{
+   work.SetSize(state.Size());
+   calcResidual(state, work);
+   res_vec().distributeSharedDofs(work);
 }
 
 }  // namespace mach
