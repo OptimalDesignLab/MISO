@@ -320,9 +320,9 @@ class DGInteriorFaceDiffusionIntegrator : public mfem::NonlinearFormIntegrator
 public:
    DGInteriorFaceDiffusionIntegrator(StateCoefficient &Q,
                                      double mu,
-                                     std::vector<int> skip_attrs = {},
+                                     //  std::vector<int> skip_attrs = {},
                                      double a = 1.0)
-    : model(Q), mu(mu), skip_attrs(skip_attrs), alpha(a)
+    : model(Q), mu(mu), alpha(a)
    { }
 
    void AssembleFaceVector(const mfem::FiniteElement &el1,
@@ -342,8 +342,8 @@ private:
    StateCoefficient &model;
    /// SIPG Penalty parameter
    double mu;
-   /// Attributes to not apply the integrator to
-   std::vector<int> skip_attrs;
+   // /// Attributes to not apply the integrator to
+   // std::vector<int> skip_attrs;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
 

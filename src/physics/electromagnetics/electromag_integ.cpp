@@ -936,20 +936,21 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceVector(
    elvect.SetSize(ndof1 + ndof2);
    elvect = 0.0;
 
-   /// Don't apply the integrator if the domain attributes are the same and have
-   /// been explicitly skipped
-   auto skip =
-       [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
-   {
-      const auto same = elem1_attr == elem2_attr;
-      return same ? attr == elem1_attr : false;
-   };
+   // /// Don't apply the integrator if the domain attributes are the same and
+   // have
+   // /// been explicitly skipped
+   // auto skip =
+   //     [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
+   // {
+   //    const auto same = elem1_attr == elem2_attr;
+   //    return same ? attr == elem1_attr : false;
+   // };
 
-   if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
-       skip_attrs.end())
-   {
-      return;
-   }
+   // if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
+   //     skip_attrs.end())
+   // {
+   //    return;
+   // }
 
    int dim = el1.GetDim();
 
@@ -1076,20 +1077,21 @@ void DGInteriorFaceDiffusionIntegrator::AssembleFaceGrad(
    elmat.SetSize(ndof);
    elmat = 0.0;
 
-   /// Don't apply the integrator if the domain attributes are the same and have
-   /// been explicitly skipped
-   auto skip =
-       [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
-   {
-      const auto same = elem1_attr == elem2_attr;
-      return same ? attr == elem1_attr : false;
-   };
+   // /// Don't apply the integrator if the domain attributes are the same and
+   // have
+   // /// been explicitly skipped
+   // auto skip =
+   //     [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
+   // {
+   //    const auto same = elem1_attr == elem2_attr;
+   //    return same ? attr == elem1_attr : false;
+   // };
 
-   if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
-       skip_attrs.end())
-   {
-      return;
-   }
+   // if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
+   //     skip_attrs.end())
+   // {
+   //    return;
+   // }
 
    int dim = el1.GetDim();
 
@@ -1336,21 +1338,22 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
    mesh_coords_bar = 0.0;
 
-   const auto &skip_attrs = integ.skip_attrs;
-   /// Don't apply the integrator if the domain attributes are the same and have
-   /// been explicitly skipped
-   auto skip =
-       [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
-   {
-      const auto same = elem1_attr == elem2_attr;
-      return same ? attr == elem1_attr : false;
-   };
+   // const auto &skip_attrs = integ.skip_attrs;
+   // /// Don't apply the integrator if the domain attributes are the same and
+   // have
+   // /// been explicitly skipped
+   // auto skip =
+   //     [elem1_attr = trans.Elem1No, elem2_attr = trans.Elem2No](int attr)
+   // {
+   //    const auto same = elem1_attr == elem2_attr;
+   //    return same ? attr == elem1_attr : false;
+   // };
 
-   if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
-       skip_attrs.end())
-   {
-      return;
-   }
+   // if (std::find_if(skip_attrs.begin(), skip_attrs.end(), skip) !=
+   //     skip_attrs.end())
+   // {
+   //    return;
+   // }
 
    const int ndof1 = el1.GetDof();
    const int ndof2 = el2.GetDof();
@@ -1394,7 +1397,15 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 
    dof_tr = mesh_fes.GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
-   mesh_fes.GetFaceVDofs(trans.ElementNo, vdofs2);
+
+   if (trans.ElementType == mfem::ElementTransformation::FACE)
+   {
+      mesh_fes.GetFaceVDofs(trans.ElementNo, vdofs2);
+   }
+   else
+   {
+      mesh_fes.GetBdrElementVDofs(trans.ElementNo, vdofs2);
+   }
 
 #ifdef MFEM_THREAD_SAFE
    mfem::Vector shape1;
