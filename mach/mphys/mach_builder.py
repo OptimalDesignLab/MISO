@@ -107,14 +107,23 @@ class MachOutputsGroup(om.Group):
             else:
                 depends = []
 
+            if isinstance(output, str):
+                output_prom_name = output
+                func_name = output
+            elif isinstance(output, tuple):
+                output_prom_name = output[0]
+                func_name = output[1]
+            else:
+                raise RuntimeError(f"Unrecognized type for output: {output}!")
+
             depends = [promoted_inputs[input] if input in promoted_inputs else input for input in depends]
-            self.add_subsystem(output,
+            self.add_subsystem(output_prom_name,
                                MachFunctional(solver=self.solver,
-                                             func=output,
+                                             func=func_name,
                                              func_options=output_opts,
                                              depends=depends),
                                promotes_inputs=[*depends],
-                               promotes_outputs=[output])
+                               promotes_outputs=[(func_name, output_prom_name)])
 
 
 class MachMesh(om.IndepVarComp):
