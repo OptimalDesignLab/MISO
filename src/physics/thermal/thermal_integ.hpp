@@ -156,11 +156,13 @@ public:
     : h(h), name(std::move(name)), alpha(alpha)
    { }
 
+   const std::string &getName() const { return name; }
+
 private:
    /// Thermal contact coefficient
    double h;
    /// name of the interface to apply the integrator to
-   std::string name;
+   const std::string name;
    /// scales the terms; can be used to move to rhs/lhs
    double alpha;
 
@@ -172,7 +174,9 @@ private:
    mfem::DenseMatrix elmat12;
    mfem::DenseMatrix elmat22;
 #endif
+
    friend class ThermalContactResistanceIntegratorMeshRevSens;
+   friend class ThermalContactResistanceIntegratorHRevSens;
 };
 
 class ThermalContactResistanceIntegratorMeshRevSens
@@ -236,6 +240,150 @@ private:
 #endif
 };
 
+class ThermalContactResistanceIntegratorHRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetFaceEnergy(const mfem::FiniteElement &el1,
+                        const mfem::FiniteElement &el2,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   ThermalContactResistanceIntegratorHRevSens(
+       mfem::GridFunction &state,
+       mfem::GridFunction &adjoint,
+       ThermalContactResistanceIntegrator &integ)
+    : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   ThermalContactResistanceIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+};
+
+inline void addInternalBoundarySensitivityIntegrator(
+    ThermalContactResistanceIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker,
+    std::string adjoint_name)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   const auto &integ_name = primal_integ.getName();
+   auto h_c_name = [&]() -> std::string
+   {
+      if (!integ_name.empty())
+      {
+         return "h_c:" + integ_name;
+      }
+      else
+      {
+         return "h_c";
+      }
+   }();
+
+   auto &state_fes = fields.at("state").space();
+   rev_scalar_sens.emplace(h_c_name, &state_fes);
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddInternalBoundaryFaceIntegrator(
+              new ThermalContactResistanceIntegratorMeshRevSens(
+                  mesh_fes,
+                  fields.at("state").gridFunc(),
+                  fields.at(adjoint_name).gridFunc(),
+                  primal_integ));
+
+      rev_scalar_sens.at(h_c_name).AddInternalBoundaryFaceIntegrator(
+          new ThermalContactResistanceIntegratorHRevSens(
+              fields.at("state").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
+              primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddInternalBoundaryFaceIntegrator(
+              new ThermalContactResistanceIntegratorMeshRevSens(
+                  mesh_fes,
+                  fields.at("state").gridFunc(),
+                  fields.at(adjoint_name).gridFunc(),
+                  primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at(h_c_name).AddInternalBoundaryFaceIntegrator(
+          new ThermalContactResistanceIntegratorHRevSens(
+              fields.at("state").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
+              primal_integ),
+          *attr_marker);
+   }
+}
+
+inline void addInteriorFaceSensitivityIntegrator(
+    ThermalContactResistanceIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    std::string adjoint_name)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   const auto &integ_name = primal_integ.getName();
+   auto h_c_name = [&]() -> std::string
+   {
+      if (!integ_name.empty())
+      {
+         return "h_c:" + integ_name;
+      }
+      else
+      {
+         return "h_c";
+      }
+   }();
+
+   auto &state_fes = fields.at("state").space();
+   rev_scalar_sens.emplace(h_c_name, &state_fes);
+
+   rev_sens.at("mesh_coords")
+       .AddInteriorFaceIntegrator(
+           new ThermalContactResistanceIntegratorMeshRevSens(
+               mesh_fes,
+               fields.at("state").gridFunc(),
+               fields.at(adjoint_name).gridFunc(),
+               primal_integ));
+
+   rev_scalar_sens.at(h_c_name).AddInteriorFaceIntegrator(
+       new ThermalContactResistanceIntegratorHRevSens(
+           fields.at("state").gridFunc(),
+           fields.at(adjoint_name).gridFunc(),
+           primal_integ));
+}
+
 class InternalConvectionInterfaceIntegrator
  : public mfem::NonlinearFormIntegrator
 {
@@ -262,6 +410,8 @@ public:
     : h(h), theta_f(theta_f), name(std::move(name)), alpha(alpha)
    { }
 
+   const std::string &getName() const { return name; }
+
 private:
    /// Convection coefficient
    double h;
@@ -279,8 +429,290 @@ private:
    mfem::DenseMatrix elmat11;
    mfem::DenseMatrix elmat22;
 #endif
+
    friend class InternalConvectionInterfaceIntegratorMeshRevSens;
+   friend class InternalConvectionInterfaceIntegratorHRevSens;
+   friend class InternalConvectionInterfaceIntegratorFluidTempRevSens;
 };
+
+class InternalConvectionInterfaceIntegratorMeshRevSens
+ : public mfem::LinearFormIntegrator
+{
+public:
+   /// \param[in] state - the state to use when evaluating d(psi^T R)/dX
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   InternalConvectionInterfaceIntegratorMeshRevSens(
+       mfem::FiniteElementSpace &mesh_fes,
+       mfem::GridFunction &state,
+       mfem::GridFunction &adjoint,
+       InternalConvectionInterfaceIntegrator &integ)
+    : mesh_fes(mesh_fes), state(state), adjoint(adjoint), integ(integ)
+   { }
+
+   void AssembleRHSElementVect(const mfem::FiniteElement &,
+                               mfem::ElementTransformation &,
+                               mfem::Vector &) override
+   {
+      mfem::mfem_error(
+          "InternalConvectionInterfaceIntegratorMeshRevSens::"
+          "AssembleRHSElementVect(...)");
+   }
+
+   /// \brief - assemble an element's contribution to d(psi^T R)/dX
+   /// \param[in] mesh_el1 - the finite element that describes the mesh element
+   /// \param[in] mesh_el2 - the finite element that describes the mesh element
+   /// \param[in] trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - d(psi^T R)/dX for the element
+   /// \note the LinearForm that assembles this integrator's FiniteElementSpace
+   /// MUST be the mesh's nodal finite element space
+   /// \note this signature is for sensitivity wrt mesh element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el1,
+                               const mfem::FiniteElement &mesh_el2,
+                               mfem::FaceElementTransformations &trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// The mesh finite element space used to assemble the sensitivity
+   mfem::FiniteElementSpace &mesh_fes;
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   InternalConvectionInterfaceIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
+#endif
+};
+
+class InternalConvectionInterfaceIntegratorHRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetFaceEnergy(const mfem::FiniteElement &el1,
+                        const mfem::FiniteElement &el2,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   InternalConvectionInterfaceIntegratorHRevSens(
+       mfem::GridFunction &state,
+       mfem::GridFunction &adjoint,
+       InternalConvectionInterfaceIntegrator &integ)
+    : state(state), adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the state to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &state;
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   InternalConvectionInterfaceIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+};
+
+class InternalConvectionInterfaceIntegratorFluidTempRevSens
+ : public mfem::NonlinearFormIntegrator
+{
+public:
+   double GetFaceEnergy(const mfem::FiniteElement &el1,
+                        const mfem::FiniteElement &el2,
+                        mfem::FaceElementTransformations &trans,
+                        const mfem::Vector &elfun) override;
+
+   /// \param[in] adjoint - the adjoint to use when evaluating d(psi^T R)/dX
+   /// \param[in] integ - reference to primal integrator
+   InternalConvectionInterfaceIntegratorFluidTempRevSens(
+       mfem::GridFunction &adjoint,
+       InternalConvectionInterfaceIntegrator &integ)
+    : adjoint(adjoint), integ(integ)
+   { }
+
+private:
+   /// the adjoint to use when evaluating d(psi^T R)/dX
+   mfem::GridFunction &adjoint;
+   /// reference to primal integrator
+   InternalConvectionInterfaceIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+};
+
+inline void addInternalBoundarySensitivityIntegrator(
+    InternalConvectionInterfaceIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker,
+    std::string adjoint_name)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   auto &state_fes = fields.at("state").space();
+
+   const auto &integ_name = primal_integ.getName();
+   auto h_c_name = [&]() -> std::string
+   {
+      if (!integ_name.empty())
+      {
+         return "h_c:" + integ_name;
+      }
+      else
+      {
+         return "h_c";
+      }
+   }();
+
+   auto fluid_temp_name = [&]() -> std::string
+   {
+      if (!integ_name.empty())
+      {
+         return "fluid_temp:" + integ_name;
+      }
+      else
+      {
+         return "fluid_temp";
+      }
+   }();
+
+   rev_scalar_sens.emplace(h_c_name, &state_fes);
+   rev_scalar_sens.emplace(fluid_temp_name, &state_fes);
+
+   if (attr_marker == nullptr)
+   {
+      rev_sens.at("mesh_coords")
+          .AddInternalBoundaryFaceIntegrator(
+              new InternalConvectionInterfaceIntegratorMeshRevSens(
+                  mesh_fes,
+                  fields.at("state").gridFunc(),
+                  fields.at(adjoint_name).gridFunc(),
+                  primal_integ));
+
+      rev_scalar_sens.at(h_c_name).AddInternalBoundaryFaceIntegrator(
+          new InternalConvectionInterfaceIntegratorHRevSens(
+              fields.at("state").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
+              primal_integ));
+
+      rev_scalar_sens.at(fluid_temp_name)
+          .AddInternalBoundaryFaceIntegrator(
+              new InternalConvectionInterfaceIntegratorFluidTempRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ));
+   }
+   else
+   {
+      rev_sens.at("mesh_coords")
+          .AddInternalBoundaryFaceIntegrator(
+              new InternalConvectionInterfaceIntegratorMeshRevSens(
+                  mesh_fes,
+                  fields.at("state").gridFunc(),
+                  fields.at(adjoint_name).gridFunc(),
+                  primal_integ),
+              *attr_marker);
+
+      rev_scalar_sens.at(h_c_name).AddInternalBoundaryFaceIntegrator(
+          new InternalConvectionInterfaceIntegratorHRevSens(
+              fields.at("state").gridFunc(),
+              fields.at(adjoint_name).gridFunc(),
+              primal_integ),
+          *attr_marker);
+
+      rev_scalar_sens.at(fluid_temp_name)
+          .AddInternalBoundaryFaceIntegrator(
+              new InternalConvectionInterfaceIntegratorFluidTempRevSens(
+                  fields.at(adjoint_name).gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
+
+inline void addInteriorFaceSensitivityIntegrator(
+    InternalConvectionInterfaceIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &rev_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
+    std::map<std::string, mfem::ParLinearForm> &fwd_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    std::string adjoint_name)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   rev_sens.emplace("mesh_coords", &mesh_fes);
+
+   auto &state_fes = fields.at("state").space();
+
+   const auto &integ_name = primal_integ.getName();
+   auto h_c_name = [&]() -> std::string
+   {
+      if (!integ_name.empty())
+      {
+         return "h_c:" + integ_name;
+      }
+      else
+      {
+         return "h_c";
+      }
+   }();
+
+   auto fluid_temp_name = [&]() -> std::string
+   {
+      if (!integ_name.empty())
+      {
+         return "fluid_temp:" + integ_name;
+      }
+      else
+      {
+         return "fluid_temp";
+      }
+   }();
+
+   rev_scalar_sens.emplace(h_c_name, &state_fes);
+   rev_scalar_sens.emplace(fluid_temp_name, &state_fes);
+
+   rev_sens.at("mesh_coords")
+       .AddInteriorFaceIntegrator(
+           new InternalConvectionInterfaceIntegratorMeshRevSens(
+               mesh_fes,
+               fields.at("state").gridFunc(),
+               fields.at(adjoint_name).gridFunc(),
+               primal_integ));
+
+   rev_scalar_sens.at(h_c_name).AddInteriorFaceIntegrator(
+       new InternalConvectionInterfaceIntegratorHRevSens(
+           fields.at("state").gridFunc(),
+           fields.at(adjoint_name).gridFunc(),
+           primal_integ));
+
+   rev_scalar_sens.at(fluid_temp_name)
+       .AddInteriorFaceIntegrator(
+           new InternalConvectionInterfaceIntegratorFluidTempRevSens(
+               fields.at(adjoint_name).gridFunc(), primal_integ));
+}
 
 class ConvectionBCIntegrator : public mfem::NonlinearFormIntegrator
 {

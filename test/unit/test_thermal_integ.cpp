@@ -335,6 +335,72 @@ TEST_CASE("ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect
    }
 }
 
+TEST_CASE("ThermalContactResistanceIntegratorHRevSens::GetFaceEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::ThermalContactResistanceIntegrator;
+         setInputs(*integ, {
+            {"h_c", 10.0}
+         });
+         res.AddInteriorFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new mach::ThermalContactResistanceIntegratorHRevSens(state, adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"h_c", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"h_c", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
 TEST_CASE("InternalConvectionInterfaceIntegrator::AssembleFaceGrad")
 {
    using namespace mfem;
@@ -446,6 +512,209 @@ TEST_CASE("InternalConvectionInterfaceIntegrator::AssembleFaceGrad")
          {
             REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
          }
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::InternalConvectionInterfaceIntegrator;
+         res.AddInteriorFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new mach::InternalConvectionInterfaceIntegratorMeshRevSens(mesh_fes, state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegratorHRevSens::GetFaceEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::InternalConvectionInterfaceIntegrator;
+         setInputs(*integ, {
+            {"h_c", 10.0}
+         });
+         res.AddInteriorFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new mach::InternalConvectionInterfaceIntegratorHRevSens(state, adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"h_c", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"h_c", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegratorFluidTempRevSens::GetFaceEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new mach::InternalConvectionInterfaceIntegrator;
+         setInputs(*integ, {
+            {"fluid_temp", 10.0}
+         });
+         res.AddInteriorFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new mach::InternalConvectionInterfaceIntegratorFluidTempRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"fluid_temp", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"fluid_temp", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
@@ -580,7 +849,7 @@ TEST_CASE("ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect")
    }
 }
 
-TEST_CASE("ConvectionBCIntegratorHRevSens::AssembleRHSElementVect")
+TEST_CASE("ConvectionBCIntegratorHRevSens::GetFaceEnergy")
 {
    using namespace mfem;
    using namespace electromag_data;
@@ -647,7 +916,7 @@ TEST_CASE("ConvectionBCIntegratorHRevSens::AssembleRHSElementVect")
    }
 }
 
-TEST_CASE("ConvectionBCIntegratorFluidTempRevSens::AssembleRHSElementVect")
+TEST_CASE("ConvectionBCIntegratorFluidTempRevSens::GetFaceEnergy")
 {
    using namespace mfem;
    using namespace electromag_data;

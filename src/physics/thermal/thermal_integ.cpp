@@ -562,7 +562,15 @@ void ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect(
    }
 
    dof_tr = mesh_fes.GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
-   mesh_fes.GetFaceVDofs(trans.ElementNo, vdofs2);
+
+   if (trans.ElementType == mfem::ElementTransformation::FACE)
+   {
+      mesh_fes.GetFaceVDofs(trans.ElementNo, vdofs2);
+   }
+   else
+   {
+      mesh_fes.GetBdrElementVDofs(trans.ElementNo, vdofs2);
+   }
 
 #ifdef MFEM_THREAD_SAFE
    mfem::Vector shape1;
@@ -680,6 +688,126 @@ void ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect(
          mesh_coords_bar1(idx) += mesh_coords_face_bar(j);
       }
    }
+}
+
+double ThermalContactResistanceIntegratorHRevSens::GetFaceEnergy(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   const int ndof1 = el1.GetDof();
+   const int ndof2 = el2.GetDof();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+   auto *dof_tr =
+       state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   state.GetSubVector(vdofs1, elfun1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun1);
+   }
+   dof_tr = state.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   state.GetSubVector(vdofs2, elfun2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun2);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   adjoint.GetSubVector(vdofs1, psi1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi1);
+   }
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   adjoint.GetSubVector(vdofs2, psi2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi2);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+#else
+   auto &shape1 = integ.shape1;
+   auto &shape2 = integ.shape2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder()) + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   // auto &h = integ.h;
+   // auto &theta_f = integ.theta_f;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      const double w = alpha * ip.weight * trans.Weight();
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+
+      const double psi1_shape1 = psi1 * shape1;
+      const double psi2_shape2 = psi2 * shape2;
+
+      const double temp1 = elfun1 * shape1;
+      const double temp2 = elfun2 * shape2;
+
+      // const double val = h * (temp1 - temp2);
+
+      // elvect1.Add(w * val, shape1);
+      // double term1 = w * val * psi1_shape1;
+
+      // elvect2.Add(-w * val, shape2);
+      // double term2 = -w * val * psi2_shape2;
+
+      /// dummy functional for adjoint-weighted residual
+      /// fun += term1 + term2;
+
+      /// start reverse pass
+      const double fun_bar = 1.0;
+
+      /// fun += term1 + term2;
+      const double term1_bar = fun_bar;
+      const double term2_bar = fun_bar;
+
+      /// double term2 = -w * val * psi2_shape2;
+      double val_bar = term2_bar * -w * psi2_shape2;
+
+      /// double term1 = w * val * psi1_shape1;
+      val_bar += term1_bar * w * psi1_shape1;
+
+      /// const double val = h * (temp1 - temp2);
+      const double h_bar = val_bar * (temp1 - temp2);
+
+      fun += h_bar;
+   }
+   return fun;
 }
 
 void setInputs(InternalConvectionInterfaceIntegrator &integ,
@@ -839,6 +967,421 @@ void InternalConvectionInterfaceIntegrator::AssembleFaceGrad(
          }
       }
    }
+}
+
+void InternalConvectionInterfaceIntegratorMeshRevSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el1,
+    const mfem::FiniteElement &mesh_el2,
+    mfem::FaceElementTransformations &trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const auto &el1 = *state.FESpace()->GetFE(trans.Elem1->ElementNo);
+   const auto &el2 = *state.FESpace()->GetFE(trans.Elem2->ElementNo);
+
+   const int mesh_ndof1 = mesh_el1.GetDof();
+   const int mesh_ndof2 = mesh_el2.GetDof();
+   const int mesh_face_ndof = trans.GetFE()->GetDof();
+
+   const int ndof1 = el1.GetDof();
+   const int ndof2 = el2.GetDof();
+
+   const int space_dim = trans.GetSpaceDim();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+   auto *dof_tr =
+       state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   state.GetSubVector(vdofs1, elfun1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun1);
+   }
+   dof_tr = state.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   state.GetSubVector(vdofs2, elfun2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun2);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   adjoint.GetSubVector(vdofs1, psi1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi1);
+   }
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   adjoint.GetSubVector(vdofs2, psi2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi2);
+   }
+
+   dof_tr = mesh_fes.GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+
+   if (trans.ElementType == mfem::ElementTransformation::FACE)
+   {
+      mesh_fes.GetFaceVDofs(trans.ElementNo, vdofs2);
+   }
+   else
+   {
+      mesh_fes.GetBdrElementVDofs(trans.ElementNo, vdofs2);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+
+   mfem::DenseMatrix PointMatFace_bar;
+   mfem::Vector mesh_coords_face_bar;
+#else
+   auto &shape1 = integ.shape1;
+   auto &shape2 = integ.shape2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+
+   PointMatFace_bar.SetSize(space_dim, mesh_face_ndof);
+   mesh_coords_face_bar.SetSize(space_dim * mesh_face_ndof);
+
+   const auto *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder());
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   auto &h = integ.h;
+   auto &theta_f = integ.theta_f;
+
+   mesh_coords_bar.SetSize(space_dim * (mesh_ndof1 + mesh_ndof2));
+   mfem::Vector mesh_coords_bar1(mesh_coords_bar.GetData(),
+                                 space_dim * mesh_ndof1);
+   mfem::Vector mesh_coords_bar2(
+       mesh_coords_bar.GetData() + space_dim * mesh_ndof1,
+       space_dim * mesh_ndof2);
+   mesh_coords_bar = 0.0;
+   mesh_coords_face_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      // const double face_weight = trans.Weight();
+
+      // double w = alpha * ip.weight * face_weight;
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+
+      double psi1_shape1 = psi1 * shape1;
+      double psi2_shape2 = psi2 * shape2;
+
+      const double temp1 = elfun1 * shape1;
+      const double temp2 = elfun2 * shape2;
+
+      const double val1 = h * (temp1 - theta_f);
+      const double val2 = h * (temp2 - theta_f);
+
+      // elvect1.Add(w * val1, shape1);
+      // double term1 = w * val1 * psi1_shape1;
+
+      // elvect2.Add(w * val2, shape2);
+      // double term2 = w * val2 * psi2_shape2;
+
+      /// dummy functional for adjoint-weighted residual
+      /// fun += term1 + term2;
+
+      /// start reverse pass
+      double fun_bar = 1.0;
+
+      /// fun += term1 + term2;
+      const double term1_bar = fun_bar;
+      const double term2_bar = fun_bar;
+
+      /// double term2 = w * val2 * psi2_shape2;
+      double w_bar = term2_bar * val2 * psi2_shape2;
+
+      /// double term1 = w * val1 * psi1_shape1;
+      w_bar += term1_bar * val1 * psi1_shape1;
+
+      /// double w = alpha * ip.weight * face_weight;
+      double face_weight_bar = w_bar * alpha * ip.weight;
+
+      /// const double face_weight = trans.Weight();
+      PointMatFace_bar = 0.0;
+      trans.WeightRevDiff(face_weight_bar, PointMatFace_bar);
+
+      // code to insert PointMatFace_bar into mesh_coords_face_bar
+      for (int j = 0; j < mesh_face_ndof; ++j)
+      {
+         for (int k = 0; k < space_dim; ++k)
+         {
+            mesh_coords_face_bar(k * mesh_face_ndof + j) +=
+                PointMatFace_bar(k, j);
+         }
+      }
+   }
+
+   // code to insert mesh_coords_face_bar into mesh_coords_bar
+   for (int j = 0; j < vdofs2.Size(); ++j)
+   {
+      auto idx = vdofs1.Find(vdofs2[j]);
+      if (idx == -1)
+      {
+         continue;
+      }
+      else
+      {
+         mesh_coords_bar1(idx) += mesh_coords_face_bar(j);
+      }
+   }
+}
+
+double InternalConvectionInterfaceIntegratorHRevSens::GetFaceEnergy(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   const int ndof1 = el1.GetDof();
+   const int ndof2 = el2.GetDof();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector elfun1;
+   mfem::Vector elfun2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+   auto *dof_tr =
+       state.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   state.GetSubVector(vdofs1, elfun1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun1);
+   }
+   dof_tr = state.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   state.GetSubVector(vdofs2, elfun2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun2);
+   }
+
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   adjoint.GetSubVector(vdofs1, psi1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi1);
+   }
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   adjoint.GetSubVector(vdofs2, psi2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi2);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+#else
+   auto &shape1 = integ.shape1;
+   auto &shape2 = integ.shape2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder()) + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   // auto &h = integ.h;
+   auto &theta_f = integ.theta_f;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      const double w = alpha * ip.weight * trans.Weight();
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+
+      const double psi1_shape1 = psi1 * shape1;
+      const double psi2_shape2 = psi2 * shape2;
+
+      const double temp1 = elfun1 * shape1;
+      const double temp2 = elfun2 * shape2;
+
+      // const double val1 = h * (temp1 - theta_f);
+      // const double val2 = h * (temp2 - theta_f);
+
+      // elvect1.Add(w * val1, shape1);
+      // double term1 = w * va1 * psi1_shape1;
+
+      // elvect2.Add(w * val2, shape2);
+      // double term2 = w * val2 * psi2_shape2;
+
+      /// dummy functional for adjoint-weighted residual
+      /// fun += term1 + term2;
+
+      /// start reverse pass
+      const double fun_bar = 1.0;
+
+      /// fun += term1 + term2;
+      const double term1_bar = fun_bar;
+      const double term2_bar = fun_bar;
+
+      /// double term2 = w * val2 * psi2_shape2;
+      const double val2_bar = term2_bar * w * psi2_shape2;
+
+      /// double term1 = w * val1 * psi1_shape1;
+      const double val1_bar = term1_bar * w * psi1_shape1;
+
+      /// const double val2 = h * (temp2 - theta_f);
+      double h_bar = val2_bar * (temp2 - theta_f);
+
+      /// const double val1 = h * (temp1 - theta_f);
+      h_bar += val1_bar * (temp1 - theta_f);
+
+      fun += h_bar;
+   }
+   return fun;
+}
+
+double InternalConvectionInterfaceIntegratorFluidTempRevSens::GetFaceEnergy(
+    const mfem::FiniteElement &el1,
+    const mfem::FiniteElement &el2,
+    mfem::FaceElementTransformations &trans,
+    const mfem::Vector &elfun)
+{
+   const int ndof1 = el1.GetDof();
+   const int ndof2 = el2.GetDof();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs1;
+   mfem::Array<int> vdofs2;
+   mfem::Vector psi1;
+   mfem::Vector psi2;
+#endif
+
+   auto *dof_tr =
+       adjoint.FESpace()->GetElementVDofs(trans.Elem1->ElementNo, vdofs1);
+   adjoint.GetSubVector(vdofs1, psi1);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi1);
+   }
+   dof_tr = adjoint.FESpace()->GetElementVDofs(trans.Elem2->ElementNo, vdofs2);
+   adjoint.GetSubVector(vdofs2, psi2);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(psi2);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape1;
+   mfem::Vector shape2;
+#else
+   auto &shape1 = integ.shape1;
+   auto &shape2 = integ.shape2;
+#endif
+   shape1.SetSize(ndof1);
+   shape2.SetSize(ndof2);
+
+   const auto *ir = IntRule;
+   if (ir == NULL)
+   {
+      int order = 2 * std::max(el1.GetOrder(), el2.GetOrder()) + trans.OrderW();
+      ir = &mfem::IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &alpha = integ.alpha;
+   auto &h = integ.h;
+   // auto &theta_f = integ.theta_f;
+
+   double fun = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the integration point in the face and the neighboring element
+      const auto &ip = ir->IntPoint(i);
+      trans.SetAllIntPoints(&ip);
+
+      const double w = alpha * ip.weight * trans.Weight();
+
+      // Access the neighboring element's integration point
+      const auto &eip1 = trans.GetElement1IntPoint();
+      const auto &eip2 = trans.GetElement2IntPoint();
+
+      el1.CalcShape(eip1, shape1);
+      el2.CalcShape(eip2, shape2);
+
+      const double psi1_shape1 = psi1 * shape1;
+      const double psi2_shape2 = psi2 * shape2;
+
+      // const double temp1 = elfun1 * shape1;
+      // const double temp2 = elfun2 * shape2;
+
+      // const double val1 = h * (temp1 - theta_f);
+      // const double val2 = h * (temp2 - theta_f);
+
+      // elvect1.Add(w * val1, shape1);
+      // double term1 = w * va1 * psi1_shape1;
+
+      // elvect2.Add(w * val2, shape2);
+      // double term2 = w * val2 * psi2_shape2;
+
+      /// dummy functional for adjoint-weighted residual
+      /// fun += term1 + term2;
+
+      /// start reverse pass
+      const double fun_bar = 1.0;
+
+      /// fun += term1 + term2;
+      const double term1_bar = fun_bar;
+      const double term2_bar = fun_bar;
+
+      /// double term2 = w * val2 * psi2_shape2;
+      const double val2_bar = term2_bar * w * psi2_shape2;
+
+      /// double term1 = w * val1 * psi1_shape1;
+      const double val1_bar = term1_bar * w * psi1_shape1;
+
+      /// const double val2 = h * (temp2 - theta_f);
+      double theta_f_bar = -val2_bar * h;
+
+      /// const double val1 = h * (temp1 - theta_f);
+      theta_f_bar -= val1_bar * h;
+
+      fun += theta_f_bar;
+   }
+   return fun;
 }
 
 void ConvectionBCIntegrator::AssembleFaceVector(
