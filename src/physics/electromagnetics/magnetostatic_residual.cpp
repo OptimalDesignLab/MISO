@@ -251,6 +251,8 @@ MagnetostaticResidual::MagnetostaticResidual(
    // auto space_dim = mesh->Dimension();
    if (space_dim == 3)
    {
+      mesh->RemoveInternalBoundaries();
+
       res.addDomainIntegrator(new CurlCurlNLFIntegrator(nu));
       load = std::make_unique<MachLoad>(
           MagnetostaticLoad(diff_stack, fes, fields, options, materials, nu));
