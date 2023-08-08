@@ -305,6 +305,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
          }
 
          auto options = R"({
+            "space-dis": {
+               "basis-type": "h1"
+            },
             "lin-prec": {
                "type": "hypreboomeramg",
                "printlevel": 0
@@ -503,6 +506,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
          }
 
          auto options = R"({
+            "space-dis": {
+               "basis-type": "h1"
+            },
             "lin-prec": {
                "type": "hypreboomeramg",
                "printlevel": 0
@@ -683,6 +689,9 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt temperature")
          }
 
          auto options = R"({
+            "space-dis": {
+               "basis-type": "h1"
+            },
             "lin-prec": {
                "type": "hypreboomeramg",
                "printlevel": 0
