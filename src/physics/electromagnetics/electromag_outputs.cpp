@@ -1623,9 +1623,9 @@ CoreLossFunctional::CoreLossFunctional(
     const nlohmann::json &options)
  : output(fields.at("state").space(), fields),
    rho(constructMaterialCoefficient("rho", components, materials)),
-   k_s(constructMaterialCoefficient("ks", components, materials)),
-   alpha(constructMaterialCoefficient("alpha", components, materials)),
-   beta(constructMaterialCoefficient("beta", components, materials)),
+   // k_s(constructMaterialCoefficient("ks", components, materials)),
+   // alpha(constructMaterialCoefficient("alpha", components, materials)),
+   // beta(constructMaterialCoefficient("beta", components, materials)),
    CAL2_kh(std::make_unique<CAL2khCoefficient>(components, materials)),
    CAL2_ke(std::make_unique<CAL2keCoefficient>(components, materials))
 {

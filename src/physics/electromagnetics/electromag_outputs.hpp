@@ -482,10 +482,10 @@ private:
    FunctionalOutput output;
    /// Density
    std::unique_ptr<mfem::Coefficient> rho;
-   /// Steinmetz coefficients
-   std::unique_ptr<mfem::Coefficient> k_s;
-   std::unique_ptr<mfem::Coefficient> alpha;
-   std::unique_ptr<mfem::Coefficient> beta;
+   // /// Steinmetz coefficients
+   // std::unique_ptr<mfem::Coefficient> k_s;
+   // std::unique_ptr<mfem::Coefficient> alpha;
+   // std::unique_ptr<mfem::Coefficient> beta;
 
    /// CAL2 Coefficients
    std::unique_ptr<ThreeStateCoefficient> CAL2_kh;
