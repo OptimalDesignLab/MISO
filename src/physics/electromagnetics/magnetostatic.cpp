@@ -73,7 +73,8 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
                                          std::unique_ptr<mfem::Mesh> smesh)
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
    nu(options, materials),
-   rho(constructMaterialCoefficient("rho", options["components"], materials)),
+   // rho(constructMaterialCoefficient("rho", options["components"],
+   // materials)),
    sigma(options, materials)
 // mag_coeff(diff_stack, options["magnets"], materials, 2),
 // B_knee(options, materials)

@@ -32,8 +32,8 @@ public:
 private:
    /// Coefficient representing the potentially nonlinear magnetic reluctivity
    ReluctivityCoefficient nu;
-   /// Material dependent coefficient representing density
-   MeshDependentCoefficient rho;
+   // /// Material dependent coefficient representing density
+   // MeshDependentCoefficient rho;
    /// Coefficient representing the temperature-dependent electrical
    /// conductivity
    ConductivityCoefficient sigma;
