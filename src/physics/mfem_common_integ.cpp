@@ -157,18 +157,7 @@ double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 2;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
-
+      int order = trans.OrderW();
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
@@ -181,7 +170,11 @@ double VolumeIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
       double val = ip.weight * trans.Weight();
       if (rho != nullptr)
       {
-         val *= rho->Eval(trans, ip);
+         if (*rho != nullptr)
+         {
+            val *= (*rho)->Eval(trans, ip);
+         }
+         // val *= rho->Eval(trans, ip);
       }
       vol += val;
    }
@@ -208,18 +201,7 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
    const IntegrationRule *ir = IntRule;
    if (ir == nullptr)
    {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 2;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
-
+      int order = trans.OrderW();
       ir = &IntRules.Get(el.GetGeomType(), order);
    }
 
@@ -245,14 +227,17 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
       PointMat_bar = 0.0;
       if (rho != nullptr)
       {
-         double s = rho->Eval(trans, ip);
+         if (*rho != nullptr)
+         {
+            double s = (*rho)->Eval(trans, ip);
 
-         /// val = w * s;
-         double s_bar = val_bar * w;
-         w_bar += val_bar * s;
+            /// val = w * s;
+            double s_bar = val_bar * w;
+            w_bar += val_bar * s;
 
-         /// double s = rho->Eval(trans, ip);
-         rho->EvalRevDiff(s_bar, trans, ip, PointMat_bar);
+            /// double s = rho->Eval(trans, ip);
+            (*rho)->EvalRevDiff(s_bar, trans, ip, PointMat_bar);
+         }
       }
       else
       {
@@ -277,11 +262,45 @@ void VolumeIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
+double VolumeIntegratorFillFactorSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = trans.OrderW();
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto *rho = integ.rho;
+
+   double vol = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      double val = ip.weight * trans.Weight();
+      if (rho != nullptr)
+      {
+         if (*rho != nullptr)
+         {
+            val *= (*rho)->Eval(trans, ip);
+         }
+      }
+      vol += val;
+   }
+   return vol;
+}
+
 double StateIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
                                          mfem::ElementTransformation &trans,
                                          const mfem::Vector &elfun)
 {
-   const auto *ir = &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder());
+   const auto *ir =
+       &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + trans.OrderW());
 
    double fun = 0.0;
    for (int i = 0; i < ir->GetNPoints(); ++i)
@@ -292,6 +311,111 @@ double StateIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
       fun += ip.weight * (shape * elfun) * trans.Weight();
    }
    return fun;
+}
+
+void StateIntegrator::AssembleElementVector(const mfem::FiniteElement &el,
+                                            mfem::ElementTransformation &trans,
+                                            const mfem::Vector &elfun,
+                                            mfem::Vector &elfun_bar)
+{
+   const auto *ir =
+       &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + trans.OrderW());
+
+   elfun_bar.SetSize(elfun.Size());
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); ++i)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+      el.CalcShape(ip, shape);
+
+      // fun += ip.weight * (shape * elfun) * trans.Weight();
+      elfun_bar.Add(ip.weight * trans.Weight(), shape);
+   }
+}
+
+void StateIntegratorMeshSens::AssembleRHSElementVect(
+    const FiniteElement &mesh_el,
+    ElementTransformation &trans,
+    Vector &mesh_coords_bar)
+{
+   const int element = trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = trans.GetSpaceDim();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   Vector shape;
+   DenseMatrix PointMat_bar;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(el.GetDof());
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = 2 * el.GetOrder() + trans.OrderW();
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const auto &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      // double trans_weight = trans.Weight();
+
+      // double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      double val = (shape * elfun);
+
+      /// fun += val * w;
+
+      /// Start reverse pass...
+      /// fun += val * w;
+      const double fun_bar = 1.0;
+
+      // double val_bar = fun_bar * w;
+      double w_bar = fun_bar * val;
+
+      /// double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+
+      /// double trans_weight = trans.Weight();
+      PointMat_bar = 0.0;
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
 }
 
 double MagnitudeCurlStateIntegrator::GetElementEnergy(

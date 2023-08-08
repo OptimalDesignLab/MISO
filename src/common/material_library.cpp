@@ -221,6 +221,14 @@ const auto air = R"(
 }
 )"_json;
 
+const auto moving_air = R"(
+{
+   "rho": 1.225,
+   "cv": 93,
+   "kappa": 100
+}
+)"_json;
+
 // Copper Wire that accounts for temperature dependent conductivity/resistivity
 // Current value is (=1 divided by resistivity value from
 // https://www.britannica.com/science/resistivity)
@@ -232,11 +240,30 @@ const auto air = R"(
 /// from MeshDependentCoefficient & ConstantCoefficient and to StateCoefficient
 /// & Conductivity Coefficient
 ///  TODO: since this is meant for windings, should have reduced conductivity...
+// "kappa": 2.49,
 const auto copper_wire = R"(
 {
-   "rho": 8960,
+   "rho": {
+      "materials": ["copper", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "average"
+   },
+   "drho_df": {
+      "materials": ["copper", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "daverage"
+   },
    "cv": 376,
-   "kappa": 2.49,
+   "kappa": {
+      "materials": ["copper", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "Hashin-Shtrikman"
+   },
+   "dkappa_df": {
+      "materials": ["copper", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "dHashin-Shtrikman"
+   },
    "conductivity":{
       "linear":{
          "sigma_T_ref": 5.6497e7,
@@ -252,8 +279,17 @@ const auto copper_wire = R"(
 const auto copper = R"(
 {
    "rho": 8960,
+   "drho_df": 8960,
    "cv": 376,
    "kappa": 400
+}
+)"_json;
+
+const auto epoxy = R"(
+{
+   "rho": 1200,
+   "drho_df": 1200,
+   "kappa": 1
 }
 )"_json;
 
@@ -270,9 +306,11 @@ const nlohmann::json material_library = {{"hiperco50", hiperco50},
                                          {"team13", team13},
                                          {"Nd2Fe14B", Nd2Fe14B},
                                          {"air", air},
+                                         {"moving_air", moving_air},
                                          {"copperwire", copper_wire},
                                          {"copper", copper},
-                                         {"2024_T3", Al2024_T3}};
+                                         {"2024_T3", Al2024_T3},
+                                         {"epoxy", epoxy}};
 
 // const nlohmann::json material_library
 // {

@@ -3,6 +3,7 @@
 #include "tinysplinecxx.h"
 
 #include "coefficient.hpp"
+#include "utils.hpp"
 
 using namespace mfem;
 
@@ -17,6 +18,54 @@ void StateCoefficient::EvalRevDiff(double Q_bar,
    MFEM_ABORT(
        "StateCoefficient::EvalRevDiff\n"
        "\tEvalRevDiff not implemented for this coefficient!\n");
+}
+
+double HashinShtrikmanWeightedCoefficient::Eval(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip)
+{
+   return val2 * ((1 + weight) * val1 + (1 - weight) * val2) /
+          ((1 - weight) * val1 + (1 + weight) * val2);
+}
+
+void HashinShtrikmanWeightedCoefficient::setInputs(const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, weighted_by, weight);
+}
+
+double dHashinShtrikmanWeightedCoefficient::Eval(
+    mfem::ElementTransformation &trans,
+    const mfem::IntegrationPoint &ip)
+{
+   return -(2 * val2 * (val2 - val1) * (val1 + val2)) /
+          pow(val1 * (-weight) + val1 + val2 * weight + val2, 2);
+}
+
+void dHashinShtrikmanWeightedCoefficient::setInputs(const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, weighted_by, weight);
+}
+
+double WeightedAverageCoefficient::Eval(mfem::ElementTransformation &trans,
+                                        const mfem::IntegrationPoint &ip)
+{
+   return weight * val1 + (1 - weight) * val2;
+}
+
+void WeightedAverageCoefficient::setInputs(const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, weighted_by, weight);
+}
+
+double dWeightedAverageCoefficient::Eval(mfem::ElementTransformation &trans,
+                                         const mfem::IntegrationPoint &ip)
+{
+   return val1 - val2;
+}
+
+void dWeightedAverageCoefficient::setInputs(const MachInputs &inputs)
+{
+   setValueFromInputs(inputs, weighted_by, weight);
 }
 
 double ParameterContinuationCoefficient::lambda = 0.0;
@@ -242,6 +291,26 @@ void MeshDependentCoefficient::EvalRevDiff(const double Q_bar,
    // if attribute not found and no default set, don't change PointMat_bar
 }
 
+void MeshDependentCoefficient::setInputs(const MachInputs &inputs)
+{
+   for (auto &[attr, coeff] : material_map)
+   {
+      auto *state_coeff = dynamic_cast<StateCoefficient *>(coeff.get());
+      if (state_coeff != nullptr)
+      {
+         state_coeff->setInputs(inputs);
+      }
+   }
+   if (default_coeff)
+   {
+      auto *state_coeff = dynamic_cast<StateCoefficient *>(default_coeff.get());
+      if (state_coeff != nullptr)
+      {
+         state_coeff->setInputs(inputs);
+      }
+   }
+}
+
 std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
     const std::string &name,
     const nlohmann::json &components,
@@ -265,40 +334,151 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
          material_name = material["name"].get<std::string>();
       }
 
-      // JSON structure changed for Steinmetz core losses. If statement below
-      // added to account for this
-      double val;
-      if (name == "ks" || name == "alpha" || name == "beta")
-      {
-         if (materials[material_name].contains("core_loss"))
-         {
-            val = materials[material_name]["core_loss"]["steinmetz"].value(
-                name, default_val);
-            // std::cout << "Steinmetz now correctly accounting for new JSON
-            // structure for name = " << name << " with a value = " << val <<
-            // "\n";
-         }
-         else
-         {
-            val = materials[material_name].value(name, default_val);
-         }
-      }
-      else
-      {
-         val = materials[material_name].value(name, default_val);
-      }
+      // // JSON structure changed for Steinmetz core losses. If statement below
+      // // added to account for this
+      // double val;
+      // if (name == "ks" || name == "alpha" || name == "beta")
+      // {
+      //    if (materials[material_name].contains("core_loss"))
+      //    {
+      //       val = materials[material_name]["core_loss"]["steinmetz"].value(
+      //           name, default_val);
+      //       // std::cout << "Steinmetz now correctly accounting for new JSON
+      //       // structure for name = " << name << " with a value = " << val <<
+      //       // "\n";
+      //    }
+      //    else
+      //    {
+      //       val = materials[material_name].value(name, default_val);
+      //    }
+      // }
+      // else
+      // {
+      //    val = materials[material_name].value(name, default_val);
+      // }
 
-      if (-1 != attr)
+      if (materials[material_name].contains(name))
       {
-         auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-         material_coeff->addCoefficient(attr, move(coeff));
-      }
-      else
-      {
-         for (const auto &attribute : component["attrs"])
+         if (materials[material_name][name].is_number())
          {
-            auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-            material_coeff->addCoefficient(attribute, move(coeff));
+            const double val =
+                materials[material_name].value(name, default_val);
+
+            if (-1 != attr)
+            {
+               auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
+               material_coeff->addCoefficient(attr, move(coeff));
+            }
+            else
+            {
+               for (const auto &attribute : component["attrs"])
+               {
+                  auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
+                  material_coeff->addCoefficient(attribute, move(coeff));
+               }
+            }
+         }
+         else if (materials[material_name][name].is_object())
+         {
+            auto comp_materials = materials[material_name][name]["materials"];
+
+            std::vector<double> vals;
+            if (comp_materials.is_array())
+            {
+               for (std::string mat_name : comp_materials)
+               {
+                  vals.push_back(materials[mat_name][name].get<double>());
+               }
+            }
+            else
+            {
+               throw MachException("unexpected type for comp_materials!\n");
+            }
+
+            const auto weighted_by =
+                materials[material_name][name]["weighted_by"];
+            const auto &weight = materials[material_name][name]["weight"];
+
+            if (weight == "Hashin-Shtrikman")
+            {
+               if (-1 != attr)
+               {
+                  auto coeff = std::make_unique<
+                      mach::HashinShtrikmanWeightedCoefficient>(
+                      vals[0], vals[1], weighted_by);
+                  material_coeff->addCoefficient(attr, move(coeff));
+               }
+               else
+               {
+                  for (const auto &attribute : component["attrs"])
+                  {
+                     auto coeff = std::make_unique<
+                         mach::HashinShtrikmanWeightedCoefficient>(
+                         vals[0], vals[1], weighted_by);
+                     material_coeff->addCoefficient(attribute, move(coeff));
+                  }
+               }
+            }
+            else if (weight == "dHashin-Shtrikman")
+            {
+               if (-1 != attr)
+               {
+                  auto coeff = std::make_unique<
+                      mach::dHashinShtrikmanWeightedCoefficient>(
+                      vals[0], vals[1], weighted_by);
+                  material_coeff->addCoefficient(attr, move(coeff));
+               }
+               else
+               {
+                  for (const auto &attribute : component["attrs"])
+                  {
+                     auto coeff = std::make_unique<
+                         mach::dHashinShtrikmanWeightedCoefficient>(
+                         vals[0], vals[1], weighted_by);
+                     material_coeff->addCoefficient(attribute, move(coeff));
+                  }
+               }
+            }
+            else if (weight == "average")
+            {
+               if (-1 != attr)
+               {
+                  auto coeff =
+                      std::make_unique<mach::WeightedAverageCoefficient>(
+                          vals[0], vals[1], weighted_by);
+                  material_coeff->addCoefficient(attr, move(coeff));
+               }
+               else
+               {
+                  for (const auto &attribute : component["attrs"])
+                  {
+                     auto coeff =
+                         std::make_unique<mach::WeightedAverageCoefficient>(
+                             vals[0], vals[1], weighted_by);
+                     material_coeff->addCoefficient(attribute, move(coeff));
+                  }
+               }
+            }
+            else if (weight == "daverage")
+            {
+               if (-1 != attr)
+               {
+                  auto coeff =
+                      std::make_unique<mach::dWeightedAverageCoefficient>(
+                          vals[0], vals[1], weighted_by);
+                  material_coeff->addCoefficient(attr, move(coeff));
+               }
+               else
+               {
+                  for (const auto &attribute : component["attrs"])
+                  {
+                     auto coeff =
+                         std::make_unique<mach::dWeightedAverageCoefficient>(
+                             vals[0], vals[1], weighted_by);
+                     material_coeff->addCoefficient(attribute, move(coeff));
+                  }
+               }
+            }
          }
       }
    }

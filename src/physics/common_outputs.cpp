@@ -1,3 +1,4 @@
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -30,31 +31,44 @@ VolumeFunctional::VolumeFunctional(
    }
 }
 
+double vectorJacobianProduct(MassFunctional &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   if (wrt == "fill_factor")
+   {
+      *output.rho_ptr = output.drho_df.get();
+      const double wrt_bar = vectorJacobianProduct(output.output, out_bar, wrt);
+      *output.rho_ptr = output.rho.get();
+      return wrt_bar;
+   }
+   else
+   {
+      return vectorJacobianProduct(output.output, out_bar, wrt);
+   }
+}
+
 MassFunctional::MassFunctional(
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &components,
     const nlohmann::json &materials,
     const nlohmann::json &options)
  : output(fields.at("state").space(), fields),
-   rho(constructMaterialCoefficient("rho", components, materials))
+   rho(constructMaterialCoefficient("rho", components, materials)),
+   drho_df(constructMaterialCoefficient("drho_df", components, materials)),
+   rho_ptr(std::make_unique<mfem::Coefficient *>(rho.get()))
 {
    if (options.contains("attributes"))
    {
       auto attributes = options["attributes"].get<std::vector<int>>();
-      output.addOutputDomainIntegrator(new VolumeIntegrator(rho.get()),
+      output.addOutputDomainIntegrator(new VolumeIntegrator(rho_ptr.get()),
                                        attributes);
    }
    else
    {
-      output.addOutputDomainIntegrator(new VolumeIntegrator(rho.get()));
+      output.addOutputDomainIntegrator(new VolumeIntegrator(rho_ptr.get()));
    }
 }
-
-StateAverageFunctional::StateAverageFunctional(
-    mfem::ParFiniteElementSpace &fes,
-    std::map<std::string, FiniteElementState> &fields)
- : StateAverageFunctional(fes, fields, {})
-{ }
 
 StateAverageFunctional::StateAverageFunctional(
     mfem::ParFiniteElementSpace &fes,

@@ -5,6 +5,7 @@
 
 #include "mfem.hpp"
 
+#include "mach_input.hpp"
 #include "mach_types.hpp"
 #include "utils.hpp"
 
@@ -59,6 +60,8 @@ public:
                             const mfem::IntegrationPoint &ip,
                             double state,
                             mfem::DenseMatrix &PointMat_bar);
+
+   virtual void setInputs(const MachInputs &inputs) { }
 };
 
 /// Abstract class TwoStateCoefficient
@@ -243,6 +246,192 @@ public:
    }
 };
 
+class HashinShtrikmanWeightedCoefficient : public mach::StateCoefficient
+{
+public:
+   HashinShtrikmanWeightedCoefficient(double val1,
+                                      double val2,
+                                      std::string weighted_by)
+    : val1(val1 > val2 ? val1 : val2),
+      val2(val1 > val2 ? val2 : val1),
+      weight(0.5),
+      weighted_by(std::move(weighted_by))
+   { }
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state) override
+   {
+      return Eval(trans, ip);
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         double state) override
+   {
+      return 0.0;
+   }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    double state,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
+   void setInputs(const MachInputs &inputs) override;
+
+private:
+   double val1;
+   double val2;
+
+   double weight;
+
+   std::string weighted_by;
+};
+
+class dHashinShtrikmanWeightedCoefficient : public mach::StateCoefficient
+{
+public:
+   dHashinShtrikmanWeightedCoefficient(double val1,
+                                       double val2,
+                                       std::string weighted_by)
+    : val1(val1 > val2 ? val1 : val2),
+      val2(val1 > val2 ? val2 : val1),
+      weight(0.5),
+      weighted_by(std::move(weighted_by))
+   { }
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state) override
+   {
+      return Eval(trans, ip);
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         double state) override
+   {
+      return 0.0;
+   }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    double state,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
+   void setInputs(const MachInputs &inputs) override;
+
+private:
+   double val1;
+   double val2;
+
+   double weight;
+
+   std::string weighted_by;
+};
+
+class WeightedAverageCoefficient : public mach::StateCoefficient
+{
+public:
+   WeightedAverageCoefficient(double val1, double val2, std::string weighted_by)
+    : val1(val1 > val2 ? val1 : val2),
+      val2(val1 > val2 ? val2 : val1),
+      weight(0.5),
+      weighted_by(std::move(weighted_by))
+   { }
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state) override
+   {
+      return Eval(trans, ip);
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         double state) override
+   {
+      return 0.0;
+   }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    double state,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
+   void setInputs(const MachInputs &inputs) override;
+
+private:
+   double val1;
+   double val2;
+
+   double weight;
+
+   std::string weighted_by;
+};
+
+class dWeightedAverageCoefficient : public mach::StateCoefficient
+{
+public:
+   dWeightedAverageCoefficient(double val1,
+                               double val2,
+                               std::string weighted_by)
+    : val1(val1 > val2 ? val1 : val2),
+      val2(val1 > val2 ? val2 : val1),
+      weight(0.5),
+      weighted_by(std::move(weighted_by))
+   { }
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip) override;
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state) override
+   {
+      return Eval(trans, ip);
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         double state) override
+   {
+      return 0.0;
+   }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    double state,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
+   void setInputs(const MachInputs &inputs) override;
+
+private:
+   double val1;
+   double val2;
+
+   double weight;
+
+   std::string weighted_by;
+};
+
 class ParameterContinuationCoefficient : public StateCoefficient
 {
 public:
@@ -383,6 +572,8 @@ public:
                     const mfem::IntegrationPoint &ip,
                     double state,
                     mfem::DenseMatrix &PointMat_bar) override;
+
+   void setInputs(const MachInputs &inputs) override;
 
 protected:
    // /// \brief Method to be called if a coefficient matching the element's

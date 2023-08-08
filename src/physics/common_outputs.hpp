@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "coefficient.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -73,11 +74,16 @@ public:
 
    friend void setInputs(MassFunctional &output, const MachInputs &inputs)
    {
+      output.rho->setInputs(inputs);
+      output.drho_df->setInputs(inputs);
       setInputs(output.output, inputs);
    }
 
    friend double calcOutput(MassFunctional &output, const MachInputs &inputs)
    {
+      output.rho->setInputs(inputs);
+      output.drho_df->setInputs(inputs);
+      setInputs(output.output, inputs);
       return calcOutput(output.output, inputs);
    }
 
@@ -87,6 +93,10 @@ public:
    {
       return jacobianVectorProduct(output.output, wrt_dot, wrt);
    }
+
+   friend double vectorJacobianProduct(MassFunctional &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(MassFunctional &output,
                                      const mfem::Vector &out_bar,
@@ -104,7 +114,11 @@ public:
 private:
    FunctionalOutput output;
    /// Density
-   std::unique_ptr<mfem::Coefficient> rho;
+   std::unique_ptr<mach::MeshDependentCoefficient> rho;
+   /// Derivative of density wrt fill factor
+   std::unique_ptr<mach::MeshDependentCoefficient> drho_df;
+   /// Coefficient pointer that integrators use
+   std::unique_ptr<mfem::Coefficient *> rho_ptr;
 };
 
 class StateAverageFunctional
@@ -125,6 +139,7 @@ public:
    friend void setInputs(StateAverageFunctional &output,
                          const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       setInputs(output.state_integ, inputs);
       setInputs(output.volume, inputs);
    }
@@ -132,13 +147,53 @@ public:
    friend double calcOutput(StateAverageFunctional &output,
                             const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       double state = calcOutput(output.state_integ, inputs);
       double volume = calcOutput(output.volume, inputs);
       return state / volume;
    }
 
+   friend double jacobianVectorProduct(StateAverageFunctional &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt)
+   {
+      const MachInputs &inputs = *output.inputs;
+
+      double state = calcOutput(output.state_integ, inputs);
+      double volume = calcOutput(output.volume, inputs);
+
+      auto state_dot =
+          volume * jacobianVectorProduct(output.state_integ, wrt_dot, wrt);
+      state_dot -= state * jacobianVectorProduct(output.volume, wrt_dot, wrt);
+      state_dot /= pow(volume, 2);
+      return state_dot;
+   }
+
+   friend void vectorJacobianProduct(StateAverageFunctional &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar)
+   {
+      const MachInputs &inputs = *output.inputs;
+
+      double state = calcOutput(output.state_integ, inputs);
+      double volume = calcOutput(output.volume, inputs);
+
+      output.scratch.SetSize(wrt_bar.Size());
+
+      output.scratch = 0.0;
+      vectorJacobianProduct(output.state_integ, out_bar, wrt, output.scratch);
+      wrt_bar.Add(1 / volume, output.scratch);
+
+      output.scratch = 0.0;
+      vectorJacobianProduct(output.volume, out_bar, wrt, output.scratch);
+      wrt_bar.Add(-state / pow(volume, 2), output.scratch);
+   }
+
    StateAverageFunctional(mfem::ParFiniteElementSpace &fes,
-                          std::map<std::string, FiniteElementState> &fields);
+                          std::map<std::string, FiniteElementState> &fields)
+    : StateAverageFunctional(fes, fields, {})
+   { }
 
    StateAverageFunctional(mfem::ParFiniteElementSpace &fes,
                           std::map<std::string, FiniteElementState> &fields,
@@ -147,6 +202,9 @@ public:
 private:
    FunctionalOutput state_integ;
    FunctionalOutput volume;
+
+   MachInputs const *inputs = nullptr;
+   mfem::Vector scratch;
 };
 
 class AverageMagnitudeCurlState
@@ -175,6 +233,7 @@ public:
    friend double calcOutput(AverageMagnitudeCurlState &output,
                             const MachInputs &inputs)
    {
+      output.inputs = &inputs;
       double state = calcOutput(output.state_integ, inputs);
       double volume = calcOutput(output.volume, inputs);
       return state / volume;
