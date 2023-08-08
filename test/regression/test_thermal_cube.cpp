@@ -32,6 +32,7 @@ TEST_CASE("ThermalSolver Box Regression Test")
          "reltol": 1e-14
       },
       "lin-prec": {
+         "type": "hypreboomeramg",
          "printlevel": 0
       },
       "nonlin-solver": {
@@ -124,14 +125,14 @@ TEST_CASE("ThermalSolver Box Regression Test with load")
          "degree": 1
       },
       "lin-solver": {
-         "type": "gmres",
+         "type": "pcg",
          "printlevel": 1,
          "maxiter": 100,
-         "kdim": 100,
          "abstol": 1e-14,
          "reltol": 1e-14
       },
       "lin-prec": {
+         "type": "hypreboomeramg",
          "printlevel": 0
       },
       "nonlin-solver": {

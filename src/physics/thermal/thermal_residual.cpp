@@ -194,7 +194,7 @@ ThermalResidual::ThermalResidual(
       if (mu < 0)
       {
          auto degree = options["space-dis"]["degree"].get<double>();
-         mu = pow(degree + 1, 3);
+         mu = pow(degree + 1, 2);
       }
       res.addInteriorFaceIntegrator(
           new DGInteriorFaceDiffusionIntegrator(*kappa, mu));
@@ -267,7 +267,7 @@ ThermalResidual::ThermalResidual(
             if (mu < 0)
             {
                auto degree = options["space-dis"]["degree"].get<double>();
-               mu = pow(degree + 1, 3);
+               mu = pow(degree + 1, 2);
             }
             std::cout << "mu: " << mu << "\n";
             res.addBdrFaceIntegrator(
@@ -292,7 +292,7 @@ ThermalResidual::ThermalResidual(
          if (mu < 0)
          {
             auto degree = options["space-dis"]["degree"].get<double>();
-            mu = pow(degree + 1, 3);
+            mu = pow(degree + 1, 2);
          }
          std::cout << "mu: " << mu << "\n";
          res.addBdrFaceIntegrator(
@@ -320,7 +320,7 @@ ThermalResidual::ThermalResidual(
                if (mu < 0)
                {
                   auto degree = options["space-dis"]["degree"].get<double>();
-                  mu = pow(degree + 1, 3);
+                  mu = pow(degree + 1, 2);
                }
 
                res.addInternalBoundaryFaceIntegrator(
@@ -347,7 +347,7 @@ ThermalResidual::ThermalResidual(
                if (mu < 0)
                {
                   auto degree = options["space-dis"]["degree"].get<double>();
-                  mu = pow(degree + 1, 3);
+                  mu = pow(degree + 1, 2);
                }
 
                res.addInternalBoundaryFaceIntegrator(
