@@ -21,7 +21,7 @@ TEST_CASE("ThermalSolver Box Regression Test")
    auto options = R"(
    {
       "space-dis": {
-         "basis-type": "h1",
+         "basis-type": "dg",
          "degree": 3
       },
       "lin-solver": {
@@ -124,9 +124,10 @@ TEST_CASE("ThermalSolver Box Regression Test with load")
          "degree": 1
       },
       "lin-solver": {
-         "type": "pcg",
+         "type": "gmres",
          "printlevel": 1,
          "maxiter": 100,
+         "kdim": 100,
          "abstol": 1e-14,
          "reltol": 1e-14
       },

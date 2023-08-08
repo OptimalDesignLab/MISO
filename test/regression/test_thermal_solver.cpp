@@ -49,11 +49,11 @@ auto options = R"(
       }
    },
    "interfaces": {
-      "tcr": {
-         "attrs": [1],
-         "kind": "thermal_contact_resistance",
-         "name": "test",
-         "h_c": 1.0
+      "thermal_contact_resistance": {
+         "test": {
+            "attrs": [5],
+            "h_c": 1.0
+         }
       }
    },
    "bcs": {
@@ -112,20 +112,20 @@ std::unique_ptr<mfem::Mesh> buildMesh(int nxy)
       mfem::Array<int> verts;
       elem->GetVertices(verts);
 
-      bool below = true;
-      for (int i = 0; i < verts.Size(); ++i)
+      bool left = true;
+      for (int j = 0; j < verts.Size(); ++j)
       {
-         auto *vtx = mesh->GetVertex(verts[i]);
-         if (vtx[1] <= 0.5)
+         auto *vtx = mesh->GetVertex(verts[j]);
+         if (vtx[0] <= 0.5)
          {
-            below = below;
+            continue;
          }
          else
          {
-            below = false;
+            left = false;
          }
       }
-      if (below)
+      if (left)
       {
          elem->SetAttribute(1);
       }
@@ -135,83 +135,61 @@ std::unique_ptr<mfem::Mesh> buildMesh(int nxy)
       }
    }
 
-   // assign attributes to middle edge
-   for (int i = 0; i < mesh->GetNumFaces(); i++)
+   // assign boundary element attributes to left and right sides
+   for (int i = 0; i < mesh->GetNBE(); ++i)
    {
-      auto *face = const_cast<mfem::Element *>(mesh->GetFace(i));
+      auto *elem = mesh->GetBdrElement(i);
 
       mfem::Array<int> verts;
-      face->GetVertices(verts);
+      elem->GetVertices(verts);
 
-      bool on_edge = true;
-      for (int i = 0; i < verts.Size(); ++i)
+      bool left = true;
+      bool right = true;
+      bool top = true;
+      bool bottom = true;
+      for (int j = 0; j < verts.Size(); ++j)
       {
-         auto *vtx = mesh->GetVertex(verts[i]);
-         if (abs(vtx[1] - 0.5) < 1e-6)
-         {
-            on_edge = on_edge;
-         }
-         else
-         {
-            on_edge = false;
-         }
+         auto *vtx = mesh->GetVertex(verts[j]);
+         left = left && abs(vtx[0] - 0.0) < 1e-12;
+         right = right && abs(vtx[0] - 2.0) < 1e-12;
+         top = top && abs(vtx[1] - 1.0) < 1e-12;
+         bottom = bottom && abs(vtx[1] - 0.0) < 1e-12;
       }
-      if (on_edge)
+      if (left)
       {
-         face->SetAttribute(2);
+         elem->SetAttribute(1);
       }
-      else
+      else if (right)
       {
-         face->SetAttribute(0);
+         elem->SetAttribute(2);
       }
-
-      std::cout << "face attr: " << face->GetAttribute() << "\n";
-
+      else if (top)
+      {
+         elem->SetAttribute(3);
+      }
+      else if (bottom)
+      {
+         elem->SetAttribute(4);
+      }
    }
 
-   // assign attributes to middle edge
-   for (int i = 0; i < mesh->GetNumFaces(); i++)
+   // add internal boundary elements
+   for (int i = 0; i < mesh->GetNumFaces(); ++i)
    {
-      auto *face = mesh->GetFace(i);
-
-      mfem::Array<int> verts;
-      face->GetVertices(verts);
-
-      bool on_edge = true;
-      for (int i = 0; i < verts.Size(); ++i)
+      int e1, e2;
+      mesh->GetFaceElements(i, &e1, &e2);
+      if (e1 >= 0 && e2 >= 0 && mesh->GetAttribute(e1) != mesh->GetAttribute(e2))
       {
-         auto *vtx = mesh->GetVertex(verts[i]);
-         if (abs(vtx[1] - 0.5) < 1e-6)
-         {
-            on_edge = on_edge;
-         }
-         else
-         {
-            on_edge = false;
-         }
+         // This is the internal face between attributes.
+         auto *new_elem = mesh->GetFace(i)->Duplicate(mesh.get());
+         new_elem->SetAttribute(5);
+         mesh->AddBdrElement(new_elem);
       }
-      if (on_edge)
-      {
-         face->SetAttribute(1);
-      }
-      else
-      {
-         face->SetAttribute(-1);
-      }
-
-      std::cout << "face attr: " << face->GetAttribute() << "\n";
-
    }
 
+   mesh->FinalizeTopology(); // Finalize to build relevant tables
+   mesh->Finalize();
    mesh->SetAttributes();
-
-   // assign attributes to middle edge
-   for (int i = 0; i < mesh->GetNumFaces(); i++)
-   {
-      auto *face = mesh->GetFace(i);
-
-      std::cout << "face attr: " << face->GetAttribute() << "\n";
-   }
 
    return mesh;
 }

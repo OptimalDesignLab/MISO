@@ -28,9 +28,10 @@ auto em_options = R"(
       "max-iter": 10
    },
    "lin-solver": {
-      "type": "minres",
+      "type": "gmres",
       "printlevel": 0,
-      "maxiter": 100,
+      "maxiter": 200,
+      "kdim": 200,
       "abstol": 1e-14,
       "reltol": 1e-14
    },
@@ -41,7 +42,7 @@ auto em_options = R"(
    "nonlin-solver": {
       "type": "newton",
       "printlevel": 3,
-      "maxiter": 50,
+      "maxiter": 1,
       "reltol": 1e-10,
       "abstol": 1e-12
    },
