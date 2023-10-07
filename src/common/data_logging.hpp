@@ -120,10 +120,13 @@ public:
                   double time,
                   int rank)
    {
-      fields.at(fieldname)->SetFromTrueDofs(state);
-      pv.SetCycle(timestep);
-      pv.SetTime(time);
-      pv.Save();
+      if (fields.count(fieldname) > 0)
+      {
+         fields.at(fieldname)->SetFromTrueDofs(state);
+         pv.SetCycle(timestep);
+         pv.SetTime(time);
+         pv.Save();
+      }
    }
 
    void registerField(const std::string &name, mfem::ParGridFunction &field)

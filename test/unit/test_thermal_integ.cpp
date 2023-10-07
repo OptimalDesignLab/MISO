@@ -367,7 +367,7 @@ TEST_CASE("ThermalContactResistanceIntegratorHRevSens::GetFaceEnergy")
          NonlinearForm res(&fes);
          auto *integ = new mach::ThermalContactResistanceIntegrator;
          setInputs(*integ, {
-            {"h_c", 10.0}
+            {"h", 10.0}
          });
          res.AddInteriorFaceIntegrator(integ);
 
@@ -383,13 +383,13 @@ TEST_CASE("ThermalContactResistanceIntegratorHRevSens::GetFaceEnergy")
          // now compute the finite-difference approximation...
          GridFunction r(&fes);
          setInputs(*integ, {
-            {"h_c", 10 + delta * v}
+            {"h", 10 + delta * v}
          });
          res.Mult(state, r);
          double dfdx_v_fd = adjoint * r;
 
          setInputs(*integ, {
-            {"h_c", 10 - delta * v}
+            {"h", 10 - delta * v}
          });
          res.Mult(state, r);
          dfdx_v_fd -= adjoint * r;
@@ -619,7 +619,7 @@ TEST_CASE("InternalConvectionInterfaceIntegratorHRevSens::GetFaceEnergy")
          NonlinearForm res(&fes);
          auto *integ = new mach::InternalConvectionInterfaceIntegrator;
          setInputs(*integ, {
-            {"h_c", 10.0}
+            {"h", 10.0}
          });
          res.AddInteriorFaceIntegrator(integ);
 
@@ -635,13 +635,13 @@ TEST_CASE("InternalConvectionInterfaceIntegratorHRevSens::GetFaceEnergy")
          // now compute the finite-difference approximation...
          GridFunction r(&fes);
          setInputs(*integ, {
-            {"h_c", 10 + delta * v}
+            {"h", 10 + delta * v}
          });
          res.Mult(state, r);
          double dfdx_v_fd = adjoint * r;
 
          setInputs(*integ, {
-            {"h_c", 10 - delta * v}
+            {"h", 10 - delta * v}
          });
          res.Mult(state, r);
          dfdx_v_fd -= adjoint * r;

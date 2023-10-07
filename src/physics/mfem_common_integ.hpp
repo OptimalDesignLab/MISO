@@ -80,13 +80,13 @@ inline void addBdrSensitivityIntegrator(
    if (attr_marker == nullptr)
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(new BoundaryNormalIntegratorMeshSens(
+          .AddBoundaryIntegrator(new BoundaryNormalIntegratorMeshSens(
               fields.at(state_name).gridFunc(), primal_integ));
    }
    else
    {
       output_sens.at("mesh_coords")
-          .AddDomainIntegrator(
+          .AddBoundaryIntegrator(
               new BoundaryNormalIntegratorMeshSens(
                   fields.at(state_name).gridFunc(), primal_integ),
               *attr_marker);

@@ -294,11 +294,11 @@ inline void addInternalBoundarySensitivityIntegrator(
    {
       if (!integ_name.empty())
       {
-         return "h_c:" + integ_name;
+         return "h:" + integ_name;
       }
       else
       {
-         return "h_c";
+         return "h";
       }
    }();
 
@@ -358,11 +358,11 @@ inline void addInteriorFaceSensitivityIntegrator(
    {
       if (!integ_name.empty())
       {
-         return "h_c:" + integ_name;
+         return "h:" + integ_name;
       }
       else
       {
-         return "h_c";
+         return "h";
       }
    }();
 
@@ -582,11 +582,11 @@ inline void addInternalBoundarySensitivityIntegrator(
    {
       if (!integ_name.empty())
       {
-         return "h_c:" + integ_name;
+         return "h:" + integ_name;
       }
       else
       {
-         return "h_c";
+         return "h";
       }
    }();
 
@@ -671,11 +671,11 @@ inline void addInteriorFaceSensitivityIntegrator(
    {
       if (!integ_name.empty())
       {
-         return "h_c:" + integ_name;
+         return "h:" + integ_name;
       }
       else
       {
-         return "h_c";
+         return "h";
       }
    }();
 

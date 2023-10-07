@@ -134,6 +134,74 @@ TEST_CASE("BoundaryNormalIntegrator::AssembleFaceVector")
    }
 }
 
+// TEST_CASE("BoundaryNormalIntegratorMeshSens::AssembleRHSElementVect")
+// {
+//    using namespace mfem;
+//    using namespace electromag_data;
+
+//    double delta = 1e-5;
+
+//    // generate a 6 element mesh
+//    int num_edge = 2;
+//    auto mesh = Mesh::MakeCartesian2D(num_edge,
+//                                      num_edge,
+//                                      Element::TRIANGLE);
+//    mesh.EnsureNodes();
+//    const auto dim = mesh.SpaceDimension();
+
+//    NonLinearCoefficient kappa;
+//    for (int p = 1; p <= 4; ++p)
+//    {
+//       DYNAMIC_SECTION( "...for degree p = " << p )
+//       {
+//          H1_FECollection fec(p, dim);
+//          FiniteElementSpace fes(&mesh, &fec);
+
+//          // initialize state; here we randomly perturb a constant state
+//          GridFunction state(&fes);
+//          FunctionCoefficient pert(randState);
+//          state.ProjectCoefficient(pert);
+
+//          NonlinearForm res(&fes);
+//          auto *integ = new mach::BoundaryNormalIntegrator(kappa);
+//          res.AddBdrFaceIntegrator(integ);
+
+//          // extract mesh nodes and get their finite-element space
+//          auto &x_nodes = *mesh.GetNodes();
+//          auto &mesh_fes = *x_nodes.FESpace();
+
+//          // initialize the vector that we use to perturb the mesh nodes
+//          GridFunction v(&mesh_fes);
+//          VectorFunctionCoefficient v_pert(dim, randVectorState);
+//          v.ProjectCoefficient(v_pert);
+
+//          // evaluate d(psi^T R)/dx and contract with v
+//          LinearForm dfdx(&mesh_fes);
+//          dfdx.AddBoundaryIntegrator(
+//             new mach::BoundaryNormalIntegratorMeshSens(state, *integ));
+//          dfdx.Assemble();
+//          double dfdx_v = dfdx * v;
+
+//          // now compute the finite-difference approximation...
+//          GridFunction x_pert(x_nodes);
+//          GridFunction r(&fes);
+//          x_pert.Add(delta, v);
+//          mesh.SetNodes(x_pert);
+//          fes.Update();
+//          double dfdx_v_fd = res.GetEnergy(state);
+//          x_pert.Add(-2 * delta, v);
+//          mesh.SetNodes(x_pert);
+//          fes.Update();
+//          dfdx_v_fd -= res.GetEnergy(state);
+//          dfdx_v_fd /= (2 * delta);
+//          mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+//          fes.Update();
+
+//          REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+//       }
+//    }
+// }
+
 TEST_CASE("VolumeIntegrator::GetElementEnergy (2D)")
 {
    using namespace mfem;

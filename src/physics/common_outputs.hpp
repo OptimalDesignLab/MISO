@@ -297,6 +297,10 @@ public:
 
       double num = calcOutput(output.numerator, inputs);
       double denom = calcOutput(output.denominator, inputs);
+
+      std::cout << "IEAggregateFunctional::calcOutput\n";
+      std::cout << "num: " << num << " denom: " << denom << "\n";
+
       return num / denom;
    }
 

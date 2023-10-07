@@ -11,6 +11,8 @@ const nlohmann::json default_options{
     {"paraview",              // options related to paraview visualization
      {
          {"directory", "solver"},
+         {"log", true},  // if false, disale all paraview logging
+         {"fields", {"state"}},
          {"each-timestep", false}  // if true, paraview file is saved each step
      }},
     {"test-ode", false},  // if true, use a simple conservative controller

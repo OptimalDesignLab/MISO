@@ -66,16 +66,16 @@ double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
    auto phi1 = phi2;
 
    int iter = 0;
-   std::cout << "linesearch iter 0: phi(0) = " << phi0
-             << ", dphi(0)/dalpha = " << dphi0 << "\n";
+   // std::cout << "linesearch iter 0: phi(0) = " << phi0
+   //           << ", dphi(0)/dalpha = " << dphi0 << "\n";
    while (phi2 > phi0 + mu * alpha2 * dphi0)
    {
       iter += 1;
-      std::cout << "linesearch iter " << iter << ": alpha = " << alpha2
-                << ", phi(alpha) = " << phi2 << "\n";
+      // std::cout << "linesearch iter " << iter << ": alpha = " << alpha2
+      //           << ", phi(alpha) = " << phi2 << "\n";
       if (iter > max_iter)
       {
-         std::cout << "Max iterations reached!\n";
+         // std::cout << "Max iterations reached!\n";
          // return alpha2;
 
          // return 0.0 indicating the linesearch failed to improve,
@@ -100,9 +100,9 @@ double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
 
       phi2 = phi(alpha2);
    }
-   std::cout << "Solved backtrack linesearch (alpha_star = " << alpha2
-             << ", phi(alpha_star) = " << phi2 << ") in " << iter
-             << " iterations!\n";
+   // std::cout << "Solved backtrack linesearch (alpha_star = " << alpha2
+   //           << ", phi(alpha_star) = " << phi2 << ") in " << iter
+   //           << " iterations!\n";
    return alpha2;
 }
 

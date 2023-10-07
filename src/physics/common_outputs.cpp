@@ -152,9 +152,16 @@ double jacobianVectorProduct(IEAggregateFunctional &output,
    double num = calcOutput(output.numerator, inputs);
    double denom = calcOutput(output.denominator, inputs);
 
-   auto out_dot = denom * jacobianVectorProduct(output.numerator, wrt_dot, wrt);
-   out_dot -= num * jacobianVectorProduct(output.denominator, wrt_dot, wrt);
-   out_dot /= pow(denom, 2);
+   auto out_dot_p =
+       denom * jacobianVectorProduct(output.numerator, wrt_dot, wrt);
+   auto out_dot_m =
+       num * jacobianVectorProduct(output.denominator, wrt_dot, wrt);
+   double out_dot = (out_dot_p - out_dot_m) / pow(denom, 2);
+
+   std::cout << "IEAggregateFunctional::jacobianVectorProduct\n";
+   std::cout << "num: " << num << " denom: " << denom << "\n";
+   std::cout << "out_dot_p: " << out_dot_p << " out_dot_m: " << out_dot_m
+             << " out_dot: " << out_dot << "\n";
    return out_dot;
 }
 
@@ -167,15 +174,23 @@ void vectorJacobianProduct(IEAggregateFunctional &output,
    double num = calcOutput(output.numerator, inputs);
    double denom = calcOutput(output.denominator, inputs);
 
+   std::cout << "IEAggregateFunctional::vectorJacobianProduct\n";
+   std::cout << "out_bar: ";
+   out_bar.Print(mfem::out, out_bar.Size());
+   std::cout << "num: " << num << " denom: " << denom << "\n";
+
    output.scratch.SetSize(wrt_bar.Size());
 
    output.scratch = 0.0;
    vectorJacobianProduct(output.numerator, out_bar, wrt, output.scratch);
    wrt_bar.Add(1 / denom, output.scratch);
 
+   std::cout << "num wrt norm: " << output.scratch.Norml2();
+
    output.scratch = 0.0;
    vectorJacobianProduct(output.denominator, out_bar, wrt, output.scratch);
    wrt_bar.Add(-num / pow(denom, 2), output.scratch);
+   std::cout << " denom wrt norm: " << output.scratch.Norml2() << "\n";
 }
 
 IEAggregateFunctional::IEAggregateFunctional(

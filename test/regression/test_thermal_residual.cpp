@@ -863,7 +863,7 @@ TEST_CASE("ThermalResidual with interfaces sensitivity wrt mesh_coords")
                      "thermal_contact_resistance": {
                         "interface": {
                            "attrs": [5],
-                           "h_c": 10
+                           "h": 10
                         }
                      }
                   })"_json;
@@ -874,8 +874,8 @@ TEST_CASE("ThermalResidual with interfaces sensitivity wrt mesh_coords")
                      "convection": {
                         "interface": {
                            "attrs": [5],
-                           "h_c": 300,
-                           "theta_f": 300
+                           "h": 300,
+                           "fluid_temp": 300
                         }
                      }
                   })"_json;
@@ -1063,7 +1063,7 @@ TEST_CASE("ThermalResidual with interfaces sensitivity wrt h_c:interface")
                      "thermal_contact_resistance": {
                         "interface": {
                            "attrs": [5],
-                           "h_c": 10
+                           "h": 10
                         }
                      }
                   })"_json;
@@ -1074,8 +1074,8 @@ TEST_CASE("ThermalResidual with interfaces sensitivity wrt h_c:interface")
                      "convection": {
                         "interface": {
                            "attrs": [5],
-                           "h_c": 300,
-                           "theta_f": 300
+                           "h": 300,
+                           "fluid_temp": 300
                         }
                      }
                   })"_json;
@@ -1257,7 +1257,7 @@ TEST_CASE("ThermalResidual with interfaces sensitivity wrt fluid_temp:interface"
                      "thermal_contact_resistance": {
                         "interface": {
                            "attrs": [5],
-                           "h_c": 10
+                           "h": 10
                         }
                      }
                   })"_json;
@@ -1268,8 +1268,8 @@ TEST_CASE("ThermalResidual with interfaces sensitivity wrt fluid_temp:interface"
                      "convection": {
                         "interface": {
                            "attrs": [5],
-                           "h_c": 300,
-                           "theta_f": 300
+                           "h": 300,
+                           "fluid_temp": 300
                         }
                      }
                   })"_json;

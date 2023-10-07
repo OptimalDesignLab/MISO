@@ -39,13 +39,14 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
        mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*spatial_res);
 
-   mach::ParaViewLogger paraview("thermal_solvers", &mesh());
-   paraview.registerField("state", fields.at("state").gridFunc());
-   paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
-   paraview.registerField(
-       "residual",
-       dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
-   addLogger(std::move(paraview), {});
+   // mach::ParaViewLogger paraview("thermal_solvers", &mesh());
+   // paraview.registerField("state", fields.at("state").gridFunc());
+   // paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
+   // paraview.registerField(
+   //     "residual",
+   //     dynamic_cast<mfem::ParGridFunction
+   //     &>(duals.at("residual").localVec()));
+   // addLogger(std::move(paraview), {});
 }
 
 void ThermalSolver::addOutput(const std::string &fun,
@@ -110,9 +111,9 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
                                            double t_final,
                                            const mfem::Vector &state)
 {
-   work.SetSize(state.Size());
-   calcResidual(state, work);
-   res_vec().distributeSharedDofs(work);
+   // work.SetSize(state.Size());
+   // calcResidual(state, work);
+   // res_vec().distributeSharedDofs(work);
 }
 
 }  // namespace mach

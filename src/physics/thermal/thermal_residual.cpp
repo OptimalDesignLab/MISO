@@ -220,7 +220,7 @@ ThermalResidual::ThermalResidual(
          {
             bdr_attr_marker = bc["attrs"].get<std::vector<int>>();
             h = bc.value("h", h);
-            theta_f = bc.value("theta_f", theta_f);
+            theta_f = bc.value("fluid_temp", theta_f);
          }
 
          res.addBdrFaceIntegrator(new ConvectionBCIntegrator(h, theta_f),
@@ -327,10 +327,10 @@ ThermalResidual::ThermalResidual(
                    new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
                    attrs);
 
-               const auto h_c = intr["h_c"].get<double>();
+               const auto h = intr["h"].get<double>();
 
-               auto *integ = new ThermalContactResistanceIntegrator(h_c, name);
-               // setInputs(*integ, {{"h_c", h_c}});
+               auto *integ = new ThermalContactResistanceIntegrator(h, name);
+               // setInputs(*integ, {{"h", h}});
                res.addInternalBoundaryFaceIntegrator(integ, attrs);
 
                std::cout << "adding " << name << " TCR integrator!\n";
@@ -354,16 +354,16 @@ ThermalResidual::ThermalResidual(
                    new DGInteriorFaceDiffusionIntegrator(*kappa, mu, -1),
                    attrs);
 
-               const auto h_c = intr["h_c"].get<double>();
-               const auto theta_f = intr["theta_f"].get<double>();
+               const auto h = intr["h"].get<double>();
+               const auto theta_f = intr["fluid_temp"].get<double>();
 
-               auto *integ = new InternalConvectionInterfaceIntegrator(
-                   h_c, theta_f, name);
+               auto *integ =
+                   new InternalConvectionInterfaceIntegrator(h, theta_f, name);
                res.addInternalBoundaryFaceIntegrator(integ, attrs);
 
-               // auto *integ = new ThermalContactResistanceIntegrator(h_c,
+               // auto *integ = new ThermalContactResistanceIntegrator(h,
                // name);
-               // // setInputs(*integ, {{"h_c", h_c}});
+               // // setInputs(*integ, {{"h", h}});
                // res.addInternalBoundaryFaceIntegrator(integ, attrs);
 
                std::cout << "adding " << name

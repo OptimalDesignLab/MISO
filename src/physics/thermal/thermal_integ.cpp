@@ -343,11 +343,11 @@ void setInputs(ThermalContactResistanceIntegrator &integ,
 {
    if (!integ.name.empty())
    {
-      setValueFromInputs(inputs, "h_c:" + integ.name, integ.h);
+      setValueFromInputs(inputs, "h:" + integ.name, integ.h);
    }
    else
    {
-      setValueFromInputs(inputs, "h_c", integ.h);
+      setValueFromInputs(inputs, "h", integ.h);
    }
 }
 
@@ -815,12 +815,12 @@ void setInputs(InternalConvectionInterfaceIntegrator &integ,
 {
    if (!integ.name.empty())
    {
-      setValueFromInputs(inputs, "h_c:" + integ.name, integ.h);
+      setValueFromInputs(inputs, "h:" + integ.name, integ.h);
       setValueFromInputs(inputs, "fluid_temp:" + integ.name, integ.theta_f);
    }
    else
    {
-      setValueFromInputs(inputs, "h_c", integ.h);
+      setValueFromInputs(inputs, "h", integ.h);
       setValueFromInputs(inputs, "fluid_temp", integ.theta_f);
    }
 }

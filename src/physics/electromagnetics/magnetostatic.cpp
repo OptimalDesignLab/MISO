@@ -1,3 +1,4 @@
+#include <iostream>
 #include <memory>
 #include <string>
 #include <variant>
@@ -103,34 +104,62 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
        mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*spatial_res);
 
-   mach::ParaViewLogger paraview("magnetostatic", &mesh());
-   paraview.registerField("state", fields.at("state").gridFunc());
-   paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
-   paraview.registerField(
-       "residual",
-       dynamic_cast<mfem::ParGridFunction &>(duals.at("residual").localVec()));
-
    auto state_degree =
        AbstractSolver2::options["space-dis"]["degree"].get<int>();
    nlohmann::json dg_field_options{{"degree", state_degree},
                                    {"basis-type", "DG"}};
-   fields.emplace(std::piecewise_construct,
-                  std::forward_as_tuple("peak_flux"),
-                  std::forward_as_tuple(mesh(), dg_field_options));
-   paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+   fields.emplace("flux_magnitude",
+                  FiniteElementState(mesh(), dg_field_options));
+   fields.emplace("peak_flux", FiniteElementState(mesh(), dg_field_options));
 
-   const auto &temp_field_iter = fields.find("temperature");
-   if (temp_field_iter != fields.end())
+   auto paraview = options["paraview"]["log"].get<bool>();
+   if (paraview)
    {
-      auto &temp_field = temp_field_iter->second;
-      paraview.registerField("temperature", temp_field.gridFunc());
+      auto paraview_dir_name = options["paraview"]["directory"];
+      mach::ParaViewLogger logger(paraview_dir_name, &mesh());
+      const auto &logged_fields = options["paraview"]["fields"];
+      for (const auto &field : logged_fields)
+      {
+         if (fields.count(field) > 0)
+         {
+            logger.registerField(field, fields.at(field).gridFunc());
+         }
+         else if (duals.count(field) > 0)
+         {
+            logger.registerField(field,
+                                 dynamic_cast<mfem::ParGridFunction &>(
+                                     duals.at(field).localVec()));
+         }
+         else
+         {
+            std::cerr << "attempting to log unknown field \"" << field
+                      << "\"!\n";
+         }
+      }
+      addLogger(std::move(logger), {});
    }
+   // mach::ParaViewLogger paraview("magnetostatic", &mesh());
+   // paraview.registerField("state", fields.at("state").gridFunc());
+   // paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
+   // paraview.registerField(
+   //     "residual",
+   //     dynamic_cast<mfem::ParGridFunction
+   //     &>(duals.at("residual").localVec()));
+
+   // paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+
+   // const auto &temp_field_iter = fields.find("temperature");
+   // if (temp_field_iter != fields.end())
+   // {
+   //    auto &temp_field = temp_field_iter->second;
+   //    paraview.registerField("temperature", temp_field.gridFunc());
+   // }
 
    // // Adding a field for the pm demag constraint field
    // paraview.registerField("pm_demag_field",
    // fields.at("pm_demag_field").gridFunc());
 
-   addLogger(std::move(paraview), {});
+   // addLogger(std::move(paraview), {});
 }
 
 void MagnetostaticSolver::addOutput(const std::string &fun,
@@ -185,13 +214,13 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple(
                          mesh(), dg_field_options, mesh().SpaceDimension()));
 
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("flux_density",
-                                fields.at("flux_density").gridFunc());
-      }
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      // {
+      //    auto &paraview = std::get<mach::ParaViewLogger>(logger);
+      //    paraview.registerField("flux_density",
+      //                           fields.at("flux_density").gridFunc());
+      // }
 
       auto &dg_field = fields.at(fun);
       L2CurlProjection out(state(), fields.at("mesh_coords"), dg_field);
@@ -199,26 +228,26 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("flux_magnitude", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple(fun),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple(fun),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
 
       // mach::ParaViewLogger paraview("flux_magnitude", &mesh());
       // paraview.registerField("flux_magnitude",
       // fields.at("flux_magnitude").gridFunc());
       // addLogger(std::move(paraview), {});
 
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("flux_magnitude",
-                                fields.at("flux_magnitude").gridFunc());
-      }
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      // {
+      //    auto &paraview = std::get<mach::ParaViewLogger>(logger);
+      //    paraview.registerField("flux_magnitude",
+      //                           fields.at("flux_magnitude").gridFunc());
+      // }
 
       auto &dg_field = fields.at(fun);
       L2CurlMagnitudeProjection out(
@@ -237,13 +266,13 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("max_state", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
 
       mfem::ParFiniteElementSpace *fes = nullptr;
       if (options.contains("state"))
@@ -268,21 +297,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("ac_loss", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
 
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         std::cout << "adding peak flux to logger!\n";
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
-      }
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      // {
+      //    std::cout << "adding peak flux to logger!\n";
+      //    auto &paraview = std::get<mach::ParaViewLogger>(logger);
+      //    paraview.registerField("peak_flux",
+      //    fields.at("peak_flux").gridFunc());
+      // }
 
       auto ac_loss_options = options;
       ac_loss_options["attributes"] =
@@ -292,21 +322,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("core_loss", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
 
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         std::cout << "adding peak flux to logger!\n";
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
-      }
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      // {
+      //    std::cout << "adding peak flux to logger!\n";
+      //    auto &paraview = std::get<mach::ParaViewLogger>(logger);
+      //    paraview.registerField("peak_flux",
+      //    fields.at("peak_flux").gridFunc());
+      // }
 
       CoreLossFunctional out(
           fields, AbstractSolver2::options["components"], materials, options);
@@ -325,21 +356,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("heat_source", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
 
-      auto &[logger, logger_opts] = loggers.back();
-      if (std::holds_alternative<mach::ParaViewLogger>(logger))
-      {
-         std::cout << "adding peak flux to logger!\n";
-         auto &paraview = std::get<mach::ParaViewLogger>(logger);
-         paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
-      }
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<mach::ParaViewLogger>(logger))
+      // {
+      //    std::cout << "adding peak flux to logger!\n";
+      //    auto &paraview = std::get<mach::ParaViewLogger>(logger);
+      //    paraview.registerField("peak_flux",
+      //    fields.at("peak_flux").gridFunc());
+      // }
 
       EMHeatSourceOutput out(fields,
                              sigma,
@@ -455,9 +487,9 @@ void MagnetostaticSolver::derivedPDETerminalHook(int iter,
                                                  double t_final,
                                                  const mfem::Vector &state)
 {
-   work.SetSize(state.Size());
-   calcResidual(state, work);
-   res_vec().distributeSharedDofs(work);
+   // work.SetSize(state.Size());
+   // calcResidual(state, work);
+   // res_vec().distributeSharedDofs(work);
 }
 
 }  // namespace mach

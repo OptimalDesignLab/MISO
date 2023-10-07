@@ -52,7 +52,7 @@ auto options = R"(
       "thermal_contact_resistance": {
          "test": {
             "attrs": [5],
-            "h_c": 1.0
+            "h": 1.0
          }
       }
    },
