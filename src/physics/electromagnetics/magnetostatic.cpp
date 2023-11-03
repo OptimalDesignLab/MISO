@@ -86,8 +86,10 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
 
    if (auto temp_iter = fields.find("temperature"); temp_iter == fields.end())
    {
-      fields.emplace("temperature",
-                     FiniteElementState(mesh(), {.name = "temperature"}));
+      fields.emplace(
+          "temperature",
+          FiniteElementState(
+              mesh(), FiniteElementVector::Options{.name = "temperature"}));
    }
    auto &temp = fields.at("temperature");
    temp.gridFunc() = 273.15;
