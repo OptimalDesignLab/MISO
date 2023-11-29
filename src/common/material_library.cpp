@@ -285,6 +285,49 @@ const auto copper = R"(
 }
 )"_json;
 
+const auto aluminum_wire = R"(
+{
+   "rho": {
+      "materials": ["aluminum", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "average"
+   },
+   "drho_df": {
+      "materials": ["aluminum", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "daverage"
+   },
+   "cv": 376,
+   "kappa": {
+      "materials": ["aluminum", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "Hashin-Shtrikman"
+   },
+   "dkappa_df": {
+      "materials": ["aluminum", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "dHashin-Shtrikman"
+   },
+   "conductivity": {
+      "linear": {
+         "sigma_T_ref": 3.5e7,
+         "T_ref": 293.15,
+         "alpha_resistivity": 2.25e-5
+      }
+   },
+   "sigma": 3.5e7
+}
+)"_json;
+
+// this is meant for the heatsink
+const auto aluminum = R"(
+{
+   "rho": 2710,
+   "drho_df": 2710,
+   "kappa": 237
+}
+)"_json;
+
 const auto epoxy = R"(
 {
    "rho": 1200,
@@ -309,6 +352,8 @@ const nlohmann::json material_library = {{"hiperco50", hiperco50},
                                          {"moving_air", moving_air},
                                          {"copperwire", copper_wire},
                                          {"copper", copper},
+                                         {"aluminumwire", aluminum_wire},
+                                         {"aluminum", aluminum},
                                          {"2024_T3", Al2024_T3},
                                          {"epoxy", epoxy}};
 
