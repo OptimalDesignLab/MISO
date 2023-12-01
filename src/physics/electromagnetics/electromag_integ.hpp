@@ -3949,6 +3949,7 @@ private:
    mfem::Vector shape;
 #endif
    friend class FluxLinkageIntegratorMeshSens;
+   friend class FluxLinkageIntegratorRMSCurrentSens;
 };
 
 class FluxLinkageIntegratorMeshSens : public mfem::LinearFormIntegrator
@@ -3981,6 +3982,22 @@ private:
 #endif
 };
 
+class FluxLinkageIntegratorRMSCurrentSens : public mfem::NonlinearFormIntegrator
+{
+public:
+   FluxLinkageIntegratorRMSCurrentSens(FluxLinkageIntegrator &integ)
+    : integ(integ)
+   { }
+
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+private:
+   /// reference to primal integrator
+   FluxLinkageIntegrator &integ;
+};
+
 inline void addDomainSensitivityIntegrator(
     FluxLinkageIntegrator &primal_integ,
     std::map<std::string, FiniteElementState> &fields,
@@ -3989,17 +4006,29 @@ inline void addDomainSensitivityIntegrator(
     mfem::Array<int> *attr_marker,
     std::string state_name)
 {
+   auto &state_fes = fields.at(state_name).space();
+   output_scalar_sens.emplace("rms_current", &state_fes);
+
    auto &mesh_fes = fields.at("mesh_coords").space();
    output_sens.emplace("mesh_coords", &mesh_fes);
 
    if (attr_marker == nullptr)
    {
+      output_scalar_sens.at("rms_current")
+          .AddDomainIntegrator(
+              new FluxLinkageIntegratorRMSCurrentSens(primal_integ));
+
       output_sens.at("mesh_coords")
           .AddDomainIntegrator(new FluxLinkageIntegratorMeshSens(
               fields.at(state_name).gridFunc(), primal_integ));
    }
    else
    {
+      output_scalar_sens.at("rms_current")
+          .AddDomainIntegrator(
+              new FluxLinkageIntegratorRMSCurrentSens(primal_integ),
+              *attr_marker);
+
       output_sens.at("mesh_coords")
           .AddDomainIntegrator(
               new FluxLinkageIntegratorMeshSens(

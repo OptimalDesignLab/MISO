@@ -5671,6 +5671,68 @@ TEST_CASE("FluxLinkageIntegratorMeshSens::AssembleRHSElementVect")
    }
 }
 
+TEST_CASE("FluxLinkageIntegratorRMSCurrentSens::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   /// use J = y^3 for current density
+   FunctionCoefficient J([](const mfem::Vector &p)
+   {
+      return pow(p(1) - 0.5, 3);
+   });
+
+   FunctionCoefficient a_func([](const mfem::Vector &p)
+   {
+      return 1.5*p(1) - 0.5*pow(p(0), 2);
+   });
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         a.ProjectCoefficient(a_func);
+
+         NonlinearForm functional(&fes);
+         auto *integ = new mach::FluxLinkageIntegrator(J);
+         functional.AddDomainIntegrator(integ);
+
+         double rms_current = 2.0;
+         setInputs(*integ, {{"rms_current", rms_current}});
+
+         NonlinearForm dFdx(&fes);
+         dFdx.AddDomainIntegrator(new mach::FluxLinkageIntegratorRMSCurrentSens(*integ));
+
+         double dFdx_val = dFdx.GetEnergy(a);
+
+         // now compute the finite-difference approximation...
+         double delta = 1e-5;
+         setInputs(*integ, {{"rms_current", rms_current - delta}});
+         double dJdx_val_fd = -functional.GetEnergy(a);
+
+         setInputs(*integ, {{"rms_current", rms_current + delta}});
+         dJdx_val_fd += functional.GetEnergy(a);
+         dJdx_val_fd /= (2 * delta);
+
+         REQUIRE(dFdx_val == Approx(dJdx_val_fd));
+      }
+   }
+}
+
 ///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
 /*
 // Added test case for ACLossFunctionalDistributionIntegrator

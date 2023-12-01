@@ -13183,6 +13183,63 @@ void FluxLinkageIntegratorMeshSens::AssembleRHSElementVect(
    }
 }
 
+double FluxLinkageIntegratorRMSCurrentSens::GetElementEnergy(
+    const mfem::FiniteElement &el,
+    mfem::ElementTransformation &trans,
+    const mfem::Vector &elfun)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(ndof);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   auto &J = integ.J;
+
+   double fun_dot = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      double A = shape * elfun;
+
+      double J_val = J.Eval(trans, ip);
+
+      fun_dot += A * J_val * w;
+   }
+
+   return -fun_dot / pow(integ.current, 2);
+}
+
 double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
                                            mfem::ElementTransformation &trans,
                                            const mfem::Vector &elfun)
