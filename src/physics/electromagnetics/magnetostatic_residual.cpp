@@ -239,11 +239,13 @@ MagnetostaticResidual::MagnetostaticResidual(
     std::map<std::string, FiniteElementState> &fields,
     const nlohmann::json &options,
     const nlohmann::json &materials,
-    StateCoefficient &nu)
+    StateCoefficient &nu,
+    CurrentDensityCoefficient2D *current_coeff)
  : res(fes, fields),
    g(std::make_unique<mfem::GridFunctionCoefficient>(
        &fields.at("dirichlet_bc").gridFunc())),
    // load(diff_stack, fes, fields, options, materials, nu),
+   current_coeff(current_coeff),
    prec(constructPreconditioner(fes, options["lin-prec"]))
 {
    auto *mesh = fes.GetParMesh();
@@ -341,8 +343,8 @@ MagnetostaticResidual::MagnetostaticResidual(
       MachLinearForm linear_form(fes, fields);
       if (options.contains("current"))
       {
-         current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
-             diff_stack, options["current"]);
+         // current_coeff = std::make_unique<CurrentDensityCoefficient2D>(
+         //     diff_stack, options["current"]);
 
          // MachInputs current_inputs = {{"current_density:phaseA", 0.0},
          //                              {"current_density:phaseB", 1.0},

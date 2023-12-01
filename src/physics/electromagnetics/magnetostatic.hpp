@@ -42,6 +42,9 @@ private:
    // /// Coefficient representing the knee point flux density
    // DemagFluxCoefficient B_knee;
 
+   /// Coefficient representing the applied current density source
+   CurrentDensityCoefficient2D current_coeff;
+
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state
    // void derivedPDEInitialHook(const mfem::Vector &state) override;

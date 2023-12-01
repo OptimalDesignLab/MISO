@@ -351,7 +351,8 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt current_density")
          })"_json;
 
          auto &stack = mach::getDiffStack();
-         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu);
+         mach::CurrentDensityCoefficient2D current_coeff(stack, options["current"]);
+         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu, &current_coeff);
 
          double current_density = 1.0;
          mach::MachInputs inputs{
@@ -556,7 +557,8 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt mesh_coords")
          })"_json;
 
          auto &stack = mach::getDiffStack();
-         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu);
+         mach::CurrentDensityCoefficient2D current_coeff(stack, options["current"]);
+         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu, &current_coeff);
 
          double current_density = 1.0;
          mach::MachInputs inputs{
@@ -739,7 +741,8 @@ TEST_CASE("MagnetostaticResidual sensitivity wrt temperature")
          })"_json;
 
          auto &stack = mach::getDiffStack();
-         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu);
+         mach::CurrentDensityCoefficient2D current_coeff(stack, options["current"]);
+         mach::MagnetostaticResidual res(stack, fes, fields, options, materials, nu, &current_coeff);
 
          double current_density = 1.0;
          mach::MachInputs inputs{

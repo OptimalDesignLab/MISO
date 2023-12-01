@@ -76,9 +76,10 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
    nu(options, materials),
    // rho(constructMaterialCoefficient("rho", options["components"],
    // materials)),
-   sigma(options, materials)
-// mag_coeff(diff_stack, options["magnets"], materials, 2),
-// B_knee(options, materials)
+   sigma(options, materials),
+   // mag_coeff(diff_stack, options["magnets"], materials, 2),
+   // B_knee(options, materials)
+   current_coeff(diff_stack, options["current"])
 {
    std::cout << "state size: " << state().gridFunc().Size() << "\n";
 
@@ -95,7 +96,7 @@ MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
    temp.gridFunc() = 273.15;
 
    spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
-       diff_stack, fes(), fields, options, materials, nu));
+       diff_stack, fes(), fields, options, materials, nu, &current_coeff));
    mach::setOptions(*spatial_res, options);
 
    auto *prec = getPreconditioner(*spatial_res);
@@ -380,6 +381,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                              AbstractSolver2::options["components"],
                              materials,
                              options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("flux_linkage", 0) == 0)
+   {
+      FunctionalOutput out(fes(), fields);
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         out.addOutputDomainIntegrator(new FluxLinkageIntegrator(current_coeff),
+                                       attributes);
+      }
+      else
+      {
+         out.addOutputDomainIntegrator(
+             new FluxLinkageIntegrator(current_coeff));
+      }
       outputs.emplace(fun, std::move(out));
    }
    // else if (fun.rfind("pm_demag", 0) == 0)

@@ -82,7 +82,8 @@ public:
                          std::map<std::string, FiniteElementState> &fields,
                          const nlohmann::json &options,
                          const nlohmann::json &materials,
-                         StateCoefficient &nu);
+                         StateCoefficient &nu,
+                         CurrentDensityCoefficient2D *current_coeff);
 
 private:
    /// Nonlinear form that handles the curl curl term of the weak form
@@ -92,7 +93,8 @@ private:
    /// Load vector for current and magnetic sources
    // MagnetostaticLoad load;
    std::unique_ptr<MachLoad> load;
-   std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+   // std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+   CurrentDensityCoefficient2D *current_coeff;
    std::unique_ptr<MagnetizationCoefficient> mag_coeff;
    // std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM; // No. Needs to
    // be a mach::ScalarVectorProductCoefficient rather than an

@@ -3913,6 +3913,43 @@ inline void addDomainSensitivityIntegrator(
    }
 }
 
+class FluxLinkageIntegrator : public mfem::NonlinearFormIntegrator
+{
+public:
+   friend void setInputs(FluxLinkageIntegrator &integ,
+                         const MachInputs &inputs);
+
+   /// \param[in] el - the finite element
+   /// \param[in] trans - defines the reference to physical element mapping
+   /// \param[in] elfun - state vector of the element
+   double GetElementEnergy(const mfem::FiniteElement &el,
+                           mfem::ElementTransformation &trans,
+                           const mfem::Vector &elfun) override;
+
+   // /// \brief - assemble an element's contribution to
+   // ///          \frac{\partial J}{\partial u}, needed to solve for the adjoint
+   // /// \param[in] el - the finite element
+   // /// \param[in] trans - defines the reference to physical element mapping
+   // /// \param[in] elfun - state vector of the element
+   // /// \param[out] elvect - \partial J \partial u for this functional
+   // void AssembleElementVector(const mfem::FiniteElement &el,
+   //                            mfem::ElementTransformation &trans,
+   //                            const mfem::Vector &elfun,
+   //                            mfem::Vector &elfun_bar) override;
+
+   FluxLinkageIntegrator(mfem::Coefficient &J) : J(J) { }
+
+private:
+   /// Coefficient that defines current density
+   mfem::Coefficient &J;
+   /// Current flowing through phase windings
+   double current = 1;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+};
+
 /// Functional integrator to determine values or distribution
 /// of Permanent Magnet Demagnetization constraint equation
 class PMDemagIntegrator : public mfem::NonlinearFormIntegrator
