@@ -415,7 +415,8 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff = std::make_unique<
                          mach::HashinShtrikmanWeightedCoefficient>(
                          vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, std::move(coeff));
+                     material_coeff->addCoefficient(attribute,
+                                                    std::move(coeff));
                   }
                }
             }
@@ -435,7 +436,8 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff = std::make_unique<
                          mach::dHashinShtrikmanWeightedCoefficient>(
                          vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, std::move(coeff));
+                     material_coeff->addCoefficient(attribute,
+                                                    std::move(coeff));
                   }
                }
             }
@@ -455,7 +457,8 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff =
                          std::make_unique<mach::WeightedAverageCoefficient>(
                              vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, std::move(coeff));
+                     material_coeff->addCoefficient(attribute,
+                                                    std::move(coeff));
                   }
                }
             }
@@ -475,7 +478,8 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff =
                          std::make_unique<mach::dWeightedAverageCoefficient>(
                              vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, std::move(coeff));
+                     material_coeff->addCoefficient(attribute,
+                                                    std::move(coeff));
                   }
                }
             }
