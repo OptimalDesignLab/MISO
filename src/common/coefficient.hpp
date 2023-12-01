@@ -437,7 +437,7 @@ class ParameterContinuationCoefficient : public StateCoefficient
 public:
    ParameterContinuationCoefficient(std::unique_ptr<mfem::Coefficient> lin,
                                     std::unique_ptr<StateCoefficient> nonlin)
-    : linear(move(lin)), nonlinear(move(nonlin))
+    : linear(std::move(lin)), nonlinear(std::move(nonlin))
    { }
 
    double Eval(mfem::ElementTransformation &trans,
@@ -473,7 +473,7 @@ public:
    ///						  is not found in the map. If not set, will default
    ///						  to zero
    MeshDependentCoefficient(std::unique_ptr<mfem::Coefficient> dflt = nullptr)
-    : default_coeff(move(dflt))
+    : default_coeff(std::move(dflt))
    { }
 
    /// Adds <int, std::unique_ptr<mfem::Coefficient> pair to material_map
@@ -786,7 +786,7 @@ public:
    ///						  to zero
    MeshDependentTwoStateCoefficient(
        std::unique_ptr<mfem::Coefficient> dflt = nullptr)
-    : default_coeff(move(dflt))
+    : default_coeff(std::move(dflt))
    { }
 
    /// Adds <int, std::unique_ptr<mfem::Coefficient> pair to material_map
@@ -919,7 +919,7 @@ public:
    ///						  to zero
    MeshDependentThreeStateCoefficient(
        std::unique_ptr<mfem::Coefficient> dflt = nullptr)
-    : default_coeff(move(dflt))
+    : default_coeff(std::move(dflt))
    { }
 
    /// Adds <int, std::unique_ptr<mfem::Coefficient> pair to material_map
@@ -1091,7 +1091,7 @@ public:
    VectorMeshDependentCoefficient(
        const int dim = 3,
        std::unique_ptr<mfem::VectorCoefficient> dflt = nullptr)
-    : VectorCoefficient(dim), default_coeff(move(dflt))
+    : VectorCoefficient(dim), default_coeff(std::move(dflt))
    { }
 
    /// Adds <int, std::unique_ptr<mfem::VectorCoefficient> pair to material_map
@@ -1217,7 +1217,7 @@ public:
    VectorMeshDependentStateCoefficient(
        const int dim = 3,
        std::unique_ptr<VectorStateCoefficient> dflt = nullptr)
-    : VectorStateCoefficient(dim), default_coeff(move(dflt))
+    : VectorStateCoefficient(dim), default_coeff(std::move(dflt))
    { }
 
    // addCoefficient should be same for MeshDependentVectorStateCoefficient as

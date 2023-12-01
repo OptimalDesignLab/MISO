@@ -367,14 +367,14 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
             if (-1 != attr)
             {
                auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-               material_coeff->addCoefficient(attr, move(coeff));
+               material_coeff->addCoefficient(attr, std::move(coeff));
             }
             else
             {
                for (const auto &attribute : component["attrs"])
                {
                   auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-                  material_coeff->addCoefficient(attribute, move(coeff));
+                  material_coeff->addCoefficient(attribute, std::move(coeff));
                }
             }
          }
@@ -406,7 +406,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                   auto coeff = std::make_unique<
                       mach::HashinShtrikmanWeightedCoefficient>(
                       vals[0], vals[1], weighted_by);
-                  material_coeff->addCoefficient(attr, move(coeff));
+                  material_coeff->addCoefficient(attr, std::move(coeff));
                }
                else
                {
@@ -415,7 +415,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff = std::make_unique<
                          mach::HashinShtrikmanWeightedCoefficient>(
                          vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, move(coeff));
+                     material_coeff->addCoefficient(attribute, std::move(coeff));
                   }
                }
             }
@@ -426,7 +426,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                   auto coeff = std::make_unique<
                       mach::dHashinShtrikmanWeightedCoefficient>(
                       vals[0], vals[1], weighted_by);
-                  material_coeff->addCoefficient(attr, move(coeff));
+                  material_coeff->addCoefficient(attr, std::move(coeff));
                }
                else
                {
@@ -435,7 +435,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff = std::make_unique<
                          mach::dHashinShtrikmanWeightedCoefficient>(
                          vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, move(coeff));
+                     material_coeff->addCoefficient(attribute, std::move(coeff));
                   }
                }
             }
@@ -446,7 +446,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                   auto coeff =
                       std::make_unique<mach::WeightedAverageCoefficient>(
                           vals[0], vals[1], weighted_by);
-                  material_coeff->addCoefficient(attr, move(coeff));
+                  material_coeff->addCoefficient(attr, std::move(coeff));
                }
                else
                {
@@ -455,7 +455,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff =
                          std::make_unique<mach::WeightedAverageCoefficient>(
                              vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, move(coeff));
+                     material_coeff->addCoefficient(attribute, std::move(coeff));
                   }
                }
             }
@@ -466,7 +466,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                   auto coeff =
                       std::make_unique<mach::dWeightedAverageCoefficient>(
                           vals[0], vals[1], weighted_by);
-                  material_coeff->addCoefficient(attr, move(coeff));
+                  material_coeff->addCoefficient(attr, std::move(coeff));
                }
                else
                {
@@ -475,7 +475,7 @@ std::unique_ptr<mach::MeshDependentCoefficient> constructMaterialCoefficient(
                      auto coeff =
                          std::make_unique<mach::dWeightedAverageCoefficient>(
                              vals[0], vals[1], weighted_by);
-                     material_coeff->addCoefficient(attribute, move(coeff));
+                     material_coeff->addCoefficient(attribute, std::move(coeff));
                   }
                }
             }
@@ -891,14 +891,14 @@ constructMaterialTwoStateCoefficient(const std::string &name,
       if (-1 != attr)
       {
          auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-         material_coeff->addCoefficient(attr, move(coeff));
+         material_coeff->addCoefficient(attr, std::move(coeff));
       }
       else
       {
          for (const auto &attribute : component["attrs"])
          {
             auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-            material_coeff->addCoefficient(attribute, move(coeff));
+            material_coeff->addCoefficient(attribute, std::move(coeff));
          }
       }
    }
@@ -1621,14 +1621,14 @@ constructMaterialThreeStateCoefficient(const std::string &name,
       if (-1 != attr)
       {
          auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-         material_coeff->addCoefficient(attr, move(coeff));
+         material_coeff->addCoefficient(attr, std::move(coeff));
       }
       else
       {
          for (const auto &attribute : component["attrs"])
          {
             auto coeff = std::make_unique<mfem::ConstantCoefficient>(val);
-            material_coeff->addCoefficient(attribute, move(coeff));
+            material_coeff->addCoefficient(attribute, std::move(coeff));
          }
       }
    }
