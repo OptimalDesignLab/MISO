@@ -13006,11 +13006,10 @@ double FluxLinkageIntegrator::GetElementEnergy(
    return fun / current;
 }
 
-void FluxLinkageIntegrator::AssembleElementVector(
-    const FiniteElement &el,
-    ElementTransformation &trans,
-    const Vector &elfun,
-    Vector &elfun_bar)
+void FluxLinkageIntegrator::AssembleElementVector(const FiniteElement &el,
+                                                  ElementTransformation &trans,
+                                                  const Vector &elfun,
+                                                  Vector &elfun_bar)
 {
    /// number of degrees of freedom
    int ndof = el.GetDof();
