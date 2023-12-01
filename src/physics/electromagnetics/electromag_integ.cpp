@@ -13073,6 +13073,116 @@ void FluxLinkageIntegrator::AssembleElementVector(const FiniteElement &el,
    }
 }
 
+void FluxLinkageIntegratorMeshSens::AssembleRHSElementVect(
+    const mfem::FiniteElement &mesh_el,
+    mfem::ElementTransformation &trans,
+    mfem::Vector &mesh_coords_bar)
+{
+   const int mesh_ndof = mesh_el.GetDof();
+   const int space_dim = trans.GetSpaceDim();
+
+   /// get the proper element, transformation, and state vector
+#ifdef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+#endif
+
+   const int element = trans.ElementNo;
+   const auto &el = *state.FESpace()->GetFE(element);
+   const int ndof = el.GetDof();
+
+   // Transform the degrees of freedom for the state
+   auto *dof_tr = state.FESpace()->GetElementVDofs(element, vdofs);
+   state.GetSubVector(vdofs, elfun);
+   if (dof_tr != nullptr)
+   {
+      dof_tr->InvTransformPrimal(elfun);
+   }
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+   mfem::DenseMatrix PointMat_bar;
+#else
+   auto &shape = integ.shape;
+#endif
+   shape.SetSize(ndof);
+   PointMat_bar.SetSize(space_dim, mesh_ndof);
+
+   // cast the ElementTransformation
+   auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
+
+   // Set the integration rule
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(trans.GetGeometryType(), order);
+   }
+
+   auto &J = integ.J;
+   auto current = integ.current;
+
+   // Loop over all integration points and evaluate the flux linkage sensitivity
+   // w.r.t. mesh coords
+   mesh_coords_bar.SetSize(mesh_ndof * space_dim);
+   mesh_coords_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      // Set the current integration point and quadrature weight
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      const double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      double A = shape * elfun;
+
+      double J_val = J.Eval(trans, ip);
+
+      // fun += A * J_val * w / current;
+      double fun_bar = 1.0;
+
+      // double A_bar = 0.0;
+      double J_val_bar = 0.0;
+      double w_bar = 0.0;
+      // A_bar += fun_bar * J_val * w / current;
+      J_val_bar += fun_bar * A * w / current;
+      w_bar += fun_bar * A * J_val / current;
+
+      /// double J_val = J.Eval(trans, ip);
+      PointMat_bar = 0.0;
+      J.EvalRevDiff(J_val_bar, isotrans, ip, PointMat_bar);
+
+      /// double A = shape * elfun;
+
+      /// const double w = ip.weight * trans_weight;
+      double trans_weight_bar = w_bar * ip.weight;
+      isotrans.WeightRevDiff(trans_weight_bar, PointMat_bar);
+
+      /// code to insert PointMat_bar into mesh_coords_bar;
+      for (int j = 0; j < mesh_ndof; ++j)
+      {
+         for (int d = 0; d < space_dim; ++d)
+         {
+            mesh_coords_bar(d * mesh_ndof + j) += PointMat_bar(d, j);
+         }
+      }
+   }
+}
+
 double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
                                            mfem::ElementTransformation &trans,
                                            const mfem::Vector &elfun)

@@ -5593,6 +5593,84 @@ TEST_CASE("FluxLinkageIntegrator::AssembleElementVector")
    }
 }
 
+TEST_CASE("FluxLinkageIntegratorMeshSens::AssembleRHSElementVect")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   /// use J = y^3 for current density
+   FunctionCoefficient J([](const mfem::Vector &p)
+   {
+      return pow(p(1) - 0.5, 3);
+   },
+   [](const mfem::Vector &p, const double Q_bar, mfem::Vector &p_bar)
+   {
+      p_bar(1) += Q_bar * 3 * pow(p(1) - 0.5, 2);
+   });
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction A(&fes);
+         FunctionCoefficient pert(randState);
+         A.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         auto *integ = new mach::FluxLinkageIntegrator(J);
+         functional.AddDomainIntegrator(integ);
+
+         setInputs(*integ, {{"rms_current", 2.0}});
+
+         // initialize the vector that dJdx multiplies
+         GridFunction p(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         p.ProjectCoefficient(v_pert);
+
+         // evaluate dJdx and compute its product with p
+         LinearForm dJdx(&mesh_fes);
+         dJdx.AddDomainIntegrator(
+            new mach::FluxLinkageIntegratorMeshSens(A, *integ));
+         dJdx.Assemble();
+         double dJdx_dot_p = dJdx * p;
+
+         // now compute the finite-difference approximation...
+         double delta = 1e-5;
+         GridFunction x_pert(x_nodes);
+         x_pert.Add(-delta, p);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         double dJdx_dot_p_fd = -functional.GetEnergy(A);
+         x_pert.Add(2 * delta, p);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         dJdx_dot_p_fd += functional.GetEnergy(A);
+         dJdx_dot_p_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dJdx_dot_p == Approx(dJdx_dot_p_fd));
+      }
+   }
+}
+
 ///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
 /*
 // Added test case for ACLossFunctionalDistributionIntegrator

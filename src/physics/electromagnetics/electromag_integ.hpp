@@ -3948,7 +3948,65 @@ private:
 #ifndef MFEM_THREAD_SAFE
    mfem::Vector shape;
 #endif
+   friend class FluxLinkageIntegratorMeshSens;
 };
+
+class FluxLinkageIntegratorMeshSens : public mfem::LinearFormIntegrator
+{
+public:
+   FluxLinkageIntegratorMeshSens(mfem::GridFunction &state,
+                                 FluxLinkageIntegrator &integ)
+    : state(state), integ(integ)
+   { }
+
+   /// \brief - assemble an element's contribution to dJdX
+   /// \param[in] mesh_el - the finite element that describes the mesh element
+   /// \param[in] mesh_trans - the transformation between reference and physical
+   /// space
+   /// \param[out] mesh_coords_bar - dJdX for the element
+   void AssembleRHSElementVect(const mfem::FiniteElement &mesh_el,
+                               mfem::ElementTransformation &mesh_trans,
+                               mfem::Vector &mesh_coords_bar) override;
+
+private:
+   /// state vector for evaluating flux linkage
+   mfem::GridFunction &state;
+   /// reference to primal integrator
+   FluxLinkageIntegrator &integ;
+
+#ifndef MFEM_THREAD_SAFE
+   mfem::Array<int> vdofs;
+   mfem::Vector elfun;
+   mfem::DenseMatrix PointMat_bar;
+#endif
+};
+
+inline void addDomainSensitivityIntegrator(
+    FluxLinkageIntegrator &primal_integ,
+    std::map<std::string, FiniteElementState> &fields,
+    std::map<std::string, mfem::ParLinearForm> &output_sens,
+    std::map<std::string, mfem::ParNonlinearForm> &output_scalar_sens,
+    mfem::Array<int> *attr_marker,
+    std::string state_name)
+{
+   auto &mesh_fes = fields.at("mesh_coords").space();
+   output_sens.emplace("mesh_coords", &mesh_fes);
+
+   if (attr_marker == nullptr)
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(new FluxLinkageIntegratorMeshSens(
+              fields.at(state_name).gridFunc(), primal_integ));
+   }
+   else
+   {
+      output_sens.at("mesh_coords")
+          .AddDomainIntegrator(
+              new FluxLinkageIntegratorMeshSens(
+                  fields.at(state_name).gridFunc(), primal_integ),
+              *attr_marker);
+   }
+}
 
 /// Functional integrator to determine values or distribution
 /// of Permanent Magnet Demagnetization constraint equation
