@@ -13006,6 +13006,74 @@ double FluxLinkageIntegrator::GetElementEnergy(
    return fun / current;
 }
 
+void FluxLinkageIntegrator::AssembleElementVector(
+    const FiniteElement &el,
+    ElementTransformation &trans,
+    const Vector &elfun,
+    Vector &elfun_bar)
+{
+   /// number of degrees of freedom
+   int ndof = el.GetDof();
+
+#ifdef MFEM_THREAD_SAFE
+   mfem::Vector shape;
+#endif
+   shape.SetSize(ndof);
+
+   const IntegrationRule *ir = IntRule;
+   if (ir == nullptr)
+   {
+      int order = [&]()
+      {
+         if (el.Space() == FunctionSpace::Pk)
+         {
+            return 2 * el.GetOrder() - 1;
+         }
+         else
+         {
+            return 2 * el.GetOrder();
+         }
+      }();
+
+      ir = &IntRules.Get(el.GetGeomType(), order);
+   }
+
+   elfun_bar.SetSize(ndof);
+   elfun_bar = 0.0;
+   for (int i = 0; i < ir->GetNPoints(); i++)
+   {
+      const IntegrationPoint &ip = ir->IntPoint(i);
+      trans.SetIntPoint(&ip);
+
+      /// holds quadrature weight
+      double trans_weight = trans.Weight();
+      const double w = ip.weight * trans_weight;
+
+      el.CalcShape(ip, shape);
+
+      double A = shape * elfun;
+
+      double J_val = J.Eval(trans, ip);
+
+      // fun += A * J_val * w / current;
+      double fun_bar = 1.0;
+
+      double A_bar = 0.0;
+      // double J_val_bar = 0.0;
+      // double w_bar = 0.0;
+      A_bar += fun_bar * J_val * w / current;
+      // J_val_bar += fun_bar * A * w / current;
+      // w_bar += fun_bar * A * J_val / current;
+
+      /// double J_val = J.Eval(trans, ip);
+
+      /// double A = shape * elfun;
+      elfun_bar.Add(A_bar, shape);
+
+      /// const double w = ip.weight * trans_weight;
+   }
+}
+
 double PMDemagIntegrator::GetElementEnergy(const mfem::FiniteElement &el,
                                            mfem::ElementTransformation &trans,
                                            const mfem::Vector &elfun)

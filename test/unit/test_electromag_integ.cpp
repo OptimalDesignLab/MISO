@@ -5483,6 +5483,116 @@ TEST_CASE("CAL2CoreLossDistributionIntegratorFrequencyRevSens::GetElementEnergy"
    }   
 }
 
+TEST_CASE("FluxLinkageIntegrator::GetElementEnergy")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   /// use J = y^3 for current density
+   FunctionCoefficient J([](const mfem::Vector &p)
+   {
+      return pow(p(1) - 0.5, 3);
+   });
+
+   FunctionCoefficient a_func([](const mfem::Vector &p)
+   {
+      return 1.5*p(1) - 0.5*pow(p(0), 2);
+   });
+
+   std::vector<double> flux_linkage = {0.0052565586, 0.0092013889, 0.009375, 0.009375};
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         a.ProjectCoefficient(a_func);
+
+         NonlinearForm functional(&fes);
+         auto *integ = new mach::FluxLinkageIntegrator(J);
+         functional.AddDomainIntegrator(integ);
+
+         setInputs(*integ, {{"rms_current", 2.0}});
+         const double fun = functional.GetEnergy(a);
+
+         REQUIRE(fun == Approx(flux_linkage[p-1]));
+      }
+   }
+}
+
+TEST_CASE("FluxLinkageIntegrator::AssembleElementVector")
+{
+   using namespace mfem;
+   using namespace electromag_data;
+
+   double delta = 1e-5;
+
+   // generate a 8 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge, num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   /// use J = y^3 for current density
+   FunctionCoefficient J([](const mfem::Vector &p)
+   {
+      return pow(p(1) - 0.5, 3);
+   });
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION("...for degree p = " << p)
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state
+         GridFunction a(&fes);
+         FunctionCoefficient pert(randState);
+         a.ProjectCoefficient(pert);
+
+         NonlinearForm functional(&fes);
+         auto *integ = new mach::FluxLinkageIntegrator(J);
+         functional.AddDomainIntegrator(integ);
+
+         setInputs(*integ, {{"rms_current", 2.0}});
+
+         // initialize the vector that dJdu multiplies
+         GridFunction p(&fes);
+         p.ProjectCoefficient(pert);
+
+         // evaluate dJdu and compute its product with v
+         GridFunction dJdu(&fes);
+         functional.Mult(a, dJdu);
+         double dJdu_dot_p = InnerProduct(dJdu, p);
+
+         // now compute the finite-difference approximation...
+         GridFunction q_pert(a);
+         q_pert.Add(-delta, p);
+         double dJdu_dot_p_fd = -functional.GetEnergy(q_pert);
+         q_pert.Add(2 * delta, p);
+         dJdu_dot_p_fd += functional.GetEnergy(q_pert);
+         dJdu_dot_p_fd /= (2 * delta);
+
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+      }
+   }
+}
+
 ///NOTE: Dropped efforts for incomplete loss functional distribution integrator test case. Not the appropriate place, nor the most meaningful test if/when completed.
 /*
 // Added test case for ACLossFunctionalDistributionIntegrator
