@@ -27,6 +27,8 @@ set(SANDBOX_SRCS
    airfoil_optimization
    wedgeshock
    wedgeshock_optimization
+   linear_advection
+   linear_advection_dgd
 )
 
 create_sandbox("${SANDBOX_SRCS}")

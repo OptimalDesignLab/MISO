@@ -75,11 +75,14 @@ int main(int argc, char *argv[])
       sol_ofs.close();
 
       int numBasis = smesh->GetNE();
-      Array<Vector *> center(numBasis);
+      int dim = 2;
+      mfem::Vector center(dim*numBasis);
+      mfem::Vector c(dim);
       for (int k = 0; k < numBasis; k++)
       {  
-         center[k] = new Vector(2);
-         smesh->GetElementCenter(k,*center[k]);
+         smesh->GetElementCenter(k,c);
+         center[k*dim] = c[0];
+         center[k*dim+1] = c[1];
       }
 
       // Array<Vector *> center = buildBasisCenters(numRad,numTheta);
@@ -129,11 +132,6 @@ int main(int argc, char *argv[])
          mfem::out << "\nEntropy error = "
                    << fabs(entropy - calcEntropyTotalExact()) << endl;
       }
-      for (int k = 0; k < numBasis; k++)
-      {
-         delete center[k];
-      }
-
    }
    catch (MachException &exception)
    {
