@@ -27,6 +27,7 @@ set(FLUID_TEST_SRCS
    test_euler_integ
    test_euler_assemble
    test_euler_sens_integ
+   test_element_integrator
    test_evolver
    test_inexact_newton
    test_navier_stokes_fluxes
@@ -48,6 +49,7 @@ set(EM_TEST_SRCS
 set(FLUID_MPI_TEST_SRCS
    test_flow_control_residual
    test_flow_residual
+   test_3Dflow_residual
    test_flow_solver
    test_mfem_common_integ
    test_mach_residual

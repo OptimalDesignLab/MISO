@@ -610,6 +610,76 @@ private:
    mfem::Vector work2;
 };
 
+// /// Integrator for exact, prescribed BCs (with zero normal derivative)
+// /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+// /// \note This derived class uses CRTP
+// template<int dim>
+// class InviscidExactBC : public InviscidBoundaryIntegrator<InviscidExactBC<dim>>
+// {
+// public:
+//    using exactFun = std::function<void(const mfem::Vector &, mfem::Vector &)>;
+
+//    /// Constructs an integrator for inviscid exact BCs
+//    /// \param[in] diff_stack - for algorithmic differentiation
+//    /// \param[in] fe_coll - used to determine face elements
+//    /// \param[in] fun - Exact function Fun used
+//    /// \param[in] q_far - state at the far-field
+//    /// \param[in] a - used to move the residual to lhs (1.0) or rhs (-1.0)
+//    InviscidExactBC(adept::Stack &diff_stack,
+//                    const mfem::FiniteElementCollection *fe_coll,
+//                    exactFun fun,
+//                    double a = -1.0
+//                    )
+//       : InviscidBoundaryIntegrator<InviscidExactBC<dim>>(diff_stack, fe_coll, dim+2, a),
+//       exactSolution(fun), qexact(dim+2), work_vec(dim+2)
+//       { }
+
+//    /// Contracts flux with the entropy variables
+//    /// \param[in] x - coordinate location at which flux is evaluated
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - state variable at which to evaluate the flux
+//    double calcBndryFun(const mfem::Vector &x,
+//                        const mfem::Vector &dir,
+//                        const mfem::Vector &q);
+
+//    /// Compute the far-field boundary flux
+//    /// \param[in] x - coordinate location at which flux is evaluated (not used)
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - conservative variables at which to evaluate the flux
+//    /// \param[out] flux_vec - value of the flux
+//    void calcFlux(const mfem::Vector &x,
+//                  const mfem::Vector &dir,
+//                  const mfem::Vector &q,
+//                  mfem::Vector &flux_vec);
+
+//    /// Compute the Jacobian of the far-field boundary flux w.r.t. `q`
+//    /// \param[in] x - coordinate location at which flux is evaluated (not used)
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - conservative variables at which to evaluate the flux
+//    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+//    void calcFluxJacState(const mfem::Vector &x,
+//                          const mfem::Vector &dir,
+//                          const mfem::Vector &q,
+//                          mfem::DenseMatrix &flux_jac);
+
+//    /// Compute the Jacobian of the far-field boundary flux w.r.t. `dir`
+//    /// \param[in] x - coordinate location at which flux is evaluated (not used)
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - conservative variables at which to evaluate the flux
+//    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+//    void calcFluxJacDir(const mfem::Vector &x,
+//                        const mfem::Vector &dir,
+//                        const mfem::Vector &q,
+//                        mfem::DenseMatrix &flux_jac);
+
+// private:
+//    exactFun exactSolution;
+//    /// far-field boundary state
+//    mfem::Vector qexact;
+//    /// work space for flux computations
+//    mfem::Vector work_vec;
+// };
+
 /// Interface integrator for the DG method
 /// \tparam dim - number of spatial dimension (1, 2 or 3)
 /// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.

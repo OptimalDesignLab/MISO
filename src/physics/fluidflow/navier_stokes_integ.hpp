@@ -12,19 +12,19 @@
 
 namespace mach
 {
-/// Source-term integrator for a 2D Navier-Stokes MMS problem
+/// Source-term integrator for a 2D/3D Navier-Stokes MMS problem
 /// \note For details on the MMS problem, see the file viscous_mms.py
 class NavierStokesMMSIntegrator
  : public MMSIntegrator<NavierStokesMMSIntegrator>
 {
 public:
-   /// Construct an integrator for a 2D Navier-Stokes MMS source
+   /// Construct an integrator for a 2D/3D Navier-Stokes MMS source
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] Re_num - Reynolds number
    /// \param[in] Pr_num - Prandtl number
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   NavierStokesMMSIntegrator(double Re_num, double Pr_num, double a = -1.0)
-    : MMSIntegrator<NavierStokesMMSIntegrator>(4, a), Re(Re_num), Pr(Pr_num)
+   NavierStokesMMSIntegrator(double Re_num, double Pr_num, double a = -1.0, int dim_num = 2)
+    : MMSIntegrator<NavierStokesMMSIntegrator>(dim_num+2, a), Re(Re_num), Pr(Pr_num), dim(dim_num)
    { }
 
    /// Computes the MMS source term at a give point
@@ -33,7 +33,7 @@ public:
    void calcSource(const mfem::Vector &x, mfem::Vector &src) const
    {
       double mu = 1.0 / Re;
-      calcViscousMMS<double>(mu, Pr, x.GetData(), src.GetData());
+      calcViscousMMS<double>(dim, mu, Pr, x.GetData(), src.GetData());
    }
 
 private:
@@ -41,6 +41,8 @@ private:
    double Re;
    /// Prandtl number
    double Pr;
+   /// Dimension of the problem
+   int dim;
 };
 
 /// Entropy-stable volume integrator for Navier-Stokes viscous terms

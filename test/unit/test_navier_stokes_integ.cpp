@@ -134,7 +134,7 @@ TEMPLATE_TEST_CASE_SIG("ESViscousIntegrator::applyScalingJacDw", "[ESViscousInte
 } // test case
 
 TEMPLATE_TEST_CASE_SIG("Noslip Jacobian", "[NoSlipAdiabaticWallBC]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    double delta = 1e-5;
@@ -170,72 +170,76 @@ TEMPLATE_TEST_CASE_SIG("Noslip Jacobian", "[NoSlipAdiabaticWallBC]",
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
 
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
-                                                    Re_num, Pr_num, q_ref, mu);
+   for (int p = 0; p <= 1; ++p)
+   {
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
+                                                      Re_num, Pr_num, q_ref, mu);
 
-   SECTION("jacobian of no slip adiabatic wall w.r.t state is correct")
-   {
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      noslipadiabatic.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
-      //mat_vec_jac.Print();
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; ++i)
+      DYNAMIC_SECTION("jacobian of no slip adiabatic wall w.r.t state failed for degree p = " << p)
       {
-         mfem::Vector q_plus(q), q_minus(q);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         q_plus(i) += delta;
-         q_minus(i) -= delta;
-         noslipadiabatic.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
-         noslipadiabatic.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-         // compare with explicit Jacobian
-         for (int j = 0; j < num_states; j++)
+         mfem::DenseMatrix mat_vec_jac(num_states);
+         noslipadiabatic.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
+         //mat_vec_jac.Print();
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
-         }
-      }
-   }
-   SECTION("jacobian of no slip dual flux w.r.t state is correct")
-   {
-      std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
-      for (int d = 0; d < dim; ++d)
-      {
-         mat_vec_jac[d].SetSize(num_states);
-      }
-      noslipadiabatic.calcFluxDvJacState(x, nrm, q, mat_vec_jac);
-      //mat_vec_jac.Print();
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; ++i)
-      {
-         mfem::Vector q_plus(q), q_minus(q);
-         mfem::DenseMatrix flux_mat_plus(num_states, dim);
-         mfem::DenseMatrix flux_mat_minus(num_states, dim);
-         q_plus(i) += delta;
-         q_minus(i) -= delta;
-         noslipadiabatic.calcFluxDv(x, nrm, q_plus, flux_mat_plus);
-         noslipadiabatic.calcFluxDv(x, nrm, q_minus, flux_mat_minus);
-         mfem::DenseMatrix flux_mat_fd(num_states, dim);
-         flux_mat_fd = 0.0;
-         mfem::Add(flux_mat_plus, flux_mat_minus, -1.0, flux_mat_fd);
-         flux_mat_fd *= 1.0/(2.0 * delta);
-         // compare with explicit Jacobian
-         for (int d = 0; d < dim; ++d)
-         {
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            noslipadiabatic.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
+            noslipadiabatic.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
             for (int j = 0; j < num_states; j++)
             {
-               REQUIRE(mat_vec_jac[d](j, i) == Approx(flux_mat_fd(j, d)));
+               REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
             }
          }
       }
+      DYNAMIC_SECTION("jacobian of no slip dual flux w.r.t state is incorrect for degree p = " << p)
+      {
+         std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+         for (int d = 0; d < dim; ++d)
+         {
+            mat_vec_jac[d].SetSize(num_states);
+         }
+         noslipadiabatic.calcFluxDvJacState(x, nrm, q, mat_vec_jac);
+         //mat_vec_jac.Print();
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
+         {
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::DenseMatrix flux_mat_plus(num_states, dim);
+            mfem::DenseMatrix flux_mat_minus(num_states, dim);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            noslipadiabatic.calcFluxDv(x, nrm, q_plus, flux_mat_plus);
+            noslipadiabatic.calcFluxDv(x, nrm, q_minus, flux_mat_minus);
+            mfem::DenseMatrix flux_mat_fd(num_states, dim);
+            flux_mat_fd = 0.0;
+            mfem::Add(flux_mat_plus, flux_mat_minus, -1.0, flux_mat_fd);
+            flux_mat_fd *= 1.0/(2.0 * delta);
+            // compare with explicit Jacobian
+            for (int d = 0; d < dim; ++d)
+            {
+               for (int j = 0; j < num_states; j++)
+               {
+                  REQUIRE(mat_vec_jac[d](j, i) == Approx(flux_mat_fd(j, d)));
+               }
+            }
+         }
+      }      
    }
+
 }
 
-TEMPLATE_TEST_CASE_SIG("Noslip Jacobian w.r.t Dw", "[NoSlipAdiabaticWallBC]",
-                       ((int dim), dim), 2)
+TEMPLATE_TEST_CASE_SIG("Noslip Jacobian w.r.t Dw ", "[NoSlipAdiabaticWallBC]",
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    double delta = 1e-5;
@@ -274,50 +278,53 @@ TEMPLATE_TEST_CASE_SIG("Noslip Jacobian w.r.t Dw", "[NoSlipAdiabaticWallBC]",
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
-                                                    Re_num, Pr_num, q_ref, mu);
-
-   SECTION("jacobian of no slip adiabatic wall w.r.t Dw is correct")
+   for (int p = 0; p <= 1; ++p)
    {
-      std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
-      for (int d = 0; d < dim; ++d)
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::NoSlipAdiabaticWallBC<dim> noslipadiabatic(diff_stack, fec.get(),
+                                                      Re_num, Pr_num, q_ref, mu);
+
+      DYNAMIC_SECTION("jacobian of no slip adiabatic wall w.r.t Dw failed for degree p = " << p)
       {
-         mat_vec_jac[d].SetSize(num_states);
-      }
-      noslipadiabatic.calcFluxJacDw(x, nrm, jac, q, delw, mat_vec_jac);
-      // loop over each state variable and check column of mat_vec_jac...
-      // matrix perturbation reshaped into vector
-      mfem::Vector v_vec(vec_pert, num_states);
-      for (int d = 0; d < dim; ++d)
-      {
-         mfem::Vector mat_vec_jac_v(num_states);
-         mat_vec_jac[d].Mult(v_vec, mat_vec_jac_v);
-         // perturb one column of delw everytime
-         mfem::DenseMatrix delw_plus(delw), delw_minus(delw);
-         for (int s = 0; s < num_states; ++s)
+         std::vector<mfem::DenseMatrix> mat_vec_jac(dim);
+         for (int d = 0; d < dim; ++d)
          {
-            delw_plus.GetColumn(d)[s] += v(s) * delta;
-            delw_minus.GetColumn(d)[s] -= v(s) * delta;
+            mat_vec_jac[d].SetSize(num_states);
          }
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         noslipadiabatic.calcFlux(x, nrm, jac, q, delw_plus, mat_vec_plus);
-         noslipadiabatic.calcFlux(x, nrm, jac, q, delw_minus, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-         // compare with explicit Jacobian
-         for (int s = 0; s < num_states; ++s)
+         noslipadiabatic.calcFluxJacDw(x, nrm, jac, q, delw, mat_vec_jac);
+         // loop over each state variable and check column of mat_vec_jac...
+         // matrix perturbation reshaped into vector
+         mfem::Vector v_vec(vec_pert, num_states);
+         for (int d = 0; d < dim; ++d)
          {
-            REQUIRE(mat_vec_jac_v(s) == Approx(mat_vec_fd(s)));
-         }
-      } // d loop
-   }    // section
+            mfem::Vector mat_vec_jac_v(num_states);
+            mat_vec_jac[d].Mult(v_vec, mat_vec_jac_v);
+            // perturb one column of delw everytime
+            mfem::DenseMatrix delw_plus(delw), delw_minus(delw);
+            for (int s = 0; s < num_states; ++s)
+            {
+               delw_plus.GetColumn(d)[s] += v(s) * delta;
+               delw_minus.GetColumn(d)[s] -= v(s) * delta;
+            }
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            noslipadiabatic.calcFlux(x, nrm, jac, q, delw_plus, mat_vec_plus);
+            noslipadiabatic.calcFlux(x, nrm, jac, q, delw_minus, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
+            for (int s = 0; s < num_states; ++s)
+            {
+               REQUIRE(mat_vec_jac_v(s) == Approx(mat_vec_fd(s)));
+            }
+         } // d loop
+      }    // section      
+   }
 } // test case
 
 TEMPLATE_TEST_CASE_SIG("Slip wall Jacobian states", "[ViscousSlipWallBC]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    double delta = 1e-5;
@@ -352,39 +359,42 @@ TEMPLATE_TEST_CASE_SIG("Slip wall Jacobian states", "[ViscousSlipWallBC]",
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousSlipWallBC<dim> viscousslipwall(diff_stack, fec.get(), Re_num,
-                                                Pr_num, mu);
-
-   SECTION("jacobian of Viscous Slip Wall BC w.r.t state is correct")
+   for (int p = 0; p <= 1; p++)
    {
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      viscousslipwall.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
-      //mat_vec_jac.Print();
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; ++i)
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::ViscousSlipWallBC<dim> viscousslipwall(diff_stack, fec.get(), Re_num,
+                                                   Pr_num, mu);
+
+      DYNAMIC_SECTION("jacobian of Viscous Slip Wall BC w.r.t state failed for degree p = " << p)
       {
-         mfem::Vector q_plus(q), q_minus(q);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         q_plus(i) += delta;
-         q_minus(i) -= delta;
-         viscousslipwall.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
-         viscousslipwall.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-         // compare with explicit Jacobian
-         for (int j = 0; j < num_states; j++)
+         mfem::DenseMatrix mat_vec_jac(num_states);
+         viscousslipwall.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
+         //mat_vec_jac.Print();
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            viscousslipwall.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
+            viscousslipwall.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
+            for (int j = 0; j < num_states; j++)
+            {
+               REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            }
          }
-      }
+      }      
    }
 }
 
 TEMPLATE_TEST_CASE_SIG("Viscous inflow Jacobian", "[ViscousInflowBC]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    double delta = 1e-5;
@@ -419,38 +429,41 @@ TEMPLATE_TEST_CASE_SIG("Viscous inflow Jacobian", "[ViscousInflowBC]",
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousInflowBC<dim> viscousinflow(diff_stack, fec.get(), Re_num,
-                                            Pr_num, q_in, mu);
-
-   SECTION("jacobian of viscous inflow bc w.r.t state is correct")
+   for (int p = 0; p <= 1; ++p)
    {
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      viscousinflow.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; ++i)
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::ViscousInflowBC<dim> viscousinflow(diff_stack, fec.get(), Re_num,
+                                             Pr_num, q_in, mu);
+
+      DYNAMIC_SECTION("jacobian of viscous inflow bc w.r.t state failed for degree p = " << p)
       {
-         mfem::Vector q_plus(q), q_minus(q);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         q_plus(i) += delta;
-         q_minus(i) -= delta;
-         viscousinflow.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
-         viscousinflow.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-         // compare with explicit Jacobian
-         for (int j = 0; j < num_states; j++)
+         mfem::DenseMatrix mat_vec_jac(num_states);
+         viscousinflow.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            viscousinflow.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
+            viscousinflow.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
+            for (int j = 0; j < num_states; j++)
+            {
+               REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            }
          }
-      }
+      }      
    }
 }
 
 TEMPLATE_TEST_CASE_SIG("Viscous outflow Jacobian", "[ViscousOutflowBC]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    double delta = 1e-5;
@@ -485,38 +498,41 @@ TEMPLATE_TEST_CASE_SIG("Viscous outflow Jacobian", "[ViscousOutflowBC]",
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousOutflowBC<dim> viscousoutflow(diff_stack, fec.get(), Re_num,
-                                              Pr_num, q_out, mu);
-
-   SECTION("jacobian of viscous outflow bc w.r.t state is correct")
+   for (int p = 0; p <= 1; ++p)
    {
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      viscousoutflow.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; ++i)
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::ViscousOutflowBC<dim> viscousoutflow(diff_stack, fec.get(), Re_num,
+                                                Pr_num, q_out, mu);
+
+      DYNAMIC_SECTION("jacobian of viscous outflow bc w.r.t state failed for degree p = " << p)
       {
-         mfem::Vector q_plus(q), q_minus(q);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         q_plus(i) += delta;
-         q_minus(i) -= delta;
-         viscousoutflow.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
-         viscousoutflow.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-         // compare with explicit Jacobian
-         for (int j = 0; j < num_states; j++)
+         mfem::DenseMatrix mat_vec_jac(num_states);
+         viscousoutflow.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            viscousoutflow.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
+            viscousoutflow.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
+            for (int j = 0; j < num_states; j++)
+            {
+               REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            }
          }
-      }
+      }      
    }
 }
 
 TEMPLATE_TEST_CASE_SIG("Viscous farfield Jacobian", "[ViscousFarFieldBC]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    double delta = 1e-5;
@@ -551,33 +567,36 @@ TEMPLATE_TEST_CASE_SIG("Viscous farfield Jacobian", "[ViscousFarFieldBC]",
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    // Create the AD stack, and the integrator
    adept::Stack diff_stack;
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::ViscousFarFieldBC<dim> viscousfarfield(diff_stack, fec.get(), Re_num,
-                                                Pr_num, qfs, mu);
-
-   SECTION("jacobian of viscous farfield bc w.r.t state is correct")
+   for (int p = 0; p <= 1; ++p)
    {
-      mfem::DenseMatrix mat_vec_jac(num_states);
-      viscousfarfield.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
-      // loop over each state variable and check column of mat_vec_jac...
-      for (int i = 0; i < num_states; ++i)
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::ViscousFarFieldBC<dim> viscousfarfield(diff_stack, fec.get(), Re_num,
+                                                   Pr_num, qfs, mu);
+
+      DYNAMIC_SECTION("jacobian of viscous farfield bc w.r.t state failed for degree p = " << p)
       {
-         mfem::Vector q_plus(q), q_minus(q);
-         mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
-         q_plus(i) += delta;
-         q_minus(i) -= delta;
-         viscousfarfield.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
-         viscousfarfield.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
-         mfem::Vector mat_vec_fd(num_states);
-         mat_vec_fd = 0.0;
-         subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
-         mat_vec_fd /= 2.0 * delta;
-         // compare with explicit Jacobian
-         for (int j = 0; j < num_states; j++)
+         mfem::DenseMatrix mat_vec_jac(num_states);
+         viscousfarfield.calcFluxJacState(x, nrm, jac, q, delw, mat_vec_jac);
+         // loop over each state variable and check column of mat_vec_jac...
+         for (int i = 0; i < num_states; ++i)
          {
-            REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            mfem::Vector q_plus(q), q_minus(q);
+            mfem::Vector mat_vec_plus(num_states), mat_vec_minus(num_states);
+            q_plus(i) += delta;
+            q_minus(i) -= delta;
+            viscousfarfield.calcFlux(x, nrm, jac, q_plus, delw, mat_vec_plus);
+            viscousfarfield.calcFlux(x, nrm, jac, q_minus, delw, mat_vec_minus);
+            mfem::Vector mat_vec_fd(num_states);
+            mat_vec_fd = 0.0;
+            subtract(mat_vec_plus, mat_vec_minus, mat_vec_fd);
+            mat_vec_fd /= 2.0 * delta;
+            // compare with explicit Jacobian
+            for (int j = 0; j < num_states; j++)
+            {
+               REQUIRE(mat_vec_jac(j, i) == Approx(mat_vec_fd(j)));
+            }
          }
-      }
+      }      
    }
 }
 
@@ -653,7 +672,7 @@ TEMPLATE_TEST_CASE_SIG("Viscous Exact BC Jacobian", "[VisExactBC]",
 
 // TODO: add dim = 1, 3 once 3d sbp operators implemented
 TEMPLATE_TEST_CASE_SIG("Surface force gradients", "[Surface Force]",
-                       ((int dim), dim), 2)
+                       ((int dim), dim), 2, 3)
 {
    using namespace euler_data;
    // copy the data into mfem vectors for convenience
@@ -685,10 +704,16 @@ TEMPLATE_TEST_CASE_SIG("Surface force gradients", "[Surface Force]",
    {
       drag_dir(0) = 1.0;
    }
+   else if (dim == 2)
+   {
+      drag_dir(0) = cos(aoa_fs);
+      drag_dir(1) = sin(aoa_fs);
+   }
    else
    {
       drag_dir(0) = cos(aoa_fs);
       drag_dir(1) = sin(aoa_fs);
+      drag_dir(2) = 0.0;
    }
 
    // dummy const vector x for calcBndryFun and calcBndryFunJacState - unused
@@ -704,55 +729,59 @@ TEMPLATE_TEST_CASE_SIG("Surface force gradients", "[Surface Force]",
    // Define the SBP elements and finite-element space, and integrator
    std::unique_ptr<mfem::FiniteElementCollection> fec;
    adept::Stack diff_stack;
-   fec.reset(new mfem::SBPCollection(1, dim));
-   mach::SurfaceForce<dim> force(diff_stack, fec.get(), dim + 2, Re, Pr,
-                                 q_ref, drag_dir);
 
-   SECTION("Gradient of surface force w.r.t q is correct")
+   for (int p = 0; p <= 1; ++p)
    {
-      // get derivative information from AD functions
-      mfem::Vector dJdu_ad(dim + 2);
-      force.calcBndryFunJacState(x, nrm, jac, q, delw, dJdu_ad);
-      double dJdu_dot_v_ad = mfem::InnerProduct(dJdu_ad, v);
+      fec.reset(new mfem::SBPCollection(p, dim));
+      mach::SurfaceForce<dim> force(diff_stack, fec.get(), dim + 2, Re, Pr,
+                                    q_ref, drag_dir);
 
-      // FD approximation
-      mfem::Vector q_plus(q);
-      mfem::Vector q_minus(q);
-      q_plus.Add(delta, v);
-      q_minus.Add(-delta, v);
-
-      double dJdu_dot_v_fd = force.calcBndryFun(x, nrm, jac, q_plus, delw);
-      dJdu_dot_v_fd -= force.calcBndryFun(x, nrm, jac, q_minus, delw);
-      dJdu_dot_v_fd /= 2 * delta;
-
-      // compare
-      REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-10));
-   }
-
-   SECTION("Gradient of surface force w.r.t Dw is correct")
-   {
-      // get derivative information from AD functions
-      mfem::DenseMatrix dJdDw_ad(dim + 2, dim);
-      force.calcBndryFunJacDw(x, nrm, jac, q, delw, dJdDw_ad);
-      mfem::Vector mat_vec_ad(dim);
-      dJdDw_ad.MultTranspose(v, mat_vec_ad);
-
-      // loop over each dimension and check against mat_vec_ad
-      for (int d = 0; d < dim; ++d)
+      DYNAMIC_SECTION("Gradient of surface force w.r.t q ... for degree p = " << p)
       {
-         // perturb one column of delw everytime
-         mfem::DenseMatrix delw_plus(delw), delw_minus(delw);
-         for (int s = 0; s < dim + 2; ++s)
-         {
-            delw_plus.GetColumn(d)[s] += v(s) * delta;
-            delw_minus.GetColumn(d)[s] -= v(s) * delta;
-         }
-         double mat_vec_fd = force.calcBndryFun(x, nrm, jac, q, delw_plus);
-         mat_vec_fd -= force.calcBndryFun(x, nrm, jac, q, delw_minus);
-         mat_vec_fd /= 2.0 * delta;
+         // get derivative information from AD functions
+         mfem::Vector dJdu_ad(dim + 2);
+         force.calcBndryFunJacState(x, nrm, jac, q, delw, dJdu_ad);
+         double dJdu_dot_v_ad = mfem::InnerProduct(dJdu_ad, v);
+
+         // FD approximation
+         mfem::Vector q_plus(q);
+         mfem::Vector q_minus(q);
+         q_plus.Add(delta, v);
+         q_minus.Add(-delta, v);
+
+         double dJdu_dot_v_fd = force.calcBndryFun(x, nrm, jac, q_plus, delw);
+         dJdu_dot_v_fd -= force.calcBndryFun(x, nrm, jac, q_minus, delw);
+         dJdu_dot_v_fd /= 2 * delta;
 
          // compare
-         REQUIRE(mat_vec_ad(d) == Approx(mat_vec_fd).margin(1e-10));
-      } // d loop
-   }    // section
+         REQUIRE(dJdu_dot_v_ad == Approx(dJdu_dot_v_fd).margin(1e-10));
+      }
+
+      DYNAMIC_SECTION("Gradient of surface force w.r.t Dw ... degree p = " << p)
+      {
+         // get derivative information from AD functions
+         mfem::DenseMatrix dJdDw_ad(dim + 2, dim);
+         force.calcBndryFunJacDw(x, nrm, jac, q, delw, dJdDw_ad);
+         mfem::Vector mat_vec_ad(dim);
+         dJdDw_ad.MultTranspose(v, mat_vec_ad);
+
+         // loop over each dimension and check against mat_vec_ad
+         for (int d = 0; d < dim; ++d)
+         {
+            // perturb one column of delw everytime
+            mfem::DenseMatrix delw_plus(delw), delw_minus(delw);
+            for (int s = 0; s < dim + 2; ++s)
+            {
+               delw_plus.GetColumn(d)[s] += v(s) * delta;
+               delw_minus.GetColumn(d)[s] -= v(s) * delta;
+            }
+            double mat_vec_fd = force.calcBndryFun(x, nrm, jac, q, delw_plus);
+            mat_vec_fd -= force.calcBndryFun(x, nrm, jac, q, delw_minus);
+            mat_vec_fd /= 2.0 * delta;
+
+            // compare
+            REQUIRE(mat_vec_ad(d) == Approx(mat_vec_fd).margin(1e-10));
+         } // d loop
+      }    // section
+   }
 }

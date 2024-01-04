@@ -2,6 +2,10 @@
 
 #include "mfem.hpp"
 #include "navier_stokes.hpp"
+// #include "flow_solver.hpp"
+#include "euler_fluxes.hpp"
+#include "euler_integ.hpp"
+
 #include <fstream>
 #include <iostream>
 
@@ -62,8 +66,10 @@ int main(int argc, char *argv[])
 
       // construct the solver and set the initial condition
       auto solver = createSolver<NavierStokesSolver<2>>(opt_file_name,
-                                                        move(smesh));
+                                                       move(smesh));
+
       solver->setInitialCondition(uexact);
+
       solver->printSolution("init", degree+1);
       solver->printResidual("init-res", degree+1);
 
@@ -87,6 +93,8 @@ int main(int argc, char *argv[])
       // Solve for and print out the adjoint
       solver->solveForAdjoint("drag");
       solver->printAdjoint("adjoint", degree+1);
+
+      // FlowSolver<3,false> solver(MPI_COMM_WORLD, opt_file_name, move(smesh));
 
    }
    catch (MachException &exception)

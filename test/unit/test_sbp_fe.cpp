@@ -32,7 +32,7 @@ void polynomial3D(const Vector &x, int p, const Vector &y, int q,
                   const Vector &z, int m, Vector &u)
 {
    MFEM_ASSERT( x.Size() == y.Size() && x.Size() == z.Size() 
-                && x.Size() == u.Size() , "");
+                && x.Size() == u.Size() , "size mismatch");
    for (int i = 0; i < u.Size(); i++)
    {
       u(i) = std::pow(x(i),p)*std::pow(y(i),q)*std::pow(z(i),m);
@@ -221,7 +221,7 @@ TEST_CASE( "Triangle DSBP difference operator is accurate...", "[dsbp-tri-D]")
    } // loop over p
 }
 
-TEST_CASE( "Tetrahedron SBP different operator is accurate...", "sbp-tet-D" )
+TEST_CASE( "Tetrahedron SBP difference operator is accurate...", "sbp-tet-D" )
 {
    int dim = 3;
    for (int p = 0; p <= 1; p++)
@@ -257,9 +257,9 @@ TEST_CASE( "Tetrahedron SBP different operator is accurate...", "sbp-tet-D" )
                   dudy *= std::max<int>(0,m);
                   polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0, k-1), dudz);
                   dudz *= std::max<int>(0,k);
+                  
                   sbp.getStrongOperator(0,D);
                   D.Mult(u, du);
-
                   for (int l = 0; l < sbp.GetDof(); ++l)
                   {  
                      REQUIRE( du(l) == Approx(dudx(l)).margin(abs_tol) );
@@ -467,7 +467,8 @@ TEST_CASE( "Tetrahedron SBP multWeak/StrongOperator are accurate...", "[sbp-tet-
          {
             for (int j = 0; j <= r; ++j)
             {  
-               for (int k = 0; k <= j; ++k){
+               for (int k = 0; k <= j; ++k)
+               {
                   int i = r - j - k;
                   int m = j - k;
                   polynomial3D(x, std::max<int>(0,i), y, std::max<int>(0,m), z, std::max<int>(0,k), u);

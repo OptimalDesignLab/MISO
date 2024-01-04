@@ -950,25 +950,43 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
       Q[0] = sbp_operators::p1Qx_tet;
       Q[1] = sbp_operators::p1Qy_tet;
       Q[2] = sbp_operators::p1Qz_tet;
+      // // vertices
+      // Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.0026679395344347597);
+      // Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.0026679395344347597);
+      // Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.0026679395344347597);
+      // Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.0026679395344347597);
+      // // edges 
+      // Nodes.IntPoint(4).Set(0.5,0.0,0.0,0.003996605685951749);
+      // Nodes.IntPoint(5).Set(0.5,0.5,0.0,0.003996605685951749);
+      // Nodes.IntPoint(6).Set(0.0,0.5,0.0,0.003996605685951749);
+      // Nodes.IntPoint(7).Set(0.0,0.0,0.5,0.003996605685951749);
+      // Nodes.IntPoint(8).Set(0.5,0.0,0.5,0.003996605685951749);
+      // Nodes.IntPoint(9).Set(0.0,0.5,0.5,0.003996605685951749);
+      // // faces
+      // Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423);
+      // Nodes.IntPoint(11).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
+      // Nodes.IntPoint(12).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      // Nodes.IntPoint(13).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423); 
+
       // vertices
       Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.0026679395344347597);
       Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.0026679395344347597);
       Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.0026679395344347597);
       Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.0026679395344347597);
-      // edges and faces
+      // edges 
       Nodes.IntPoint(4).Set(0.5,0.0,0.0,0.003996605685951749);
-      Nodes.IntPoint(5).Set(0.5,0.5,0.0,0.003996605685951749);
-      Nodes.IntPoint(6).Set(0.0,0.5,0.0,0.003996605685951749);
-      Nodes.IntPoint(7).Set(0.0,0.0,0.5,0.003996605685951749);
+      Nodes.IntPoint(5).Set(0.0,0.5,0.0,0.003996605685951749);
+      Nodes.IntPoint(6).Set(0.0,0.0,0.5,0.003996605685951749);
+      Nodes.IntPoint(7).Set(0.5,0.5,0.0,0.003996605685951749);
       Nodes.IntPoint(8).Set(0.5,0.0,0.5,0.003996605685951749);
       Nodes.IntPoint(9).Set(0.0,0.5,0.5,0.003996605685951749);
-      Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423);
-      Nodes.IntPoint(11).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
-      // interior
-      Nodes.IntPoint(12).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
-      // edge and faces
-      Nodes.IntPoint(13).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      // faces
+      Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);  
+      Nodes.IntPoint(11).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423); 
+      Nodes.IntPoint(12).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
+      Nodes.IntPoint(13).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423); 
       break;
+      
    default:
       mfem_error(
           "SBP elements are currently only supported for 0 <= order <= 1");
@@ -1234,19 +1252,19 @@ SBPCollection::SBPCollection(const int p, const int dim)
       const int TriNodes = SBPdof[Geometry::TRIANGLE];
       if (p >=1)
       {
-          TriDofOrd[0] = new int[6*TriNodes];
+         TriDofOrd[0] = new int[6*TriNodes];
          for (int i = 1; i < 6; ++i)
          {
             TriDofOrd[i] = TriDofOrd[i-1] + TriNodes;
          }
          if (p==1)
          {
-            TriDofOrd[0][0] = 0;
-            TriDofOrd[1][0] = 0;
-            TriDofOrd[2][0] = 0;
-            TriDofOrd[3][0] = 0;
-            TriDofOrd[4][0] = 0;
-            TriDofOrd[5][0] = 0;            
+            TriDofOrd[0][0] = {0};
+            TriDofOrd[1][0] = {0};
+            TriDofOrd[2][0] = {0};
+            TriDofOrd[3][0] = {0};
+            TriDofOrd[4][0] = {0};
+            TriDofOrd[5][0] = {0};            
          }
       }
 
