@@ -45,6 +45,7 @@ int main(int argc, char *argv[])
    args.AddOption(&nx, "-nx", "--num-rad", "number of radial segments");
    args.AddOption(&ny, "-ny", "--num-theta", "number of angular segments");
 	 args.AddOption(&method, "-m", "--method", "method to build basis centers");
+	 args.AddOption(&ref_levels, "-r", "--refine", "mesh refinement level.");
    args.Parse();
    if (!args.Good())
    {
@@ -62,6 +63,9 @@ int main(int argc, char *argv[])
   		{
 				smesh->UniformRefinement();
   		}
+			ofstream savevtk("linear_optimization.vtk");
+      smesh->PrintVTK(savevtk, 0);
+      savevtk.close();
 
 			// 3. Initilize disign vars
 	    int numElement = smesh->GetNE();
@@ -75,6 +79,9 @@ int main(int argc, char *argv[])
 			{
 					buildBasisCenter2(nx, ny, center);
 			}
+			ofstream centerwrite("distri_initial.vtp");
+      writeBasisCentervtp(center, centerwrite);
+      centerwrite.close();
 
 			// 4. Initialize problem
 			VectorFunctionCoefficient velocity(dim, velocity_function);
@@ -122,14 +129,13 @@ void buildBasisCenter2(int nx, int ny, mfem::Vector& centers)
 
 	for (int j = 0; j < ny; ++j)
 	{
+		double y = y_st + j * dy;
 		for (int i = 0; i < nx; ++i)
 		{
-			double y = y_st + j * dy;
 			double x = x_st + i * dx;
-
 			int count = j * nx + i;
-			centers(count) = x;
-			centers(count+1) = y;
+			centers(2*count) = x;
+			centers(2*count+1) = y;
 		}
 	}
 
