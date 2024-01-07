@@ -29,6 +29,7 @@ set(SANDBOX_SRCS
    wedgeshock_optimization
    linear_advection
    linear_advection_dgd
+   linear_optimization_test
 )
 
 create_sandbox("${SANDBOX_SRCS}")

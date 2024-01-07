@@ -96,7 +96,6 @@ int main(int argc, char* argv[])
   // 3. problem coefficient
 	VectorFunctionCoefficient velocity(dim, velocity_function);
 	FunctionCoefficient inflow1(inflow1_function);
-	FunctionCoefficient inflow2(inflow2_function);
 
 	Array<int> influx1_bdr(mesh.bdr_attributes.Max());
 	Array<int> influx2_bdr(mesh.bdr_attributes.Max());
@@ -111,10 +110,8 @@ int main(int argc, char* argv[])
 	BilinearForm k(&dgd_fes);
 	//k.SetAssemblyLevel(AssemblyLevel::FULL);
   k.AddDomainIntegrator(new ConservativeConvectionIntegrator(velocity, alpha));
-  k.AddInteriorFaceIntegrator(
-    new DGTraceIntegrator(velocity, alpha));
-	k.AddBdrFaceIntegrator(
-		new DGTraceIntegrator(velocity, alpha), outflux_bdr);
+  k.AddInteriorFaceIntegrator(new DGTraceIntegrator(velocity, alpha));
+	k.AddBdrFaceIntegrator(new DGTraceIntegrator(velocity, alpha), outflux_bdr);
 
   // 4. rhs
 	// question: alpha or -alpha
