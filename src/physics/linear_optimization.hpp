@@ -36,9 +36,10 @@ public:
    
    void SetInitialCondition(const mfem::Vector uic);
 
+   double GetEnergy(const mfem::Vector &x) const;
+
    /// compute the jacobian of the functional w.r.t the design variable
-   void Mult(const mfem::Vector &x, mfem::Vector &y) const override
-   {}
+   void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
    void printSolution(const mfem::Vector &c, const std::string &file_name);
    /// class destructor
@@ -85,6 +86,7 @@ protected:
    // save operators for convenient
    mfem::SparseMatrix* k_full = nullptr;
    mfem::SparseMatrix* k_dgd = nullptr;
+   mfem::SparseMatrix* p = nullptr;
 };
 
 } // end of namesapce

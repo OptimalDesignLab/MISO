@@ -1,6 +1,7 @@
 #include "mfem.hpp"
 #include "galer_diff.hpp"
 #include "centgridfunc.hpp"
+#include "sbp_fe.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -41,6 +42,8 @@ double inflow2_function(const Vector &x)
 
 void GetBasisCenters(mfem::Mesh& mesh, mfem::Vector& vec);
 
+void phiexact(const mfem::Vector& x, mfem::Vector& phi);
+
 int main(int argc, char* argv[])
 {
 
@@ -49,7 +52,7 @@ int main(int argc, char* argv[])
 	const char *options_file = "linear_advection.json";
 	const char *mesh_file = "square_triangle.mesh";
 	int order = 1;
-	int ref_levels = 1;
+	int ref_levels = 2;
 	int extra_basis = 1;
   // Parse command-line options
   OptionsParser args(argc, argv);
@@ -85,7 +88,10 @@ int main(int argc, char* argv[])
 
 	// 2. Finite element space and DGD space
 	DG_FECollection fec(order, dim, BasisType::GaussLobatto);
+	//DSBPCollection fec(order, dim);
 	DGDSpace dgd_fes(&mesh, &fec, center, order, extra_basis, 1, Ordering::byVDIM);
+
+	//FinitElementSpace full_fes(&mesh,&fec,1, Ordering::byVDIM);
 	FiniteElementSpace fes(&mesh, &fec);
 	auto* p = dgd_fes.GetCP();
 	cout << "Num of state variables: " << 1 << '\n';
@@ -165,8 +171,6 @@ int main(int argc, char* argv[])
 	// GMRES(*K, M, B, U, 1, 500, 10, 1e-24, 0.0);
 	cout << "Solved.\n";
 
-
-
 	// 9. recover and output
 	ofstream pout("prolong.txt");
 	dgd_fes.GetProlongationMatrix()->PrintMatlab(pout);
@@ -176,6 +180,31 @@ int main(int argc, char* argv[])
   sol_ofs.precision(14);
   mesh.PrintVTK(sol_ofs,0);
   u.SaveVTK(sol_ofs,"phi",0);
+
+	{
+		VectorFunctionCoefficient exsol(1, phiexact);
+		DenseMatrix vals, exact_vals;
+		Vector u_j, exsol_j;
+	  double loc_norm = 0.0;
+    for (int i = 0; i < fes.GetNE(); i++)
+    {
+      const FiniteElement *fe = fes.GetFE(i);
+      const IntegrationRule *ir = &(fe->GetNodes());
+      ElementTransformation *T = fes.GetElementTransformation(i);
+      u.GetVectorValues(*T, *ir, vals);
+      exsol.Eval(exact_vals, *T, *ir);
+      for (int j = 0; j < ir->GetNPoints(); j++)
+      {
+         const IntegrationPoint &ip = ir->IntPoint(j);
+         T->SetIntPoint(&ip);
+         vals.GetColumnReference(j, u_j);
+         exact_vals.GetColumnReference(j, exsol_j);
+         loc_norm += ip.weight * T->Weight() * std::abs(u_j(0) - exsol_j(0));
+      }
+    }
+		cout << "Solution L2 error is " << sqrt(loc_norm) << '\n';
+	}
+
 	delete kdgd;
   return 0;
 }
@@ -191,5 +220,15 @@ void GetBasisCenters(mfem::Mesh& mesh, mfem::Vector& vec)
 		mesh.GetElementCenter(i, loc);
 		vec(dim * i) = loc(0);
 		vec(dim* i+1) = loc(1);
+	}
+}
+
+void phiexact(const mfem::Vector& x, mfem::Vector& phi)
+{
+	phi.SetSize(1);
+	phi(0) = 0.0;
+	if (x(1) <= ( 1./3. * x(0)))
+	{
+		phi(0) = -1.0;
 	}
 }

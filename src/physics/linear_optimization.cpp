@@ -1,12 +1,9 @@
 #include "linear_optimization.hpp"
 #include "default_options.hpp"
 
-#include <ctime>
-#include <chrono>
 using namespace std;
 using namespace mfem;
 using namespace mach;
-using namespace std::chrono;
 
 namespace mach
 {
@@ -64,6 +61,7 @@ LinearOptimizer::LinearOptimizer(Vector init,
   cout << "DGD model size is (should be number of basis): " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
   cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
 	cout << "res_dgd size is " << res_dgd->Height() << " x " << res_dgd->Width() << '\n';
+	p = fes_dgd->GetCP();
 }
 
 void LinearOptimizer::InitializeSolver(VectorFunctionCoefficient& velocity, FunctionCoefficient& inflow)
@@ -99,11 +97,156 @@ void LinearOptimizer::InitializeSolver(VectorFunctionCoefficient& velocity, Func
 	res_full->Finalize(skip_zero);
 	res_dgd->Assemble(skip_zero);
 	res_dgd->Finalize(skip_zero);
-
-	
+	b_full->Assemble();
+	p->MultTranspose(*b_full, *b_dgd);
+		
   //  Get operators in handy
 	k_full = &res_full->SpMat();
 	k_dgd = &res_dgd->SpMat();
+}
+
+void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
+{
+	// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
+	y.SetSize(numDesignVar); // set y as pJpc
+	Vector pJpuc(ROMSize);
+
+	/// first compute some variables that used multiple times
+	// 1. get pRpu, pR_dgd/pu_dgd
+	SparseMatrix *pRpu = k_full;
+	SparseMatrix *pR_dgdpuc = k_dgd;
+
+	// ofstream prpu_save("prpu.txt");
+	// pRpu->PrintMatlab(prpu_save);
+	// prpu_save.close();
+
+	// ofstream prdgdpuc_save("prdgdpuc.txt");
+	// pR_dgdpuc->PrintMatlab(prdgdpuc_save);
+	// prdgdpuc_save.close();
+
+	// 2. compute full residual
+	Vector r(FullSize);
+	k_full->Mult(*u_full,r);
+	r -= *b_full;
+
+	// ofstream r_save("r_full.txt");
+	// r.Print(r_save,1);
+	// r_save.close();
+
+	/// loop over all design variables
+	Vector ppupc_col(FullSize);
+	Vector dptpc_col(ROMSize);
+	
+	DenseMatrix pPupc(FullSize,numDesignVar);
+	DenseMatrix pPtpcR(ROMSize,numDesignVar);
+	for (int i = 0; i < numDesignVar; i++)
+	{
+		SparseMatrix *dPdci = new SparseMatrix(FullSize,ROMSize);
+		// get dpdc
+		fes_dgd->GetdPdc(i,x,*dPdci);
+
+		// colume of intermediate pPu/pc
+		dPdci->Mult(*u_dgd,ppupc_col);
+		pPupc.SetCol(i,ppupc_col);
+
+		// colume of pPt / pc * R
+		dPdci->MultTranspose(r,dptpc_col);
+		pPtpcR.SetCol(i,dptpc_col);
+		delete dPdci;
+	}
+
+	// ofstream ppupc_save("ppupc.txt");
+	// pPupc.PrintMatlab(ppupc_save);
+	// ppupc_save.close();
+
+	// ofstream pptpcr_save("pptpcr.txt");
+	// pPtpcR.PrintMatlab(pptpcr_save);
+	// pptpcr_save.close();
+
+	// compute pJ/pc
+	Vector temp_vec1(FullSize);
+	pRpu->MultTranspose(r,temp_vec1);
+	pPupc.MultTranspose(temp_vec1,y);
+	y *= 2.0;
+
+	// ofstream pjpc_save("pjpc.txt");
+	// y.Print(pjpc_save,1);
+	// pjpc_save.close();
+
+	// compute pJ/puc
+	p->MultTranspose(temp_vec1,pJpuc);
+	pJpuc *= 2.0;
+
+	// ofstream p_save("p.txt");
+	// P->PrintMatlab(p_save);
+	// p_save.close();
+
+	// ofstream pjpuc_save("pjpuc.txt");
+	// pJpuc.Print(pjpuc_save,1);
+	// pjpuc_save.close();
+
+	// compute pR_dgd / pc
+	DenseMatrix *temp_mat1 = ::Mult(*pRpu,pPupc);
+	SparseMatrix *Pt = Transpose(*p);
+	DenseMatrix *pR_dgdpc = ::Mult(*Pt,*temp_mat1);
+	delete Pt;
+	*pR_dgdpc += pPtpcR;
+	delete temp_mat1;
+
+	// ofstream pt_save("pt.txt");
+	// Pt->PrintMatlab(pt_save);
+	// pt_save.close();
+
+	// ofstream prdgdpc_save("prdgdpc.txt");
+	// pR_dgdpc->PrintMatlab(prdgdpc_save);
+	// prdgdpc_save.close();
+
+	// solve for adjoint variable
+	Vector adj(ROMSize);
+	SparseMatrix *pRt_dgdpuc = Transpose(*pR_dgdpuc);
+	UMFPackSolver umfsolver;
+	umfsolver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+	umfsolver.SetPrintLevel(1);
+	umfsolver.SetOperator(*pRt_dgdpuc);
+	umfsolver.Mult(pJpuc,adj);
+	delete pRt_dgdpuc;
+
+	// ofstream adj_sasve("adj.txt");
+	// adj.Print(adj_save,1);
+	// adj_save.close();
+
+
+	// compute the total derivative
+	Vector temp_vec2(numDesignVar);
+	pR_dgdpc->Transpose();
+	pR_dgdpc->Mult(adj,temp_vec2);
+	y -= temp_vec2;
+
+	// ofstream djdc_save("djdc.txt");
+	// y.Print(djdc_save,1);
+	// djdc_save.close();
+	
+	delete pR_dgdpc;	
+}
+
+double LinearOptimizer::GetEnergy(const mfem::Vector &x) const
+{
+		// build new DGD operators
+	fes_dgd->buildProlongationMatrix(x);
+
+
+	UMFPackSolver umfsolver;
+	umfsolver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+	umfsolver.SetPrintLevel(1);
+	umfsolver.SetOperator(*k_dgd);
+	umfsolver.Mult(*b_dgd, *u_dgd);
+
+
+	SparseMatrix* p = fes_dgd->GetCP();
+	p->Mult(*u_dgd,*u_full); 
+	Vector r(FullSize);
+	k_full->Mult(*u_full,r);
+	return r * r;
 }
 
 } // namespace mach

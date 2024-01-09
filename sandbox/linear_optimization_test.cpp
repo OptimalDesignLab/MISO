@@ -16,8 +16,6 @@ using namespace mach;
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(0.0,1.0);
 
-
-
 // problem field coefficient and boundary
 void velocity_function(const Vector &x, Vector &v);
 double inflow1_function(const Vector &x);
@@ -88,6 +86,19 @@ int main(int argc, char *argv[])
 			FunctionCoefficient inflow1(inflow1_function);
       LinearOptimizer dgdopt(center, optfile, move(smesh));
 			dgdopt.InitializeSolver(velocity, inflow1);
+
+
+			// 5. BFGS
+			BFGSNewtonSolver bfgsSolver(1.0,1e6,1e-4,0.7,40);
+      bfgsSolver.SetOperator(dgdopt);
+      Vector opti_value(center.Size());
+      bfgsSolver.Mult(center,opti_value);
+
+
+			// 6. write results
+			ofstream optwrite("distri_optimal.vtp");
+      writeBasisCentervtp(opti_value, optwrite);
+      optwrite.close();
    }
    catch (MachException &exception)
    {
@@ -138,8 +149,6 @@ void buildBasisCenter2(int nx, int ny, mfem::Vector& centers)
 			centers(2*count+1) = y;
 		}
 	}
-
-
 }
 
 

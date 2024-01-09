@@ -3,6 +3,7 @@
 
 #include "mfem.hpp"
 #include "optimization.hpp"
+#include "linear_optimization.hpp"
 
 namespace mfem
 {
