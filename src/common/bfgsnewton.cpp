@@ -105,7 +105,7 @@ void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
       x += c;
 
       // update objective new value and derivative
-      // norm = dynamic_cast<const LinearOptimizer*>(oper)->GetEnergy(x);
+      norm = dynamic_cast<const LinearOptimizer*>(oper)->GetEnergy(x);
       cout << "new objective value is " << norm << '\n';
 
       // update hessian

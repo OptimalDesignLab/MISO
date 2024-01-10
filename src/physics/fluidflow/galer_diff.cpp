@@ -454,6 +454,7 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
    //selectedElement[b_id]->Print(cout,numLocalElem);
    for (int i = 0; i < numLocalElem; i++)
    {
+      cout << i <<'\n';
       el_id = (*selectedElement[b_id])[i];
       buildDerivDataMat(el_id,b_id,xyz,basisCenter,V,dV,Vn);
       dpdc_block.SetSize(Vn.Height(),numLocalBasis);
@@ -499,6 +500,7 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
       // V is a square matrix
       if (numPolyBasis == numLocalBasis)
       {
+         cout << "V is square\n";
          DenseMatrix temp_mat1(numLocalBasis);
          DenseMatrix temp_mat2(numLocalBasis);
          Mult(dV,*coef[el_id],temp_mat1);
@@ -509,6 +511,7 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
       // V is overdetermined
       else
       {
+         cout << "V is not square\n";
          DenseMatrix Vt(V);
          Vt.Transpose(); // get V^t
 
@@ -535,6 +538,7 @@ void DGDSpace::GetdPdc(const int id, const Vector &basisCenter,
          deriv_p1 += deriv_p2;
          Mult(Vn,deriv_p1,dpdc_block);
       }
+      cout << "assemble back to dpdc\n";
       // assemble is back to the derivative matrix
       AssembleDerivMatrix(el_id,dpdc_block,dpdc);
    }
@@ -568,7 +572,9 @@ void DGDSpace::buildDerivDataMat(const int el_id, const int b_id, const int xyz,
    Vn.SetSize(numDofs,numPolyBasis);
 
    // build the data matrix
+   cout << "build derived mat\n";
    buildElementDerivMat(el_id,b_id,basisCenter,xyz,numDofs,dofs_coord,dV);
+   cout << "build v mat\n";
    buildElementPolyBasisMat(el_id,basisCenter,numDofs,dofs_coord,V,Vn);
    // free the aux variable
    for (int k = 0; k < numDofs; k++)

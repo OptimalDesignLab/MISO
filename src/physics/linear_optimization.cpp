@@ -49,7 +49,7 @@ LinearOptimizer::LinearOptimizer(Vector init,
 	// construct the residual forms
 	res_dgd.reset(new BilinearForm(fes_dgd.get()));
 	res_full.reset(new BilinearForm(fes_full.get()));
-	b_dgd.reset(new LinearForm(fes_dgd.get()));
+	b_dgd.SetSize(fes_dgd->GetTrueVSize());
 	b_full.reset(new LinearForm(fes_full.get()));
 
 	// check some intermediate info
@@ -61,7 +61,6 @@ LinearOptimizer::LinearOptimizer(Vector init,
   cout << "DGD model size is (should be number of basis): " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
   cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
 	cout << "res_dgd size is " << res_dgd->Height() << " x " << res_dgd->Width() << '\n';
-	p = fes_dgd->GetCP();
 }
 
 void LinearOptimizer::InitializeSolver(VectorFunctionCoefficient& velocity, FunctionCoefficient& inflow)
@@ -88,7 +87,6 @@ void LinearOptimizer::InitializeSolver(VectorFunctionCoefficient& velocity, Func
   res_full->AddBdrFaceIntegrator(new DGTraceIntegrator(velocity, alpha), outflux_bdr);
 
 	// add rhs integrator
-  b_dgd->AddBdrFaceIntegrator(new BoundaryFlowIntegrator(inflow, velocity, alpha), influx_bdr);
 	b_full->AddBdrFaceIntegrator(new BoundaryFlowIntegrator(inflow, velocity, alpha), influx_bdr);
 
 	// assemble operators
@@ -98,7 +96,8 @@ void LinearOptimizer::InitializeSolver(VectorFunctionCoefficient& velocity, Func
 	res_dgd->Assemble(skip_zero);
 	res_dgd->Finalize(skip_zero);
 	b_full->Assemble();
-	p->MultTranspose(*b_full, *b_dgd);
+	SparseMatrix* p = fes_dgd->GetCP();
+	p->MultTranspose(*b_full, b_dgd);
 		
   //  Get operators in handy
 	k_full = &res_full->SpMat();
@@ -128,6 +127,7 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 	Vector r(FullSize);
 	k_full->Mult(*u_full,r);
 	r -= *b_full;
+	cout << "f1\n";
 
 	// ofstream r_save("r_full.txt");
 	// r.Print(r_save,1);
@@ -154,6 +154,7 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 		pPtpcR.SetCol(i,dptpc_col);
 		delete dPdci;
 	}
+	cout << "f2\n";
 
 	// ofstream ppupc_save("ppupc.txt");
 	// pPupc.PrintMatlab(ppupc_save);
@@ -168,14 +169,17 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 	pRpu->MultTranspose(r,temp_vec1);
 	pPupc.MultTranspose(temp_vec1,y);
 	y *= 2.0;
+	cout << "f3\n";
 
 	// ofstream pjpc_save("pjpc.txt");
 	// y.Print(pjpc_save,1);
 	// pjpc_save.close();
 
 	// compute pJ/puc
+	SparseMatrix* p = fes_dgd->GetCP();
 	p->MultTranspose(temp_vec1,pJpuc);
 	pJpuc *= 2.0;
+	cout << "f4\n";
 
 	// ofstream p_save("p.txt");
 	// P->PrintMatlab(p_save);
@@ -192,6 +196,7 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 	delete Pt;
 	*pR_dgdpc += pPtpcR;
 	delete temp_mat1;
+	cout << "f5\n";
 
 	// ofstream pt_save("pt.txt");
 	// Pt->PrintMatlab(pt_save);
@@ -210,6 +215,7 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 	umfsolver.SetOperator(*pRt_dgdpuc);
 	umfsolver.Mult(pJpuc,adj);
 	delete pRt_dgdpuc;
+	cout << "f6\n";
 
 	// ofstream adj_sasve("adj.txt");
 	// adj.Print(adj_save,1);
@@ -221,6 +227,7 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 	pR_dgdpc->Transpose();
 	pR_dgdpc->Mult(adj,temp_vec2);
 	y -= temp_vec2;
+	cout << "f7\n";
 
 	// ofstream djdc_save("djdc.txt");
 	// y.Print(djdc_save,1);
@@ -239,7 +246,7 @@ double LinearOptimizer::GetEnergy(const mfem::Vector &x) const
 	umfsolver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
 	umfsolver.SetPrintLevel(1);
 	umfsolver.SetOperator(*k_dgd);
-	umfsolver.Mult(*b_dgd, *u_dgd);
+	umfsolver.Mult(b_dgd, *u_dgd);
 
 
 	SparseMatrix* p = fes_dgd->GetCP();

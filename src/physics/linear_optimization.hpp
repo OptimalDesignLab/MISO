@@ -72,7 +72,7 @@ protected:
 	std::unique_ptr<mfem::BilinearForm> res_full = nullptr;
 
    // rhs operator
-   std::unique_ptr<mfem::LinearForm> b_dgd = nullptr;
+   mfem::Vector b_dgd;
    std::unique_ptr<mfem::LinearForm> b_full = nullptr;
 
    // some working variables
@@ -86,7 +86,6 @@ protected:
    // save operators for convenient
    mfem::SparseMatrix* k_full = nullptr;
    mfem::SparseMatrix* k_dgd = nullptr;
-   mfem::SparseMatrix* p = nullptr;
 };
 
 } // end of namesapce

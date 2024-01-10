@@ -1,5 +1,5 @@
 #include "optimization.hpp"
-#include "default_options.hpp"
+//#include "default_options.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
@@ -23,7 +23,7 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	: Operator(0), designVar(init)
 {
 	// get the option fileT
-	options = default_options;
+	//options = default_options;
 	nlohmann::json file_options;
 	ifstream options_file(opt_file_name);
 	options_file >> file_options;
