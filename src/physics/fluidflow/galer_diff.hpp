@@ -71,9 +71,9 @@ public:
    SparseMatrix *GetCP() { return cP; }
    virtual const Operator *GetProlongationMatrix() const { return cP; }
 
-   mfem::Array<int>& GetSelectedBasis(int el_id);
+   const std::vector<int>& GetSelectedBasis(int el_id);
 
-   mfem::Array<int>& GetSelectedElement(int b_id);
+   const std::vector<int>& GetSelectedElement(int b_id);
 protected:
    /// mesh dimension
    int dim;
@@ -92,11 +92,19 @@ protected:
 
 
    /// selected basis for each element (currently it is fixed upon setup)
-   mfem::Array<mfem::Array<int> *> selectedBasis;
-   mfem::Array<mfem::Array<int> *> selectedElement;
+   //mfem::Array<mfem::Array<int> *> selectedBasis;
+   std::vector<std::vector<int>> selectedBasis;
+
+
+   //mfem::Array<mfem::Array<int> *> selectedElement;
+   std::vector<std::vector<int>> selectedElement;
    /// array of map that holds the distance from element center to basisCenter
+
    // mfem::Array<std::map<int, double> *> elementBasisDist;
-   mfem::Array<std::vector<double> *> elementBasisDist;
+   //mfem::Array<std::vector<double> *> elementBasisDist;
+   std::vector<std::vector<double>> elementBasisDist;
+
+
    // local element prolongation matrix coefficient
    mutable mfem::Array<mfem::DenseMatrix *> coef;
    /// Initialize the patches/stencil given poly order

@@ -17,6 +17,18 @@
 namespace mach
 {
 
+class OptProblem : public mfem::Operator
+{
+   /// class constructor
+   /// \param[in] opt_file_name - option file
+   /// \param[in] initail - initial condition
+   /// \param[in] smesh - mesh file
+   OptProbem(mfem::Vector init,
+                const std::string &opt_file_name =
+                  std::string("mach_optionš.json"),
+                std::unique_ptr<mfem::Mesh> smesh = nullptr);
+};
+
 class DGDOptimizer : public mfem::Operator
 {
 public:

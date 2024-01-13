@@ -36,7 +36,7 @@ public:
    
    void SetInitialCondition(const mfem::Vector uic);
 
-   double GetEnergy(const mfem::Vector &x) const;
+   double GetEnergy(const mfem::Vector &x);
 
    /// compute the jacobian of the functional w.r.t the design variable
    void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
