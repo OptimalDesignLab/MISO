@@ -70,6 +70,10 @@ public:
    inline int GetNDofs() const {return numBasis;}
    SparseMatrix *GetCP() { return cP; }
    virtual const Operator *GetProlongationMatrix() const { return cP; }
+
+   mfem::Array<int>& GetSelectedBasis(int el_id);
+
+   mfem::Array<int>& GetSelectedElement(int b_id);
 protected:
    /// mesh dimension
    int dim;

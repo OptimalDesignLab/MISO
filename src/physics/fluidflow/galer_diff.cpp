@@ -83,35 +83,35 @@ void DGDSpace::InitializeStencil(const Vector &basisCenter)
 
    }
 
-   // cout << "------Check the stencil------\n";
-   // cout << "------Basis center loca------\n";
-   // for (int i = 0; i < numBasis; i++)
-   // {  
-   //    cout << "basis " << i << ": ";
-   //    cout << basisCenter(2*i) << ' ' << basisCenter(2*i+1) << '\n';
-   // }
-   // cout << '\n';
-   // cout << "------Elem's  stencil------\n";
-   // for (int i = 0; i < GetMesh()->GetNE(); i++)
-   // {
-   //    cout << "Element " << i << ": ";
-   //    for (int j = 0; j < selectedBasis[i]->Size(); j++)
-   //    {
-   //       cout << (*selectedBasis[i])[j] << ' ';
-   //    }
-   //    cout << '\n';
-   // }
-   // cout << '\n';
-   // cout << "------Basis's  element------\n";
-   // for (int k = 0; k < numBasis; k++)
-   // {
-   //    cout << "basis " << k << ": ";
-   //    for (int l = 0; l < selectedElement[k]->Size(); l++)
-   //    {
-   //       cout << (*selectedElement[k])[l] << ' ';
-   //    }
-   //    cout << '\n';
-   // }
+   cout << "------Check the stencil------\n";
+   cout << "------Basis center loca------\n";
+   for (int i = 0; i < numBasis; i++)
+   {  
+      cout << "basis " << i << ": ";
+      cout << basisCenter(2*i) << ' ' << basisCenter(2*i+1) << '\n';
+   }
+   cout << '\n';
+   cout << "------Elem's  stencil------\n";
+   for (int i = 0; i < GetMesh()->GetNE(); i++)
+   {
+      cout << "Element " << i << ": ";
+      for (int j = 0; j < selectedBasis[i]->Size(); j++)
+      {
+         cout << (*selectedBasis[i])[j] << ' ';
+      }
+      cout << '\n';
+   }
+   cout << '\n';
+   cout << "------Basis's  element------\n";
+   for (int k = 0; k < numBasis; k++)
+   {
+      cout << "basis " << k << ": ";
+      for (int l = 0; l < selectedElement[k]->Size(); l++)
+      {
+         cout << (*selectedElement[k])[l] << ' ';
+      }
+      cout << '\n';
+   }
 }
 
 void DGDSpace::GetBasisCenter(const int b_id, Vector &center,
@@ -166,9 +166,9 @@ void DGDSpace::buildProlongationMatrix(const Vector &x)
       AssembleProlongationMatrix(i,localMat);
    }
    cP->Finalize();
-   ofstream cp_save("prolong.txt");
-	cP->PrintMatlab(cp_save);
-	cp_save.close();
+   // ofstream cp_save("prolong.txt");
+	// cP->PrintMatlab(cp_save);
+	// cp_save.close();
 }
 
 void DGDSpace::buildDataMat(int el_id, const Vector &x,
@@ -266,6 +266,16 @@ void DGDSpace::solveLocalProlongationMat(const int el_id,
    // Get Local prolongation matrix
 }
 
+
+mfem::Array<int>&  DGDSpace::GetSelectedBasis(int el_id)
+{
+   return *selectedBasis[el_id];
+}
+
+mfem::Array<int>& DGDSpace::GetSelectedElement(int b_id)
+{
+   return *selectedElement[b_id];
+}
 
 void DGDSpace::buildElementPolyBasisMat(const int el_id,
                                         const Vector &basisCenter,

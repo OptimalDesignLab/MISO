@@ -1,5 +1,5 @@
 #include "optimization.hpp"
-//#include "default_options.hpp"
+#include "default_options.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
@@ -23,7 +23,7 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	: Operator(0), designVar(init)
 {
 	// get the option fileT
-	//options = default_options;
+	options = default_options;
 	nlohmann::json file_options;
 	ifstream options_file(opt_file_name);
 	options_file >> file_options;
@@ -64,13 +64,13 @@ DGDOptimizer::DGDOptimizer(Vector init,
 	res_full.reset(new NonlinearForm(fes_full.get()));
 
 	// check some intermediate info
-   cout << "Num of state variables: " << num_state << '\n';
-   cout << "dgd_degree is: " << dgd_degree << '\n';
-   cout << "u_dgd size is " << u_dgd->Size() << '\n';
-   cout << "u_full size is " << u_full->Size() << '\n';
-   cout << "Full size model is: "<< fes_full->GetTrueVSize() << '\n';
-   cout << "DGD model size is (should be number of basis): " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
-   cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
+  cout << "Num of state variables: " << num_state << '\n';
+  cout << "dgd_degree is: " << dgd_degree << '\n';
+  cout << "u_dgd size is " << u_dgd->Size() << '\n';
+  cout << "u_full size is " << u_full->Size() << '\n';
+  cout << "Full size model is: "<< fes_full->GetTrueVSize() << '\n';
+  cout << "DGD model size is (should be number of basis): " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
+  cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
 	cout << "res_dgd size is " << res_dgd->Height() << " x " << res_dgd->Width() << '\n';
 
 	if (options["problem-type"].get<string>() == "airfoil")

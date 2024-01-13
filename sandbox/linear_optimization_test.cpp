@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
    int nx = 1;
    int ny = 1;
 	 int method = 1;
-	 int ref_levels = 1;
+	 int ref_levels = 0;
 	 const char *mesh_file = "square_triangle.mesh";
    args.AddOption(&options_file, "-o", "--options",
                   "Options file to use.");

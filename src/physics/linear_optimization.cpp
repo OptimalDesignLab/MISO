@@ -1,5 +1,5 @@
 #include "linear_optimization.hpp"
-#include "default_options.hpp"
+//#include "default_options.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -14,7 +14,7 @@ LinearOptimizer::LinearOptimizer(Vector init,
 	: Operator(0), designVar(init)
 {
 	// get the option fileT
-	options = default_options;
+	//options = default_options;
 	nlohmann::json file_options;
 	ifstream options_file(opt_file_name);
 	options_file >> file_options;
@@ -39,6 +39,8 @@ LinearOptimizer::LinearOptimizer(Vector init,
 	// construct the gridfunction
 	u_dgd.reset(new CentGridFunction(fes_dgd.get()));
 	u_full.reset(new GridFunction(fes_full.get()));
+	*u_full = 0.0;
+	*u_dgd = 0.0;
 
 	// variable size
 	ROMSize = u_dgd->Size();
@@ -238,9 +240,8 @@ void LinearOptimizer::Mult(const mfem::Vector &x, mfem::Vector& y) const
 
 double LinearOptimizer::GetEnergy(const mfem::Vector &x) const
 {
-		// build new DGD operators
+	// build new DGD operators
 	fes_dgd->buildProlongationMatrix(x);
-
 
 	UMFPackSolver umfsolver;
 	umfsolver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
