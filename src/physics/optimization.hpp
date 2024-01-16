@@ -70,6 +70,54 @@ namespace mach
       std::unique_ptr<mfem::UMFPackSolver> solver;
    };
 
+   class LinearProblem : public OptProblem
+   {
+   public:
+      /// class constructor
+      /// \param[in] opt_file_name - option file
+      /// \param[in] initail - initial condition
+      /// \param[in] smesh - mesh file
+      LinearProblem(mfem::Vector init,
+                    const std::string &opt_file_name = std::string("mach_options.json"),
+                    std::unique_ptr<mfem::Mesh> smesh = nullptr);
+
+      void InitializeSolver(mfem::VectorFunctionCoefficient &velocity,
+                            mfem::FunctionCoefficient &inflow) override;
+
+      void SetInitialCondition(void (*u_init)(const mfem::Vector &,
+                                              mfem::Vector &));
+
+      void SetInitialCondition(const mfem::Vector uic);
+
+      double GetEnergy(const mfem::Vector &x);
+
+      /// compute the jacobian of the functional w.r.t the design variable
+      void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
+
+      void printSolution(const mfem::Vector &c, const std::string &file_name);
+      /// class destructor
+      ~LinearOptimizer()
+      {
+      }
+
+   protected:
+      // aux variables
+      mfem::Array<int> outflux_bdr;
+      mfem::Array<int> influx_bdr;
+
+      // the constraints
+      std::unique_ptr<mfem::BilinearForm> res_dgd = nullptr;
+      std::unique_ptr<mfem::BilinearForm> res_full = nullptr;
+
+      // rhs operator
+      mfem::Vector b_dgd;
+      std::unique_ptr<mfem::LinearForm> b_full = nullptr;
+
+      // save operators for convenient
+      mfem::SparseMatrix *k_full = nullptr;
+      mfem::SparseMatrix *k_dgd = nullptr;
+   };
+
    class EulerProblem : public OptProblem
    {
    public:
