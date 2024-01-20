@@ -36,7 +36,7 @@ namespace mfem
       void buildElementPolyBasisMat(const int el_id,
                                     const mfem::Vector &basisCenter,
                                     const int numDofs,
-                                    const mfem::Array<mfem::Vector *> &dofs_coord,
+                                    const mfem::Array<mfem::Vector> &dofs_coord,
                                     mfem::DenseMatrix &V,
                                     mfem::DenseMatrix &Vn) const;
 
@@ -57,7 +57,7 @@ namespace mfem
       void buildElementDerivMat(const int el_id, const int b_id,
                                 const mfem::Vector &basisCenter,
                                 const int xyz, const int numDofs,
-                                const mfem::Array<mfem::Vector *> &dofs_coord,
+                                const mfem::Array<mfem::Vector> &dofs_coord,
                                 mfem::DenseMatrix &dV) const;
 
       void AssembleDerivMatrix(const int el_id, const DenseMatrix &dpdc_block,

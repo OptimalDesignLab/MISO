@@ -59,15 +59,6 @@ namespace mfem
 
       double Zoom(double alpha_low, double alpha_hi, double phi_low, double phi_init,
                   double dphi_init, const mfem::Vector &x, const mfem::Vector &c);
-
-      // double InterpStep(const double &alpha_low, const double &alpha_hi,
-      //                   const double &f_low, const double &f_hi,
-      //                   const double &df_low, const double &df_hi,
-      //                   const bool &deriv_hi);
-
-      // double QuadraticStep(const double &alpha_low, const double &alpha_hi
-      //                      const double &f_low, const double &f_hi,
-      //                      const double &df_low);
    };
 
 } // end of name space mfem

@@ -52,10 +52,24 @@ namespace mach
 		fes_full.reset(new FiniteElementSpace(mesh.get(), fec.get(), num_state,
 																					Ordering::byVDIM));
 
-		// 2. initialize solver
-		solver.reset(new UMFPackSolver());
+		// 2. grid function
+		u_dgd.reset(new CentGridFunction(fes_dgd.get()));
+		u_full.reset(new GridFunction(fes_full.get()));
+		*u_full = 0.0;
+		*u_dgd = 0.0;
 
-		// 3. print basic data
+		res_dgd.reset(new BilinearForm(fes_dgd.get()));
+		res_full.reset(new BilinearForm(fes_full.get()));
+		b_dgd.SetSize(fes_dgd->GetTrueVSize());
+		b_full.reset(new LinearForm(fes_full.get()));
+
+		// 3. variable size
+		ROMSize = u_dgd->Size();
+		FullSize = u_full->Size();
+		numDesignVar = designVar.Size();
+		numBasis = numDesignVar / dim;
+
+		// 4. print basic data
 		cout << "dgd_degree is: " << dgd_degree << '\n';
 		cout << "u_dgd size is " << u_dgd->Size() << '\n';
 		cout << "u_full size is " << u_full->Size() << '\n';
@@ -63,6 +77,9 @@ namespace mach
 		cout << "DGD model size is " << num_state * dynamic_cast<DGDSpace *>(fes_dgd.get())->GetNDofs() << '\n';
 		cout << "res_full size is " << res_full->Height() << " x " << res_full->Width() << '\n';
 		cout << "res_dgd size is " << res_dgd->Height() << " x " << res_dgd->Width() << '\n';
+
+		// 5. initialize solver
+		solver.reset(new UMFPackSolver());
 	}
 
 	void LinearProblem::InitializeSolver(mfem::VectorFunctionCoefficient &velocity,
