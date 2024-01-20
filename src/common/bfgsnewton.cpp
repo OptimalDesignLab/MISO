@@ -22,9 +22,9 @@ namespace mfem
       zoom_max_iter = 50;
    }
 
-   void BFGSNewtonSolver::SetOperator(Operator &op)
+   void BFGSNewtonSolver::SetOperator(OptProblem *op)
    {
-      oper = dynamic_cast<LinearOptimizer *>(&op);
+      oper = op;
    }
 
    void BFGSNewtonSolver::Mult(Vector &x, Vector &opt)
@@ -52,7 +52,7 @@ namespace mfem
       int it;
       double norm0, norm_goal;
 
-      norm0 = norm = dynamic_cast<LinearOptimizer *>(oper)->GetEnergy(x);
+      norm0 = norm = oper->GetEnergy(x);
       norm_goal = std::max(rel_tol * norm, abs_tol);
       cout << "norm goal is " << norm_goal << '\n';
       cout << "initial objective value is " << norm0 << '\n';
@@ -104,7 +104,7 @@ namespace mfem
          x += c;
 
          // update objective new value and derivative
-         norm = dynamic_cast<LinearOptimizer *>(oper)->GetEnergy(x);
+         norm = oper->GetEnergy(x);
          cout << "new objective value is " << norm << '\n';
 
          // update hessian
@@ -178,7 +178,7 @@ namespace mfem
       {
          // evalueate the new function value
          add(x, alpha_new, c, x_new);
-         phi_new = dynamic_cast<LinearOptimizer *>(oper)->GetEnergy(x_new);
+         phi_new = oper->GetEnergy(x_new);
          // check if the step violates the sdc,
          // or when i > 0, new phi is greater than the old, then zoom
          if ((phi_new > phi_init + c1 * alpha_new * dphi_init) ||
@@ -246,7 +246,7 @@ namespace mfem
       {
          alpha_new = (alpha_low + alpha_hi) / 2.0;
          add(x, alpha_new, c, x_new);
-         phi_new = dynamic_cast<LinearOptimizer *>(oper)->GetEnergy(x_new);
+         phi_new = oper->GetEnergy(x_new);
 
          // the SDC condition is not met
          if (phi_new > phi_0 + c1 * alpha_new * dphi_0 || phi_new > phi_low)

@@ -39,12 +39,12 @@ namespace mach
       }
 
       // compute the full residual norm
-      virtual double GetEnergy(const mfem::Vector &x) = 0;
+      virtual double GetEnergy(const mfem::Vector &x) const = 0;
 
       /// @brief  Compute the jacobian of the functional w.r.t to the design variable
       /// @param x - State of design variable of the jacobian
       /// @param y - Jacobian of the design variable
-      virtual void Mult(const mfem::Vector &x, mfem::Vector &y) = 0;
+      // virtual void Mult(const mfem::Vector &x, mfem::Vector &y) = 0;
 
    protected:
       nlohmann::json options;
@@ -66,8 +66,8 @@ namespace mach
       std::unique_ptr<mfem::GridFunction> u_full;
 
       // nonlinear and linear solver
-      std::unique_ptr<mfem::NewtonSolver> newton_solver;
-      std::unique_ptr<mfem::UMFPackSolver> solver;
+      std::unique_ptr<mfem::NewtonSolver> newton_solver = nullptr;
+      std::unique_ptr<mfem::UMFPackSolver> solver = nullptr;
    };
 
    class LinearProblem : public OptProblem
@@ -84,21 +84,16 @@ namespace mach
       void InitializeSolver(mfem::VectorFunctionCoefficient &velocity,
                             mfem::FunctionCoefficient &inflow) override;
 
-      void SetInitialCondition(void (*u_init)(const mfem::Vector &,
-                                              mfem::Vector &));
-
       void SetInitialCondition(const mfem::Vector uic);
 
-      double GetEnergy(const mfem::Vector &x);
+      double GetEnergy(const mfem::Vector &x) const override;
 
       /// compute the jacobian of the functional w.r.t the design variable
       void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
-      void printSolution(const mfem::Vector &c, const std::string &file_name);
+      // void printSolution(const mfem::Vector &c, const std::string &file_name);
       /// class destructor
-      ~LinearOptimizer()
-      {
-      }
+      ~LinearProblem();
 
    protected:
       // aux variables
@@ -136,10 +131,10 @@ namespace mach
 
       void SetInitialCondition(const mfem::Vector uic);
 
-      double GetEnergy(const mfem::Vector &x) override;
+      double GetEnergy(const mfem::Vector &x) const override;
 
       /// compute the jacobian of the functional w.r.t the design variable
-      void Mult(const mfem::Vector &x, mfem::Vector &y) override;
+      void Mult(const mfem::Vector &x, mfem::Vector &y) const override;
 
       void addVolumeIntegrators(double alpha);
       void addBoundaryIntegrators(double alpha);

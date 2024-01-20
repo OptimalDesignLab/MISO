@@ -7,8 +7,6 @@ target_sources(mach
       solver.hpp
 		optimization.cpp
 		optimization.hpp
-      linear_optimization.hpp
-      linear_optimization.cpp
 )
 
 target_include_directories(mach

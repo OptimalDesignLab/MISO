@@ -35,7 +35,7 @@ namespace mach
 	LinearProblem::LinearProblem(mfem::Vector init,
 															 const std::string &opt_file_name,
 															 std::unique_ptr<mfem::Mesh> smesh)
-			: OptProblem(init, opt_file_name, smesh)
+			: OptProblem(init, opt_file_name, std::move(smesh))
 	{
 		cout << "============ Initializing Linear optimization problem =============\n";
 		// 1.  Basic data
@@ -52,6 +52,10 @@ namespace mach
 		fes_full.reset(new FiniteElementSpace(mesh.get(), fec.get(), num_state,
 																					Ordering::byVDIM));
 
+		// 2. initialize solver
+		solver.reset(new UMFPackSolver());
+
+		// 3. print basic data
 		cout << "dgd_degree is: " << dgd_degree << '\n';
 		cout << "u_dgd size is " << u_dgd->Size() << '\n';
 		cout << "u_full size is " << u_full->Size() << '\n';
@@ -102,30 +106,168 @@ namespace mach
 		k_dgd = &res_dgd->SpMat();
 	}
 
-	DGDOptimizer::DGDOptimizer(Vector init,
+	void LinearProblem::Mult(const mfem::Vector &x, mfem::Vector &y) const
+	{
+		// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
+		y.SetSize(numDesignVar); // set y as pJpc
+		Vector pJpuc(ROMSize);
+
+		/// first compute some variables that used multiple times
+		// 1. get pRpu, pR_dgd/pu_dgd
+		SparseMatrix *pRpu = k_full;
+		SparseMatrix *pR_dgdpuc = k_dgd;
+
+		ofstream prpu_save("prpu.txt");
+		pRpu->PrintMatlab(prpu_save);
+		prpu_save.close();
+
+		ofstream prdgdpuc_save("prdgdpuc.txt");
+		pR_dgdpuc->PrintMatlab(prdgdpuc_save);
+		prdgdpuc_save.close();
+
+		// 2. compute full residual
+		Vector r(FullSize);
+		k_full->Mult(*u_full, r);
+		r -= *b_full;
+		cout << "f1\n";
+
+		ofstream r_save("r_full.txt");
+		r.Print(r_save, 1);
+		r_save.close();
+
+		/// loop over all design variables
+		Vector ppupc_col(FullSize);
+		Vector dptpc_col(ROMSize);
+
+		DenseMatrix pPupc(FullSize, numDesignVar);
+		DenseMatrix pPtpcR(ROMSize, numDesignVar);
+		for (int i = 0; i < numDesignVar; i++)
+		{
+			SparseMatrix *dPdci = new SparseMatrix(FullSize, ROMSize);
+			// get dpdc
+			fes_dgd->GetdPdc(i, x, *dPdci);
+
+			// colume of intermediate pPu/pc
+			dPdci->Mult(*u_dgd, ppupc_col);
+			pPupc.SetCol(i, ppupc_col);
+
+			// colume of pPt / pc * R
+			dPdci->MultTranspose(r, dptpc_col);
+			pPtpcR.SetCol(i, dptpc_col);
+			delete dPdci;
+		}
+		cout << "f2\n";
+
+		ofstream ppupc_save("ppupc.txt");
+		pPupc.PrintMatlab(ppupc_save);
+		ppupc_save.close();
+
+		ofstream pptpcr_save("pptpcr.txt");
+		pPtpcR.PrintMatlab(pptpcr_save);
+		pptpcr_save.close();
+
+		// compute pJ/pc
+		Vector temp_vec1(FullSize);
+		pRpu->MultTranspose(r, temp_vec1);
+		pPupc.MultTranspose(temp_vec1, y);
+		y *= 2.0;
+		cout << "f3\n";
+
+		ofstream pjpc_save("pjpc.txt");
+		y.Print(pjpc_save, 1);
+		pjpc_save.close();
+
+		// compute pJ/puc
+		SparseMatrix *p = fes_dgd->GetCP();
+		p->MultTranspose(temp_vec1, pJpuc);
+		pJpuc *= 2.0;
+		cout << "f4\n";
+
+		ofstream p_save("p.txt");
+		p->PrintMatlab(p_save);
+		p_save.close();
+
+		ofstream pjpuc_save("pjpuc.txt");
+		pJpuc.Print(pjpuc_save, 1);
+		pjpuc_save.close();
+
+		// compute pR_dgd / pc
+		DenseMatrix *temp_mat1 = ::Mult(*pRpu, pPupc);
+		SparseMatrix *Pt = Transpose(*p);
+		DenseMatrix *pR_dgdpc = ::Mult(*Pt, *temp_mat1);
+
+		*pR_dgdpc += pPtpcR;
+		delete temp_mat1;
+		cout << "f5\n";
+
+		ofstream pt_save("pt.txt");
+		Pt->PrintMatlab(pt_save);
+		pt_save.close();
+		delete Pt;
+
+		ofstream prdgdpc_save("prdgdpc.txt");
+		pR_dgdpc->PrintMatlab(prdgdpc_save);
+		prdgdpc_save.close();
+
+		// solve for adjoint variable
+		Vector adj(ROMSize);
+		SparseMatrix *pRt_dgdpuc = Transpose(*pR_dgdpuc);
+
+		solver->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+		solver->SetPrintLevel(1);
+		solver->SetOperator(*pRt_dgdpuc);
+		solver->Mult(pJpuc, adj);
+		delete pRt_dgdpuc;
+		cout << "f6\n";
+
+		ofstream adj_save("adj.txt");
+		adj.Print(adj_save, 1);
+		adj_save.close();
+
+		// compute the total derivative
+		Vector temp_vec2(numDesignVar);
+		pR_dgdpc->Transpose();
+		pR_dgdpc->Mult(adj, temp_vec2);
+		y -= temp_vec2;
+		cout << "f7\n";
+
+		ofstream djdc_save("djdc.txt");
+		y.Print(djdc_save, 1);
+		djdc_save.close();
+
+		delete pR_dgdpc;
+	}
+
+	double LinearProblem::GetEnergy(const mfem::Vector &x) const
+	{
+		// build new DGD operators
+		fes_dgd->buildProlongationMatrix(x);
+
+		solver->SetOperator(*k_dgd);
+		solver->Mult(b_dgd, *u_dgd);
+
+		SparseMatrix *p = fes_dgd->GetCP();
+		p->Mult(*u_dgd, *u_full);
+		Vector r(FullSize);
+		k_full->Mult(*u_full, r);
+		return r * r;
+	}
+
+	LinearProblem::~LinearProblem()
+	{
+		cout << "deleting linear advection problem optimizer...\n";
+	}
+
+	EulerProblem::EulerProblem(mfem::Vector init,
 														 const string &opt_file_name,
 														 unique_ptr<mfem::Mesh> smesh)
-			: Operator(0), designVar(init)
+			: OptProblem(init, opt_file_name, std::move(smesh))
 	{
-		// get the option file
-		options = default_options;
-		nlohmann::json file_options;
-		ifstream options_file(opt_file_name);
-		options_file >> file_options;
-		options.merge_patch(file_options);
-		cout << setw(3) << options << endl;
-
-		// construct mesh
-		if (smesh == nullptr)
-		{
-			smesh.reset(new Mesh(options["mesh"]["file"].get<string>().c_str(), 1, 1));
-		}
-		mesh.reset(new Mesh(*smesh));
-		dim = mesh->Dimension();
+		cout << "============ Initializing Euler optimization problem =============\n";
 		num_state = dim + 2;
-		cout << "Number of elements: " << mesh->GetNE() << '\n';
+		cout << "Problem dimension: " << dim << '\n';
+		cout << "Number of State: " << num_state << '\n';
 
-		// construct fespaces
 		int dgd_degree = options["space-dis"]["DGD-degree"].get<int>();
 		int extra = options["space-dis"]["extra-basis"].get<int>();
 		fec.reset(new DSBPCollection(options["space-dis"]["degree"].get<int>(), dim));
@@ -167,13 +309,12 @@ namespace mach
 		}
 	}
 
-	void DGDOptimizer::InitializeSolver()
+	void EulerProblem::InitializeSolver()
 	{
 		addVolumeIntegrators(1.0);
 		addBoundaryIntegrators(1.0);
 		addInterfaceIntegrators(1.0);
 
-		cout << "Initialize solvers in DGD optimization.\n";
 		// linear solver
 		solver.reset(new UMFPackSolver());
 		solver.get()->Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
@@ -193,7 +334,7 @@ namespace mach
 		newton_solver->SetMaxIter(nmaxiter);
 	}
 
-	void DGDOptimizer::SetInitialCondition(void (*u_init)(const mfem::Vector &,
+	void EulerProblem::SetInitialCondition(void (*u_init)(const mfem::Vector &,
 																												mfem::Vector &))
 	{
 		VectorFunctionCoefficient u0(num_state, u_init);
@@ -207,7 +348,7 @@ namespace mach
 		cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
 	}
 
-	void DGDOptimizer::SetInitialCondition(const mfem::Vector uic)
+	void EulerProblem::SetInitialCondition(const mfem::Vector uic)
 	{
 		VectorConstantCoefficient u0(uic);
 		u_full->ProjectCoefficient(u0);
@@ -220,7 +361,7 @@ namespace mach
 		cout << "After projection, the difference norm is " << u_test.Norml2() << '\n';
 	}
 
-	double DGDOptimizer::GetEnergy(const Vector &x) const
+	double EulerProblem::GetEnergy(const Vector &x) const
 	{
 		// build new DGD operators
 		fes_dgd->buildProlongationMatrix(x);
@@ -238,7 +379,7 @@ namespace mach
 		return r * r;
 	}
 
-	void DGDOptimizer::Mult(const Vector &x, Vector &y) const
+	void EulerProblem::Mult(const Vector &x, Vector &y) const
 	{
 		// dJ/dc = pJ/pc - pJ/puc * (pR_dgd/puc)^{-1} * pR_dgd/pc
 		y.SetSize(numDesignVar); // set y as pJpc
@@ -361,7 +502,7 @@ namespace mach
 		delete pR_dgdpc;
 	}
 
-	void DGDOptimizer::addVolumeIntegrators(double alpha)
+	void EulerProblem::addVolumeIntegrators(double alpha)
 	{
 		double lps_coeff = options["space-dis"]["lps-coeff"].get<double>();
 		res_full->AddDomainIntegrator(new IsmailRoeIntegrator<2, false>(diff_stack, 1.0));
@@ -378,7 +519,7 @@ namespace mach
 		}
 	}
 
-	void DGDOptimizer::addBoundaryIntegrators(double alpha)
+	void EulerProblem::addBoundaryIntegrators(double alpha)
 	{
 		auto &bcs = options["bcs"];
 		bndry_marker.resize(bcs.size());
@@ -455,14 +596,14 @@ namespace mach
 		}
 	}
 
-	void DGDOptimizer::addInterfaceIntegrators(double alpha)
+	void EulerProblem::addInterfaceIntegrators(double alpha)
 	{
 		double diss_coeff = options["space-dis"]["iface-coeff"].get<double>();
 		res_full->AddInteriorFaceIntegrator(new InterfaceIntegrator<2, false>(diff_stack, diss_coeff, fec.get(), alpha));
 		res_dgd->AddInteriorFaceIntegrator(new InterfaceIntegrator<2, false>(diff_stack, diss_coeff, fec.get(), alpha));
 	}
 
-	void DGDOptimizer::getFreeStreamState(mfem::Vector &q_ref)
+	void EulerProblem::getFreeStreamState(mfem::Vector &q_ref)
 	{
 		q_ref = 0.0;
 		q_ref(0) = 1.0;
@@ -478,7 +619,7 @@ namespace mach
 		q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
 	}
 
-	void DGDOptimizer::checkJacobian(Vector &x)
+	void EulerProblem::checkJacobian(Vector &x)
 	{
 		Vector b(numBasis);
 		newton_solver->Mult(b, *u_dgd);
@@ -506,7 +647,7 @@ namespace mach
 		cout << ", difference norm is " << dJdc_fd.Norml2() << '\n';
 	}
 
-	void DGDOptimizer::printSolution(const Vector &c, const std::string &file_name)
+	void EulerProblem::printSolution(const Vector &c, const std::string &file_name)
 	{
 		// TODO: These mfem functions do not appear to be parallelized
 		fes_dgd->buildProlongationMatrix(c);
@@ -520,9 +661,9 @@ namespace mach
 		initial.close();
 	}
 
-	DGDOptimizer::~DGDOptimizer()
+	EulerProblem::~EulerProblem()
 	{
-		cout << "Deleting the DGD optmization..." << '\n';
+		cout << "Deleting the Euler problem optimization..." << '\n';
 	}
 
 } // namespace mfem
