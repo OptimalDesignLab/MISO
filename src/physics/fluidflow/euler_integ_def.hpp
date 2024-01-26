@@ -541,7 +541,7 @@ void FarFieldBC<dim, entvar>::calcFlux(const mfem::Vector &x,
                                        const mfem::Vector &q,
                                        mfem::Vector &flux_vec)
 {
-   calcFarFieldFlux<double, dim, entvar>(dir.GetData(),
+   calcFarFieldFlux2<double, dim, entvar>(dir.GetData(),
                                          qfs.GetData(),
                                          q.GetData(),
                                          work_vec.GetData(),
@@ -567,7 +567,7 @@ void FarFieldBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
+   mach::calcFarFieldFlux2<adouble, dim, entvar>(dir_a.data(),
                                                 qfs_a.data(),
                                                 q_a.data(),
                                                 work_vec_a.data(),
@@ -596,7 +596,7 @@ void FarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
+   mach::calcFarFieldFlux2<adouble, dim, entvar>(dir_a.data(),
                                                 qfs_a.data(),
                                                 q_a.data(),
                                                 work_vec_a.data(),
@@ -971,9 +971,27 @@ double BoundaryEntropy<dim, entvar>::calcBndryFun(const mfem::Vector &x,
 {
    // evaluate the entropy, then return the scaled value
    double S = entropy<double, dim, entvar>(q.GetData());
+   double press = pressure<double, dim>(q.GetData());
+   S += euler::rho_ref*(press - euler::press_ref)/euler::press_ref;
    double scale = control_scale(len_scale, x_actuator, x);
    double dA = sqrt(dot<double, dim>(dir.GetData(), dir.GetData()));
    return scale * S * dA;
+}
+
+template <int dim, bool entvar>
+double SupplyRate<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                             const mfem::Vector &dir,
+                                             const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFarFieldFlux2<double, dim, entvar>(dir.GetData(),
+                                          qfs.GetData(),
+                                          q.GetData(),
+                                          work_vec.GetData(),
+                                          flux_vec.GetData());
+   mfem::Vector w(q.Size());
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
+   return dot<double, dim>(dir.GetData(), q.GetData()+1) - w * flux_vec;
 }
 
 }  // namespace mach

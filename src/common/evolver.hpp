@@ -90,6 +90,13 @@ public:
                                 const mfem::Vector &state,
                                 const mfem::Vector &k) = 0;
 
+   virtual double SupplyRate(double dt,
+                             const mfem::Vector &state,
+                             const mfem::Vector &k)
+   {
+      return 0.0;
+   }
+
    using mfem::TimeDependentOperator::ImplicitSolve;
 
    // /// Variant of `mfem::ImplicitSolve` for entropy constrained systems

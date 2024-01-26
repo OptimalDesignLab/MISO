@@ -796,6 +796,18 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
           std::move(bdrs));
       return fun_out;
    }
+   else if (fun == "far-field-supply-rate")
+   {
+      // This is the source term for the entropy balance equation
+      auto bdrs = options["boundaries"].get<vector<int>>();
+      FunctionalOutput fun_out(fes, *fields);
+      Vector qfar(dim + 2);
+      getFreeStreamState(qfar);
+      fun_out.addOutputBdrFaceIntegrator(
+          new SupplyRate<dim, entvar>(stack, fes.FEColl(), qfar),
+          std::move(bdrs));
+      return fun_out;
+   }
    else
    {
       throw MachException("Output with name " + fun +
