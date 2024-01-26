@@ -384,7 +384,7 @@ public:
                        const mfem::Vector &dir,
                        const mfem::Vector &q);
 
-   /// Compute an adjoint-consistent slip-wall boundary flux
+   /// Compute the far-field boundary flux
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - conservative variables at which to evaluate the flux
@@ -394,7 +394,7 @@ public:
                  const mfem::Vector &q,
                  mfem::Vector &flux_vec);
 
-   /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `q`
+   /// Compute the Jacobian of the far-field boundary flux w.r.t. `q`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - conservative variables at which to evaluate the flux
@@ -404,7 +404,7 @@ public:
                          const mfem::Vector &q,
                          mfem::DenseMatrix &flux_jac);
 
-   /// Compute the Jacobian of the slip-wall boundary flux w.r.t. `dir`
+   /// Compute the Jacobian of the far-field boundary flux w.r.t. `dir`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - conservative variables at which to evaluate the flux
@@ -420,6 +420,264 @@ private:
    /// Work vector for boundary flux computation
    mfem::Vector work_vec;
 };
+
+/// Integrator for inviscid, time-dependent, entropy conservative BCs
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class EntropyConserveBC
+ : public InviscidBoundaryIntegrator<EntropyConserveBC<dim, entvar>>
+{
+public:
+   using BCFun =
+       std::function<void(double, const mfem::Vector &, mfem::Vector &)>;
+
+   /// Constructs an integrator for an entropy conservative boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] bnd_state - function that determines boundary value
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   /// \note `bnd_state` takes in the time and spatial position and outputs the
+   /// boundary conservative variable state.
+   EntropyConserveBC(adept::Stack &diff_stack,
+                     const mfem::FiniteElementCollection *fe_coll,
+                     BCFun bnd_state,
+                     double a = 1.0)
+    : InviscidBoundaryIntegrator<EntropyConserveBC<dim, entvar>>(diff_stack,
+                                                                 fe_coll,
+                                                                 dim + 2,
+                                                                 a),
+      bc_fun(bnd_state),
+      work1(dim + 2),
+      work2(dim + 2)
+   { }
+
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Compute the boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec);
+
+   /// Compute the Jacobian of the boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute the Jacobian of the boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
+
+   /// Set the time variable for the integrator
+   /// \param[in/out] integ - the boundary integrator whose time is being set
+   /// \param[in] inputs - holds the time value
+   friend void setInputs(EntropyConserveBC &integ,
+                         const miso::MisoInputs &inputs)
+   {
+      setValueFromInputs(inputs, "time", integ.t);
+   }
+
+private:
+   /// stores the current time
+   double t;
+   /// reference to the boundary condition function
+   BCFun bc_fun;
+   /// Work vector for boundary flux computation
+   mfem::Vector work1;
+   /// Work vector
+   mfem::Vector work2;
+};
+
+/// Integrator for inviscid, boundary-control BCs
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class ControlBC : public InviscidBoundaryIntegrator<ControlBC<dim, entvar>>
+{
+public:
+   using BCScaleFun = std::function<
+       double(double, const mfem::Vector &, const mfem::Vector &)>;
+
+   /// Constructs an integrator for a control-based boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] scale - function that scales the control
+   /// \param[in] xc - position of the control actuator
+   /// \param[in] len - length scale that determines decay rate of control
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   ControlBC(adept::Stack &diff_stack,
+             const mfem::FiniteElementCollection *fe_coll,
+             BCScaleFun scale,
+             const mfem::Vector &xc,
+             double len = 1.0,
+             double a = 1.0)
+    : InviscidBoundaryIntegrator<ControlBC<dim, entvar>>(diff_stack,
+                                                         fe_coll,
+                                                         dim + 2,
+                                                         a),
+      len_scale(len),
+      x_actuator(xc),
+      control(0.0),
+      control_scale(scale),
+      work1(dim + 2),
+      work2(dim + 2)
+   { }
+
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - state variable at which to evaluate the flux
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Compute the boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec);
+
+   /// Compute the Jacobian of the boundary flux w.r.t. `q`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute the Jacobian of the boundary flux w.r.t. `dir`
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac);
+
+   /// Set the control for the integrator
+   /// \param[in/out] integ - the boundary integrator whose control is being set
+   /// \param[in] inputs - holds the control value
+   friend void setInputs(ControlBC &integ, const miso::MisoInputs &inputs)
+   {
+      setValueFromInputs(inputs, "control", integ.control);
+      setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
+   }
+
+private:
+   /// length scale that determine range of influence of control
+   double len_scale;
+   /// position of the actuator
+   mfem::Vector x_actuator;
+   /// The value of the control at a particular time instance
+   double control;
+   /// This function scales the control based on spatial location
+   BCScaleFun control_scale;
+   /// Work vector for boundary flux computation
+   mfem::Vector work1;
+   /// Work vector
+   mfem::Vector work2;
+};
+
+// /// Integrator for exact, prescribed BCs (with zero normal derivative)
+// /// \tparam dim - number of spatial dimensions (1, 2, or 3)
+// /// \note This derived class uses CRTP
+// template<int dim>
+// class InviscidExactBC : public InviscidBoundaryIntegrator<InviscidExactBC<dim>>
+// {
+// public:
+//    using exactFun = std::function<void(const mfem::Vector &, mfem::Vector &)>;
+
+//    /// Constructs an integrator for inviscid exact BCs
+//    /// \param[in] diff_stack - for algorithmic differentiation
+//    /// \param[in] fe_coll - used to determine face elements
+//    /// \param[in] fun - Exact function Fun used
+//    /// \param[in] q_far - state at the far-field
+//    /// \param[in] a - used to move the residual to lhs (1.0) or rhs (-1.0)
+//    InviscidExactBC(adept::Stack &diff_stack,
+//                    const mfem::FiniteElementCollection *fe_coll,
+//                    exactFun fun,
+//                    double a = -1.0
+//                    )
+//       : InviscidBoundaryIntegrator<InviscidExactBC<dim>>(diff_stack, fe_coll, dim+2, a),
+//       exactSolution(fun), qexact(dim+2), work_vec(dim+2)
+//       { }
+
+//    /// Contracts flux with the entropy variables
+//    /// \param[in] x - coordinate location at which flux is evaluated
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - state variable at which to evaluate the flux
+//    double calcBndryFun(const mfem::Vector &x,
+//                        const mfem::Vector &dir,
+//                        const mfem::Vector &q);
+
+//    /// Compute the far-field boundary flux
+//    /// \param[in] x - coordinate location at which flux is evaluated (not used)
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - conservative variables at which to evaluate the flux
+//    /// \param[out] flux_vec - value of the flux
+//    void calcFlux(const mfem::Vector &x,
+//                  const mfem::Vector &dir,
+//                  const mfem::Vector &q,
+//                  mfem::Vector &flux_vec);
+
+//    /// Compute the Jacobian of the far-field boundary flux w.r.t. `q`
+//    /// \param[in] x - coordinate location at which flux is evaluated (not used)
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - conservative variables at which to evaluate the flux
+//    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `q`
+//    void calcFluxJacState(const mfem::Vector &x,
+//                          const mfem::Vector &dir,
+//                          const mfem::Vector &q,
+//                          mfem::DenseMatrix &flux_jac);
+
+//    /// Compute the Jacobian of the far-field boundary flux w.r.t. `dir`
+//    /// \param[in] x - coordinate location at which flux is evaluated (not used)
+//    /// \param[in] dir - vector normal to the boundary at `x`
+//    /// \param[in] q - conservative variables at which to evaluate the flux
+//    /// \param[out] flux_jac - Jacobian of `flux` w.r.t. `dir`
+//    void calcFluxJacDir(const mfem::Vector &x,
+//                        const mfem::Vector &dir,
+//                        const mfem::Vector &q,
+//                        mfem::DenseMatrix &flux_jac);
+
+// private:
+//    exactFun exactSolution;
+//    /// far-field boundary state
+//    mfem::Vector qexact;
+//    /// work space for flux computations
+//    mfem::Vector work_vec;
+// };
 
 /// Interface integrator for the DG method
 /// \tparam dim - number of spatial dimension (1, 2 or 3)
@@ -512,19 +770,19 @@ public:
    { }
 
    /// Return an adjoint-consistent slip-wall normal (pressure) stress term
-   /// \param[in] x - coordinate location at which stress is evaluated (not
-   /// used) \param[in] dir - vector normal to the boundary at `x` \param[in] q
-   /// - conservative variables at which to evaluate the stress \returns
-   /// conmponent of stress due to pressure in `force_nrm` direction
+   /// \param[in] x - coordinate location at which stress is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \returns conmponent of stress due to pressure in `force_nrm` direction
    double calcBndryFun(const mfem::Vector &x,
                        const mfem::Vector &dir,
                        const mfem::Vector &q);
 
    /// Returns the gradient of the stress with respect to `q`
-   /// \param[in] x - coordinate location at which stress is evaluated (not
-   /// used) \param[in] dir - vector normal to the boundary at `x` \param[in] q
-   /// - conservative variables at which to evaluate the stress \param[out]
-   /// flux_vec - derivative of stress with respect to `q`
+   /// \param[in] x - coordinate location at which stress is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \param[out] flux_vec - derivative of stress with respect to `q`
    void calcFlux(const mfem::Vector &x,
                  const mfem::Vector &dir,
                  const mfem::Vector &q,
@@ -569,8 +827,8 @@ public:
    { }
 
    /// Return the entropy for the state `u`
-   /// \param[in] x - coordinate location at which stress is evaluated (not
-   /// used) \param[in] u - state variables at which to evaluate the entropy
+   /// \param[in] x - coordinate location at which stress is evaluated
+   /// \param[in] u - state variables at which to evaluate the entropy
    /// \returns mathematical entropy based on `u`
    double calcVolFun(const mfem::Vector &x, const mfem::Vector &u);
 
@@ -591,6 +849,146 @@ public:
                        const mfem::Vector &u,
                        mfem::DenseMatrix &flux_jac)
    { }
+};
+
+/// Integrator for weighted entropy over the boundary (for flow-control)
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class BoundaryEntropy
+ : public InviscidBoundaryIntegrator<BoundaryEntropy<dim, entvar>>
+{
+public:
+   using BCScaleFun = std::function<
+       double(double, const mfem::Vector &, const mfem::Vector &)>;
+
+   /// Constructs an integrator that computes weighted entropy
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] scale - scales the entropy (must match control scaling!!!)
+   /// \param[in] xc - position of the control actuator
+   /// \param[in] len - length scale that determines decay rate of control
+   BoundaryEntropy(adept::Stack &diff_stack,
+                   const mfem::FiniteElementCollection *fe_coll,
+                   BCScaleFun scale,
+                   const mfem::Vector &xc,
+                   double len = 1.0)
+    : InviscidBoundaryIntegrator<BoundaryEntropy<dim, entvar>>(diff_stack,
+                                                               fe_coll,
+                                                               dim + 2,
+                                                               1.0),
+      len_scale(len),
+      x_actuator(xc),
+      control_scale(scale)
+   { }
+
+   /// Returns the entropy, weighted by given scalar function, at a given point
+   /// \param[in] x - coordinate location at which entropy is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the stress
+   /// \returns scaled entropy
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Not used at present
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec)
+   { }
+
+   /// Not used
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Not used
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Set the inputs that define the integrator
+   /// \param[in/out] integ - the boundary integrator whose inputs are being set
+   /// \param[in] inputs - holds the actuator position
+   friend void setInputs(BoundaryEntropy &integ, const miso::MisoInputs &inputs)
+   {
+      setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
+   }
+
+private:
+   /// length scale that determine range of influence of control
+   double len_scale;
+   /// position of the actuator
+   mfem::Vector x_actuator;
+   /// This function scales the control based on spatial location
+   BCScaleFun control_scale;
+};
+
+/// Integrator for computing the far-field supply rate to the entropy
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class SupplyRate
+ : public InviscidBoundaryIntegrator<SupplyRate<dim, entvar>>
+{
+public:
+   /// Constructs an integrator that computes far-field supply rate
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+    /// \param[in] q_far - state at the far-field
+   SupplyRate(adept::Stack &diff_stack,
+                   const mfem::FiniteElementCollection *fe_coll,
+                   const mfem::Vector &q_far)
+    : InviscidBoundaryIntegrator<SupplyRate<dim, entvar>>(diff_stack,
+                                                          fe_coll,
+                                                          dim + 2,
+                                                          1.0),
+      qfs(q_far),
+      work_vec(dim + 2)
+   { }
+
+   /// Returns the supply-rate at a given point on the far field boundary
+   /// \param[in] x - coordinate location at which entropy is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate supply rate
+   /// \returns supply-rate at node x
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Not used at present
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec)
+   { }
+
+   /// Not used
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Not used
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac)
+   { }
+
+private:
+   /// Stores the far-field state
+   mfem::Vector qfs;
+   /// Work vector for boundary flux computation
+   mfem::Vector work_vec;
 };
 
 }  // namespace miso

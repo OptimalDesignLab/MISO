@@ -77,14 +77,7 @@ double IsmailRoeIntegrator<dim, entvar>::GetElementEnergy(
    {
       u.GetRow(i, u_i);
       res.GetRow(i, res_i);
-      if (entvar)
-      {
-         w_i = u_i;
-      }
-      else
-      {
-         calcEntropyVars<double, dim>(u_i.GetData(), w_i.GetData());
-      }
+      calcEntropyVars<double, dim, entvar>(u_i.GetData(), w_i.GetData());
       ent_change += w_i * res_i;
    }
    return ent_change;
@@ -129,7 +122,7 @@ void IsmailRoeIntegrator<dim, entvar>::calcFluxJacStates(
    // create vector of active output variables
    std::vector<adouble> flux_a(qL.Size());
    // run algorithm
-   if (entvar)
+   if constexpr (entvar)
    {
       miso::calcIsmailRoeFluxUsingEntVars<adouble, dim>(
           di, qL_a.data(), qR_a.data(), flux_a.data());
@@ -171,14 +164,7 @@ double EntStableLPSIntegrator<dim, entvar>::GetElementEnergy(
    {
       u.GetRow(i, u_i);
       res.GetRow(i, res_i);
-      if (entvar)
-      {
-         w_i = u_i;
-      }
-      else
-      {
-         calcEntropyVars<double, dim>(u_i.GetData(), w_i.GetData());
-      }
+      calcEntropyVars<double, dim, entvar>(u_i.GetData(), w_i.GetData());
       ent_change += w_i * res_i;
    }
    return ent_change;
@@ -188,15 +174,7 @@ template <int dim, bool entvar>
 void EntStableLPSIntegrator<dim, entvar>::convertVars(const mfem::Vector &q,
                                                       mfem::Vector &w)
 {
-   // This conditional should have no overhead, if the compiler is good
-   if (entvar)
-   {
-      w = q;
-   }
-   else
-   {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
 }
 
 template <int dim, bool entvar>
@@ -204,7 +182,7 @@ void EntStableLPSIntegrator<dim, entvar>::convertVarsJacState(
     const mfem::Vector &q,
     mfem::DenseMatrix &dwdu)
 {
-   if (entvar)
+   if constexpr (entvar)
    {
       dwdu = 0.0;
       for (int i = 0; i < dim + 2; ++i)
@@ -223,7 +201,7 @@ void EntStableLPSIntegrator<dim, entvar>::convertVarsJacState(
       // create vector of active output variables
       std::vector<adouble> w_a(q.Size());
       // run algorithm
-      calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+      calcEntropyVars<adouble, dim, entvar>(q_a.data(), w_a.data());
       // identify independent and dependent variables
       this->stack.independent(q_a.data(), q.Size());
       this->stack.dependent(w_a.data(), q.Size());
@@ -364,22 +342,14 @@ template <int dim, bool entvar>
 void MassIntegrator<dim, entvar>::convertVars(const mfem::Vector &u,
                                               mfem::Vector &q)
 {
-   // This conditional should have no overhead, if the compiler is good
-   if (entvar)
-   {
-      calcConservativeVars<double, dim>(u.GetData(), q.GetData());
-   }
-   else
-   {
-      q = u;
-   }
+   calcConservativeVars<double, dim, entvar>(u.GetData(), q.GetData());
 }
 
 template <int dim, bool entvar>
 void MassIntegrator<dim, entvar>::convertVarsJacState(const mfem::Vector &u,
                                                       mfem::DenseMatrix &dqdu)
 {
-   if (entvar)
+   if constexpr (entvar)
    {
       // vector of active input variables
       std::vector<adouble> u_a(u.Size());
@@ -390,7 +360,7 @@ void MassIntegrator<dim, entvar>::convertVarsJacState(const mfem::Vector &u,
       // create vector of active output variables
       std::vector<adouble> q_a(u.Size());
       // run algorithm
-      calcConservativeVars<adouble, dim>(u_a.data(), q_a.data());
+      calcConservativeVars<adouble, dim, true>(u_a.data(), q_a.data());
       // identify independent and dependent variables
       this->stack.independent(u_a.data(), u.Size());
       this->stack.dependent(q_a.data(), u.Size());
@@ -415,14 +385,7 @@ double IsentropicVortexBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(q.Size());
    calcFlux(x, dir, q, flux_vec);
    mfem::Vector w(q.Size());
-   if (entvar)
-   {
-      w = q;
-   }
-   else
-   {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -496,14 +459,7 @@ double SlipWallBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(q.Size());
    calcFlux(x, dir, q, flux_vec);
    mfem::Vector w(q.Size());
-   if (entvar)
-   {
-      w = q;
-   }
-   else
-   {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -575,14 +531,7 @@ double FarFieldBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
    mfem::Vector flux_vec(q.Size());
    calcFlux(x, dir, q, flux_vec);
    mfem::Vector w(q.Size());
-   if (entvar)
-   {
-      w = q;
-   }
-   else
-   {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
-   }
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
    return w * flux_vec;
 }
 
@@ -592,6 +541,7 @@ void FarFieldBC<dim, entvar>::calcFlux(const mfem::Vector &x,
                                        const mfem::Vector &q,
                                        mfem::Vector &flux_vec)
 {
+   // Note: change to calcFarFieldFlux2 when using affine trans. entropy
    calcFarFieldFlux<double, dim, entvar>(dir.GetData(),
                                          qfs.GetData(),
                                          q.GetData(),
@@ -618,6 +568,7 @@ void FarFieldBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
+   // Note: change to calcFarFieldFlux2 when using affine trans. entropy
    miso::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
                                                 qfs_a.data(),
                                                 q_a.data(),
@@ -647,11 +598,189 @@ void FarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
+   // Note: change to calcFarFieldFlux2 when using affine trans. entropy
    miso::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
                                                 qfs_a.data(),
                                                 q_a.data(),
                                                 work_vec_a.data(),
                                                 flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+double EntropyConserveBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                                    const mfem::Vector &dir,
+                                                    const mfem::Vector &q)
+{
+   calcFlux(x, dir, q, work1);
+   calcEntropyVars<double, dim, entvar>(q.GetData(), work2.GetData());
+   return work2 * work1;
+}
+
+template <int dim, bool entvar>
+void EntropyConserveBC<dim, entvar>::calcFlux(const mfem::Vector &x,
+                                              const mfem::Vector &dir,
+                                              const mfem::Vector &q,
+                                              mfem::Vector &flux_vec)
+{
+   // first, evaluate the boundary state, and store the ent vars in work2.
+   bc_fun(t, x, work1);
+   calcConservativeVars<double, dim, entvar>(q.GetData(), work2.GetData());
+   // Next, compute the target entropy flux
+   double Un = dot<double, dim>(work1.GetData() + 1, dir.GetData()) / work1(0);
+   double entflux = Un * entropy<double, dim>(work1.GetData());
+   // Evaluate the boundary flux
+   calcBoundaryFluxEC<double, dim>(dir.GetData(),
+                                   work1.GetData(),
+                                   work2.GetData(),
+                                   entflux,
+                                   flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+void EntropyConserveBC<dim, entvar>::calcFluxJacState(
+    const mfem::Vector &x,
+    const mfem::Vector &dir,
+    const mfem::Vector &q,
+    mfem::DenseMatrix &flux_jac)
+{
+   // evaluate the boundary state, which does not depend on state
+   bc_fun(t, x, work1);
+   // create containers for active double objects for each input
+   std::vector<adouble> work1_a(work1.Size());
+   std::vector<adouble> work2_a(work2.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(work1_a.data(), work1.Size(), work1.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcConservativeVars<adouble, dim, entvar>(q_a.data(), work2_a.data());
+   adouble Un_a =
+       dot<adouble, dim>(work1_a.data() + 1, dir_a.data()) / work1_a[0];
+   adouble entflux_a = Un_a * entropy<adouble, dim>(work1_a.data());
+   calcBoundaryFluxEC<adouble, dim>(
+       dir_a.data(), work1_a.data(), work2_a.data(), entflux_a, flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+void EntropyConserveBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
+                                                    const mfem::Vector &dir,
+                                                    const mfem::Vector &q,
+                                                    mfem::DenseMatrix &flux_jac)
+{
+   // evaluate the boundary state, which does not depend on state
+   bc_fun(t, x, work1);
+   // create containers for active double objects for each input
+   std::vector<adouble> work1_a(work1.Size());
+   std::vector<adouble> work2_a(work2.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(work1_a.data(), work1.Size(), work1.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcConservativeVars<adouble, dim, entvar>(q_a.data(), work2_a.data());
+   adouble Un_a =
+       dot<adouble, dim>(work1_a.data() + 1, dir_a.data()) / work1_a[0];
+   adouble entflux_a = Un_a * entropy<adouble, dim>(work1_a.data());
+   calcBoundaryFluxEC<adouble, dim>(
+       dir_a.data(), work1_a.data(), work2_a.data(), entflux_a, flux_a.data());
+   this->stack.independent(dir_a.data(), dir.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+double ControlBC<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                            const mfem::Vector &dir,
+                                            const mfem::Vector &q)
+{
+   // don't use work1 for flux here, since it is used in calcFlux
+   calcFlux(x, dir, q, work2);
+   calcEntropyVars<double, dim, entvar>(q.GetData(), work1.GetData());
+   return work2 * work1;
+}
+
+template <int dim, bool entvar>
+void ControlBC<dim, entvar>::calcFlux(const mfem::Vector &x,
+                                      const mfem::Vector &dir,
+                                      const mfem::Vector &q,
+                                      mfem::Vector &flux_vec)
+{
+   // use x to determine how we scale the control locally
+   double uc = control * control_scale(len_scale, x_actuator, x);
+   // convert variable to conservative, if necessary
+   calcConservativeVars<double, dim, entvar>(q.GetData(), work1.GetData());
+   // compute the flux
+   calcControlFlux<double, dim>(
+       dir.GetData(), work1.GetData(), uc, flux_vec.GetData());
+}
+
+template <int dim, bool entvar>
+void ControlBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
+                                              const mfem::Vector &dir,
+                                              const mfem::Vector &q,
+                                              mfem::DenseMatrix &flux_jac)
+{
+   // evaluate the scaled control, which does not depend on the flow state
+   adouble uc_a = control * control_scale(len_scale, x_actuator, x);
+   // create containers for active double objects for each input
+   std::vector<adouble> work1_a(work1.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(work1_a.data(), work1.Size(), work1.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcConservativeVars<adouble, dim, entvar>(q_a.data(), work1_a.data());
+   calcControlFlux<adouble, dim>(
+       dir_a.data(), work1_a.data(), uc_a, flux_a.data());
+   this->stack.independent(q_a.data(), q.Size());
+   this->stack.dependent(flux_a.data(), q.Size());
+   this->stack.jacobian(flux_jac.GetData());
+}
+
+template <int dim, bool entvar>
+void ControlBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
+                                            const mfem::Vector &dir,
+                                            const mfem::Vector &q,
+                                            mfem::DenseMatrix &flux_jac)
+{
+   // evaluate the scaled control, which does not depend on dir
+   adouble uc_a = control * control_scale(len_scale, x_actuator, x);
+   // create containers for active double objects for each input
+   std::vector<adouble> work1_a(work1.Size());
+   std::vector<adouble> dir_a(dir.Size());
+   std::vector<adouble> q_a(q.Size());
+   // initialize active double containers with data from inputs
+   adept::set_values(work1_a.data(), work1.Size(), work1.GetData());
+   adept::set_values(dir_a.data(), dir.Size(), dir.GetData());
+   adept::set_values(q_a.data(), q.Size(), q.GetData());
+   // start new stack recording
+   this->stack.new_recording();
+   // create container for active double flux output
+   std::vector<adouble> flux_a(q.Size());
+   calcConservativeVars<adouble, dim, entvar>(q_a.data(), work1_a.data());
+   calcControlFlux<adouble, dim>(
+       dir_a.data(), work1_a.data(), uc_a, flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    this->stack.jacobian(flux_jac.GetData());
@@ -683,16 +812,8 @@ double InterfaceIntegrator<dim, entvar>::calcIFaceFun(const mfem::Vector &dir,
    calcFlux(dir, qL, qR, flux);
    mfem::Vector wL(qL.Size());
    mfem::Vector wR(qR.Size());
-   if (entvar)
-   {
-      wL = qL;
-      wR = qR;
-   }
-   else
-   {
-      calcEntropyVars<double, dim>(qL.GetData(), wL.GetData());
-      calcEntropyVars<double, dim>(qR.GetData(), wR.GetData());
-   }
+   calcEntropyVars<double, dim, entvar>(qL.GetData(), wL.GetData());
+   calcEntropyVars<double, dim, entvar>(qR.GetData(), wR.GetData());
    wL -= wR;
    return wL * flux;
 }
@@ -703,7 +824,7 @@ void InterfaceIntegrator<dim, entvar>::calcFlux(const mfem::Vector &dir,
                                                 const mfem::Vector &qR,
                                                 mfem::Vector &flux)
 {
-   if (entvar)
+   if constexpr (entvar)
    {
       calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(dir.GetData(),
                                                              diss_coeff,
@@ -833,7 +954,7 @@ void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
    std::vector<adouble> flux_a(q.Size());
    miso::calcSlipWallFlux<adouble, dim, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
-   adouble fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
+   auto fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
    fun_a.set_gradient(1.0);
    this->stack.compute_adjoint();
    adept::get_gradients(q_a.data(), q.Size(), flux_vec.GetData());
@@ -844,6 +965,36 @@ double EntropyIntegrator<dim, entvar>::calcVolFun(const mfem::Vector &x,
                                                   const mfem::Vector &u)
 {
    return entropy<double, dim, entvar>(u.GetData());
+}
+
+template <int dim, bool entvar>
+double BoundaryEntropy<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                                  const mfem::Vector &dir,
+                                                  const mfem::Vector &q)
+{
+   // evaluate the entropy, then return the scaled value
+   double S = entropy<double, dim, entvar>(q.GetData());
+   double press = pressure<double, dim>(q.GetData());
+   S += euler::rho_ref*(press - euler::press_ref)/euler::press_ref;
+   double scale = control_scale(len_scale, x_actuator, x);
+   double dA = sqrt(dot<double, dim>(dir.GetData(), dir.GetData()));
+   return scale * S * dA;
+}
+
+template <int dim, bool entvar>
+double SupplyRate<dim, entvar>::calcBndryFun(const mfem::Vector &x,
+                                             const mfem::Vector &dir,
+                                             const mfem::Vector &q)
+{
+   mfem::Vector flux_vec(q.Size());
+   calcFarFieldFlux2<double, dim, entvar>(dir.GetData(),
+                                          qfs.GetData(),
+                                          q.GetData(),
+                                          work_vec.GetData(),
+                                          flux_vec.GetData());
+   mfem::Vector w(q.Size());
+   calcEntropyVars<double, dim, entvar>(q.GetData(), w.GetData());
+   return dot<double, dim>(dir.GetData(), q.GetData()+1) - w * flux_vec;
 }
 
 }  // namespace miso

@@ -19,9 +19,25 @@ namespace euler
 /// gas constant
 const double R = 287;
 /// heat capcity ratio for air
-const double gamma = 1.4;
+constexpr double gamma = 1.4;
 /// ratio minus one
-const double gami = gamma - 1.0;
+constexpr double gami = gamma - 1.0;
+
+
+/// reference density (TEMP: should be passed as option)
+constexpr double rho_ref = 1.0;
+//constexpr double rho_ref = pow(1 + 0.5*gami*0.2*0.2, 1.0/gami);
+
+/// reference pressure (TEMP: should be passed as option)
+constexpr double press_ref = 1.0;
+//constexpr double press_ref = pow(1 + 0.5*gami*0.2*0.2, gamma/gami)/gamma;
+
+/// reference energy (TEMP: should be passed as option)
+constexpr double e_ref = press_ref/gami;
+
+/// reference thermo entropy
+constexpr double ent_ref = log(press_ref/pow(rho_ref, gamma));
+
 }  // namespace euler
 
 /// Pressure based on the ideal gas law equation of state
@@ -35,54 +51,131 @@ inline xdouble pressure(const xdouble *q)
           (q[dim + 1] - 0.5 * dot<xdouble, dim>(q + 1, q + 1) / q[0]);
 }
 
-/// Convert conservative variables `q` to entropy variables `w`
-/// \param[in] q - conservative variables that we want to convert from
+/// Derivative of pressure w.r.t. the conservative variables
+/// \param[in] q - the conservative variables
+/// \param[out] dpdq - the derivative of pressure
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+template <typename xdouble, int dim>
+void dpressdq(const xdouble *q, const xdouble *dpdq)
+{
+   xdouble phi = 0.0;
+   for (int i = 0; i < dim; ++i)
+   {
+      xdouble u = q[i + 1] / q[0];
+      phi += u * u;
+      dpdq[i + 1] = -euler::gami * u;
+   }
+   dpdq[0] = euler::gami * phi * 0.5;
+   dpdq[dim + 1] = euler::gami;
+}
+
+/// Sets `q` to the (non-dimensionalized) free-stream conservative variables
+/// \param[in] mach_fs - free-stream Mach number
+/// \param[in] aoa_fs - free-stream angle of attack
+/// \param[in] iroll - coordinate index aligned with roll axis
+/// \param[in] ipitch - coordinate index aligned with pitch axis
+/// \param[out] q - the free-stream conservative variables
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void getFreeStreamQ(xdouble mach_fs,
+                    xdouble aoa_fs,
+                    int iroll,
+                    int ipitch,
+                    xdouble *q)
+{
+   q[0] = 1.0;
+   for (int i = 1; i < dim + 2; ++i)
+   {
+      q[i] = 0.0;
+   }
+   if (dim == 1)
+   {
+      q[1] = q[0] * mach_fs;  // ignore angle of attack
+   }
+   else
+   {
+      q[iroll + 1] = q[0] * mach_fs * cos(aoa_fs);
+      q[ipitch + 1] = q[0] * mach_fs * sin(aoa_fs);
+   }
+   q[dim + 1] = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+}
+
+/// Convert state variables `q` to entropy variables `w`
+/// \param[in] q - state variables that we want to convert from
 /// \param[out] w - entropy variables we want to convert to
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+template <typename xdouble, int dim, bool entvar>
 void calcEntropyVars(const xdouble *q, xdouble *w)
 {
-   xdouble u[dim];
-   for (int i = 0; i < dim; ++i)
+   if constexpr (entvar)
    {
-      u[i] = q[i + 1] / q[0];
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         w[i] = q[i];
+      }
    }
-   auto p = pressure<xdouble, dim>(q);
-   xdouble s = log(p / pow(q[0], euler::gamma));
-   xdouble fac = 1.0 / p;
-   w[0] = (euler::gamma - s) / euler::gami -
-          0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
-   for (int i = 0; i < dim; ++i)
+   else
    {
-      w[i + 1] = q[i + 1] * fac;
+      xdouble u[dim];
+      for (int i = 0; i < dim; ++i)
+      {
+         u[i] = q[i + 1] / q[0];
+      }
+      auto p = pressure<xdouble, dim>(q);
+      xdouble s = log(p / pow(q[0], euler::gamma));
+      xdouble fac = 1.0 / p;
+      w[0] = (euler::gamma - s) / euler::gami -
+             0.5 * dot<xdouble, dim>(u, u) * fac * q[0];
+      for (int i = 0; i < dim; ++i)
+      {
+         w[i + 1] = q[i + 1] * fac;
+      }
+      w[dim + 1] = -q[0] * fac;
+
+      // The following was added for the affine-transformed entropy
+      w[0] -= (euler::gamma - euler::ent_ref) / euler::gami;
+      w[dim + 1] += euler::rho_ref/euler::press_ref;
    }
-   w[dim + 1] = -q[0] * fac;
 }
 
 /// Convert entropy variables `w` to conservative variables `q`
-/// \param[in] w - entropy variables we want to convert from
+/// \param[in] w - state variables we want to convert from
 /// \param[out] q - conservative variables that we want to convert to
 /// \tparam xdouble - typically `double` or `adept::adouble`
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
-template <typename xdouble, int dim>
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+template <typename xdouble, int dim, bool entvar>
 void calcConservativeVars(const xdouble *w, xdouble *q)
 {
-   xdouble u[dim];
-   xdouble Vel2 = 0.0;
-   for (int i = 0; i < dim; ++i)
+   if constexpr (entvar)
    {
-      u[i] = -w[i + 1] / w[dim + 1];
-      Vel2 += u[i] * u[i];
+      xdouble u[dim];
+      xdouble Vel2 = 0.0;
+      for (int i = 0; i < dim; ++i)
+      {
+         u[i] = -w[i + 1] / w[dim + 1];
+         Vel2 += u[i] * u[i];
+      }
+      xdouble s = euler::gamma + euler::gami * (0.5 * Vel2 * w[dim + 1] - w[0]);
+      q[0] = pow(-exp(-s) / w[dim + 1], 1.0 / euler::gami);
+      for (int i = 0; i < dim; ++i)
+      {
+         q[i + 1] = q[0] * u[i];
+      }
+      xdouble p = -q[0] / w[dim + 1];
+      q[dim + 1] = p / euler::gami + 0.5 * q[0] * Vel2;
    }
-   xdouble s = euler::gamma + euler::gami * (0.5 * Vel2 * w[dim + 1] - w[0]);
-   q[0] = pow(-exp(-s) / w[dim + 1], 1.0 / euler::gami);
-   for (int i = 0; i < dim; ++i)
+   else
    {
-      q[i + 1] = q[0] * u[i];
+      for (int i = 0; i < dim + 2; ++i)
+      {
+         q[i] = w[i];
+      }
    }
-   xdouble p = -q[0] / w[dim + 1];
-   q[dim + 1] = p / euler::gami + 0.5 * q[0] * Vel2;
 }
 
 /// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
@@ -96,16 +189,45 @@ inline xdouble entropy(const xdouble *q)
    if (entvar)
    {
       auto Vel2 = dot<xdouble, dim>(q + 1, q + 1);  // Vel2*rho^2/p^2
-      double s =
+      xdouble s =
           -euler::gamma + euler::gami * (q[0] - 0.5 * Vel2 / q[dim + 1]);  // -s
-      double rho = pow(-exp(s) / q[dim + 1], 1.0 / euler::gami);
+      xdouble rho = pow(-exp(s) / q[dim + 1], 1.0 / euler::gami);
       return rho * s / euler::gami;
    }
    else
    {
-      return -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) /
-             euler::gami;
+      //return -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
+
+      // The following computes the affine transformed entropy based on
+      // reference state
+      xdouble Sref = -euler::rho_ref*euler::ent_ref/euler::gami;
+      xdouble S = -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
+      S -= Sref;
+      S += (euler::ent_ref - euler::gamma)*(q[0] - euler::rho_ref)/euler::gami;
+      S += euler::rho_ref*(q[dim+1] - euler::e_ref)/euler::press_ref;
+      return S;
    }
+}
+
+/// Mathematical entropy function rho*s/(gamma-1), where s = ln(p/rho^gamma)
+/// \param[in] q - state variables (either conservative or entropy variables)
+/// \param[in] qe - equilibrium state used in affine transformation
+/// \tparam xdouble - either double or adouble
+/// \tparam dim - number of physical dimensions
+/// \tparam entvar - if true q = conservative vars, if false q = entropy vars
+/// \note This version performs an affine transformation to the entropy such
+/// that it is has its minimizer at `qe`.
+template <typename xdouble, int dim>
+inline xdouble entropy(const xdouble *q, const xdouble *qe)
+{
+   xdouble ent = entropy<xdouble, dim>(q);
+   xdouble ent_ref = entropy<xdouble, dim>(qe);
+   ent -= ent_ref;
+   xdouble we[dim + 2];
+   calcEntropyVars<xdouble, dim>(qe, we);
+   for (int i = 0; i < dim + 2; ++i)
+      ent -= we[i] * (q[i] - qe[i]);
+   return ent;
 }
 
 /// Euler flux function in a given (scaled) direction
@@ -464,17 +586,7 @@ template <typename xdouble, int dim, bool entvar = false>
 xdouble calcSpectralRadius(const xdouble *dir, const xdouble *u)
 {
    xdouble q[dim + 2];
-   if (entvar)
-   {
-      calcConservativeVars<xdouble, dim>(u, q);
-   }
-   else
-   {
-      for (int i = 0; i < dim + 2; ++i)
-      {
-         q[i] = u[i];
-      }
-   }
+   calcConservativeVars<xdouble, dim, entvar>(u, q);
    auto press = pressure<xdouble, dim>(q);
    xdouble sndsp = sqrt(euler::gamma * press / q[0]);
    // U = u*dir[0] + v*dir[1] + ...
@@ -563,7 +675,7 @@ void applyLPSScalingUsingEntVars(const xdouble *adjJ,
                                  xdouble *mat_vec)
 {
    xdouble q[dim + 2];
-   calcConservativeVars<xdouble, dim>(w, q);
+   calcConservativeVars<xdouble, dim, true>(w, q);
    applyLPSScaling<xdouble, dim>(adjJ, q, vec, mat_vec);
 }
 
@@ -646,6 +758,82 @@ void calcBoundaryFlux(const xdouble *dir,
    flux[dim + 1] += Edq * (E2dq_fac * Un + E34dq_fac * H);
 }
 
+/// Boundary flux that is constrained to have given entropy flux
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] qbnd - boundary values of the conservative variables
+/// \param[in] q - interior domain values of the conservative variables
+/// \param[in] entflux - entropy flux constraint
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcBoundaryFluxEC(const xdouble *dir,
+                        const xdouble *qbnd,
+                        const xdouble *q,
+                        const xdouble entflux,
+                        xdouble *flux)
+{
+   // first, get the conventional boundary flux and entropy variables
+   xdouble w[dim + 2];
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, w, flux);
+   calcEntropyVars<xdouble, dim, false>(q, w);
+   // next, get the entropy flux difference
+   const xdouble psi = dot<xdouble, dim>(q + 1, dir);
+   // std::cout << "-----------------------------------------" << std::endl;
+   // std::cout << "psi = " << psi << ": entflux = " << entflux << std::endl;
+   // std::cout << "w^T f = " << dot<xdouble, dim+2>(w, flux) << std::endl;
+   xdouble dF = dot<xdouble, dim + 2>(w, flux) - psi - entflux;
+   // Compute A_0*w, and w^T A_0 w
+   xdouble Aw[dim + 2];
+   calcdQdWProduct<xdouble, dim>(q, w, Aw);
+   dF /= dot<xdouble, dim + 2>(w, Aw);
+   // subtract the flux correction
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      flux[i] -= dF * Aw[i];
+   }
+}
+
+/// Boundary flux that is determined by a control-velocity parameter
+/// \param[in] dir - direction in which the flux is desired
+/// \param[in] q - interior domain values of the conservative variables
+/// \param[in] vel_control - value of the control velocity
+/// \param[out] flux - fluxes in the direction `dir`
+/// \tparam xdouble - typically `double` or `adept::adouble`
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+template <typename xdouble, int dim>
+void calcControlFlux(const xdouble *dir,
+                     const xdouble *q,
+                     const xdouble vel_control,
+                     xdouble *flux)
+{
+   #if 1
+   xdouble U = -vel_control * sqrt(dot<xdouble, dim>(dir, dir));
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      flux[i] = q[i] * U;
+   }
+   xdouble press = pressure<xdouble, dim>(q);
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] += dir[i] * press;
+   }
+   flux[dim + 1] += press * U;
+   #else
+   // This version is to demonstrate that passivity can be lost
+   xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+   xdouble qbnd[dim+2];
+   qbnd[0] = q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      qbnd[i+1] = -q[0]*vel_control*dir[i]/dA;
+   }
+   qbnd[dim+1] = q[dim+1];
+   xdouble work[dim + 2];
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
+   #endif
+}
+
 /// Boundary flux that uses characteristics to determine which state to use
 /// \param[in] dir - direction in which the flux is desired
 /// \param[in] qbnd - boundary values of the **conservative** variables
@@ -664,16 +852,9 @@ void calcFarFieldFlux(const xdouble *dir,
                       xdouble *work,
                       xdouble *flux)
 {
-   if (entvar)
-   {
-      xdouble qcons[dim + 2];
-      calcConservativeVars<xdouble, dim>(q, qcons);
-      calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
-   }
-   else
-   {
-      calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
-   }
+   xdouble qcons[dim + 2];
+   calcConservativeVars<xdouble, dim, entvar>(q, qcons);
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
 }
 
 /// Isentropic vortex exact state as a function of position
@@ -734,16 +915,9 @@ void calcIsentropicVortexFlux(const xdouble *x,
    xdouble qbnd[4];
    xdouble work[4];
    calcIsentropicVortexState<xdouble>(x, qbnd);
-   if (entvar)
-   {
-      xdouble qcons[4];
-      calcConservativeVars<xdouble, 2>(q, qcons);
-      calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
-   }
-   else
-   {
-      calcBoundaryFlux<xdouble, 2>(dir, qbnd, q, work, flux);
-   }
+   xdouble qcons[4];
+   calcConservativeVars<xdouble, 2, entvar>(q, qcons);
+   calcBoundaryFlux<xdouble, 2>(dir, qbnd, qcons, work, flux);
 }
 
 /// removes the component of momentum normal to the wall from `q`
@@ -809,6 +983,7 @@ void calcSlipWallFlux(const xdouble *x,
    }
    flux[dim + 1] = 0.0;
 }
+
 /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
 /// \param[in] q - conservative variables that are to be converted
 /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
@@ -826,7 +1001,7 @@ void convertVarsJac(const mfem::Vector &q,
    // create vector of active output variables
    std::vector<adouble> w_a(q.Size());
    // run algorithm
-   calcEntropyVars<adouble, dim>(q_a.data(), w_a.data());
+   calcEntropyVars<adouble, dim, false>(q_a.data(), w_a.data());
    // identify independent and dependent variables
    stack.independent(q_a.data(), q.Size());
    stack.dependent(w_a.data(), q.Size());
@@ -941,8 +1116,8 @@ void calcIsmailRoeFaceFluxWithDiss(const xdouble *dir,
    xdouble wR[dim + 2];
    xdouble w_diff[dim + 2];
    xdouble dqdw_vec[dim + 2];
-   calcEntropyVars<xdouble, dim>(qL, wL);  // first convert to entropy vars
-   calcEntropyVars<xdouble, dim>(qR, wR);
+   calcEntropyVars<xdouble, dim, false>(qL, wL);  // convert to entropy vars
+   calcEntropyVars<xdouble, dim, false>(qR, wR);
    for (int i = 0; i < dim + 2; i++)
    {
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
@@ -1022,8 +1197,8 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    xdouble q_ave[dim + 2];
    xdouble w_diff[dim + 2];
    xdouble dqdw_vec[dim + 2];
-   calcConservativeVars<xdouble, dim>(wL, qL);
-   calcConservativeVars<xdouble, dim>(wR, qR);
+   calcConservativeVars<xdouble, dim, true>(wL, qL);
+   calcConservativeVars<xdouble, dim, true>(wR, qR);
    for (int i = 0; i < dim + 2; i++)
    {
       q_ave[i] = 0.5 * (qL[i] + qR[i]);
@@ -1034,6 +1209,213 @@ void calcIsmailRoeFaceFluxWithDissUsingEntVars(const xdouble *dir,
    for (int i = 0; i < dim + 2; i++)
    {
       flux[i] = flux[i] + lambda * dqdw_vec[i];
+   }
+}
+
+template <typename xdouble, int dim, bool entvar = false>
+void calcFarFieldFlux2(const xdouble *dir,
+                       const xdouble *qbnd,
+                       const xdouble *q,
+                       xdouble *work,
+                       xdouble *flux)
+{
+   // xdouble qcons[dim + 2];
+   // calcConservativeVars<xdouble, dim, entvar>(q, qcons);
+   // calcBoundaryFlux<xdouble, dim>(dir, qbnd, qcons, work, flux);
+   // calcIsmailRoeFaceFluxWithDiss<xdouble, dim>(dir, 1.0, qcons, qbnd, flux);
+   if constexpr (entvar)
+   {
+      // not set up for entvar yet
+      throw(-1);
+   }
+
+   // compute the slip-wall flux
+   // xdouble x[dim];
+   // calcSlipWallFlux<xdouble, dim, entvar>(x, dir, q, flux);
+
+   xdouble U = dot<xdouble, dim>(dir, qbnd + 1) / qbnd[0];
+   for (int i = 0; i < dim + 2; ++i)
+   {
+      //flux[i] = q[i] * U;
+      flux[i] = 0.5*U*(q[i] + qbnd[i]) + 0.5*fabs(U)*(q[i] - qbnd[i]);
+   }
+   xdouble press = pressure<xdouble, dim>(q);
+   for (int i = 0; i < dim; ++i)
+   {
+      flux[i + 1] += dir[i] * press;
+   }
+   xdouble press_bnd = pressure<xdouble, dim>(qbnd);
+   //flux[dim + 1] += press * U;
+   flux[dim + 1] += 0.5*U*(press + press_bnd) + 0.5*fabs(U)*(press - press_bnd);
+
+   // // add the penalty on the far-field condition
+   // xdouble q_ave[dim + 2];
+   // xdouble w[dim + 2];
+   // xdouble wbnd[dim + 2];
+   // xdouble w_diff[dim + 2];
+   // xdouble dqdw_vec[dim + 2];
+   // calcEntropyVars<xdouble, dim, false>(q, w);  // convert to entropy vars
+   // calcEntropyVars<xdouble, dim, false>(qbnd, wbnd);
+   // for (int i = 0; i < dim + 2; ++i)
+   // {
+   //    q_ave[i] = qbnd[i]; //0.5 * (q[i] + qbnd[i]);
+   //    w_diff[i] = w[i] - wbnd[i];
+   // }
+   // xdouble lambda = calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   // calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
+   // for (int i = 0; i < dim + 2; i++)
+   // {
+   //    flux[i] = flux[i] + lambda * dqdw_vec[i];
+   // }
+}
+
+// calculate InviscidMMSExact solution
+/// \param[in] dim - dimension of the problem
+/// \param[in] x - location at which to evaluate the exact solution
+/// \param[out] u - the exact solution
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void InviscidMMSExact(int dim, const xdouble *x, xdouble *u)
+{
+   switch(dim)
+   {
+      case 3:
+      {
+         const double rhop  = 0.1;
+         const double rho0  = 1.0;
+         const double up    = 0.1;
+         const double u0    = 0.1;
+         const double trans = 0.0;
+         const double scale = 1.0;
+         const double T0    = 1.0;
+         const double Tp    = 0.1;
+         u[0] = rho0 + rhop*(sin(M_PI*pow((x[0] + trans)/scale,2.0)))*sin(M_PI*(x[1]+trans)/scale);
+         u[1] = 4*u0*((x[1]+trans)/scale)*(1 - ((x[1]+trans)/scale)) + up*sin(2*M_PI*(x[1]+trans)/scale)*(sin(M_PI*pow((x[0]+trans)/scale,2.0)));
+         u[2] = -up*(sin(2*M_PI*pow((x[0]+trans)/scale,2.0)))*sin(M_PI*(x[1]+trans)/scale);
+         u[3] = 0.0;
+         double Tem  = T0 + Tp*(pow(((x[0]+trans)/scale),4.0) - 2.0*pow(((x[0]+trans)/scale),3.0) + pow(((x[0]+trans)/scale),2.0)
+                     + pow(((x[1]+trans)/scale),4.0) - 2.0*pow(((x[1]+trans)/scale),3.0) + pow(((x[1]+trans)/scale),2.0));
+         double p    = u[0]*Tem;
+         u[4] = (p/euler::gami) + u[0]*(u[1]*u[1] + u[2]*u[2] + u[3]*u[3])*0.5;
+         u[1] *= u[0];
+         u[2] *= u[0];
+         u[3] *= u[0];
+         break;
+      }
+      default:
+      {
+         u[0] = 0.0; u[1] = 0.0; u[2] = 0.0; u[3] = 0.0; u[4] = 0.0;
+         break;
+      }
+   }
+
+}
+
+/// MMS source term for a particular Inviscid 2D/3D verification
+/// \param[in] dim - dimension of the problem
+/// \param[in] x - location at which to evaluate the source
+/// \param[out] src - the source value
+/// \tparam xdouble - typically `double` or `adept::adouble`
+template <typename xdouble>
+void calcInviscidMMS(int dim, const xdouble *x, xdouble *src)
+{
+
+   switch(dim)
+   {
+      case 3:
+      {
+         const double rhop  = 0.1;
+         const double rho0  = 1.0;
+         const double up    = 0.1;
+         const double u0    = 0.1;
+         const double trans = 0.0;
+         const double scale = 1.0;
+         const double T0    = 1.0;
+         const double Tp    = 0.1;
+         const double gamma = euler::gamma;
+
+         src[0] = -M_PI*rhop*up*pow(sin(M_PI*(trans + x[0])/scale), 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[1])/scale)/scale
+                  + 2*M_PI*rhop*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans
+                  + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans
+                  + x[1])/scale))*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans +
+                  x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale;
+
+         src[1] = Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[0])/pow(scale, 2) - 6*pow(trans + x[0], 2)/pow(scale, 3) +
+                  4*pow(trans + x[0], 3)/pow(scale, 4)) - M_PI*rhop*up*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)
+                  *(trans + x[1])/scale)*pow(sin(M_PI*(trans + x[0])/scale), 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[1])/scale)
+                  /scale + 2*M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans +
+                  x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*
+                  cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*rhop*pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)
+                  *(trans + x[1])/scale, 2)*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - up*(rho0 + rhop*pow(sin(M_PI*(trans
+                  + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(4*u0*(1 - (trans + x[1])/scale)/scale + 2*M_PI*up*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(2*M_PI*(trans +
+                  x[1])/scale)/scale - 4*u0*(trans + x[1])/pow(scale, 2))*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale) + 4*M_PI*up*(rho0 +
+                  rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) +
+                  4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale -
+                  M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans +
+                  x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale;
+
+         src[2] = Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[1])/pow(scale, 2) - 6*pow(trans + x[1], 2)/pow(scale, 3) +
+                  4*pow(trans + x[1], 3)/pow(scale, 4)) + M_PI*rhop*pow(up, 2)*pow(sin(M_PI*(trans + x[0])/scale), 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*pow(sin(M_PI*(trans +
+                  x[1])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale - 2*M_PI*rhop*up*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 -
+                  (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans + x[0])/scale)*pow(sin(2*M_PI*(trans + x[0])/scale), 2)*pow(sin(M_PI*(trans + x[1])/scale), 2)*
+                  cos(M_PI*(trans + x[0])/scale)/scale + M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3)
+                  - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*pow(sin(M_PI*(trans + x[0])/scale), 2)*
+                  cos(M_PI*(trans + x[1])/scale)/scale - 2*M_PI*pow(up, 2)*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*sin(M_PI*(trans + x[0])/scale)
+                  *pow(sin(2*M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*pow(up, 2)*
+                  (rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*sin(M_PI*(trans + x[1])/scale)*
+                  cos(M_PI*(trans + x[1])/scale)/scale - 4*M_PI*up*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)
+                  *sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(2*M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*
+                  cos(2*M_PI*(trans + x[0])/scale)/scale;
+
+         src[3] = 0.0;
+
+         src[4] = -up*(Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[1])/pow(scale, 2) - 6*pow(trans + x[1], 2)/pow(scale, 3)
+                  + 4*pow(trans + x[1], 3)/pow(scale, 4)) + Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[1])/pow(scale, 2)
+                  - 6*pow(trans + x[1], 2)/pow(scale, 3) + 4*pow(trans + x[1], 3)/pow(scale, 4))/(gamma - 1) + M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans +
+                  x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/
+                  pow(scale, 4)))*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale + M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans +
+                  x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*
+                  pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/(scale*(gamma - 1)) + (1.0/2.0)*M_PI*rhop*(pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*
+                  pow(sin(M_PI*(trans + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans +
+                  x[1])/scale, 2))*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale + ((1.0/2.0)*rho0 + (1.0/2.0)*rhop*pow(sin(M_PI*(trans + x[0])/scale),
+                  2)*sin(M_PI*(trans + x[1])/scale))*((up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*
+                  (8*u0*(1 - (trans + x[1])/scale)/scale + 4*M_PI*up*pow(sin(M_PI*(trans + x[0])/scale), 2)*cos(2*M_PI*(trans + x[1])/scale)/scale - 8*u0*(trans + x[1])/pow(scale, 2))
+                  + 2*M_PI*pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[1])/scale)/scale))*pow(sin(2*M_PI*(trans + x[0])/scale),
+                  2)*sin(M_PI*(trans + x[1])/scale) + (up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)
+                  *(Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[0])/pow(scale, 2) - 6*pow(trans + x[0], 2)/pow(scale, 3) +
+                  4*pow(trans + x[0], 3)/pow(scale, 4)) + Tp*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*((2*trans + 2*x[0])/pow(scale, 2) -
+                  6*pow(trans + x[0], 2)/pow(scale, 3) + 4*pow(trans + x[0], 3)/pow(scale, 4))/(gamma - 1) + 2*M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1],
+                  2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))
+                  *sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale + 2*M_PI*rhop*(T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) +
+                  pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1],
+                  4)/pow(scale, 4)))*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/(scale*(gamma - 1)) + M_PI*rhop*(pow(up, 2)*
+                  pow(sin(2*M_PI*(trans + x[0])/scale), 4)*pow(sin(M_PI*(trans + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale)
+                  + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale, 2))*sin(M_PI*(trans + x[0])/scale)*sin(M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale
+                  + ((1.0/2.0)*rho0 + (1.0/2.0)*rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(8*M_PI*pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale),
+                  3)*pow(sin(M_PI*(trans + x[1])/scale), 2)*cos(2*M_PI*(trans + x[0])/scale)/scale + 4*M_PI*up*(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale)
+                  + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale)*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale)) +
+                  2*M_PI*up*((T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3)
+                  + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))
+                  + (T0 + Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3)
+                  + pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))/(gamma - 1)
+                  + (1.0/2.0)*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*
+                  pow(sin(M_PI*(trans + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans +
+                  x[1])/scale, 2)))*sin(M_PI*(trans + x[0])/scale)*sin(2*M_PI*(trans + x[1])/scale)*cos(M_PI*(trans + x[0])/scale)/scale - M_PI*up*((T0 + Tp*(pow(trans +
+                  x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) + pow(trans + x[0],
+                  4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale)) + (T0 +
+                  Tp*(pow(trans + x[0], 2)/pow(scale, 2) + pow(trans + x[1], 2)/pow(scale, 2) - 2*pow(trans + x[0], 3)/pow(scale, 3) - 2*pow(trans + x[1], 3)/pow(scale, 3) +
+                  pow(trans + x[0], 4)/pow(scale, 4) + pow(trans + x[1], 4)/pow(scale, 4)))*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))/(gamma - 1)
+                  + (1.0/2.0)*(rho0 + rhop*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(M_PI*(trans + x[1])/scale))*(pow(up, 2)*pow(sin(2*M_PI*(trans + x[0])/scale), 4)*pow(sin(M_PI*(trans
+                  + x[1])/scale), 2) + pow(up*pow(sin(M_PI*(trans + x[0])/scale), 2)*sin(2*M_PI*(trans + x[1])/scale) + 4*u0*(1 - (trans + x[1])/scale)*(trans + x[1])/scale, 2)))*
+                  pow(sin(2*M_PI*(trans + x[0])/scale), 2)*cos(M_PI*(trans + x[1])/scale)/scale;
+
+         break;
+      }
+      default:
+      {
+         src[0] = 0.0; src[1] = 0.0; src[2] = 0.0; src[3] = 0.0; src[4] = 0.0;
+         break;
+      }
    }
 }
 

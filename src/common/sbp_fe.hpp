@@ -67,7 +67,7 @@ public:
    /// Sets `D` to be the `i`th row of the deriv op. in direction `di`
    /// \param[in] di - desired reference direction for operator
    /// \param[in] i - row of the derivative operator to be returned
-   /// \param[ou] D - used to store the row of the operator
+   /// \param[out] D - used to store the row of the operator
    void getStrongOperator(int di, int i, Vector &D) const;
 
    /// Sets `Q` to be the weak derivative operator in direction `di`.
@@ -201,29 +201,6 @@ protected:
    mutable DenseMatrix V;
 };
 
-// /// Class for summation-by-parts operator on interval
-// class SBPSegmentElement : public NodalTensorFiniteElement //, public
-// SBPFiniteElement
-// {
-// public:
-//    SBPSegmentElement(const int p);
-//    virtual void CalcShape(const IntegrationPoint &ip, Vector &shape) const;
-//    virtual void CalcDShape(const IntegrationPoint &ip,
-//                            DenseMatrix &dshape) const;
-
-//    // TODO: tempoarily just an empty function to compile
-//    virtual void getStrongOperator(int di, DenseMatrix &D,
-//                                   bool trans = false) const {}
-//    // TODO: tempoarily just an empty function to compile
-//    virtual void getWeakOperator(int di, DenseMatrix &Q,
-//                                 bool trans = false) const {}
-
-// private:
-// #ifndef MFEM_THREAD_SAFE
-//    mutable Vector shape_x, dshape_x;
-// #endif
-// };
-
 /// Class for summation-by-parts operator on interval
 class SBPSegmentElement : public SBPFiniteElement
 {
@@ -256,8 +233,21 @@ public:
    void GetOperator(int di, DenseMatrix &D, bool trans = false) const;
 };
 
-/// High order H1-conforming (continuous) Summation By Parts
-/// operators.
+/// Class for (diagonal-norm) summation-by-parts operator on tet elements
+class SBPTetrahedronElement : public SBPFiniteElement
+{
+   public:
+      /// Constructor for SBP operator on tetrahedron
+      /// \param [in] degree - maximum poly degree for which operator is exact
+      /// \param[in] num_nodes - the number of nodes the operator has
+      SBPTetrahedronElement(int degree, int num_nodes);
+
+      void CalcShape(const IntegrationPoint &ip, Vector &shape) const override;
+      void CalcDShape(const IntegrationPoint &ip,
+                       DenseMatrix &dshape) const override;
+};
+
+/// High order H1-conforming (continuous) SBP operators.
 /// Todo: members do not follow our naming convention
 class SBPCollection : public FiniteElementCollection
 {
@@ -265,7 +255,7 @@ protected:
    char SBPname[32];
    FiniteElement *SBPElements[Geometry::NumGeom];
    int SBPdof[Geometry::NumGeom];
-   int *SegDofOrd[2];
+   int *SegDofOrd[2], *TriDofOrd[6];
 
 public:
    explicit SBPCollection(int p, int dim = 2);
@@ -287,7 +277,7 @@ public:
    ~SBPCollection() override;
 };
 
-/// High order L2-discontinous Summation By Parts operators
+/// High order L2-discontinous SBP operators
 class DSBPCollection : public FiniteElementCollection
 {
 protected:

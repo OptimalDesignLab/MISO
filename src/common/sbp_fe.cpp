@@ -926,20 +926,222 @@ void SBPTriangleElement::CalcDShape(const IntegrationPoint &ip,
    dshape.InvLeftScaling(H);
 }
 
+SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nodes)
+ : SBPFiniteElement(3,Geometry::TETRAHEDRON,num_nodes,degree)
+ {
+   /// Header file including SBP Dx and Dy matrix data
+   Q[0].SetSize(num_nodes);
+   Q[1].SetSize(num_nodes);
+   Q[2].SetSize(num_nodes);
+   // Populate the Q[i] matrices and create the element's Nodes
+   switch (degree)
+   {
+   case 0:
+      Q[0] = sbp_operators::p0Qx_tet;
+      Q[1] = sbp_operators::p0Qy_tet;
+      Q[2] = sbp_operators::p0Qz_tet;
+      // vertices
+      Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.041666666666666664);
+      Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.041666666666666664);
+      Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.041666666666666664);
+      Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.041666666666666664);
+      break;
+   case 1:
+      Q[0] = sbp_operators::p1Qx_tet;
+      Q[1] = sbp_operators::p1Qy_tet;
+      Q[2] = sbp_operators::p1Qz_tet;
+      // // vertices
+      // Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.0026679395344347597);
+      // Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.0026679395344347597);
+      // Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.0026679395344347597);
+      // Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.0026679395344347597);
+      // // edges
+      // Nodes.IntPoint(4).Set(0.5,0.0,0.0,0.003996605685951749);
+      // Nodes.IntPoint(5).Set(0.5,0.5,0.0,0.003996605685951749);
+      // Nodes.IntPoint(6).Set(0.0,0.5,0.0,0.003996605685951749);
+      // Nodes.IntPoint(7).Set(0.0,0.0,0.5,0.003996605685951749);
+      // Nodes.IntPoint(8).Set(0.5,0.0,0.5,0.003996605685951749);
+      // Nodes.IntPoint(9).Set(0.0,0.5,0.5,0.003996605685951749);
+      // // faces
+      // Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423);
+      // Nodes.IntPoint(11).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
+      // Nodes.IntPoint(12).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      // Nodes.IntPoint(13).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+
+      // vertices
+      Nodes.IntPoint(0).Set(0.0,0.0,0.0,0.0026679395344347597);
+      Nodes.IntPoint(1).Set(1.0,0.0,0.0,0.0026679395344347597);
+      Nodes.IntPoint(2).Set(0.0,1.0,0.0,0.0026679395344347597);
+      Nodes.IntPoint(3).Set(0.0,0.0,1.0,0.0026679395344347597);
+      // edges
+      Nodes.IntPoint(4).Set(0.5,0.0,0.0,0.003996605685951749);
+      Nodes.IntPoint(5).Set(0.0,0.5,0.0,0.003996605685951749);
+      Nodes.IntPoint(6).Set(0.0,0.0,0.5,0.003996605685951749);
+      Nodes.IntPoint(7).Set(0.5,0.5,0.0,0.003996605685951749);
+      Nodes.IntPoint(8).Set(0.5,0.0,0.5,0.003996605685951749);
+      Nodes.IntPoint(9).Set(0.0,0.5,0.5,0.003996605685951749);
+      // faces
+      Nodes.IntPoint(10).Set(0.3333333333333333,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      Nodes.IntPoint(11).Set(0.0,0.3333333333333333,0.3333333333333333,0.03300381860330423);
+      Nodes.IntPoint(12).Set(0.3333333333333333,0.0,0.3333333333333333,0.03300381860330423);
+      Nodes.IntPoint(13).Set(0.3333333333333333,0.3333333333333333,0.0,0.03300381860330423);
+      break;
+
+   default:
+      mfem_error(
+          "SBP elements are currently only supported for 0 <= order <= 1");
+      break;
+   }
+   // populate unordered_map with mapping from IntPoint address to index
+   for (int i = 0; i < dof; ++i)
+   {
+      ipIdxMap[&(Nodes.IntPoint(i))] = i;
+   }
+
+   for (int i = 0; i < dof; ++i)
+   {
+      const IntegrationPoint &ip = Nodes.IntPoint(i);
+      H(i)    = ip.weight;
+      x(i, 0) = ip.x;
+      x(i, 1) = ip.y;
+      x(i, 2) = ip.z;
+   }
+   // Construct the Vandermonde matrix in order to perform LPS projections;
+   V.SetSize(num_nodes, (degree + 1) * (degree + 2) * (degree + 3)/ 6);
+   // First, get node coordinates and shift to triangle with vertices
+   // (-1,-1,-1), (1,-1,-1), (-1,1,-1), (-1,-1,1)
+   Vector xi;
+   Vector eta;
+   Vector zeta;
+   getNodeCoords(0, xi);
+   getNodeCoords(1, eta);
+   getNodeCoords(2, zeta);
+   xi *= 2.0;
+   xi -= 1.0;
+   eta *= 2.0;
+   eta -= 1.0;
+   zeta *= 2.0;
+   zeta -= 1.0;
+   miso::getVandermondeForTet(xi, eta, zeta, order, V);
+   // scale V to account for the different reference elements
+   V *= 2.0*sqrt(2.0);
+ }
+
+/// CalcShape outputs ndofx1 vector shape based on Kronecker \delta_{i, ip}
+/// where ip is the integration point CalcShape is evaluated at.
+void SBPTetrahedronElement::CalcShape(const IntegrationPoint &ip, Vector &shape) const
+{
+   int ipIdx = -1;
+   try
+   {
+      ipIdx = ipIdxMap.at(&ip);
+   }
+   catch (const std::out_of_range &oor)
+   // error handling code to handle cases where the pointer to ip is not
+   // in the map. Problems arise in GridFunction::SaveVTK() (specifically
+   // GridFunction::GetValues()), which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap,
+   // and an out_of_range error is thrown.
+   {
+      // This projects the SBP "basis" onto the degree = order orthogonal polys;
+      // Such an approach is fine if LPS is used, but it will eliminate high
+      // frequencey modes that may be present in the true solution.  It has
+      // the advantage of being fast and not requiring a min-norm solution.
+      Vector xvec(1);  // Vector with 1 entry (needed by prorioPoly)
+      Vector yvec(1);
+      Vector zvec(1);
+      Vector poly(1);
+      xvec(0) = 2 * ip.x - 1;
+      yvec(0) = 2 * ip.y - 1;
+      zvec(0) = 2 * ip.z - 1;
+      int ptr = 0;
+      shape = 0.0;
+      for (int r = 0; r <= order; ++r)
+      {
+         for (int j = 0; j <= r; ++j)
+         {
+            for (int k = 0; k <= r-j; ++k)
+            {
+               miso::prorioPoly(xvec, yvec, zvec, r-j-k, k, j, poly);
+               poly *= 2.0*sqrt(2.0); // scale to mfem reference element
+
+               for (int l = 0; l < GetDof(); ++l)
+               {
+                  shape(l) += poly(0) * V(l, ptr) * H(l);
+               }
+               ++ptr;
+            }
+         }
+      }
+      return;
+   }
+   shape = 0.0;
+   shape(ipIdx) = 1.0;
+}
+
+/// CalcDShape outputs ndof x ndim DenseMatrix dshape, where the first column
+/// is the ith row of Dx, the second column is the ith row of Dy, and the
+/// third column is the ith row of Dz, where i is the integration point CalcDShape is evaluated at.
+void SBPTetrahedronElement::CalcDShape(const IntegrationPoint &ip, DenseMatrix &dshape) const
+{
+   int ipIdx = -1;
+   try
+   {
+      ipIdx = ipIdxMap.at(&ip);
+   }
+   catch (const std::out_of_range &oor)
+   // error handling code to handle cases where the pointer to ip is not
+   // in the map. Problems arise in GridFunction::SaveVTK() ->
+   // GridFunction::GetValues() which calls CalcShape() with an
+   // `IntegrationPoint` defined by a refined geometry type. Since the
+   // IntegrationPoint is not in Nodes, its address is not in the ipIdxMap, and
+   // an out_of_range error is thrown. This code catches the error and uses
+   // float comparisons to determine the IntegrationPoint index.
+   {
+      double tol = 1e-12;
+      for (int i = 0; i < dof; ++i)
+      {
+         double delta_x = ip.x - Nodes.IntPoint(i).x;
+         double delta_y = ip.y - Nodes.IntPoint(i).y;
+         double delta_z = ip.z - Nodes.IntPoint(i).z;
+         if (delta_x * delta_x + delta_y * delta_y + delta_z * delta_z < tol)
+         {
+            ipIdx = i;
+            break;
+         }
+      }
+   }
+   dshape = 0.0;
+
+   Vector tempVec(dof);
+   Q[0].GetColumnReference(ipIdx, tempVec);
+   dshape.SetCol(0, tempVec);
+   Q[1].GetColumnReference(ipIdx, tempVec);
+   dshape.SetCol(1, tempVec);
+   Q[2].GetColumnReference(ipIdx, tempVec);
+   dshape.SetCol(2, tempVec);
+   dshape.InvLeftScaling(H);
+}
+
 SBPCollection::SBPCollection(const int p, const int dim)
  : FiniteElementCollection(p)
 {
    MFEM_VERIFY(p >= 0 && p <= 4, "SBPCollection requires 0 <= order <= 4.");
-   MFEM_VERIFY(dim == 2, "SBPCollection requires dim == 2.");
+   MFEM_VERIFY(dim >=0 && dim <= 3, "SBPCollection requires 0 <= dim <= 3.");
 
    snprintf(SBPname, 32, "SBP_%dD_P%d", dim, p);
 
-   for (int g = 0; g < Geometry::NumGeom; g++)
+   for (int g = 0; g < Geometry::NumGeom; ++g)
    {
       SBPdof[g] = 0;
       SBPElements[g] = nullptr;
    }
    for (auto &i : SegDofOrd)
+   {
+      i = nullptr;
+   }
+   for (auto &i : TriDofOrd)
    {
       i = nullptr;
    }
@@ -1047,8 +1249,50 @@ SBPCollection::SBPCollection(const int p, const int dim)
       const int &TriDof = SBPdof[Geometry::TRIANGLE] +
                           3 * SBPdof[Geometry::POINT] +
                           3 * SBPdof[Geometry::SEGMENT];
+      const int TriNodes = SBPdof[Geometry::TRIANGLE];
+      if (p >=1)
+      {
+         TriDofOrd[0] = new int[6*TriNodes];
+         for (int i = 1; i < 6; ++i)
+         {
+            TriDofOrd[i] = TriDofOrd[i-1] + TriNodes;
+         }
+         if (p==1)
+         {
+            TriDofOrd[0][0] = {0};
+            TriDofOrd[1][0] = {0};
+            TriDofOrd[2][0] = {0};
+            TriDofOrd[3][0] = {0};
+            TriDofOrd[4][0] = {0};
+            TriDofOrd[5][0] = {0};
+         }
+      }
 
       SBPElements[Geometry::TRIANGLE] = new SBPTriangleElement(p, TriDof);
+   }
+
+   if (dim >= 3)
+   {
+      switch (p)
+      {
+         case 0:
+            SBPdof[Geometry::TETRAHEDRON] =  4 - 4 - (6 * p) - (4 * (3-3-3*p));
+            break;
+         case 1:
+            SBPdof[Geometry::TETRAHEDRON] = 14 - 4 - (6 * p) - (4 * (7-3-3*p));
+            break;
+         default:
+            mfem_error(
+                  "SBP elements are currently only supported for 0 <= order <= 1");
+            break;
+      }
+
+      const int &TetDof = SBPdof[Geometry::TETRAHEDRON] +
+                          4 * SBPdof[Geometry::POINT] +
+                          4 * SBPdof[Geometry::TRIANGLE] +
+                          6 * SBPdof[Geometry::SEGMENT];
+
+      SBPElements[Geometry::TETRAHEDRON] = new SBPTetrahedronElement(p, TetDof);
    }
 }
 
@@ -1056,7 +1300,7 @@ const FiniteElement *SBPCollection::FiniteElementForGeometry(
     Geometry::Type GeomType) const
 {
    if (GeomType == Geometry::TRIANGLE || GeomType == Geometry::SEGMENT ||
-       GeomType == Geometry::POINT)
+       GeomType == Geometry::POINT || GeomType == Geometry::TETRAHEDRON)
    {
       return SBPElements[GeomType];
    }
@@ -1073,6 +1317,10 @@ const int *SBPCollection::DofOrderForOrientation(Geometry::Type GeomType,
    if (GeomType == Geometry::SEGMENT)
    {
       return (Or > 0) ? SegDofOrd[0] : SegDofOrd[1];
+   }
+   if (GeomType == Geometry::TRIANGLE)
+   {
+      return TriDofOrd[Or%6];
    }
    return nullptr;
 }
