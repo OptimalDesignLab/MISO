@@ -6,6 +6,7 @@
 
 #include "inviscid_integ.hpp"
 #include "euler_fluxes.hpp"
+#include "miso_input.hpp"
 
 namespace miso
 {
