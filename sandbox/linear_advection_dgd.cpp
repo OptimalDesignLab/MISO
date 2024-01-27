@@ -9,28 +9,27 @@ using namespace std;
 using namespace mfem;
 using namespace mach;
 
-
 void velocity_function(const Vector &x, Vector &v)
 {
-	v(0) = 3./ sqrt(10.0);
-	v(1) = 1./ sqrt(10.0);
+	v(0) = 3. / sqrt(10.0);
+	v(1) = 1. / sqrt(10.0);
 }
 
 double inflow1_function(const Vector &x)
 {
 	// 1. at y = -1
-	if (fabs(x(1)+1.0) < 1e-14)
+	if (fabs(x(1) + 1.0) < 1e-14)
 	{
-			return 1.0;
+		return 1.0;
 	}
 
 	// 2. at x = -1, -1 <= y <= -0.6667
-	if (fabs(x(0)+1.0) < 1e-14)
+	if (fabs(x(0) + 1.0) < 1e-14)
 	{
-		if (-1.0 <= x(1) && x(1) <= -0.33333333333)	
+		if (-1.0 <= x(1) && x(1) <= -0.33333333333)
 		{
 			return 1.0;
-		}	
+		}
 	}
 	return 0.0;
 }
@@ -40,11 +39,11 @@ double inflow2_function(const Vector &x)
 	return 0.0;
 }
 
-void GetBasisCenters(mfem::Mesh& mesh, mfem::Vector& vec);
+void GetBasisCenters(mfem::Mesh &mesh, mfem::Vector &vec);
 
-void phiexact(const mfem::Vector& x, mfem::Vector& phi);
+void phiexact(const mfem::Vector &x, mfem::Vector &phi);
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 
 	// default options
@@ -54,33 +53,33 @@ int main(int argc, char* argv[])
 	int order = 1;
 	int ref_levels = 2;
 	int extra_basis = 1;
-  // Parse command-line options
-  OptionsParser args(argc, argv);
+	// Parse command-line options
+	OptionsParser args(argc, argv);
 
-  args.AddOption(&options_file, "-o", "--options",
-                "Options file to use.");
+	args.AddOption(&options_file, "-o", "--options",
+								 "Options file to use.");
 	args.AddOption(&ref_levels, "-r", "--refine",
-                "mesh refinement level.");
+								 "mesh refinement level.");
 	args.AddOption(&order, "-d", "--degree",
-                "mesh refinement level.");
+								 "mesh refinement level.");
 	args.AddOption(&extra_basis, "-e", "--extra",
-                "extra basis to use");
+								 "extra basis to use");
 
-  args.Parse();
-  if (!args.Good())
-  {
-    args.PrintUsage(cout);
-    return 1;
-  }
+	args.Parse();
+	if (!args.Good())
+	{
+		args.PrintUsage(cout);
+		return 1;
+	}
 
 	// 1. read mesh
 	// 1.a mesh
-  Mesh mesh(mesh_file, 1, 1);
-  int dim = mesh.Dimension();
-  for (int lev = 0; lev < ref_levels; lev++)
-  {
+	Mesh mesh(mesh_file, 1, 1);
+	int dim = mesh.Dimension();
+	for (int lev = 0; lev < ref_levels; lev++)
+	{
 		mesh.UniformRefinement();
-  }
+	}
 	// 1.b element centers
 	int numElement = mesh.GetNE();
 	mfem::Vector center(dim * numElement);
@@ -88,18 +87,17 @@ int main(int argc, char* argv[])
 
 	// 2. Finite element space and DGD space
 	DG_FECollection fec(order, dim, BasisType::GaussLobatto);
-	//DSBPCollection fec(order, dim);
+	// DSBPCollection fec(order, dim);
 	DGDSpace dgd_fes(&mesh, &fec, center, order, extra_basis, 1, Ordering::byVDIM);
 
-	//FinitElementSpace full_fes(&mesh,&fec,1, Ordering::byVDIM);
+	// FinitElementSpace full_fes(&mesh,&fec,1, Ordering::byVDIM);
 	FiniteElementSpace fes(&mesh, &fec);
-	auto* p = dgd_fes.GetCP();
+	auto *p = dgd_fes.GetCP();
 	cout << "Num of state variables: " << 1 << '\n';
 	cout << "Finite element collection degree = " << order << '\n';
 	cout << "Number of unknowns: " << fes.GetVSize() << '\n';
 
-
-  // 3. problem coefficient
+	// 3. problem coefficient
 	VectorFunctionCoefficient velocity(dim, velocity_function);
 	FunctionCoefficient inflow1(inflow1_function);
 
@@ -107,27 +105,28 @@ int main(int argc, char* argv[])
 	Array<int> influx2_bdr(mesh.bdr_attributes.Max());
 	Array<int> outflux_bdr(mesh.bdr_attributes.Max());
 	cout << "Boundary attribute size is " << mesh.bdr_attributes.Max() << '\n';
-	influx1_bdr = 0; influx1_bdr[1] = 1;
-	influx2_bdr = 0; influx2_bdr[3] = 1;
-	outflux_bdr = 0; outflux_bdr[2] = 1;
-	
+	influx1_bdr = 0;
+	influx1_bdr[1] = 1;
+	influx2_bdr = 0;
+	influx2_bdr[3] = 1;
+	outflux_bdr = 0;
+	outflux_bdr[2] = 1;
 
 	// 3. domain operators
 	BilinearForm k(&dgd_fes);
-	//k.SetAssemblyLevel(AssemblyLevel::FULL);
-  k.AddDomainIntegrator(new ConservativeConvectionIntegrator(velocity, alpha));
-  k.AddInteriorFaceIntegrator(new DGTraceIntegrator(velocity, alpha));
+	// k.SetAssemblyLevel(AssemblyLevel::FULL);
+	k.AddDomainIntegrator(new ConservativeConvectionIntegrator(velocity, alpha));
+	k.AddInteriorFaceIntegrator(new DGTraceIntegrator(velocity, alpha));
 	k.AddBdrFaceIntegrator(new DGTraceIntegrator(velocity, alpha), outflux_bdr);
 
-  // 4. rhs
+	// 4. rhs
 	// question: alpha or -alpha
 	LinearForm b(&dgd_fes);
-  b.AddBdrFaceIntegrator(
-    new BoundaryFlowIntegrator(inflow1, velocity, alpha), influx1_bdr);
+	b.AddBdrFaceIntegrator(
+			new BoundaryFlowIntegrator(inflow1, velocity, alpha), influx1_bdr);
 	// actually zero boudary influx can be omitted
 	// b.AddBdrFaceIntegrator(
-  //   new BoundaryFlowIntegrator(inflow2, velocity, alpha), influx2_bdr);
-
+	//   new BoundaryFlowIntegrator(inflow2, velocity, alpha), influx2_bdr);
 
 	// 5. Assemble the original operators
 	int skip_zero = 0;
@@ -137,8 +136,8 @@ int main(int argc, char* argv[])
 	cout << "Origin System assembled.\n";
 
 	// 6. Construct the DGD space operators
-	SparseMatrix& kref = k.SpMat();
-	SparseMatrix* kdgd = RAP(*p, kref, *p);
+	SparseMatrix &kref = k.SpMat();
+	SparseMatrix *kdgd = RAP(*p, kref, *p);
 	Vector bdgd(dgd_fes.GetTrueVSize());
 	p->MultTranspose(b, bdgd);
 	// 6. a write operators to check
@@ -146,27 +145,25 @@ int main(int argc, char* argv[])
 	kdgd->PrintMatlab(kcout);
 	kcout.close();
 	ofstream bcout("b_dgd.txt");
-	bdgd.Print(bcout,4);
+	bdgd.Print(bcout, 4);
 	bcout.close();
 
-	
 	// 7. solution vec
 	GridFunction u(&fes);
 	mfem::CentGridFunction uc(&dgd_fes);
 	uc = 0.0;
 	u = 0.0;
 
-
 	// 7. form the linear system
 	cout << "\n\nStiffness matrix info:";
 	kdgd->PrintInfo(cout);
 
-  // 8. solve the system
-  UMFPackSolver umf_solver;
-  umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
-  umf_solver.SetOperator(*kdgd);
-  umf_solver.Mult(bdgd, uc);
-  // or use GMERS
+	// 8. solve the system
+	UMFPackSolver umf_solver;
+	umf_solver.Control[UMFPACK_ORDERING] = UMFPACK_ORDERING_METIS;
+	umf_solver.SetOperator(*kdgd);
+	umf_solver.Mult(bdgd, uc);
+	// or use GMERS
 	// GSSmoother M((SparseMatrix&)(*K));
 	// GMRES(*K, M, B, U, 1, 500, 10, 1e-24, 0.0);
 	cout << "Solved.\n";
@@ -177,40 +174,39 @@ int main(int argc, char* argv[])
 	pout.close();
 	dgd_fes.GetProlongationMatrix()->Mult(uc, u);
 	ofstream sol_ofs("linear_advection_dgd.vtk");
-  sol_ofs.precision(14);
-  mesh.PrintVTK(sol_ofs,0);
-  u.SaveVTK(sol_ofs,"phi",0);
+	sol_ofs.precision(14);
+	mesh.PrintVTK(sol_ofs, 0);
+	u.SaveVTK(sol_ofs, "phi", 0);
 
 	{
 		VectorFunctionCoefficient exsol(1, phiexact);
 		DenseMatrix vals, exact_vals;
 		Vector u_j, exsol_j;
-	  double loc_norm = 0.0;
-    for (int i = 0; i < fes.GetNE(); i++)
-    {
-      const FiniteElement *fe = fes.GetFE(i);
-      const IntegrationRule *ir = &(fe->GetNodes());
-      ElementTransformation *T = fes.GetElementTransformation(i);
-      u.GetVectorValues(*T, *ir, vals);
-      exsol.Eval(exact_vals, *T, *ir);
-      for (int j = 0; j < ir->GetNPoints(); j++)
-      {
-         const IntegrationPoint &ip = ir->IntPoint(j);
-         T->SetIntPoint(&ip);
-         vals.GetColumnReference(j, u_j);
-         exact_vals.GetColumnReference(j, exsol_j);
-         loc_norm += ip.weight * T->Weight() * std::abs(u_j(0) - exsol_j(0));
-      }
-    }
+		double loc_norm = 0.0;
+		for (int i = 0; i < fes.GetNE(); i++)
+		{
+			const FiniteElement *fe = fes.GetFE(i);
+			const IntegrationRule *ir = &(fe->GetNodes());
+			ElementTransformation *T = fes.GetElementTransformation(i);
+			u.GetVectorValues(*T, *ir, vals);
+			exsol.Eval(exact_vals, *T, *ir);
+			for (int j = 0; j < ir->GetNPoints(); j++)
+			{
+				const IntegrationPoint &ip = ir->IntPoint(j);
+				T->SetIntPoint(&ip);
+				vals.GetColumnReference(j, u_j);
+				exact_vals.GetColumnReference(j, exsol_j);
+				loc_norm += ip.weight * T->Weight() * std::abs(u_j(0) - exsol_j(0));
+			}
+		}
 		cout << "Solution L2 error is " << sqrt(loc_norm) << '\n';
 	}
 
 	delete kdgd;
-  return 0;
+	return 0;
 }
 
-
-void GetBasisCenters(mfem::Mesh& mesh, mfem::Vector& vec)
+void GetBasisCenters(mfem::Mesh &mesh, mfem::Vector &vec)
 {
 	int ne = mesh.GetNE();
 	int dim = mesh.Dimension();
@@ -219,15 +215,15 @@ void GetBasisCenters(mfem::Mesh& mesh, mfem::Vector& vec)
 	{
 		mesh.GetElementCenter(i, loc);
 		vec(dim * i) = loc(0);
-		vec(dim* i+1) = loc(1);
+		vec(dim * i + 1) = loc(1);
 	}
 }
 
-void phiexact(const mfem::Vector& x, mfem::Vector& phi)
+void phiexact(const mfem::Vector &x, mfem::Vector &phi)
 {
 	phi.SetSize(1);
 	phi(0) = 0.0;
-	if (x(1) <= ( 1./3. * x(0)))
+	if (x(1) <= (1. / 3. * x(0)))
 	{
 		phi(0) = -1.0;
 	}

@@ -429,7 +429,7 @@ namespace mfem
       // selectedElement[b_id]->Print(cout,numLocalElem);
       for (int i = 0; i < numLocalElem; i++)
       {
-         cout << i << '\n';
+         cout << "Element " << i << ":\n";
          el_id = selectedElement[b_id][i];
          buildDerivDataMat(el_id, b_id, xyz, basisCenter, V, dV, Vn);
          dpdc_block.SetSize(Vn.Height(), numLocalBasis);
@@ -474,7 +474,6 @@ namespace mfem
          // V is a square matrix
          if (numPolyBasis == numLocalBasis)
          {
-            cout << "V is square\n";
             DenseMatrix temp_mat1(numLocalBasis);
             DenseMatrix temp_mat2(numLocalBasis);
             Mult(dV, *coef[el_id], temp_mat1);
@@ -485,7 +484,6 @@ namespace mfem
          // V is overdetermined
          else
          {
-            cout << "V is not square\n";
             DenseMatrix Vt(V);
             Vt.Transpose(); // get V^t
 
@@ -545,9 +543,9 @@ namespace mfem
       Vn.SetSize(numDofs, numPolyBasis);
 
       // build the data matrix
-      cout << "build derived mat\n";
+      std::cout << "building  dV, ";
       buildElementDerivMat(el_id, b_id, basisCenter, xyz, numDofs, dofs_coord, dV);
-      cout << "build v mat\n";
+      std::cout << "building V, ";
       buildElementPolyBasisMat(el_id, basisCenter, numDofs, dofs_coord, V, Vn);
       // free the aux variable
       // for (int k = 0; k < numDofs; k++)
@@ -562,8 +560,8 @@ namespace mfem
                                        const Array<Vector> &dofs_coord,
                                        DenseMatrix &dV) const
    {
-      int i, j, k, col;
-      double dx, dy, dz;
+      int j, k, col;
+      double dx, dy;
       const auto &basis_list = selectedBasis[el_id];
       auto itr = std::find(basis_list.begin(), basis_list.end(), b_id);
       const int row_idx = std::distance(basis_list.begin(), itr);
@@ -589,7 +587,6 @@ namespace mfem
          dx = loc_coord[0] - el_center[0];
          dy = loc_coord[1] - el_center[1];
          dV(row_idx, 0) = 0.0;
-         int numterms;
          for (j = 1; j <= polyOrder; j++)
          {
             for (k = 0; k <= j; k++)

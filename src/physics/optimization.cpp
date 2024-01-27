@@ -134,23 +134,23 @@ namespace mach
 		SparseMatrix *pRpu = k_full;
 		SparseMatrix *pR_dgdpuc = k_dgd;
 
-		ofstream prpu_save("prpu.txt");
-		pRpu->PrintMatlab(prpu_save);
-		prpu_save.close();
+		// ofstream prpu_save("prpu.txt");
+		// pRpu->PrintMatlab(prpu_save);
+		// prpu_save.close();
 
-		ofstream prdgdpuc_save("prdgdpuc.txt");
-		pR_dgdpuc->PrintMatlab(prdgdpuc_save);
-		prdgdpuc_save.close();
+		// ofstream prdgdpuc_save("prdgdpuc.txt");
+		// pR_dgdpuc->PrintMatlab(prdgdpuc_save);
+		// prdgdpuc_save.close();
 
 		// 2. compute full residual
+		cout << "Calcuting full residual...\n";
 		Vector r(FullSize);
 		k_full->Mult(*u_full, r);
 		r -= *b_full;
-		cout << "f1\n";
 
-		ofstream r_save("r_full.txt");
-		r.Print(r_save, 1);
-		r_save.close();
+		// ofstream r_save("r_full.txt");
+		// r.Print(r_save, 1);
+		// r_save.close();
 
 		/// loop over all design variables
 		Vector ppupc_col(FullSize);
@@ -158,8 +158,10 @@ namespace mach
 
 		DenseMatrix pPupc(FullSize, numDesignVar);
 		DenseMatrix pPtpcR(ROMSize, numDesignVar);
+		cout << "Calculating dp/dc_i:\n";
 		for (int i = 0; i < numDesignVar; i++)
 		{
+			cout << i << '\n';
 			SparseMatrix *dPdci = new SparseMatrix(FullSize, ROMSize);
 			// get dpdc
 			fes_dgd->GetdPdc(i, x, *dPdci);
@@ -173,58 +175,55 @@ namespace mach
 			pPtpcR.SetCol(i, dptpc_col);
 			delete dPdci;
 		}
-		cout << "f2\n";
 
-		ofstream ppupc_save("ppupc.txt");
-		pPupc.PrintMatlab(ppupc_save);
-		ppupc_save.close();
+		// ofstream ppupc_save("ppupc.txt");
+		// pPupc.PrintMatlab(ppupc_save);
+		// ppupc_save.close();
 
-		ofstream pptpcr_save("pptpcr.txt");
-		pPtpcR.PrintMatlab(pptpcr_save);
-		pptpcr_save.close();
+		// ofstream pptpcr_save("pptpcr.txt");
+		// pPtpcR.PrintMatlab(pptpcr_save);
+		// pptpcr_save.close();
 
 		// compute pJ/pc
+		cout << "calculating pj/pc\n";
 		Vector temp_vec1(FullSize);
 		pRpu->MultTranspose(r, temp_vec1);
 		pPupc.MultTranspose(temp_vec1, y);
 		y *= 2.0;
-		cout << "f3\n";
 
-		ofstream pjpc_save("pjpc.txt");
-		y.Print(pjpc_save, 1);
-		pjpc_save.close();
+		// ofstream pjpc_save("pjpc.txt");
+		// y.Print(pjpc_save, 1);
+		// pjpc_save.close();
 
 		// compute pJ/puc
+		cout << "calculating pj/puc\n";
 		SparseMatrix *p = fes_dgd->GetCP();
 		p->MultTranspose(temp_vec1, pJpuc);
 		pJpuc *= 2.0;
-		cout << "f4\n";
 
-		ofstream p_save("p.txt");
-		p->PrintMatlab(p_save);
-		p_save.close();
+		// ofstream p_save("p.txt");
+		// p->PrintMatlab(p_save);
+		// p_save.close();
 
-		ofstream pjpuc_save("pjpuc.txt");
-		pJpuc.Print(pjpuc_save, 1);
-		pjpuc_save.close();
+		// ofstream pjpuc_save("pjpuc.txt");
+		// pJpuc.Print(pjpuc_save, 1);
+		// pjpuc_save.close();
 
 		// compute pR_dgd / pc
 		DenseMatrix *temp_mat1 = ::Mult(*pRpu, pPupc);
 		SparseMatrix *Pt = Transpose(*p);
 		DenseMatrix *pR_dgdpc = ::Mult(*Pt, *temp_mat1);
-
 		*pR_dgdpc += pPtpcR;
 		delete temp_mat1;
-		cout << "f5\n";
 
-		ofstream pt_save("pt.txt");
-		Pt->PrintMatlab(pt_save);
-		pt_save.close();
-		delete Pt;
+		// ofstream pt_save("pt.txt");
+		// Pt->PrintMatlab(pt_save);
+		// pt_save.close();
+		// delete Pt;
 
-		ofstream prdgdpc_save("prdgdpc.txt");
-		pR_dgdpc->PrintMatlab(prdgdpc_save);
-		prdgdpc_save.close();
+		// ofstream prdgdpc_save("prdgdpc.txt");
+		// pR_dgdpc->PrintMatlab(prdgdpc_save);
+		// prdgdpc_save.close();
 
 		// solve for adjoint variable
 		Vector adj(ROMSize);
@@ -235,22 +234,21 @@ namespace mach
 		solver->SetOperator(*pRt_dgdpuc);
 		solver->Mult(pJpuc, adj);
 		delete pRt_dgdpuc;
-		cout << "f6\n";
 
-		ofstream adj_save("adj.txt");
-		adj.Print(adj_save, 1);
-		adj_save.close();
+		// ofstream adj_save("adj.txt");
+		// adj.Print(adj_save, 1);
+		// adj_save.close();
 
 		// compute the total derivative
+		cout << "calculating total derivative...";
 		Vector temp_vec2(numDesignVar);
 		pR_dgdpc->Transpose();
 		pR_dgdpc->Mult(adj, temp_vec2);
 		y -= temp_vec2;
-		cout << "f7\n";
 
-		ofstream djdc_save("djdc.txt");
-		y.Print(djdc_save, 1);
-		djdc_save.close();
+		// ofstream djdc_save("djdc.txt");
+		// y.Print(djdc_save, 1);
+		// djdc_save.close();
 
 		delete pR_dgdpc;
 	}
@@ -640,8 +638,8 @@ namespace mach
 	{
 		Vector b(numBasis);
 		newton_solver->Mult(b, *u_dgd);
-		SparseMatrix *prolong = fes_dgd->GetCP();
-		// get analytic jacobian
+		// SparseMatrix *prolong = fes_dgd->GetCP();
+		//  get analytic jacobian
 		Vector dJdc_analytic;
 		Mult(x, dJdc_analytic);
 
