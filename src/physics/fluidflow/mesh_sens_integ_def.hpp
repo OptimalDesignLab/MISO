@@ -18,23 +18,26 @@ void DyadicMeshSensIntegrator<Derived>::AssembleRHSElementVect(
    using namespace mfem;
 
    // reverse-diff functions we need are only defined for IsoparametricTrans
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(trans);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(trans);
    // extract the relevant sbp operator for this element
    const FiniteElementSpace *fes =
        state.FESpace();  // Should check that fes match with adjoint
    const FiniteElement *fe = fes->GetFE(trans.ElementNo);
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(*fe);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(*fe);
    // extract the state and adjoint values for this element
    const IntegrationRule &ir = sbp.GetNodes();
-   DenseMatrix u, psi;
+   DenseMatrix u;
+   DenseMatrix psi;
    state.GetVectorValues(isotrans, ir, u);
    adjoint.GetVectorValues(isotrans, ir, psi);
 
    int num_nodes = sbp.GetDof();  // number of state dofs
    int ndof = el.GetDof();        // number of coord node dofs != num_nodes
    int dim = el.GetDim();
-   Vector u_i, u_j, psi_i, psi_j;
+   Vector u_i;
+   Vector u_j;
+   Vector psi_i;
+   Vector psi_j;
 #ifdef MFEM_THREAD_SAFE
    Vector fluxij;
    DenseMatrix adjJ_i_bar, adjJ_j_bar, PointMat_bar;
@@ -208,23 +211,24 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
    using namespace mfem;
 
    // reverse-diff functions we need are only defined for IsoparametricTrans
-   IsoparametricTransformation &isotrans =
-       dynamic_cast<IsoparametricTransformation &>(*trans.Elem1);
+   auto &isotrans = dynamic_cast<IsoparametricTransformation &>(*trans.Elem1);
    // extract the relevant sbp operator for this element
    const FiniteElementSpace *fes =
        state.FESpace();  // Should check that fes match with adjoint
    const FiniteElement *fe = fes->GetFE(trans.Elem1No);
-   const SBPFiniteElement &sbp = dynamic_cast<const SBPFiniteElement &>(*fe);
+   const auto &sbp = dynamic_cast<const SBPFiniteElement &>(*fe);
    // extract the state and adjoint values for this element
    const IntegrationRule &ir = sbp.GetNodes();
-   DenseMatrix u, psi;
+   DenseMatrix u;
+   DenseMatrix psi;
    state.GetVectorValues(isotrans, ir, u);
    adjoint.GetVectorValues(isotrans, ir, psi);
 
    int ndof = el_bnd.GetDof();  // number mesh dofs != num sbp nodes, in general
    int dim = trans.Face->GetDimension();
    int space_dim = trans.Face->GetSpaceDim();
-   Vector u_face, psi_face;  // references only, no allocation
+   Vector u_face;
+   Vector psi_face;  // references only, no allocation
 #ifdef MFEM_THREAD_SAFE
    Vector x, nrm, nrm_bar;
    DenseMatrix Jac_map, Jac_bar, Jac_face_bar;
@@ -241,7 +245,7 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
    PointMat_bar = 0.0;
 
    const mfem::FiniteElementCollection *fec = fes->FEColl();
-   const FiniteElement *sbp_face;
+   const FiniteElement *sbp_face = nullptr;
    switch (space_dim)
    {
    case 1:
@@ -249,6 +253,9 @@ void BoundaryMeshSensIntegrator<Derived>::AssembleRHSElementVect(
       break;
    case 2:
       sbp_face = fec->FiniteElementForGeometry(Geometry::SEGMENT);
+      break;
+   case 3:
+      sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
       throw miso::MISOException(

@@ -26,12 +26,12 @@ src/common/ode.hpp
 ~~src/physics/fluidflow/euler_fluxes.hpp~~
 ~~src/physics/fluidflow/euler_integ.hpp~~
 ~~src/physics/fluidflow/euler_integ_def.hpp~~
-src/physics/fluidflow/euler_integ_mms.hpp
-src/physics/fluidflow/flow_control_residual.cpp
-src/physics/fluidflow/flow_control_residual.hpp
-src/physics/fluidflow/flow_residual.cpp
-src/physics/fluidflow/flow_solver.cpp
-src/physics/fluidflow/inviscid_integ_def.hpp
+~~src/physics/fluidflow/euler_integ_mms.hpp~~
+~~src/physics/fluidflow/flow_control_residual.cpp~~
+~~src/physics/fluidflow/flow_control_residual.hpp~~
+~~src/physics/fluidflow/flow_residual.cpp~~
+~~src/physics/fluidflow/flow_solver.cpp~~
+~~src/physics/fluidflow/inviscid_integ_def.hpp~~
 src/physics/fluidflow/mesh_sens_integ_def.hpp
 src/physics/fluidflow/navier_stokes.cpp
 src/physics/fluidflow/navier_stokes.hpp
@@ -56,3 +56,7 @@ test/unit/test_flow_residual.cpp
 test/unit/test_navier_stokes_assemble.cpp
 test/unit/test_navier_stokes_integ.cpp
 test/unit/test_sbp_fe.cpp
+
+
+Double check that mach::, MachInput, or MachOutput do not appear anyway
+Why was src/physics/fluidflow/flow_residual.hpp not included in the above list?
