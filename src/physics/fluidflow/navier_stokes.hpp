@@ -13,18 +13,19 @@ namespace miso
 template <int dim, bool entvar = false>
 class NavierStokesSolver : public EulerSolver<dim, entvar>
 {
+public:
+    /// Class constructor.
+    /// \param[in] json_options - json object containing the options
+    /// \param[in] smesh - if provided, defines the mesh for the problem
+    NavierStokesSolver(const nlohmann::json &json_options,
+                       std::unique_ptr<mfem::Mesh> smesh,
+                       MPI_Comm comm);
+
 protected:
    /// free-stream Reynolds number
    double re_fs;
    /// Prandtl number
    double pr_fs;
-
-   /// Class constructor.
-   /// \param[in] json_options - json object containing the options
-   /// \param[in] smesh - if provided, defines the mesh for the problem
-   NavierStokesSolver(const nlohmann::json &json_options,
-                      std::unique_ptr<mfem::Mesh> smesh,
-                      MPI_Comm comm);
 
    /// Add volume/domain integrators to `res` based on `options`
    /// \param[in] alpha - scales the data; used to move terms to rhs or lhs
@@ -74,9 +75,10 @@ double shockEquation(double Re, double Ma, double v);
 void shockExact(const mfem::Vector &x, mfem::Vector &u);
 
 /// Defines the exact solution for the viscous MMS verification
+/// \param[in] dim - dimension of the problem
 /// \param[in] x - coordinate of the point at which the state is needed
-/// \param[out] u - conservative variables stored as a 4-vector
-void viscousMMSExact(const mfem::Vector &x, mfem::Vector &u);
+/// \param[out] u - conservative variables stored as a (dim+2)-vector
+void viscousMMSExact(int dim, const mfem::Vector &x, mfem::Vector &u);
 
 }  // namespace miso
 

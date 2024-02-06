@@ -32,14 +32,14 @@ src/common/ode.hpp
 ~~src/physics/fluidflow/flow_residual.cpp~~
 ~~src/physics/fluidflow/flow_solver.cpp~~
 ~~src/physics/fluidflow/inviscid_integ_def.hpp~~
-src/physics/fluidflow/mesh_sens_integ_def.hpp
-src/physics/fluidflow/navier_stokes.cpp
-src/physics/fluidflow/navier_stokes.hpp
-src/physics/fluidflow/navier_stokes_fluxes.hpp
-src/physics/fluidflow/navier_stokes_integ.hpp
-src/physics/fluidflow/navier_stokes_integ_def.hpp
-src/physics/fluidflow/simple_integ.hpp
-src/physics/fluidflow/viscous_integ_def.hpp
+~~src/physics/fluidflow/mesh_sens_integ_def.hpp~~
+~~src/physics/fluidflow/navier_stokes.cpp~~
+~~src/physics/fluidflow/navier_stokes.hpp~~
+~~src/physics/fluidflow/navier_stokes_fluxes.hpp~~
+~~src/physics/fluidflow/navier_stokes_integ.hpp~~
+~~src/physics/fluidflow/navier_stokes_integ_def.hpp~~
+~~src/physics/fluidflow/simple_integ.hpp~~
+~~src/physics/fluidflow/viscous_integ_def.hpp~~
 src/physics/mach_input.cpp
 test/regression/CMakeLists.txt
 test/regression/test_FarField3D_exact.cpp
@@ -60,3 +60,4 @@ test/unit/test_sbp_fe.cpp
 
 Double check that mach::, MachInput, or MachOutput do not appear anyway
 Why was src/physics/fluidflow/flow_residual.hpp not included in the above list?
+Why was src/physics/fluidflow/viscous_integ.hpp not included in the above list?

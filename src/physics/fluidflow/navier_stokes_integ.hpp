@@ -7,23 +7,24 @@
 #include "viscous_integ.hpp"
 #include "mms_integ.hpp"
 #include "euler_fluxes.hpp"
+#include "miso_input.hpp"
 #include "navier_stokes_fluxes.hpp"
 
 namespace miso
 {
-/// Source-term integrator for a 2D Navier-Stokes MMS problem
+/// Source-term integrator for a 2D/3D Navier-Stokes MMS problem
 /// \note For details on the MMS problem, see the file viscous_mms.py
 class NavierStokesMMSIntegrator
  : public MMSIntegrator<NavierStokesMMSIntegrator>
 {
 public:
-   /// Construct an integrator for a 2D Navier-Stokes MMS source
+   /// Construct an integrator for a 2D/3D Navier-Stokes MMS source
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] Re_num - Reynolds number
    /// \param[in] Pr_num - Prandtl number
    /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
-   NavierStokesMMSIntegrator(double Re_num, double Pr_num, double a = -1.0)
-    : MMSIntegrator<NavierStokesMMSIntegrator>(4, a), Re(Re_num), Pr(Pr_num)
+   NavierStokesMMSIntegrator(double Re_num, double Pr_num, double a = -1.0, int dim_num = 2)
+    : MMSIntegrator<NavierStokesMMSIntegrator>(dim_num+2, a), Re(Re_num), Pr(Pr_num), dim(dim_num)
    { }
 
    /// Computes the MMS source term at a give point
@@ -32,7 +33,7 @@ public:
    void calcSource(const mfem::Vector &x, mfem::Vector &src) const
    {
       double mu = 1.0 / Re;
-      calcViscousMMS<double>(mu, Pr, x.GetData(), src.GetData());
+      calcViscousMMS<double>(dim, mu, Pr, x.GetData(), src.GetData());
    }
 
 private:
@@ -40,6 +41,8 @@ private:
    double Re;
    /// Prandtl number
    double Pr;
+   /// Dimension of the problem
+   int dim;
 };
 
 /// Entropy-stable volume integrator for Navier-Stokes viscous terms
@@ -75,7 +78,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -186,7 +189,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -273,7 +276,13 @@ public:
    void calcFluxDvJacState(const mfem::Vector &x,
                            const mfem::Vector &dir,
                            const mfem::Vector &q,
-                           std::vector<mfem::DenseMatrix> &flux_jac);
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+      {
+         flux_jac[d] = 0.0;
+      }
+   }
 
 private:
    /// Reynolds number
@@ -327,7 +336,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -394,7 +403,7 @@ public:
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary
-   /// w.r.t `entrpy-variables' derivatives`
+   /// w.r.t `entropy-variables' derivatives`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
@@ -474,7 +483,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -541,7 +550,7 @@ public:
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary
-   /// w.r.t `entrpy-variables' derivatives`
+   /// w.r.t `entropy-variables' derivatives`
    /// \param[in] x - coordinate location at which flux is evaluated
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
@@ -623,7 +632,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -690,7 +699,7 @@ public:
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous inflow boundary
-   /// w.r.t `entrpy-variables' derivatives`
+   /// w.r.t `entropy-variables' derivatives`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] q - conservative variables at which to evaluate the flux
@@ -772,7 +781,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -846,7 +855,7 @@ public:
                          mfem::DenseMatrix &flux_jac);
 
    /// Compute jacobian of flux corresponding to a viscous far-field boundary
-   /// w.r.t `entrpy-variables' derivatives`
+   /// w.r.t `entropy-variables' derivatives`
    /// \param[in] x - coordinate location at which flux is evaluated (not used)
    /// \param[in] dir - vector normal to the boundary at `x`
    /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
@@ -896,6 +905,8 @@ template <int dim>
 class ViscousExactBC : public ViscousBoundaryIntegrator<ViscousExactBC<dim>>
 {
 public:
+   using exactFun = std::function<void(const mfem::Vector &, mfem::Vector &)>;
+
    /// Constructs an integrator for a viscous exact BCs
    /// \param[in] diff_stack - for algorithmic differentiation
    /// \param[in] fe_coll - used to determine the face elements
@@ -908,7 +919,7 @@ public:
                   const mfem::FiniteElementCollection *fe_coll,
                   double Re_num,
                   double Pr_num,
-                  void (*fun)(const mfem::Vector &, mfem::Vector &),
+                  exactFun fun,
                   double vis = -1.0,
                   double a = 1.0)
     : ViscousBoundaryIntegrator<ViscousExactBC<dim>>(diff_stack,
@@ -918,11 +929,10 @@ public:
       Re(Re_num),
       Pr(Pr_num),
       mu(vis),
+      exactSolution(fun),
       qexact(dim + 2),
       work_vec(dim + 2)
-   {
-      exactSolution = fun;
-   }
+   { }
 
    /// converts conservative variables to entropy variables
    /// \param[in] q - conservative variables that are to be converted
@@ -930,7 +940,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
@@ -1035,9 +1045,184 @@ private:
    /// nondimensionalized dynamic viscosity
    double mu;
    /// Function to evaluate the exact solution at a given x value
-   void (*exactSolution)(const mfem::Vector &, mfem::Vector &);
+   exactFun exactSolution;
    /// far-field boundary state
    mfem::Vector qexact;
+   /// work space for flux computations
+   mfem::Vector work_vec;
+};
+
+/// Integrator for controlled, no-slip adiabatic-wall boundary condition
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \note This derived class uses the CRTP
+template <int dim>
+class ViscousControlBC : public ViscousBoundaryIntegrator<ViscousControlBC<dim>>
+{
+public:
+   using BCScaleFun = std::function<
+       double(double, const mfem::Vector &, const mfem::Vector &)>;
+
+   /// Constructs an integrator for viscous control boundary flux
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+   /// \param[in] Re_num - Reynolds number
+   /// \param[in] Pr_num - Prandtl number
+   /// \param[in] q_ref - a reference state (needed by penalty)
+   /// \param[in] vis - viscosity (if negative use Sutherland's law)
+   /// \param[in] a - used to move residual to lhs (1.0) or rhs(-1.0)
+   ViscousControlBC(adept::Stack &diff_stack,
+                    const mfem::FiniteElementCollection *fe_coll,
+                    double Re_num,
+                    double Pr_num,
+                    const mfem::Vector &q_ref,
+                    BCScaleFun scale,
+                    const mfem::Vector &xc,
+                    double len = 1.0,
+                    double vis = -1.0,
+                    double a = 1.0)
+    : ViscousBoundaryIntegrator<ViscousControlBC<dim>>(diff_stack,
+                                                       fe_coll,
+                                                       dim + 2,
+                                                       a),
+      Re(Re_num),
+      Pr(Pr_num),
+      mu(vis),
+      qfs(q_ref),
+      len_scale(len),
+      x_actuator(xc),
+      control(0.0),
+      control_scale(scale),
+      work_vec(dim + 2)
+   { }
+
+   /// converts conservative variables to entropy variables
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] w - entropy variables corresponding to `q`
+   /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
+   void convertVars(const mfem::Vector &q, mfem::Vector &w)
+   {
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+   }
+
+   /// Compute the Jacobian of the mapping `convert` w.r.t. `u`
+   /// \param[in] q - conservative variables that are to be converted
+   /// \param[out] dwdu - Jacobian of entropy variables w.r.t. `u`
+   void convertVarsJacState(const mfem::Vector &q, mfem::DenseMatrix &dwdu)
+   {
+      convertVarsJac<dim>(q, this->stack, dwdu);
+   }
+
+   /// Contracts flux with the entropy variables
+   /// \param[in] x - coordinate location at which function is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian determinant (needed by some fluxes)
+   /// \param[in] u - state at which to evaluate the function
+   /// \param[in] Dw - `Dw[:,di]` is the derivative of `w` in direction `di`
+   /// \returns fun - w^T*flux
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       double jac,
+                       const mfem::Vector &u,
+                       const mfem::DenseMatrix &Dw);
+
+   /// Compute entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_vec - value of the flux
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 double jac,
+                 const mfem::Vector &q,
+                 const mfem::DenseMatrix &Dw,
+                 mfem::Vector &flux_vec);
+
+   /// Compute flux terms that are multiplied by test-function derivative
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the fluxes
+   /// \param[out] flux_mat[:,di] - to be scaled by derivative `D_[di] v`
+   void calcFluxDv(const mfem::Vector &x,
+                   const mfem::Vector &dir,
+                   const mfem::Vector &q,
+                   mfem::DenseMatrix &flux_mat);
+
+   /// Compute Jacobian of entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// w.r.t states
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux w.r.t. states
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         double jac,
+                         const mfem::Vector &q,
+                         const mfem::DenseMatrix &Dw,
+                         mfem::DenseMatrix &flux_jac);
+
+   /// Compute Jacobian of entropy-stable, no-slip, adiabatic-wall boundary flux
+   /// w.r.t vector of entropy-variables' derivatives
+   /// \param[in] x - coordinate location at which flux is evaluated (not used)
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] jac - mapping Jacobian (needed by no-slip penalty)
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] Dw - space derivatives of the entropy variables
+   /// \param[out] flux_jac - jacobian of the flux w.r.t. entropy-variables'
+   /// derivatives
+   void calcFluxJacDw(const mfem::Vector &x,
+                      const mfem::Vector &dir,
+                      double jac,
+                      const mfem::Vector &q,
+                      const mfem::DenseMatrix &Dw,
+                      std::vector<mfem::DenseMatrix> &flux_jac);
+
+   /// Compute the Jacobian of calcFluxDv w.r.t. state
+   /// \param[in] x - coordinate location at which fluxes are evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate the flux
+   /// \param[in] flux_jac[di] - Jacobian of calcFluxDv[di] with respect to `q`
+   void calcFluxDvJacState(const mfem::Vector &x,
+                           const mfem::Vector &dir,
+                           const mfem::Vector &q,
+                           std::vector<mfem::DenseMatrix> &flux_jac)
+   {
+      for (int d = 0; d < dim; ++d)
+      {
+         flux_jac[d] = 0.0;
+      }
+   }
+
+   /// Set the control for the integrator
+   /// \param[in/out] integ - the boundary integrator whose control is being set
+   /// \param[in] inputs - holds the control value
+   friend void setInputs(ViscousControlBC &integ,
+                         const miso::MisoInputs &inputs)
+   {
+      setValueFromInputs(inputs, "control", integ.control);
+      setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
+   }
+
+private:
+   /// Reynolds number
+   double Re;
+   /// Prandtl number
+   double Pr;
+   /// nondimensionalized dynamic viscosity
+   double mu;
+   /// Fixed state used to compute no-slip penalty matrix
+   mfem::Vector qfs;
+   /// length scale that determine range of influence of control
+   double len_scale;
+   /// position of the actuator
+   mfem::Vector x_actuator;
+   /// The value of the control at a particular time instance
+   double control;
+   /// This function scales the control based on spatial location
+   BCScaleFun control_scale;
    /// work space for flux computations
    mfem::Vector work_vec;
 };
@@ -1121,7 +1306,7 @@ public:
    /// \note a wrapper for the relevant function in `euler_fluxes.hpp`
    void convertVars(const mfem::Vector &q, mfem::Vector &w)
    {
-      calcEntropyVars<double, dim>(q.GetData(), w.GetData());
+      calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
    }
 
    /// Compute the Jacobian of the mapping `convert` w.r.t. `u`

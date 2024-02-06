@@ -41,10 +41,15 @@ void NavierStokesSolver<dim, entvar>::addResVolumeIntegrators(double alpha)
    {
       if (dim != 2)
       {
-         throw MISOException("Viscous MMS problem only available for 2D!");
+         this->res->AddDomainIntegrator(
+            new NavierStokesMMSIntegrator(re_fs, pr_fs, -1., 3));
       }
-      this->res->AddDomainIntegrator(
+      else
+      {
+         this->res->AddDomainIntegrator(
           new NavierStokesMMSIntegrator(re_fs, pr_fs));
+      }
+
    }
 }
 
@@ -156,11 +161,13 @@ void NavierStokesSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
       vector<int> tmp = bcs["viscous-mms"].template get<vector<int>>();
       this->bndry_marker[idx].SetSize(tmp.size(), 0);
       this->bndry_marker[idx].Assign(tmp.data());
+      auto exactbc = [](const Vector &x, Vector &u)
+      { viscousMMSExact<double>(dim, x.GetData(), u.GetData()); };
       this->res->AddBdrFaceIntegrator(new ViscousExactBC<dim>(this->diff_stack,
                                                               this->fec.get(),
                                                               re_fs,
                                                               pr_fs,
-                                                              viscousMMSExact,
+                                                              exactbc,
                                                               mu,
                                                               alpha),
                                       this->bndry_marker[idx]);
@@ -343,25 +350,51 @@ void shockExact(const mfem::Vector &x, mfem::Vector &u)
 }
 
 // MMS Exact solution
-void viscousMMSExact(const mfem::Vector &x, mfem::Vector &u)
-{
-   const double rho0 = 1.0;
-   const double rhop = 0.05;
-   const double U0 = 0.5;
-   const double Up = 0.05;
-   const double T0 = 1.0;
-   const double Tp = 0.05;
-   u.SetSize(4);
-   u(0) = rho0 + rhop * pow(sin(M_PI * x(0)), 2) * sin(M_PI * x(1));
-   u(1) = 4.0 * U0 * x(1) * (1.0 - x(1)) +
-          Up * sin(2 * M_PI * x(1)) * pow(sin(M_PI * x(0)), 2);
-   u(2) = -Up * pow(sin(2 * M_PI * x(0)), 2) * sin(M_PI * x(1));
-   double T = T0 + Tp * (pow(x(0), 4) - 2 * pow(x(0), 3) + pow(x(0), 2) +
-                         pow(x(1), 4) - 2 * pow(x(1), 3) + pow(x(1), 2));
-   double p = u(0) * T;  // T is nondimensionalized by 1/(R*a_infty^2)
-   u(3) = p / euler::gami + 0.5 * u(0) * (u(1) * u(1) + u(2) * u(2));
-   u(1) *= u(0);
-   u(2) *= u(0);
+void viscousMMSExact(int dim, const mfem::Vector &x, mfem::Vector &u)
+{  std::cout << "we are here \n";
+   u.SetSize(dim+2);
+   switch(dim)
+   {
+      case 3:
+         {
+            const double r_0 = 1.0;
+            const double r_xyz = 1.0;
+            const double u_0 = 0.0;
+            const double v_0 = 0.0;
+            const double w_0 = 0.0;
+            const double T_0 = 1.0;
+
+            u(0) = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x(0))*sin(2*r_xyz*M_PI*x(1))*sin(2*r_xyz*M_PI*x(2));
+            u(1) = u_0*((pow(x(0),3)/3. - pow(x(0),2)/2.) + (pow(x(1),3)/3. - pow(x(1),2)/2.) + (pow(x(2),3)/3. - pow(x(2),2)/2.));
+            u(2) = v_0*((pow(x(0),3)/3. - pow(x(0),2)/2.) + (pow(x(1),3)/3. - pow(x(1),2)/2.) + (pow(x(2),3)/3. - pow(x(2),2)/2.));
+            u(3) = w_0*((pow(x(0),3)/3. - pow(x(0),2)/2.) + (pow(x(1),3)/3. - pow(x(1),2)/2.) + (pow(x(2),3)/3. - pow(x(2),2)/2.));
+            double T = T_0;
+            double p = u(0) * T;
+            u(4) = p/euler::gami + 0.5 * u(0) * (u(1)*u(1) + u(2)*u(2) + u(3)*u(3));
+            break;
+         }
+      default:
+         {
+            const double rho0 = 1.0;
+            const double rhop = 0.05;
+            const double U0 = 0.5;
+            const double Up = 0.05;
+            const double T0 = 1.0;
+            const double Tp = 0.05;
+
+            u(0) = rho0 + rhop * pow(sin(M_PI * x(0)), 2) * sin(M_PI * x(1));
+            u(1) = 4.0 * U0 * x(1) * (1.0 - x(1)) +
+                  Up * sin(2 * M_PI * x(1)) * pow(sin(M_PI * x(0)), 2);
+            u(2) = -Up * pow(sin(2 * M_PI * x(0)), 2) * sin(M_PI * x(1));
+            double T = T0 + Tp * (pow(x(0), 4) - 2 * pow(x(0), 3) + pow(x(0), 2) +
+                                 pow(x(1), 4) - 2 * pow(x(1), 3) + pow(x(1), 2));
+            double p = u(0) * T;  // T is nondimensionalized by 1/(R*a_infty^2)
+            u(3) = p / euler::gami + 0.5 * u(0) * (u(1) * u(1) + u(2) * u(2));
+            u(1) *= u(0);
+            u(2) *= u(0);
+            break;
+         }
+   }
 }
 
 }  // namespace miso
