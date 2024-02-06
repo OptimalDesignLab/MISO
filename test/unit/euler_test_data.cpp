@@ -84,10 +84,10 @@ void randBaselineVectorPert(const Vector &x, Vector &u)
     {
         u(di + 1) = rhou[di] * (1.0 + scale * uniform_rand(gen));
     }
-    if (entvar)
+    if constexpr(entvar)
     {
        Vector q(u);
-       miso::calcEntropyVars<double, dim>(q.GetData(), u.GetData());
+       mach::calcEntropyVars<double, dim, false>(q.GetData(), u.GetData());
     }
 }
 // explicit instantiation of the templated function above
@@ -115,6 +115,14 @@ double randBaselinePert(const Vector &x)
 double randState(const Vector &x)
 {
     return 2.0 * uniform_rand(gen) - 1.0;
+}
+
+void constVectorState(Vector &u)
+{
+    for (int i = 0; i < u.Size(); ++i)
+    {
+        u(i) = 1.0;
+    }
 }
 
 } // namespace euler_data
