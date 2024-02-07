@@ -128,8 +128,9 @@ void evaluate(ControlResidual &residual,
          // Residual is defined on left-hand side!
          res_vec(0) = -0.05 * residual.x(1);
          res_vec(1) = 0.05 * residual.x(0);
-         double error = residual.target_entropy - residual.boundary_entropy;
-         res_vec(1) -= error;
+         //double error = residual.target_entropy - residual.boundary_entropy;
+         //res_vec(1) += error;
+         res_vec(1) += residual.boundary_entropy;
       }
       else
       {
@@ -200,7 +201,8 @@ double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
    {
       if (residual.test_ode)
       {
-         ent += residual.x(0) * residual.x(0) + residual.x(1) * residual.x(1);
+         ent += 0.5*(residual.x(0) * residual.x(0) + 
+                     residual.x(1) * residual.x(1));
       }
       else
       {
@@ -272,7 +274,10 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
    control_res(pfes.GetComm(), options),
    boundary_entropy(
        flow_res.constructOutput("boundary-entropy",
-                                options["outputs"]["boundary-entropy"]))
+                                options["outputs"]["boundary-entropy"])),
+   supply_rate(
+       flow_res.constructOutput("far-field-supply-rate",
+                                options["outputs"]["far-field-supply-rate"]))
 {
    setOptions(*this, options);
    // offsets mark the start of each row/column block; note that offsets must
@@ -425,6 +430,25 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
 }
 
 template <int dim, bool entvar>
+double FlowControlResidual<dim, entvar>::calcSupplyRate_(
+    const MachInputs &inputs)
+{
+   // extract flow and control states to compute supply rate
+   extractStates(inputs, control_ref, flow_ref);
+   Vector dxdt, control_dxdt, flow_dxdt;
+   setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
+   extractStates(dxdt, control_dxdt, flow_dxdt);
+
+   // extract time and time-step size
+   double time = NAN;
+   double dt = NAN;
+   setValueFromInputs(inputs, "time", time, true);
+   setValueFromInputs(inputs, "dt", dt, true);
+   auto flow_inputs = MachInputs({{"state", flow_ref}});
+   return calcOutput(supply_rate, flow_inputs);
+}
+
+template <int dim, bool entvar>
 mfem::Operator &FlowControlResidual<dim, entvar>::getJacobianBlock_(
     const MachInputs &inputs,
     int i)
@@ -461,7 +485,8 @@ MachOutput FlowControlResidual<dim, entvar>::constructOutput(
     const std::string &fun,
     const nlohmann::json &options)
 {
-   if (fun == "drag" || fun == "lift" || fun == "boundary-entropy")
+   if (fun == "drag" || fun == "lift" || fun == "boundary-entropy" || 
+       fun == "far-field-supply-rate")
    {
       return flow_res.constructOutput(fun, options);
    }

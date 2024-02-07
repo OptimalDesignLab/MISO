@@ -1,9 +1,9 @@
 {  
-   "test-ode": true,
+   "test-ode": false,
    "silent" : false,
    "paraview": {
       "each-timestep": true,
-      "directory": "forced-box"
+      "directory": "freestream-box"
    },
    "flow-param": {
       "viscous": false,
@@ -11,7 +11,8 @@
       "Pr": 0.72,
       "mu": -1.0,
       "entropy-state": false,
-      "mach": 0.2
+      "mach": 0.2,
+      "aoa": 90.0
    },
    "space-dis": {
       "degree": 2,
@@ -45,10 +46,11 @@
    },
    "lin-prec": {
       "type": "hypreilu",
-      "lev-fill": 0
+      "lev-fill": 1
    },
    "bcs": {
-      "slip-wall": [1, 1, 1, 0],
+      "slip-wall": [0, 0, 0, 0],
+      "far-field": [1, 1, 1, 0],
       "control": [0, 0, 0, 1]
    },
    "saveresults":false,
@@ -57,6 +59,9 @@
       "each-timestep": true,
       "boundary-entropy": {
          "boundaries": [0, 0, 0, 1]
+      },
+      "far-field-supply-rate": {
+         "boundaries": [1, 1, 1, 0]
       },
       "entropy": {}
    }

@@ -39,7 +39,11 @@ public:
    friend double calcEntropyChange(TimeDependentResidual &residual,
                                    const MachInputs &inputs);
 
-   friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual)
+   friend double calcSupplyRate(TimeDependentResidual &residual,
+                                const MachInputs &inputs);
+
+   friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual,
+                                          const nlohmann::json &options)
    {
       return getPreconditioner(residual.spatial_res_);
    }
@@ -184,6 +188,15 @@ public:
       MachInputs inputs{
           {"state", u}, {"state_dot", du_dt}, {"time", t}, {"dt", dt}};
       return calcEntropyChange(residual_, inputs);
+   }
+
+   double SupplyRate(double dt,
+                     const mfem::Vector &u,
+                     const mfem::Vector &du_dt) override
+   {
+      MachInputs inputs{
+          {"state", u}, {"state_dot", du_dt}, {"time", t}, {"dt", dt}};
+      return calcSupplyRate(residual_, inputs);
    }
 
 private:

@@ -9,17 +9,12 @@ using namespace mach;
 
 /// Set the initial value of the control state
 /// \param[out] u0 - the control state at time t0
-void cinit(Vector & u0);
-
-/// Set the initial value of the flow state
-/// \param[in] x - spatial location
-/// \param[out] u0 - value of the state at `x`
-void uinit(const Vector &x, Vector& u0);
+void cInit(Vector & u0);
 
 int main(int argc, char *argv[])
 {
    // Get the options
-   const char *options_file = "forced_box_options.json";
+   const char *options_file = "freestream_box_options.json";
    nlohmann::json options;
    ifstream option_source(options_file);
    option_source >> options;
@@ -54,11 +49,11 @@ int main(int argc, char *argv[])
       // Create solver and set initial guess to constant
       FlowControlSolver<2> solver(MPI_COMM_WORLD, options, std::move(smesh));
       mfem::Vector state_tv(solver.getStateSize());
-      //solver.setState(uinit, state_tv);
-      //solver.setState({.control_func = cinit, .flow_func = uinit}, state_tv);
-
+      Vector qfar(4);
+      solver.getFreeStreamState(qfar);
+      auto uInit = [&](const Vector &x, Vector &u0) { u0 = qfar; };
       solver.setState(
-          std::make_pair(std::function(cinit), std::function(uinit)), state_tv);
+          std::make_pair(std::function(cInit), std::function(uInit)), state_tv);
 
       // Set all the necessary inputs
       const double Kp = 0.4, Ti = 0.8, Td = 0.5, beta = 2.5, eta = 0.8;
@@ -83,8 +78,10 @@ int main(int argc, char *argv[])
                          {"closed-loop", float(closed_loop)},
                          {"P-matrix", P}});
 
-      // get the initial entropy 
+      // get the initial entropy and supply rate
       solver.createOutput("entropy", options["outputs"].at("entropy"));
+      solver.createOutput("far-field-supply-rate",
+                          options["outputs"].at("far-field-supply-rate"));
       double entropy0 = solver.calcOutput("entropy", inputs);
       cout << "initial entropy = " << entropy0 << endl;
 
@@ -106,19 +103,9 @@ int main(int argc, char *argv[])
    MPI_Finalize();
 }
 
-void cinit(Vector &u)
+void cInit(Vector &u)
 {
    u(0) = 0.0;
    u(1) = 0.05;
-}
-
-void uinit(const Vector &x, Vector &u0)
-{
-   u0.SetSize(4);
-   u0(0) = 1.0;
-   u0(1) = 0.0;
-   u0(2) = 0.0;
-   double press = pow(u0(0), euler::gamma);
-   u0(3) = press/euler::gami;
 }
 

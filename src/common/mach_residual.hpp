@@ -90,6 +90,13 @@ double calcEntropyChange(T & /*unused*/, const MachInputs & /*unused*/)
 }
 
 template <typename T>
+double calcSupplyRate(T & /*unused*/, const MachInputs & /*unused*/)
+{
+   throw MachException(
+       "calcSupplyRate not specialized for concrete residual type!\n");
+}
+
+template <typename T>
 mfem::Operator *getMassMatrix(T & /*unused*/, const nlohmann::json & /*unused*/)
 {
    return nullptr;
@@ -277,6 +284,9 @@ public:
    friend double calcEntropyChange(MachResidual &residual,
                                    const MachInputs &inputs);
 
+   friend double calcSupplyRate(MachResidual &residual,
+                                const MachInputs &inputs);
+
    /// Return the mass matrix corresponding to the residual
    /// \param[inout] residual - the object owning the mass matrix
    /// \param[in] options - options specific to the mass matrix (if needed)
@@ -353,6 +363,7 @@ private:
                                           mfem::Vector &wrt_bar) = 0;
       virtual double calcEntropy_(const MachInputs &inputs) = 0;
       virtual double calcEntropyChange_(const MachInputs &inputs) = 0;
+      virtual double calcSupplyRate_(const MachInputs &inputs) = 0;
       virtual mfem::Operator *getMass_(const nlohmann::json &options) = 0;
       virtual mfem::Solver *getPrec_() = 0;
    };
@@ -433,6 +444,10 @@ private:
       double calcEntropyChange_(const MachInputs &inputs) override
       {
          return calcEntropyChange(data_, inputs);
+      }
+      double calcSupplyRate_(const MachInputs &inputs) override
+      {
+         return calcSupplyRate(data_, inputs);
       }
       mfem::Operator *getMass_(const nlohmann::json &options) override
       {
@@ -588,6 +603,12 @@ inline double calcEntropyChange(MachResidual &residual,
                                 const MachInputs &inputs)
 {
    return residual.self_->calcEntropyChange_(inputs);
+}
+
+inline double calcSupplyRate(MachResidual &residual,
+                             const MachInputs &inputs)
+{
+   return residual.self_->calcSupplyRate_(inputs);
 }
 
 inline mfem::Operator *getMassMatrix(MachResidual &residual,

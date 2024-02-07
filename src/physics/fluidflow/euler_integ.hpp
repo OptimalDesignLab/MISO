@@ -931,6 +931,67 @@ private:
    BCScaleFun control_scale;
 };
 
+/// Integrator for computing the far-field supply rate to the entropy
+/// \tparam dim - number of spatial dimensions (1, 2, or 3)
+/// \tparam entvar - if true, states = ent. vars; otherwise, states = conserv.
+/// \note This derived class uses the CRTP
+template <int dim, bool entvar = false>
+class SupplyRate
+ : public InviscidBoundaryIntegrator<SupplyRate<dim, entvar>>
+{
+public:
+   /// Constructs an integrator that computes far-field supply rate
+   /// \param[in] diff_stack - for algorithmic differentiation
+   /// \param[in] fe_coll - used to determine the face elements
+    /// \param[in] q_far - state at the far-field
+   SupplyRate(adept::Stack &diff_stack,
+                   const mfem::FiniteElementCollection *fe_coll,
+                   const mfem::Vector &q_far)
+    : InviscidBoundaryIntegrator<SupplyRate<dim, entvar>>(diff_stack,
+                                                          fe_coll,
+                                                          dim + 2,
+                                                          1.0),
+      qfs(q_far),
+      work_vec(dim + 2)
+   { }
+
+   /// Returns the supply-rate at a given point on the far field boundary
+   /// \param[in] x - coordinate location at which entropy is evaluated
+   /// \param[in] dir - vector normal to the boundary at `x`
+   /// \param[in] q - conservative variables at which to evaluate supply rate
+   /// \returns supply-rate at node x
+   double calcBndryFun(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q);
+
+   /// Not used at present
+   void calcFlux(const mfem::Vector &x,
+                 const mfem::Vector &dir,
+                 const mfem::Vector &q,
+                 mfem::Vector &flux_vec)
+   { }
+
+   /// Not used
+   void calcFluxJacState(const mfem::Vector &x,
+                         const mfem::Vector &dir,
+                         const mfem::Vector &q,
+                         mfem::DenseMatrix &flux_jac)
+   { }
+
+   /// Not used
+   void calcFluxJacDir(const mfem::Vector &x,
+                       const mfem::Vector &dir,
+                       const mfem::Vector &q,
+                       mfem::DenseMatrix &flux_jac)
+   { }
+
+private:
+   /// Stores the far-field state
+   mfem::Vector qfs;
+   /// Work vector for boundary flux computation
+   mfem::Vector work_vec;
+};
+
 }  // namespace mach
 
 #include "euler_integ_def.hpp"

@@ -24,6 +24,7 @@ set(SANDBOX_SRCS
    forced_box
    navier_stokes3D_mms
    mpi_cci
+   freestream_box
    # magnetostatic_box
    # magnetostatic_motor
    # magnetostatic_wire

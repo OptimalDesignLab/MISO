@@ -19,9 +19,25 @@ namespace euler
 /// gas constant
 const double R = 287;
 /// heat capcity ratio for air
-const double gamma = 1.4;
+constexpr double gamma = 1.4;
 /// ratio minus one
-const double gami = gamma - 1.0;
+constexpr double gami = gamma - 1.0;
+
+
+/// reference density (TEMP: should be passed as option)
+//constexpr double rho_ref = 1.0;
+constexpr double rho_ref = pow(1 + 0.5*gami*0.2*0.2, 1.0/gami);
+
+/// reference pressure (TEMP: should be passed as option)
+//constexpr double press_ref = 1.0;
+constexpr double press_ref = pow(1 + 0.5*gami*0.2*0.2, gamma/gami)/gamma;
+
+/// reference energy (TEMP: should be passed as option)
+constexpr double e_ref = press_ref/gami;
+
+/// reference thermo entropy 
+constexpr double ent_ref = log(press_ref/pow(rho_ref, gamma));
+
 }  // namespace euler
 
 /// Pressure based on the ideal gas law equation of state
@@ -119,6 +135,10 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
          w[i + 1] = q[i + 1] * fac;
       }
       w[dim + 1] = -q[0] * fac;
+
+      // The following was added for the affine-transformed entropy
+      w[0] -= (euler::gamma - euler::ent_ref) / euler::gami;
+      w[dim + 1] += euler::rho_ref/euler::press_ref;
    }
 }
 
@@ -176,8 +196,16 @@ inline xdouble entropy(const xdouble *q)
    }
    else
    {
-      return -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) /
-             euler::gami;
+      //return -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
+
+      // The following computes the affine transformed entropy based on
+      // reference state
+      xdouble Sref = -euler::rho_ref*euler::ent_ref/euler::gami;
+      xdouble S = -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
+      S -= Sref; 
+      S += (euler::ent_ref - euler::gamma)*(q[0] - euler::rho_ref)/euler::gami;
+      S += euler::rho_ref*(q[dim+1] - euler::e_ref)/euler::press_ref;
+      return S;
    }
 }
 
@@ -779,6 +807,7 @@ void calcControlFlux(const xdouble *dir,
                      const xdouble vel_control,
                      xdouble *flux)
 {
+   #if 1
    xdouble U = -vel_control * sqrt(dot<xdouble, dim>(dir, dir));
    for (int i = 0; i < dim + 2; ++i)
    {
@@ -790,6 +819,19 @@ void calcControlFlux(const xdouble *dir,
       flux[i + 1] += dir[i] * press;
    }
    flux[dim + 1] += press * U;
+   #else
+   // This version is to demonstrate that passivity can be lost
+   xdouble dA = sqrt(dot<xdouble, dim>(dir, dir));
+   xdouble qbnd[dim+2];
+   qbnd[0] = q[0];
+   for (int i = 0; i < dim; ++i)
+   {
+      qbnd[i+1] = -q[0]*vel_control*dir[i]/dA;
+   }
+   qbnd[dim+1] = q[dim+1];
+   xdouble work[dim + 2];
+   calcBoundaryFlux<xdouble, dim>(dir, qbnd, q, work, flux);
+   #endif 
 }
 
 /// Boundary flux that uses characteristics to determine which state to use
@@ -1194,34 +1236,37 @@ void calcFarFieldFlux2(const xdouble *dir,
    xdouble U = dot<xdouble, dim>(dir, qbnd + 1) / qbnd[0];
    for (int i = 0; i < dim + 2; ++i)
    {
-      flux[i] = q[i] * U;
+      //flux[i] = q[i] * U;
+      flux[i] = 0.5*U*(q[i] + qbnd[i]) + 0.5*fabs(U)*(q[i] - qbnd[i]);
    }
    xdouble press = pressure<xdouble, dim>(q);
    for (int i = 0; i < dim; ++i)
    {
       flux[i + 1] += dir[i] * press;
    }
-   flux[dim + 1] += press * U;
+   xdouble press_bnd = pressure<xdouble, dim>(qbnd);
+   //flux[dim + 1] += press * U;
+   flux[dim + 1] += 0.5*U*(press + press_bnd) + 0.5*fabs(U)*(press - press_bnd);
 
-   // add the penalty on the far-field condition
-   xdouble q_ave[dim + 2];
-   xdouble w[dim + 2];
-   xdouble wbnd[dim + 2];
-   xdouble w_diff[dim + 2];
-   xdouble dqdw_vec[dim + 2];
-   calcEntropyVars<xdouble, dim, false>(q, w);  // convert to entropy vars
-   calcEntropyVars<xdouble, dim, false>(qbnd, wbnd);
-   for (int i = 0; i < dim + 2; i++)
-   {
-      q_ave[i] = 0.5 * (q[i] + qbnd[i]);
-      w_diff[i] = w[i] - wbnd[i];
-   }
-   xdouble lambda = calcSpectralRadius<xdouble, dim>(dir, q_ave);
-   calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
-   for (int i = 0; i < dim + 2; i++)
-   {
-      flux[i] = flux[i] + lambda * dqdw_vec[i];
-   }
+   // // add the penalty on the far-field condition 
+   // xdouble q_ave[dim + 2];
+   // xdouble w[dim + 2];
+   // xdouble wbnd[dim + 2];
+   // xdouble w_diff[dim + 2];
+   // xdouble dqdw_vec[dim + 2];
+   // calcEntropyVars<xdouble, dim, false>(q, w);  // convert to entropy vars
+   // calcEntropyVars<xdouble, dim, false>(qbnd, wbnd);
+   // for (int i = 0; i < dim + 2; ++i)
+   // {
+   //    q_ave[i] = qbnd[i]; //0.5 * (q[i] + qbnd[i]);
+   //    w_diff[i] = w[i] - wbnd[i];
+   // }
+   // xdouble lambda = calcSpectralRadius<xdouble, dim>(dir, q_ave);
+   // calcdQdWProduct<xdouble, dim>(q_ave, w_diff, dqdw_vec);
+   // for (int i = 0; i < dim + 2; i++)
+   // {
+   //    flux[i] = flux[i] + lambda * dqdw_vec[i];
+   // }
 }
 
 // calculate InviscidMMSExact solution

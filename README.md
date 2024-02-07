@@ -1,6 +1,9 @@
 ![master](https://github.com/OptimalDesignLab/mach/actions/workflows/build.yml/badge.svg?branch=master) ![dev](https://github.com/OptimalDesignLab/mach/actions/workflows/format.yml/badge.svg?branch=dev)
 # ODL Mach #
 
+**Warning:** This branch modifies the definition of the (mathematical) entropy used in the CFD simulations so that it acts as a storage function in the sense of passivity theory.  In addition, the force calculation has been changed to be consistent with the implementation of BCs in Parsani et al. (doi:10.1016/j.jcp.2015.03.026).  These two changes lead to several unit tests failing.
+
+
 Mach is a C++ library for multi-physics finite-element simulations based on LLNL's [MFEM](https://github.com/mfem/mfem).
 
 ## Build Instructions ##
