@@ -161,7 +161,7 @@ namespace mach
 		cout << "Calculating dp/dc_i:\n";
 		for (int i = 0; i < numDesignVar; i++)
 		{
-			cout << i << '\n';
+			cout << "design var " << i;
 			SparseMatrix *dPdci = new SparseMatrix(FullSize, ROMSize);
 			// get dpdc
 			fes_dgd->GetdPdc(i, x, *dPdci);

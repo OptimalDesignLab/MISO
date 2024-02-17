@@ -418,7 +418,7 @@ namespace mfem
    {
       int xyz = id % dim;  // determine whether it is x, y, or z
       int b_id = id / dim; // determine the basis id
-
+      cout << " b_id " << b_id << '\n';
       int numLocalElem = selectedElement[b_id].size();
       int el_id;
       DenseMatrix V;
@@ -429,8 +429,14 @@ namespace mfem
       // selectedElement[b_id]->Print(cout,numLocalElem);
       for (int i = 0; i < numLocalElem; i++)
       {
-         cout << "Element " << i << ":\n";
          el_id = selectedElement[b_id][i];
+         cout << "Element " << el_id << ":\n";
+         cout << "\tbasis: ";
+         for (auto iddd : selectedBasis[el_id])
+         {
+            cout << iddd << ' ';
+         }
+         cout << '\n';
          buildDerivDataMat(el_id, b_id, xyz, basisCenter, V, dV, Vn);
          dpdc_block.SetSize(Vn.Height(), numLocalBasis);
          // cout << "Element id is " << el_id << '\n';
@@ -527,14 +533,17 @@ namespace mfem
       const FiniteElement *fe = fec->FiniteElementForGeometry(el->GetGeometryType());
       const int numDofs = fe->GetDof();
       ElementTransformation *eltransf = mesh->GetElementTransformation(el_id);
+      cout << "\tnumdofs: " << numDofs << '\n';
 
       // get the dofs coord
-      Array<Vector> dofs_coord;
+      mfem::Array<mfem::Vector> dofs_coord(numDofs);
       dofs_coord.SetSize(numDofs);
-      Vector coord(dim);
+      for (int i = 0; i < numDofs; ++i)
+      {
+         dofs_coord[i].SetSize(dim);
+      }
       for (int k = 0; k < numDofs; k++)
       {
-         dofs_coord[k].SetSize(dim);
          eltransf->Transform(fe->GetNodes().IntPoint(k), dofs_coord[k]);
       }
 
