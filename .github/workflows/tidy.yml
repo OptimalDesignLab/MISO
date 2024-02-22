@@ -26,7 +26,7 @@ jobs:
             buildflags: "-fno-openmp",
           }
     steps:
-    - name: Clone Mach
+    - name: Clone MISO
       uses: actions/checkout@v2
       with:
         fetch-depth: 2
@@ -276,13 +276,13 @@ jobs:
           message(FATAL_ERROR "Build failed")
         endif()
 
-    # - name: Clone Mach
+    # - name: Clone MISO
     #   uses: actions/checkout@v2
     #   with:
-    #     # path: mach
+    #     # path: miso
     #     fetch-depth: 2
 
-    - name: Create Mach Build Environment
+    - name: Create MISO Build Environment
       run: cmake -E make_directory ${GITHUB_WORKSPACE}/build
 
     - name: Generate Compile Commands

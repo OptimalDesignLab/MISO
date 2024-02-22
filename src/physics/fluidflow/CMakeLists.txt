@@ -1,4 +1,4 @@
-set(MACH_PHYSICS_FLUIDS_HEADERS
+set(MISO_PHYSICS_FLUIDS_HEADERS
    advection.hpp
    euler_fluxes.hpp
    euler_integ_def.hpp
@@ -26,7 +26,7 @@ set(MACH_PHYSICS_FLUIDS_HEADERS
    viscous_integ.hpp
 )
 
-target_sources(mach
+target_sources(miso
    PRIVATE
       advection.cpp
       euler.cpp
@@ -36,18 +36,12 @@ target_sources(mach
       flow_solver.cpp
       galer_diff.cpp
       navier_stokes.cpp
-      ${MACH_PHYSICS_FLUIDS_HEADERS}
+      ${MISO_PHYSICS_FLUIDS_HEADERS}
 )
 
-# get_target_property(MACH_PUBLIC_HEADERS mach PUBLIC_HEADER)
-# set(MACH_PUBLIC_HEADERS ${MACH_PUBLIC_HEADERS} ${MACH_PHYSICS_FLUIDS_HEADERS})
-# set_target_properties(mach PROPERTIES
-#    PUBLIC_HEADER "${MACH_PUBLIC_HEADERS}"
-# )
+add_public_headers_to_target(miso "${MISO_PHYSICS_FLUIDS_HEADERS}")
 
-add_public_headers_to_target(mach "${MACH_PHYSICS_FLUIDS_HEADERS}")
-
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE_DIR}>"

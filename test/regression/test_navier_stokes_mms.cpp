@@ -12,7 +12,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(

@@ -7,14 +7,14 @@
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "current_load.hpp"
 #include "utils.hpp"
 
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
 
-using namespace mach;
+using namespace miso;
 
 /// Generate mesh 
 /// \param[in] nxy - number of nodes in the x and y directions
@@ -46,7 +46,7 @@ TEST_CASE("CurrentLoad setInputs")
    })"_json;
    CurrentLoad load(diff_stack, fes, fields, options);
 
-   MachInputs inputs{{"current_density:test", 1.0}};
+   MISOInputs inputs{{"current_density:test", 1.0}};
    setInputs(load, inputs);
 
    mfem::Vector tv(getSize(load));
@@ -98,7 +98,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt current_density")
    CurrentLoad load(diff_stack, fes, fields, options);
 
    auto current_density = 1e6;
-   MachInputs inputs{{"current_density:test1", current_density}};
+   MISOInputs inputs{{"current_density:test1", current_density}};
 
    mfem::Vector load_bar(getSize(load));
    for (int i = 0; i < load_bar.Size(); ++i)
@@ -195,7 +195,7 @@ TEST_CASE("CurrentLoad vectorJacobianProduct wrt mesh_coords")
    mesh_coords.setTrueVec(mesh_coords_tv);
 
    auto current_density = 1e6;
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density:test", current_density},
       {"mesh_coords", mesh_coords_tv}
    });

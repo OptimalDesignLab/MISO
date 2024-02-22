@@ -1,5 +1,5 @@
-#ifndef MACH_CURRENT_LOAD
-#define MACH_CURRENT_LOAD
+#ifndef MISO_CURRENT_LOAD
+#define MISO_CURRENT_LOAD
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -7,9 +7,9 @@
 #include "current_source_functions.hpp"
 #include "div_free_projector.hpp"
 #include "finite_element_state.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 class VectorFEMassIntegratorMeshSens;
 class VectorFEDomainLFIntegratorMeshSens;
@@ -20,9 +20,9 @@ public:
    friend int getSize(const CurrentLoad &load);
 
    /// Used to set scalar inputs in the underlying load type
-   /// Ends up calling `setInputs` on either the `MachLinearForm` or
+   /// Ends up calling `setInputs` on either the `MISOLinearForm` or
    /// a specialized version for each particular load.
-   friend void setInputs(CurrentLoad &load, const MachInputs &inputs);
+   friend void setInputs(CurrentLoad &load, const MISOInputs &inputs);
 
    friend void setOptions(CurrentLoad &load, const nlohmann::json &options);
 
@@ -61,6 +61,12 @@ private:
    // mfem::Vector scratch;
    mfem::Vector load;
 
+   mfem::Vector X;
+   mfem::Vector RHS;
+   mfem::Array<int> dummmy_ess_tdof_list;
+   mfem::HypreBoomerAMG amg;
+   std::unique_ptr<mfem::Solver> pcg;
+
    DivergenceFreeProjector div_free_proj;
 
    mfem::ParLinearForm mesh_sens;
@@ -78,6 +84,6 @@ private:
    void assembleLoad();
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

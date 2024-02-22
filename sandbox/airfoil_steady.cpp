@@ -7,7 +7,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 int main(int argc, char *argv[])
 {
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
       double drag = solver.calcOutput("drag", inputs);
       *out << "drag = " << drag << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

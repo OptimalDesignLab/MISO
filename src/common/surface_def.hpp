@@ -1,5 +1,5 @@
-#ifndef MACH_SURFACE_DEF
-#define MACH_SURFACE_DEF
+#ifndef MISO_SURFACE_DEF
+#define MISO_SURFACE_DEF
 
 #include "mfem.hpp"
 
@@ -7,7 +7,7 @@
 #include "utils.hpp"
 #include "surface.hpp"
 
-namespace mach
+namespace miso
 {
 template <int dim>
 Surface<dim>::Surface(mfem::Mesh &ext_mesh)
@@ -15,7 +15,7 @@ Surface<dim>::Surface(mfem::Mesh &ext_mesh)
    using namespace mfem;
    if (dim != 2)
    {
-      throw MachException("Surface class not tested for dim != 2.");
+      throw MISOException("Surface class not tested for dim != 2.");
    }
    // check that this is a valid surface mesh, in terms of dimensions
    MFEM_ASSERT(dim == ext_mesh.Dimension() + 1, "Invalid surface mesh.");
@@ -31,7 +31,7 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
    using namespace mfem;
    if (dim != 2)
    {
-      throw MachException("Surface class not tested for dim != 2.");
+      throw MISOException("Surface class not tested for dim != 2.");
    }
    // check that this is a valid volume mesh, in terms of dimensions
    MFEM_ASSERT(dim == vol_mesh.Dimension(), "Invalid volume mesh.");
@@ -154,7 +154,7 @@ Surface<dim>::Surface(mfem::Mesh &vol_mesh, mfem::Array<int> &bdr_attr_marker)
       }
       else
       {
-         throw MachException("Discontinuous nodes not yet supported");
+         throw MISOException("Discontinuous nodes not yet supported");
       }
    }
    // build out the kd-tree data structure
@@ -167,7 +167,7 @@ void Surface<dim>::buildKDTree()
    using namespace mfem;
    if (mesh == nullptr)
    {
-      throw MachException("Cannot call buildKDTree with empty mesh.");
+      throw MISOException("Cannot call buildKDTree with empty mesh.");
    }
    mesh->EnsureNodes();
    mesh->GetNodes()->FESpace()->BuildDofToArrays();
@@ -274,7 +274,7 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
       bool success = LinearSolve(Hess, step.GetData());
       if (!success)
       {
-         throw MachException("LinearSolve failed in Surface::solveDistance!");
+         throw MISOException("LinearSolve failed in Surface::solveDistance!");
       }
 
       // check that this is a descent direction; if not, use scaled negative
@@ -319,9 +319,9 @@ double Surface<dim>::solveDistance(mfem::ElementTransformation &trans,
       Jac.MultTranspose(res, gradient);
    }
    // If we get here, we exceeded the maximum number of Newton iterations
-   throw MachException("Newton solve failed in Surface::solveDistance!");
+   throw MISOException("Newton solve failed in Surface::solveDistance!");
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

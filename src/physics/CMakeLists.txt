@@ -1,33 +1,32 @@
-set(MACH_PHYSICS_HEADERS
+set(MISO_PHYSICS_HEADERS
    common_outputs.hpp
    diag_mass_integ.hpp
    finite_element_dual.hpp
    finite_element_state.hpp
    finite_element_vector.hpp
-   mach_input.hpp
-   mach_integrator.hpp
-   mach_load.hpp
-   mach_nonlinearform.hpp
+   miso_input.hpp
+   miso_integrator.hpp
+   miso_load.hpp
+   miso_nonlinearform.hpp
    mfem_common_integ.hpp
    pde_solver.hpp
    physics.hpp
    solver.hpp
 )
 
-
-target_sources(mach
+target_sources(miso
    PRIVATE
       common_outputs.cpp
       diag_mass_integ.cpp
       finite_element_state.cpp
       finite_element_vector.cpp
-      mach_input.cpp
-      mach_integrator.cpp
-      mach_nonlinearform.cpp
+      miso_input.cpp
+      miso_integrator.cpp
+      miso_nonlinearform.cpp
       mfem_common_integ.cpp
       pde_solver.cpp
       solver.cpp
-      ${MACH_PHYSICS_HEADERS}
+      ${MISO_PHYSICS_HEADERS}
 )
 
 # get_target_property(MACH_PUBLIC_HEADERS mach PUBLIC_HEADER)
@@ -36,9 +35,9 @@ target_sources(mach
 #    PUBLIC_HEADER "${MACH_PUBLIC_HEADERS}"
 # )
 
-add_public_headers_to_target(mach "${MACH_PHYSICS_HEADERS}")
+add_public_headers_to_target(miso "${MISO_PHYSICS_HEADERS}")
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE_DIR}>"

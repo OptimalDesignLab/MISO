@@ -1,5 +1,5 @@
-#ifndef MACH_ELECTROMAGNETICS
-#define MACH_ELECTROMAGNETICS
+#ifndef MISO_ELECTROMAGNETICS
+#define MISO_ELECTROMAGNETICS
 
 #include "current_load.hpp"
 #include "current_source_functions.hpp"

@@ -6,8 +6,8 @@
 TEST_CASE( "Log-average is correct", "[log-avg]")
 {
    using namespace euler_data;
-   REQUIRE( mach::logavg(rho, rho) == Approx(rho) );
-   REQUIRE( mach::logavg(rho, 2.0*rho) == Approx(1.422001977589051) );
+   REQUIRE( miso::logavg(rho, rho) == Approx(rho) );
+   REQUIRE( miso::logavg(rho, 2.0*rho) == Approx(1.422001977589051) );
 }
 
 TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
@@ -33,27 +33,27 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
 
    SECTION("Pressure function is correct")
    {
-      REQUIRE(mach::pressure<double, dim>(q.GetData()) ==
+      REQUIRE(miso::pressure<double, dim>(q.GetData()) ==
               Approx(press_check[dim - 1]));
    }
 
    SECTION("Entropy function is correct")
    {
-      REQUIRE(mach::entropy<double, dim>(q.GetData()) ==
+      REQUIRE(miso::entropy<double, dim>(q.GetData()) ==
               Approx(entropy_check[dim - 1]));
    }
 
    SECTION("Entropy function is correct when using entropy variables")
    {
       mfem::Vector w(dim + 2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
-      REQUIRE(mach::entropy<double, dim, true>(w.GetData()) ==
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+      REQUIRE(miso::entropy<double, dim, true>(w.GetData()) ==
               Approx(entropy_check[dim - 1]));
    }
 
    SECTION( "Spectral radius of flux Jacobian is correct" )
    {
-      REQUIRE(mach::calcSpectralRadius<double, dim>(nrm.GetData(), q.GetData()) == Approx(spect_check[dim - 1]));
+      REQUIRE(miso::calcSpectralRadius<double, dim>(nrm.GetData(), q.GetData()) == Approx(spect_check[dim - 1]));
    }
 
    SECTION( "Euler flux is correct" )
@@ -62,7 +62,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector flux_vec(flux_check + offset, dim + 2);
-      mach::calcEulerFlux<double,dim>(nrm.GetData(), q.GetData(), flux.GetData());
+      miso::calcEulerFlux<double,dim>(nrm.GetData(), q.GetData(), flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( flux(i) == Approx(flux_vec(i)) );
@@ -73,7 +73,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector flux_vec(flux_check + offset, dim + 2);
-      mach::calcRoeFaceFlux<double,dim>(nrm.GetData(), q.GetData(),
+      miso::calcRoeFaceFlux<double,dim>(nrm.GetData(), q.GetData(),
                                         q.GetData(), flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
@@ -100,7 +100,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       DYNAMIC_SECTION( "Ismail-Roe flux is correct in direction " << di )
       {
-         mach::calcIsmailRoeFlux<double,dim>(di, q.GetData(), qR.GetData(),
+         miso::calcIsmailRoeFlux<double,dim>(di, q.GetData(), qR.GetData(),
                                              flux.GetData());
          for (int i = 0; i < dim+2; ++i)
          {
@@ -110,9 +110,9 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       DYNAMIC_SECTION( "Ismail-Roe flux (based on entropy vars) is correct in direction " << di )
       {
          mfem::Vector wL(dim + 2), wR(dim + 2);
-         mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
-         mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
-         mach::calcIsmailRoeFluxUsingEntVars<double, dim>(di, wL.GetData(),
+         miso::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+         miso::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
+         miso::calcIsmailRoeFluxUsingEntVars<double, dim>(di, wL.GetData(),
                                                           wR.GetData(),
                                                           flux.GetData());
          for (int i = 0; i < dim + 2; ++i)
@@ -125,7 +125,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    SECTION( "Ismail-Roe face flux is correct in given direction" )
    {
       // get flux from function
-      mach::calcIsmailRoeFaceFlux<double, dim>(nrm.GetData(), q.GetData(),
+      miso::calcIsmailRoeFaceFlux<double, dim>(nrm.GetData(), q.GetData(),
                                                qR.GetData(), flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
@@ -143,20 +143,20 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // get flux from function
       double diss_coeff = 1.0;
-      mach::calcIsmailRoeFaceFluxWithDiss<double, dim>(
+      miso::calcIsmailRoeFaceFluxWithDiss<double, dim>(
           nrm.GetData(), diss_coeff, q.GetData(), qR.GetData(), flux.GetData());
       // evaluate the dissipation externally (since we cannot use fluxIR_check
       // data here directly)
       mfem::Vector wL(dim+2), wR(dim+2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
-      mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+      miso::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
       mfem::Vector q_avg(dim+2);
       add(0.5, q, 0.5, qR, q_avg);
       mfem::Vector dqdw(dim+2);
       wL -= wR;
-      mach::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
+      miso::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
                                          dqdw.GetData());
-      double spect = mach::calcSpectralRadius<double, dim>(nrm.GetData(),
+      double spect = miso::calcSpectralRadius<double, dim>(nrm.GetData(),
                                                            q_avg.GetData());
 
       for (int i = 0; i < dim+2; ++i)
@@ -175,9 +175,9 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // get flux from function
       mfem::Vector wL(dim+2), wR(dim+2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
-      mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
-      mach::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+      miso::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
+      miso::calcIsmailRoeFaceFluxUsingEntVars<double, dim>(
          nrm.GetData(), wL.GetData(), wR.GetData(), flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
@@ -195,10 +195,10 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // get flux from function
       mfem::Vector wL(dim+2), wR(dim+2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
-      mach::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), wL.GetData());
+      miso::calcEntropyVars<double, dim, false>(qR.GetData(), wR.GetData());
       double diss_coeff = 1.0;
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
+      miso::calcIsmailRoeFaceFluxWithDissUsingEntVars<double, dim>(
           nrm.GetData(), diss_coeff, wL.GetData(), wR.GetData(), flux.GetData());
 
       // evaluate the dissipation externally (since we cannot use fluxIR_check
@@ -207,9 +207,9 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       add(0.5, q, 0.5, qR, q_avg);
       mfem::Vector dqdw(dim+2);
       wL -= wR;
-      mach::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
+      miso::calcdQdWProduct<double, dim>(q_avg.GetData(), wL.GetData(),
                                          dqdw.GetData());
-      double spect = mach::calcSpectralRadius<double, dim>(nrm.GetData(),
+      double spect = miso::calcSpectralRadius<double, dim>(nrm.GetData(),
                                                            q_avg.GetData());
 
       for (int i = 0; i < dim+2; ++i)
@@ -230,7 +230,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector entvar_vec(entvar_check + offset, dim + 2);
-      mach::calcEntropyVars<double,dim,false>(q.GetData(), qR.GetData());
+      miso::calcEntropyVars<double,dim,false>(q.GetData(), qR.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( qR(i) == Approx(entvar_vec(i)) );
@@ -243,7 +243,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector w(entvar_check + offset, dim + 2);
-      mach::calcConservativeVars<double,dim,true>(w.GetData(), qR.GetData());
+      miso::calcConservativeVars<double,dim,true>(w.GetData(), qR.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
          REQUIRE( qR(i) == Approx(q(i)) );
@@ -256,7 +256,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // in the following constructor is to find the appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector dqdw_prod(dqdw_prod_check + offset, dim+2);
-      mach::calcdQdWProduct<double, dim>(q.GetData(), qR.GetData(),
+      miso::calcdQdWProduct<double, dim>(q.GetData(), qR.GetData(),
                                          flux.GetData());
       for (int i = 0; i < dim+2; ++i)
       {
@@ -272,7 +272,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector flux_vec(flux_check + offset, dim + 2);
-      mach::calcBoundaryFlux<double,dim>(nrm.GetData(), q.GetData(),
+      miso::calcBoundaryFlux<double,dim>(nrm.GetData(), q.GetData(),
                                          q.GetData(), work.GetData(),
                                          flux.GetData());
       for (int i = 0; i < dim+2; ++i)
@@ -289,7 +289,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // appropriate offset
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector flux_vec(flux_check + offset, dim + 2);
-      mach::calcFarFieldFlux<double, dim>(nrm.GetData(), q.GetData(),
+      miso::calcFarFieldFlux<double, dim>(nrm.GetData(), q.GetData(),
                                           q.GetData(), work.GetData(),
                                           flux.GetData());
       for (int i = 0; i < dim+2; ++i)
@@ -307,8 +307,8 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       int offset = div((dim+1)*(dim+2),2).quot - 3;
       mfem::Vector flux_vec(flux_check + offset, dim + 2);
       mfem::Vector w(dim+2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
-      mach::calcFarFieldFlux<double, dim, true>(nrm.GetData(), q.GetData(),
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+      miso::calcFarFieldFlux<double, dim, true>(nrm.GetData(), q.GetData(),
                                                 w.GetData(), work.GetData(),
                                                 flux.GetData());
       for (int i = 0; i < dim+2; ++i)
@@ -321,7 +321,7 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    {
       // In this test case, the wall normal is set proportional to the momentum,
       // so the momentum should come back as zero
-      mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
+      miso::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
                                              flux.GetData());
       REQUIRE( flux(0) == Approx(q(0)) );
       for (int i = 0; i < dim; ++i)
@@ -337,12 +337,12 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // proportional to the momentum, so the flux will be zero, except for the
       // term flux[1:dim] = pressure*dir[0:dim-1]
       mfem::Vector x(dim);
-      mach::calcSlipWallFlux<double,dim>(x.GetData(), q.GetData()+1,
+      miso::calcSlipWallFlux<double,dim>(x.GetData(), q.GetData()+1,
                                          q.GetData(), flux.GetData());
-      //mach::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
+      //miso::projectStateOntoWall<double,dim>(q.GetData()+1, q.GetData(),
       //                                       work.GetData());
-      //double press = mach::pressure<double,dim>(work.GetData());
-      double press = mach::pressure<double,dim>(q.GetData());
+      //double press = miso::pressure<double,dim>(work.GetData());
+      double press = miso::pressure<double,dim>(q.GetData());
       REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
       for (int i = 0; i < dim; ++i)
       {
@@ -358,10 +358,10 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
       // term flux[1:dim] = pressure*dir[0:dim-1]
       mfem::Vector x(dim);
       mfem::Vector w(dim + 2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
-      mach::calcSlipWallFlux<double, dim, true>(x.GetData(), q.GetData() + 1,
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+      miso::calcSlipWallFlux<double, dim, true>(x.GetData(), q.GetData() + 1,
                                                 w.GetData(), flux.GetData());
-      double press = mach::pressure<double,dim>(q.GetData());
+      double press = miso::pressure<double,dim>(q.GetData());
       REQUIRE( flux(0) == Approx(0.0).margin(abs_tol) );
       for (int i = 0; i < dim; ++i)
       {
@@ -373,25 +373,25 @@ TEMPLATE_TEST_CASE_SIG("Euler flux functions, etc, produce correct values",
    SECTION("calcControlFlux is correct")
    {
       mfem::Vector flux2(dim + 2);
-      double control = -mach::dot<double, dim>(nrm.GetData(), q.GetData() + 1);
-      double dA = sqrt(mach::dot<double, dim>(nrm.GetData(), nrm.GetData()));
+      double control = -miso::dot<double, dim>(nrm.GetData(), q.GetData() + 1);
+      double dA = sqrt(miso::dot<double, dim>(nrm.GetData(), nrm.GetData()));
       control /= dA * q(0);
-      mach::calcControlFlux<double, dim>(
+      miso::calcControlFlux<double, dim>(
           nrm.GetData(), q.GetData(), control, flux.GetData());
-      mach::calcEulerFlux<double, dim>(
+      miso::calcEulerFlux<double, dim>(
           nrm.GetData(), q.GetData(), flux2.GetData());
       for (int i = 0; i < dim + 2; ++i)
       {
          REQUIRE(flux(i) == Approx(flux2(i)));
       }
       control = 1.352;
-      mach::calcControlFlux<double, dim>(
+      miso::calcControlFlux<double, dim>(
           nrm.GetData(), q.GetData(), control, flux.GetData());
       mfem::Vector w(dim + 2);
-      mach::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
-      double dS = mach::dot<double, dim + 2>(flux.GetData(), w.GetData());
-      double rhou = mach::dot<double, dim>(nrm.GetData(), q.GetData() + 1);
-      double S = mach::entropy<double, dim>(q.GetData());
+      miso::calcEntropyVars<double, dim, false>(q.GetData(), w.GetData());
+      double dS = miso::dot<double, dim + 2>(flux.GetData(), w.GetData());
+      double rhou = miso::dot<double, dim>(nrm.GetData(), q.GetData() + 1);
+      double S = miso::entropy<double, dim>(q.GetData());
       REQUIRE(dS == Approx(-S * control * dA + rhou));
    }
 }
@@ -415,7 +415,7 @@ TEST_CASE( "calcBoundaryFlux is correct", "[bndry-flux]")
       qbnd(di+1) = rhou2[di];
       nrm(di) = dir[di];
    }
-   mach::calcBoundaryFlux<double,2>(nrm.GetData(), qbnd.GetData(), q.GetData(),
+   miso::calcBoundaryFlux<double,2>(nrm.GetData(), qbnd.GetData(), q.GetData(),
                                     work.GetData(), flux.GetData());
    for (int i = 0; i < 4; ++i)
    {
@@ -442,14 +442,14 @@ TEST_CASE( "calcBoundaryFluxEC is correct", "[bndry-flux]")
       qbnd(di+1) = rhou2[di];
       nrm(di) = dir[di];
    }
-   double psi = mach::dot<double,2>(rhou, dir);
-   double Un = mach::dot<double,2>(rhou2, dir)/rho2;
-   double entflux = Un*mach::entropy<double,2>(qbnd.GetData());
-   mach::calcBoundaryFluxEC<double,2>(nrm.GetData(), qbnd.GetData(),
+   double psi = miso::dot<double,2>(rhou, dir);
+   double Un = miso::dot<double,2>(rhou2, dir)/rho2;
+   double entflux = Un*miso::entropy<double,2>(qbnd.GetData());
+   miso::calcBoundaryFluxEC<double,2>(nrm.GetData(), qbnd.GetData(),
                                       q.GetData(), entflux, 
                                       flux.GetData());
-   mach::calcEntropyVars<double,2,false>(q.GetData(), w.GetData());
-   REQUIRE( mach::dot<double,4>(w.GetData(), flux.GetData())
+   miso::calcEntropyVars<double,2,false>(q.GetData(), w.GetData());
+   REQUIRE( miso::dot<double,4>(w.GetData(), flux.GetData())
             == Approx(entflux + psi) );
 }
 
@@ -469,10 +469,10 @@ TEST_CASE( "calcIsentropicVortexFlux is correct", "[vortex-flux]")
    {
       nrm(di) = dir[di];
    }
-   mach::calcIsentropicVortexState<double>(x.GetData(), q.GetData());
-   mach::calcIsentropicVortexFlux<double>(x.GetData(), nrm.GetData(),
+   miso::calcIsentropicVortexState<double>(x.GetData(), q.GetData());
+   miso::calcIsentropicVortexFlux<double>(x.GetData(), nrm.GetData(),
                                           q.GetData(), flux.GetData());
-   mach::calcEulerFlux<double,2>(nrm.GetData(), q.GetData(), flux2.GetData());
+   miso::calcEulerFlux<double,2>(nrm.GetData(), q.GetData(), flux2.GetData());
    for (int i = 0; i < 4; ++i)
    {
       REQUIRE( flux(i) == Approx(flux2(i)) );

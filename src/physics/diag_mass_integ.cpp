@@ -3,7 +3,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace miso
 {
 void DiagMassIntegrator::AssembleElementMatrix(const FiniteElement &el,
                                                ElementTransformation &Trans,
@@ -36,4 +36,4 @@ void DiagMassIntegrator::AssembleElementMatrix(const FiniteElement &el,
    }
 }
 
-}  // namespace mach
+}  // namespace miso

@@ -2,9 +2,9 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
-void setInputs(DivergenceFreeProjector &op, const MachInputs &inputs)
+void setInputs(DivergenceFreeProjector &op, const MISOInputs &inputs)
 {
    auto it = inputs.find("mesh_coords");
    if (it != inputs.end())
@@ -43,4 +43,4 @@ void DivergenceFreeProjector::vectorJacobianProduct(
    }
 }
 
-}  // namespace mach
+}  // namespace miso

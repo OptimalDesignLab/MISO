@@ -1,26 +1,31 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "mach_residual.hpp"
+#include "common_outputs.hpp"
+#include "miso_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "functional_output.hpp"
-#include "pde_solver.hpp"
 #include "thermal_residual.hpp"
+#include "pde_solver.hpp"
 
 #include "thermal.hpp"
 
-namespace mach
+// #include "thermal_outputs.hpp"
+
+namespace miso
 {
 ThermalSolver::ThermalSolver(MPI_Comm comm,
                              const nlohmann::json &solver_options,
                              std::unique_ptr<mfem::Mesh> smesh)
- : PDESolver(comm, solver_options, 1, std::move(smesh))
+ : PDESolver(comm, solver_options, 1, std::move(smesh)),
+   kappa(
+       constructMaterialCoefficient("kappa", options["components"], materials))
 {
    options["time-dis"]["type"] = "steady";
 
    spatial_res = std::make_unique<MachResidual>(
        ThermalResidual(fes(), fields, options, materials));
-   mach::setOptions(*spatial_res, options);
+   miso::setOptions(*spatial_res, options);
 
    fields.emplace(std::piecewise_construct,
                   std::forward_as_tuple("thermal_load"),
@@ -28,22 +33,90 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
 
    auto *prec = getPreconditioner(*spatial_res);
    auto lin_solver_opts = options["lin-solver"];
-   linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+   linear_solver = miso::constructLinearSolver(comm, lin_solver_opts, prec);
    auto nonlin_solver_opts = options["nonlin-solver"];
    nonlinear_solver =
-       mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+       miso::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*spatial_res);
 
-   mach::ParaViewLogger paraview("thermal_solvers", &mesh());
-   paraview.registerField("state", fields.at("state").gridFunc());
-   addLogger(std::move(paraview), {});
+   // miso::ParaViewLogger paraview("thermal_solvers", &mesh());
+   // paraview.registerField("state", fields.at("state").gridFunc());
+   // paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
+   // paraview.registerField(
+   //     "residual",
+   //     dynamic_cast<mfem::ParGridFunction
+   //     &>(duals.at("residual").localVec()));
+   // addLogger(std::move(paraview), {});
 }
 
 void ThermalSolver::addOutput(const std::string &fun,
                               const nlohmann::json &options)
-{ }
+{
+   if (fun.rfind("thermal_flux", 0) == 0)
+   {
+      FunctionalOutput out(fes(), fields);
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         out.addOutputBdrFaceIntegrator(
+             new miso::BoundaryNormalIntegrator(kappa), attributes);
+      }
+      else
+      {
+         std::cout << "thermal_flux output sees no attributes\n";
+         out.addOutputBdrFaceIntegrator(
+             new miso::BoundaryNormalIntegrator(kappa));
+      }
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("max_state", 0) == 0)
+   {
+      mfem::ParFiniteElementSpace *fes = nullptr;
+      if (options.contains("state"))
+      {
+         auto field_name = options["state"].get<std::string>();
+         fes = &fields.at(field_name).space();
+      }
+      else
+      {
+         fes = &PDESolver::fes();
+      }
+      IEAggregateFunctional out(*fes, fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else if (fun.rfind("average_state", 0) == 0)
+   {
+      mfem::ParFiniteElementSpace *fes = nullptr;
+      if (options.contains("state"))
+      {
+         auto field_name = options["state"].get<std::string>();
+         fes = &fields.at(field_name).space();
+      }
+      else
+      {
+         fes = &PDESolver::fes();
+      }
+      StateAverageFunctional out(*fes, fields, options);
+      outputs.emplace(fun, std::move(out));
+   }
+   else
+   {
+      throw MISOException("Output with name " + fun +
+                          " not supported by "
+                          "ThermalSolver!\n");
+   }
+}
 
-}  // namespace mach
+void ThermalSolver::derivedPDETerminalHook(int iter,
+                                           double t_final,
+                                           const mfem::Vector &state)
+{
+   // work.SetSize(state.Size());
+   // calcResidual(state, work);
+   // res_vec().distributeSharedDofs(work);
+}
+
+}  // namespace miso
 
 // #include <cmath>
 // #include <fstream>

@@ -34,7 +34,7 @@ TEST_CASE("ESViscousIntegrator::AssembleElementGrad", "[ESViscousIntegrator]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::ESViscousIntegrator<2>(diff_stack, Re_num, Pr_num, vis));
+             new miso::ESViscousIntegrator<2>(diff_stack, Re_num, Pr_num, vis));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -165,7 +165,7 @@ TEST_CASE("NoSlipAdiabaticWallBC::AssembleFaceGrad", "[NoSlipBC]")
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(
-             new mach::NoSlipAdiabaticWallBC<dim>(diff_stack, fec.get(), Re_num,
+             new miso::NoSlipAdiabaticWallBC<dim>(diff_stack, fec.get(), Re_num,
                                                   Pr_num, q_ref, vis));
 
          // initialize state; here we randomly perturb a constant state
@@ -299,7 +299,7 @@ TEST_CASE("ViscousSlipWallBC::AssembleFaceGrad", "[VisSlipWallBC]")
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(
-             new mach::ViscousSlipWallBC<dim>(diff_stack, fec.get(), Re_num,
+             new miso::ViscousSlipWallBC<dim>(diff_stack, fec.get(), Re_num,
                                               Pr_num, vis));
 
          // initialize state; here we randomly perturb a constant state
@@ -433,7 +433,7 @@ TEST_CASE("ViscousInflowWallBC::AssembleFaceGrad", "[VisInflowBC]")
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(
-             new mach::ViscousInflowBC<dim>(diff_stack, fec.get(), Re_num,
+             new miso::ViscousInflowBC<dim>(diff_stack, fec.get(), Re_num,
                                             Pr_num, q_in, vis));
 
          // initialize state; here we randomly perturb a constant state
@@ -575,7 +575,7 @@ TEST_CASE("ViscousOutflowBC::AssembleFaceGrad", "[VisOutflowBC]")
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(
-             new mach::ViscousOutflowBC<dim>(diff_stack, fec.get(), Re_num,
+             new miso::ViscousOutflowBC<dim>(diff_stack, fec.get(), Re_num,
                                              Pr_num, q_out, vis));
 
          // initialize state; here we randomly perturb a constant state
@@ -717,7 +717,7 @@ TEST_CASE("ViscousFarFieldBC::AssembleFaceGrad", "[VisFarFieldBC]")
 
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(
-             new mach::NoSlipAdiabaticWallBC<dim>(diff_stack, fec.get(), Re_num,
+             new miso::NoSlipAdiabaticWallBC<dim>(diff_stack, fec.get(), Re_num,
                                                   Pr_num, q_far, vis));
 
          // initialize state; here we randomly perturb a constant state
@@ -863,7 +863,7 @@ TEST_CASE("SurfaceForce::AssembleVector", "[Surface Force]")
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
-             new mach::SurfaceForce<dim>(diff_stack, fec.get(), dim + 2, Re, Pr,
+             new miso::SurfaceForce<dim>(diff_stack, fec.get(), dim + 2, Re, Pr,
                                          q_ref, drag_dir));
 
          // initialize state; here we randomly perturb a constant state
@@ -900,7 +900,7 @@ TEST_CASE("SurfaceForce::AssembleVector", "[Surface Force]")
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
-             new mach::SurfaceForce<dim>(diff_stack, fec.get(), dim + 2, Re, Pr,
+             new miso::SurfaceForce<dim>(diff_stack, fec.get(), dim + 2, Re, Pr,
                                          q_ref, drag_dir));
 
          // initialize state; here we randomly perturb a constant state

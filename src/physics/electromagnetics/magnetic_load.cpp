@@ -1,12 +1,12 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
-#include "mach_linearform.hpp"
+#include "miso_input.hpp"
+#include "miso_linearform.hpp"
 #include "mfem_common_integ.hpp"
 #include "magnetic_load.hpp"
 
-namespace mach
+namespace miso
 {
 MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
                            mfem::ParFiniteElementSpace &fes,
@@ -28,10 +28,10 @@ MagneticLoad::MagneticLoad(adept::Stack &diff_stack,
    //                         std::forward_as_tuple(mesh_fes,
    //                         mesh_gf.GetData()));
 
-   lf.addDomainIntegrator(new mach::VectorFEDomainLFCurlIntegrator(*nuM, -1.0));
+   lf.addDomainIntegrator(new miso::VectorFEDomainLFCurlIntegrator(*nuM, -1.0));
    /// only needed if magnets are on the boundary and not normal to boundary
-   // lf.addBdrFaceIntegrator(new mach::VectorFEBoundaryTangentLFIntegrator(nuM,
+   // lf.addBdrFaceIntegrator(new miso::VectorFEBoundaryTangentLFIntegrator(nuM,
    // -1.0));
 }
 
-}  // namespace mach
+}  // namespace miso

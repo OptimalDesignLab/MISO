@@ -11,7 +11,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 /// Generate smoothly perturbed mesh 
 /// \param[in] degree - polynomial degree of the mapping
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
       // FlowSolver<3,false> solver(MPI_COMM_WORLD, opt_file_name, move(smesh));
 
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

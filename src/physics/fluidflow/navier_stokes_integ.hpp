@@ -1,5 +1,5 @@
-#ifndef MACH_NAVIER_STOKES_INTEG
-#define MACH_NAVIER_STOKES_INTEG
+#ifndef MISO_NAVIER_STOKES_INTEG
+#define MISO_NAVIER_STOKES_INTEG
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -10,7 +10,7 @@
 #include "mach_input.hpp"
 #include "navier_stokes_fluxes.hpp"
 
-namespace mach
+namespace miso
 {
 /// Source-term integrator for a 2D/3D Navier-Stokes MMS problem
 /// \note For details on the MMS problem, see the file viscous_mms.py
@@ -1405,7 +1405,7 @@ private:
 #endif
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "navier_stokes_integ_def.hpp"
 

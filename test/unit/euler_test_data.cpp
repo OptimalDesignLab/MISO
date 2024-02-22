@@ -87,7 +87,7 @@ void randBaselineVectorPert(const Vector &x, Vector &u)
     if constexpr(entvar)
     {
        Vector q(u);
-       mach::calcEntropyVars<double, dim, false>(q.GetData(), u.GetData());
+       miso::calcEntropyVars<double, dim, false>(q.GetData(), u.GetData());
     }
 }
 // explicit instantiation of the templated function above

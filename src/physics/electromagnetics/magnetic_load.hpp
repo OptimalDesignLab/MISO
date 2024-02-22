@@ -1,23 +1,23 @@
-#ifndef MACH_MAGNETIC_LOAD
-#define MACH_MAGNETIC_LOAD
+#ifndef MISO_MAGNETIC_LOAD
+#define MISO_MAGNETIC_LOAD
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 #include "finite_element_state.hpp"
-#include "mach_input.hpp"
-#include "mach_linearform.hpp"
+#include "miso_input.hpp"
+#include "miso_linearform.hpp"
 #include "magnetic_source_functions.hpp"
 
-namespace mach
+namespace miso
 {
 class MagneticLoad final
 {
 public:
    friend int getSize(const MagneticLoad &load) { return getSize(load.lf); }
 
-   friend inline void setInputs(MagneticLoad &load, const MachInputs &inputs)
+   friend inline void setInputs(MagneticLoad &load, const MISOInputs &inputs)
    {
       setInputs(load.lf, inputs);
    }
@@ -73,12 +73,12 @@ public:
 
 private:
    std::unordered_map<std::string, mfem::ParGridFunction> mag_load_fields;
-   MachLinearForm lf;
+   MISOLinearForm lf;
    /// Coefficient to represent magnetization
    std::unique_ptr<MagnetizationCoefficient> mag_coeff;
    std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

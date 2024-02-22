@@ -1,5 +1,5 @@
-#ifndef MACH_UTILS
-#define MACH_UTILS
+#ifndef MISO_UTILS
+#define MISO_UTILS
 
 #include <any>
 #include <functional>
@@ -13,9 +13,9 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "mach_types.hpp"
+#include "miso_types.hpp"
 
-namespace mach
+namespace miso
 {
 inline adept::Stack &getDiffStack()
 {
@@ -32,12 +32,12 @@ inline adept::Stack &getDiffStack()
 double quadInterp(double x0, double y0, double dydx0, double x1, double y1);
 
 /// Handles (high-level) exceptions in both serial and parallel
-class MachException : public std::exception
+class MISOException : public std::exception
 {
 public:
    /// Class constructor.
    /// \param[in] err_msg - the error message to be printed
-   MachException(std::string err_msg) : error_msg(std::move(std::move(err_msg)))
+   MISOException(std::string err_msg) : error_msg(std::move(std::move(err_msg)))
    { }
 
    /// Overwrites inherieted member that returns a c-string.
@@ -507,6 +507,6 @@ std::unique_ptr<mfem::Mesh> buildQuarterAnnulusMesh(int degree,
                                                     int num_ang,
                                                     double pert = 0.0);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

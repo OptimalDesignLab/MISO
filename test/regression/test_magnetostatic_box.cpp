@@ -9,7 +9,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
@@ -32,7 +32,7 @@ auto options = R"(
    },
    "lin-solver": {
       "type": "minres",
-      "printlevel": 0,
+      "printlevel": 1,
       "maxiter": 100,
       "abstol": 1e-14,
       "reltol": 1e-14
@@ -43,21 +43,25 @@ auto options = R"(
    },
    "nonlin-solver": {
       "type": "newton",
-      "printlevel": 3,
+      "printlevel": 1,
       "maxiter": 15,
       "reltol": 1e-10,
       "abstol": 1e-9
    },
    "components": {
-      "attr1": {
-         "material": "box1",
-         "attr": 1,
-         "linear": true
+      "box1": {
+         "attrs": [1],
+         "material": {
+            "name": "box1",
+            "mu_r": 795774.7154594767
+         }
       },
-      "attr2": {
-         "material": "box2",
-         "attr": 2,
-         "linear": true
+      "box2": {
+         "attrs": [2],
+         "material": {
+            "name": "box2",
+            "mu_r": 795774.7154594767
+         }
       }
    },
    "current": {
@@ -127,7 +131,17 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
 
             /// Set initial/boundary conditions
             solver.setState(aexact, state_tv);
+
+            /// Log initial condition
+            ParaViewLogger logger_init("2d_magnetostatic_initND", &state.mesh());
+            logger_init.registerField("state", state.gridFunc());
+            logger_init.saveState(state_tv, "state", 0, 0.0, 0);
+
             solver.solveForState(state_tv);
+
+            ParaViewLogger logger("2d_magnetostaticND", &state.mesh());
+            logger.registerField("state", state.gridFunc());
+            logger.saveState(state_tv, "state", 0, 0.0, 0);
 
             /// Compute state error and check against target error
             double error = solver.calcStateError(aexact, state_tv);
@@ -137,10 +151,14 @@ TEST_CASE("Magnetostatic Box Solver Regression Test",
 
             /// Calculate the magnetic energy and check against target energy
             solver.createOutput("energy");
-            MachInputs inputs{{"state", state_tv}};
+            MISOInputs inputs{{"state", state_tv}};
             double energy = solver.calcOutput("energy", inputs);
             std::cout << "energy: " << energy << "\n";
             REQUIRE(energy == Approx(target_energy[order-1][ref - 1]).margin(1e-10));
+
+            // solver.solveForState({{"current_density:box", 2.0}}, state_tv);
+            // solver.solveForState({{"current_density:box", 3.0}}, state_tv);
+            // solver.solveForState({{"current_density:box", 4.0}}, state_tv);
          }
       }
    }
@@ -202,14 +220,14 @@ unique_ptr<Mesh> buildMesh(int nxy, int nz)
       bool below = true;
       for (int i = 0; i < verts.Size(); ++i)
       {
-         auto vtx = mesh->GetVertex(verts[i]);
+         auto *vtx = mesh->GetVertex(verts[i]);
          if (vtx[1] <= 0.5)
          {
-            below = below & true;
+            below = below;
          }
          else
          {
-            below = below & false;
+            below = false;
          }
       }
       if (below)
@@ -221,5 +239,7 @@ unique_ptr<Mesh> buildMesh(int nxy, int nz)
          elem->SetAttribute(2);
       }
    }
+   mesh->SetAttributes();
+
    return mesh;
 }

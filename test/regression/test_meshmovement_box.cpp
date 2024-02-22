@@ -10,7 +10,7 @@
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
@@ -91,7 +91,7 @@ TEST_CASE("Mesh Movement Box Regression Test",
          auto solver = createSolver<LEAnalogySolver>(options, move(smesh));
          auto coord_field = solver->getNewField();
          solver->setFieldValue(*coord_field, boxDisplacement);
-         MachInputs inputs;
+         MISOInputs inputs;
          solver->solveForState(inputs, *coord_field);
          // solver->printField("sol", *coord_field, "coords", 0);
 

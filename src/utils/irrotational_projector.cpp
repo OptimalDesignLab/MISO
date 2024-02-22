@@ -5,7 +5,7 @@
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
                                              ParFiniteElementSpace &nd_fes,
@@ -47,7 +47,7 @@ IrrotationalProjector::IrrotationalProjector(ParFiniteElementSpace &h1_fes,
    mesh_sens.AddDomainIntegrator(div_mesh_sens);
 }
 
-void setInputs(IrrotationalProjector &op, const MachInputs &inputs)
+void setInputs(IrrotationalProjector &op, const MISOInputs &inputs)
 {
    auto it = inputs.find("mesh_coords");
    if (it != inputs.end())
@@ -216,4 +216,4 @@ void IrrotationalProjector::update() const
    grad.Finalize();
 }
 
-}  // namespace mach
+}  // namespace miso

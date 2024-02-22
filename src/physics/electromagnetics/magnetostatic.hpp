@@ -1,5 +1,5 @@
-#ifndef MACH_MAGNETOSTATIC
-#define MACH_MAGNETOSTATIC
+#ifndef MISO_MAGNETOSTATIC
+#define MISO_MAGNETOSTATIC
 
 #include <memory>
 #include <mpi.h>
@@ -8,13 +8,18 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "mach_residual.hpp"
+#include "miso_residual.hpp"
 #include "magnetostatic_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "pde_solver.hpp"
 #include "reluctivity_coefficient.hpp"
+#include "conductivity_coefficient.hpp"
+#include "cal2_kh_coefficient.hpp"
+#include "cal2_ke_coefficient.hpp"
+#include "magnetic_source_functions.hpp"
+#include "demag_flux_coefficient.hpp"
 
-namespace mach
+namespace miso
 {
 /// Solver for magnetostatic electromagnetic problems
 class MagnetostaticSolver : public PDESolver
@@ -27,10 +32,15 @@ public:
 private:
    /// Coefficient representing the potentially nonlinear magnetic reluctivity
    ReluctivityCoefficient nu;
-   /// Material dependent coefficient representing density
-   MeshDependentCoefficient rho;
-   /// Material dependent coefficient representing electrical conductivity
-   MeshDependentCoefficient sigma;
+   // /// Material dependent coefficient representing density
+   // MeshDependentCoefficient rho;
+   /// Coefficient representing the temperature-dependent electrical
+   /// conductivity
+   ConductivityCoefficient sigma;
+   // /// Coefficient representing the magnetization in the permanent magnets
+   // MagnetizationCoefficient mag_coeff;
+   // /// Coefficient representing the knee point flux density
+   // DemagFluxCoefficient B_knee;
 
    // /// For code that should be executed before the time stepping begins
    // /// \param[in] state - the current state
@@ -46,13 +56,13 @@ private:
    //                                      double dt,
    //                                      const mfem::Vector &state) override;
 
-   // /// Code that should be executed after time stepping ends
-   // /// \param[in] iter - the terminal iteration
-   // /// \param[in] t_final - the final time
-   // /// \param[in] state - the current state
-   // void derivedPDETerminalHook(int iter,
-   //                                     double t_final,
-   //                                     const mfem::Vector &state) override;
+   /// Code that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   void derivedPDETerminalHook(int iter,
+                               double t_final,
+                               const mfem::Vector &state) override;
 
    // /// Find the step size based on the options; e.g. for constant CFL or PTC
    // /// \param[in] iter - the current iteration
@@ -277,7 +287,7 @@ private:
 //    void constructSigma();
 
 // public:
-//    /// TODO: throw MachException if constructCurrent not called first
+//    /// TODO: throw MISOException if constructCurrent not called first
 //    ///       introdue some current constructed flag?
 //    /// assemble vector associated with current source
 //    /// \note - constructCurrent must be called before calling this
@@ -304,7 +314,7 @@ private:
 //    // double getFunctionalCurrentDensitySensitivity(const std::string &fun);
 
 // private:
-//    /// TODO: throw MachException if constructMagnetization or
+//    /// TODO: throw MISOException if constructMagnetization or
 //    ///       assembleCurrentSource not called first
 //    /// \brief assemble magnetization source terms into rhs vector and add
 //    them
@@ -522,6 +532,6 @@ private:
 //        MPI_Comm comm);
 // };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

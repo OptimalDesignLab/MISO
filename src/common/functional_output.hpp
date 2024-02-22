@@ -1,5 +1,5 @@
-#ifndef MACH_FUNCTIONAL_OUTPUT
-#define MACH_FUNCTIONAL_OUTPUT
+#ifndef MISO_FUNCTIONAL_OUTPUT
+#define MISO_FUNCTIONAL_OUTPUT
 
 #include <list>
 #include <map>
@@ -10,43 +10,38 @@
 #include "nlohmann/json.hpp"
 
 #include "finite_element_state.hpp"
-#include "mach_input.hpp"
-#include "mach_integrator.hpp"
+#include "miso_input.hpp"
+#include "miso_integrator.hpp"
 #include "utils.hpp"
 
-namespace mach
+namespace miso
 {
 class FunctionalOutput
 {
 public:
-   friend void setInputs(FunctionalOutput &output, const MachInputs &inputs);
+   friend void setInputs(FunctionalOutput &output, const MISOInputs &inputs);
 
    friend void setOptions(FunctionalOutput &output,
                           const nlohmann::json &options);
 
-   friend double calcOutput(FunctionalOutput &output, const MachInputs &inputs);
+   friend double calcOutput(FunctionalOutput &output, const MISOInputs &inputs);
 
    friend double calcOutputPartial(FunctionalOutput &output,
                                    const std::string &wrt,
-                                   const MachInputs &inputs);
+                                   const MISOInputs &inputs);
 
    friend void calcOutputPartial(FunctionalOutput &output,
                                  const std::string &wrt,
-                                 const MachInputs &inputs,
+                                 const MISOInputs &inputs,
                                  mfem::Vector &partial);
 
    friend double jacobianVectorProduct(FunctionalOutput &output,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
 
-   // friend void jacobianVectorProduct(FunctionalOutput &output,
-   //                                   const mfem::Vector &wrt_dot,
-   //                                   const std::string &wrt,
-   //                                   mfem::Vector &out_dot);
-
-   // friend double vectorJacobianProduct(FunctionalOutput &output,
-   //                                     const mfem::Vector &out_bar,
-   //                                     const std::string &wrt);
+   friend double vectorJacobianProduct(FunctionalOutput &output,
+                                       const mfem::Vector &out_bar,
+                                       const std::string &wrt);
 
    friend void vectorJacobianProduct(FunctionalOutput &output,
                                      const mfem::Vector &out_bar,
@@ -54,51 +49,75 @@ public:
                                      mfem::Vector &wrt_bar);
 
    /// Adds domain integrator to the nonlinear form that backs this output,
-   /// and adds a reference to it to in integs as a MachIntegrator
+   /// and adds a reference to it to in integs as a MISOIntegrator
    /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addOutputDomainIntegrator(T *integrator);
 
    /// Adds domain integrator restricted to certain elements specified by the
    /// attributes listed in @a bdr_attr_marker to the nonlinear form that backs
-   /// this output, and adds a reference to it to in integs as a MachIntegrator
+   /// this output, and adds a reference to it to in integs as a MISOIntegrator
    /// \param[in] integrator - integrator to add to functional
    /// \param[in] bdr_attr_marker - lists element attributes this integrator
    /// should be used on
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
-   void addOutputDomainIntegrator(T *integrator, std::vector<int> attr_marker);
+   void addOutputDomainIntegrator(T *integrator,
+                                  const std::vector<int> &attr_marker);
 
    /// Adds interface integrator to the nonlinear form that backs this output,
-   /// and adds a reference to it to in integs as a MachIntegrator
+   /// and adds a reference to it to in integs as a MISOIntegrator
    /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addOutputInteriorFaceIntegrator(T *integrator);
 
    /// Adds boundary integrator to the nonlinear form that backs this output,
-   /// and adds a reference to it to in integs as a MachIntegrator
+   /// and adds a reference to it to in integs as a MISOIntegrator
    /// \param[in] integrator - integrator to add to functional
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addOutputBdrFaceIntegrator(T *integrator);
 
    /// Adds boundary integrator restricted to certain boundaries specified by
    /// the attributes listed in @a bdr_attr_marker to the nonlinear form that
    /// backs this output, and adds a reference to it to in integs as a
-   /// MachIntegrator
+   /// MISOIntegrator
    /// \param[in] integrator - integrator to add to functional
    /// \param[in] bdr_attr_marker - lists boundary attributes this integrator
    /// should be used on
-   /// \tparam T - type of integrator, used for constructing MachIntegrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
    template <typename T>
    void addOutputBdrFaceIntegrator(T *integrator,
-                                   std::vector<int> bdr_attr_marker);
+                                   const std::vector<int> &bdr_attr_marker);
+
+   /// Adds internal boundary face integrator to the nonlinear form that backs
+   /// this output, and adds a reference to it to in integs as a MISOIntegrator
+   /// \param[in] integrator - integrator for internal boundary faces
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
+   /// \note Assumes ownership of integrator
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(T *integrator);
+
+   /// Adds internal boundary face integrator restricted to certain boundaries
+   /// specified by the attributes listed in @a bdr_attr_marker to the nonlinear
+   /// form that backs this output, and adds a reference to it to in integs as a
+   /// MISOIntegrator
+   /// \param[in] integrator - integrator for internal boundary faces
+   /// \param[in] bdr_attr_marker - internal boundary attributes for integrator
+   /// \tparam T - type of integrator, used for constructing MISOIntegrator
+   /// \note Assumes ownership of integrator
+   /// \note The array bdr_attr_marker is copied
+   template <typename T>
+   void addInternalBoundaryFaceIntegrator(
+       T *integrator,
+       const std::vector<int> &bdr_attr_marker);
 
    FunctionalOutput(mfem::ParFiniteElementSpace &fes,
-                    std::map<std::string, FiniteElementState> &fields)
-    : output(&fes), scratch(0), func_fields(&fields)
+                    std::map<std::string, FiniteElementState> &fields,
+                    std::string state_name = "state")
+    : output(&fes), scratch(0), func_fields(&fields), state_name(state_name)
    { }
 
    /// constructor just for compatibility with older solvers
@@ -117,8 +136,11 @@ protected:
    /// map of external fields the functional depends on
    std::map<std::string, FiniteElementState> *func_fields;
 
+   /// name of the field that holds the state for this output
+   std::string state_name;
+
    /// Collection of integrators to be applied.
-   std::vector<MachIntegrator> integs;
+   std::vector<MISOIntegrator> integs;
 
    /// Collection of element attribute markers for domain integrators
    std::list<mfem::Array<int>> domain_markers;
@@ -141,13 +163,18 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddDomainIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addDomainSensitivityIntegrator(*integrator,
+                                  *func_fields,
+                                  output_sens,
+                                  output_scalar_sens,
+                                  nullptr,
+                                  state_name);
 }
 
 template <typename T>
-void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
-                                                 std::vector<int> attr_marker)
+void FunctionalOutput::addOutputDomainIntegrator(
+    T *integrator,
+    const std::vector<int> &attr_marker)
 {
    integs.emplace_back(*integrator);
    // auto &marker = domain_markers.emplace_back(attr_marker.size());
@@ -156,8 +183,12 @@ void FunctionalOutput::addOutputDomainIntegrator(T *integrator,
    auto &marker = domain_markers.emplace_back(mesh_attr_size);
    attrVecToArray(attr_marker, marker);
    output.AddDomainIntegrator(integrator, marker);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addDomainSensitivityIntegrator(*integrator,
+                                  *func_fields,
+                                  output_sens,
+                                  output_scalar_sens,
+                                  &marker,
+                                  state_name);
 }
 
 template <typename T>
@@ -165,8 +196,8 @@ void FunctionalOutput::addOutputInteriorFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddInteriorFaceIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addInteriorFaceSensitivityIntegrator(
+       *integrator, *func_fields, output_sens, output_scalar_sens, state_name);
 }
 
 template <typename T>
@@ -174,14 +205,18 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    output.AddBdrFaceIntegrator(integrator);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               *func_fields,
+                               output_sens,
+                               output_scalar_sens,
+                               nullptr,
+                               state_name);
 }
 
 template <typename T>
 void FunctionalOutput::addOutputBdrFaceIntegrator(
     T *integrator,
-    std::vector<int> bdr_attr_marker)
+    const std::vector<int> &bdr_attr_marker)
 {
    integs.emplace_back(*integrator);
 
@@ -190,10 +225,46 @@ void FunctionalOutput::addOutputBdrFaceIntegrator(
    attrVecToArray(bdr_attr_marker, marker);
 
    output.AddBdrFaceIntegrator(integrator, marker);
-   addSensitivityIntegrator(
-       *integrator, *func_fields, output_sens, output_scalar_sens);
+   addBdrSensitivityIntegrator(*integrator,
+                               *func_fields,
+                               output_sens,
+                               output_scalar_sens,
+                               &marker,
+                               state_name);
 }
 
-}  // namespace mach
+template <typename T>
+void FunctionalOutput::addInternalBoundaryFaceIntegrator(T *integrator)
+{
+   integs.emplace_back(*integrator);
+   output.AddInternalBoundaryFaceIntegrator(integrator);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            *func_fields,
+                                            output_sens,
+                                            output_scalar_sens,
+                                            nullptr,
+                                            state_name);
+}
+
+template <typename T>
+void FunctionalOutput::addInternalBoundaryFaceIntegrator(
+    T *integrator,
+    const std::vector<int> &bdr_attr_marker)
+{
+   integs.emplace_back(*integrator);
+   auto mesh_attr_size = output.ParFESpace()->GetMesh()->bdr_attributes.Max();
+   auto &marker = bdr_markers.emplace_back(mesh_attr_size);
+   attrVecToArray(bdr_attr_marker, marker);
+
+   output.AddInternalBoundaryFaceIntegrator(integrator, marker);
+   addInternalBoundarySensitivityIntegrator(*integrator,
+                                            *func_fields,
+                                            output_sens,
+                                            output_scalar_sens,
+                                            &marker,
+                                            state_name);
+}
+
+}  // namespace miso
 
 #endif

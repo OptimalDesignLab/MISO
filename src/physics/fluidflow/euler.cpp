@@ -12,7 +12,7 @@
 using namespace mfem;
 using namespace std;
 
-namespace mach
+namespace miso
 {
 template <int dim, bool entvar>
 EulerSolver<dim, entvar>::EulerSolver(const nlohmann::json &json_options,
@@ -29,21 +29,21 @@ EulerSolver<dim, entvar>::EulerSolver(const nlohmann::json &json_options,
       *out << "The state variables are the conservative variables." << endl;
    }
    // define free-stream parameters; may or may not be used, depending on case
-   mach_fs = options["flow-param"]["mach"].template get<double>();
+   miso_fs = options["flow-param"]["miso"].template get<double>();
    aoa_fs = options["flow-param"]["aoa"].template get<double>() * M_PI / 180;
    iroll = options["flow-param"]["roll-axis"].template get<int>();
    ipitch = options["flow-param"]["pitch-axis"].template get<int>();
    if (iroll == ipitch)
    {
-      throw MachException("iroll and ipitch must be distinct dimensions!");
+      throw MISOException("iroll and ipitch must be distinct dimensions!");
    }
    if ((iroll < 0) || (iroll > 2))
    {
-      throw MachException("iroll axis must be between 0 and 2!");
+      throw MISOException("iroll axis must be between 0 and 2!");
    }
    if ((ipitch < 0) || (ipitch > 2))
    {
-      throw MachException("ipitch axis must be between 0 and 2!");
+      throw MISOException("ipitch axis must be between 0 and 2!");
    }
 }
 
@@ -108,7 +108,7 @@ void EulerSolver<dim, entvar>::addResBoundaryIntegrators(double alpha)
    {  // isentropic vortex BC
       if (dim != 2)
       {
-         throw MachException(
+         throw MISOException(
              "EulerSolver::addBoundaryIntegrators(alpha)\n"
              "\tisentropic vortex BC must use 2D mesh!");
       }
@@ -249,7 +249,7 @@ void EulerSolver<dim, entvar>::addOutput(const std::string &fun,
          drag_dir(iroll) = cos(aoa_fs);
          drag_dir(ipitch) = sin(aoa_fs);
       }
-      drag_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cd
+      drag_dir *= 1.0 / pow(miso_fs, 2.0);  // to get non-dimensional Cd
 
       FunctionalOutput out(*fes, res_fields);
       out.addOutputBdrFaceIntegrator(
@@ -273,7 +273,7 @@ void EulerSolver<dim, entvar>::addOutput(const std::string &fun,
          lift_dir(iroll) = -sin(aoa_fs);
          lift_dir(ipitch) = cos(aoa_fs);
       }
-      lift_dir *= 1.0 / pow(mach_fs, 2.0);  // to get non-dimensional Cl
+      lift_dir *= 1.0 / pow(miso_fs, 2.0);  // to get non-dimensional Cl
 
       FunctionalOutput out(*fes, res_fields);
       out.addOutputBdrFaceIntegrator(
@@ -291,7 +291,7 @@ void EulerSolver<dim, entvar>::addOutput(const std::string &fun,
    }
    else
    {
-      throw MachException("Output with name " + fun +
+      throw MISOException("Output with name " + fun +
                           " not supported by "
                           "EulerSolver!\n");
    }
@@ -376,14 +376,14 @@ void EulerSolver<dim, entvar>::getFreeStreamState(mfem::Vector &q_ref)
    q_ref(0) = 1.0;
    if (dim == 1)
    {
-      q_ref(1) = q_ref(0) * mach_fs;  // ignore angle of attack
+      q_ref(1) = q_ref(0) * miso_fs;  // ignore angle of attack
    }
    else
    {
-      q_ref(iroll + 1) = q_ref(0) * mach_fs * cos(aoa_fs);
-      q_ref(ipitch + 1) = q_ref(0) * mach_fs * sin(aoa_fs);
+      q_ref(iroll + 1) = q_ref(0) * miso_fs * cos(aoa_fs);
+      q_ref(ipitch + 1) = q_ref(0) * miso_fs * sin(aoa_fs);
    }
-   q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * mach_fs * mach_fs;
+   q_ref(dim + 1) = 1 / (euler::gamma * euler::gami) + 0.5 * miso_fs * miso_fs;
 }
 
 template <int dim, bool entvar>
@@ -504,4 +504,4 @@ template class EulerSolver<2, false>;
 template class EulerSolver<3, true>;
 template class EulerSolver<3, false>;
 
-}  // namespace mach
+}  // namespace miso

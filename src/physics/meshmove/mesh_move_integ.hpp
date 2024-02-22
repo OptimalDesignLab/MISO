@@ -1,11 +1,11 @@
-#ifndef MACH_MESH_MOVE_INTEG
-#define MACH_MESH_MOVE_INTEG
+#ifndef MISO_MESH_MOVE_INTEG
+#define MISO_MESH_MOVE_INTEG
 
 #include "mfem.hpp"
 
 #include "finite_element_state.hpp"
 
-namespace mach
+namespace miso
 {
 /** Integrator for the linear elasticity form:
     a(u,v) = (lambda div(u), div(v)) + (2 mu e(u), e(v)),
@@ -69,7 +69,7 @@ public:
 
    void AssembleRHSElementVect(const mfem::FiniteElement &el,
                                mfem::ElementTransformation &trans,
-                               mfem::Vector &state_bar) override;
+                               mfem::Vector &res_dot) override;
 
 private:
    /// the state_dot to use when evaluating (dR/du) * state_dot
@@ -106,6 +106,6 @@ inline void addSensitivityIntegrator(
            fields.at("state_dot").gridFunc(), primal_integ));
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

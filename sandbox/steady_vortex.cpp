@@ -6,11 +6,11 @@ constexpr bool entvar = false;
 #include <fstream>
 #include <iostream>
 
-#include "mach.hpp"
+#include "miso.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 /// \brief Returns the value of the integrated math entropy over the domain
 double calcEntropyTotalExact();
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
       // Create the output(s), inputs, and solve for state
       solver.createOutput("entropy", options["outputs"].at("entropy"));
       solver.createOutput("drag", options["outputs"].at("drag"));
-      MachInputs inputs({{"state", state_tv}});
+      MisoInputs inputs({{"state", state_tv}});
       solver.solveForState(inputs, state_tv);
 
       // Evaluate the density, entropy and drag errors
@@ -88,13 +88,13 @@ int main(int argc, char *argv[])
       out->precision(15);
       *out << "\nfinal residual norm = " << res_error;
       *out << "\n|| rho_h - rho ||_{L^2} = " << l2_error << endl;
-      *out << "\nDrag error = " << fabs(drag - (-1/ mach::euler::gamma)) 
+      *out << "\nDrag error = " << fabs(drag - (-1/ miso::euler::gamma)) 
            << endl;
       *out << "\nTotal entropy = " << entropy;
       *out << "\nEntropy error = "
            << fabs(entropy - calcEntropyTotalExact()) << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13...3.15)
 
 # set the project name, version, description, and languages
-project(ODLMach VERSION 1.0
+project(ODLMISO VERSION 1.0
                 DESCRIPTION "Optimal Design Lab multi-physics solver"
                 LANGUAGES CXX)
 
@@ -13,9 +13,9 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
    message("CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 endif (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
-# Load Mach cmake utilities
+# Load MISO cmake utilities
 include(cmake/project-is-top-level.cmake)
-include(cmake/mach_cmake_utils.cmake)
+include(cmake/miso_cmake_utils.cmake)
 
 # Let CMake know where to find custom FindFoo.cmake files
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/find")
@@ -71,7 +71,9 @@ endif (MFEM_USE_PUMI)
 # find the MPI compilers
 find_package(MPI REQUIRED)
 
-cmake_policy(SET CMP0077 NEW)
+if (POLICY CMP0077)
+   cmake_policy(SET CMP0077 NEW)
+endif (POLICY CMP0077)
 set(TINYSPLINE_ENABLE_CXX ON)
 set(TINYSPLINE_INSTALL ON)
 include(FetchContent)
@@ -104,24 +106,24 @@ FetchContent_MakeAvailable(json)
 #   add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
 # endif()
 
-# create build target library named mach
-add_library(mach "")
+# create build target library named miso
+add_library(miso "")
 
-# add_public_headers_to_target(mach "mach.hpp")
+# add_public_headers_to_target(miso "miso.hpp")
 
-set_target_properties(mach PROPERTIES PUBLIC_HEADER "")
+set_target_properties(miso PROPERTIES PUBLIC_HEADER "")
 
-# set(MACH_HEADERS "mach.hpp")
+# set(MISO_HEADERS "miso.hpp")
 
-# target_sources(mach
+# target_sources(miso
 #    PRIVATE
-#       "${MACH_HEADERS}"
+#       "${MISO_HEADERS}"
 # )
 
-# Use CMakeLists.txt files in subdirectories to add sources to mach
+# Use CMakeLists.txt files in subdirectories to add sources to miso
 add_subdirectory(src)
 
-target_link_libraries(mach
+target_link_libraries(miso
    PUBLIC
       Adept::adept
       mfem
@@ -131,30 +133,30 @@ target_link_libraries(mach
       tinysplinecxx
 )
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
       "${MFEM_INCLUDE_DIRS}"
       "${PUMI_INCLUDE_DIRS}"
 )
 
 # if (MFEM_USE_EGADS)
-#    target_link_libraries(mach
+#    target_link_libraries(miso
 #       PUBLIC
 #          "${EGADS_LIBRARIES}"
 #    )
 
-#    target_include_directories(mach
+#    target_include_directories(miso
 #       PUBLIC
 #          "${EGADS_INCLUDE_DIRS}"
 #    )
 # endif (MFEM_USE_EGADS)
 
-target_compile_features(mach
+target_compile_features(miso
    PUBLIC
       cxx_std_17
 )
 
-set_target_properties(mach
+set_target_properties(miso
    PROPERTIES 
       CXX_EXTENSIONS OFF
       POSITION_INDEPENDENT_CODE ON
@@ -163,16 +165,16 @@ set_target_properties(mach
       # # INTERPROCEDURAL_OPTIMIZATION True
 )
 
-option(MACH_USE_CLANG_TIDY
+option(MISO_USE_CLANG_TIDY
       "Use clang-tidy static analysis tool"
       NO)
-if (MACH_USE_CLANG_TIDY)
-   set_target_properties(mach
+if (MISO_USE_CLANG_TIDY)
+   set_target_properties(miso
       PROPERTIES
-         CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
-         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
+         CXX_CLANG_TIDY "clang-tidy;--fix;--format-style=file;--extra-arg=--std=c++17"
+         # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++17;"
    )
-endif (MACH_USE_CLANG_TIDY)
+endif (MISO_USE_CLANG_TIDY)
 
 set(DEBUG_OPTIONS
    "-g"
@@ -185,7 +187,7 @@ set(RELEASE_OPTIONS
    "-O2"
 )
 
-target_compile_options(mach
+target_compile_options(miso
    PRIVATE 
       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
@@ -193,15 +195,15 @@ target_compile_options(mach
 
 # TODO: When EGADS support is in mainline PUMI move this to MFEM CMake
 if (MFEM_USE_EGADS)
-   target_compile_definitions(mach
+   target_compile_definitions(miso
       PUBLIC
          MFEM_USE_EGADS
    )
 endif (MFEM_USE_EGADS)
 
 install(
-   TARGETS mach
-   EXPORT mach-targets
+   TARGETS miso
+   EXPORT miso-targets
    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -211,33 +213,33 @@ install(
 
 configure_package_config_file(
    "${CMAKE_CURRENT_SOURCE_DIR}/config.cmake.in"
-   "${CMAKE_CURRENT_BINARY_DIR}/mach-config.cmake"
-   INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mach
+   "${CMAKE_CURRENT_BINARY_DIR}/miso-config.cmake"
+   INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/miso
 )
 
 write_basic_package_version_file(
-   "${PROJECT_BINARY_DIR}/mach-config-version.cmake"
+   "${PROJECT_BINARY_DIR}/miso-config-version.cmake"
    COMPATIBILITY AnyNewerVersion
 )
 
 install(FILES
-   "${PROJECT_BINARY_DIR}/mach-config.cmake"
-   "${PROJECT_BINARY_DIR}/mach-config-version.cmake"
-   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mach
+   "${PROJECT_BINARY_DIR}/miso-config.cmake"
+   "${PROJECT_BINARY_DIR}/miso-config-version.cmake"
+   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/miso
 )
 
 install(
-   EXPORT mach-targets
-   NAMESPACE mach::
-   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mach
+   EXPORT miso-targets
+   NAMESPACE miso::
+   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/miso
 )
 
-get_target_property(MACH_SOURCES mach SOURCES)
-add_custom_target(mach-format
+get_target_property(MISO_SOURCES miso SOURCES)
+add_custom_target(miso-format
    COMMAND clang-format
    -style=file
    -i
-   ${MACH_SOURCES}
+   ${MISO_SOURCES}
 )
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -270,7 +272,7 @@ add_subdirectory(sandbox EXCLUDE_FROM_ALL)
 add_subdirectory(doc)
 
 option(BUILD_PYTHON_WRAPPER
-      "Build a python wrapper for mach that allows constructing solvers and
+      "Build a python wrapper for miso that allows constructing solvers and
       running problems through a Python interface"
       NO)
 
@@ -281,10 +283,13 @@ if (BUILD_PYTHON_WRAPPER)
 
    include(FetchContent)
 
-   cmake_policy(SET CMP0127 NEW)
+   if (POLICY CMP0127)
+      cmake_policy(SET CMP0127 NEW)
+   endif (POLICY CMP0127)
    FetchContent_Declare(pybind11
       GIT_REPOSITORY "https://github.com/pybind/pybind11"
-      GIT_TAG v2.7.1
+      #GIT_TAG v2.7.1
+      GIT_TAG v2.10.0
    )
 
    FetchContent_MakeAvailable(pybind11)
@@ -295,61 +300,61 @@ if (BUILD_PYTHON_WRAPPER)
 
    # FetchContent_MakeAvailable(pybind11_json)
 
-   pybind11_add_module(pyMach "")
+   pybind11_add_module(pyMISO "")
 
-   target_compile_features(pyMach
+   target_compile_features(pyMISO
    PUBLIC
       cxx_std_17
    )
 
-   if (MACH_USE_CLANG_TIDY)
-      set_target_properties(pyMach
+   if (MISO_USE_CLANG_TIDY)
+      set_target_properties(pyMISO
          PROPERTIES
-            CXX_CLANG_TIDY "clang-tidy;--format-style=file;--extra-arg=--std=c++17"
+            CXX_CLANG_TIDY "clang-tidy;--fix;--format-style=file;--extra-arg=--std=c++17"
             # CXX_CLANG_TIDY "clang-tidy;--fix;--fix-errors;--format-style=file;--extra-arg=--std=c++11"
       )
-   endif (MACH_USE_CLANG_TIDY)
+   endif (MISO_USE_CLANG_TIDY)
 
-   add_subdirectory(mach)
+   add_subdirectory(miso)
 
-   get_target_property(PYMACH_SOURCES pyMach SOURCES)
-   add_custom_target(pymach-format
+   get_target_property(PYMISO_SOURCES pyMISO SOURCES)
+   add_custom_target(pymiso-format
       COMMAND clang-format
       -style=file
       -i
-      ${PYMACH_SOURCES}
+      ${PYMISO_SOURCES}
    )
 
    if (BUILD_TESTING)
-      target_compile_definitions(pyMach
+      target_compile_definitions(pyMISO
          PRIVATE
             BUILD_TESTING
       )
 
-      target_sources(pyMach
+      target_sources(pyMISO
          PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/test/regression/test_mach_inputs.hpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/regression/test_miso_inputs.hpp"
       )
-      target_include_directories(pyMach
+      target_include_directories(pyMISO
          PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/test/regression/"
       )
 
    endif (BUILD_TESTING)
 
-   target_link_libraries(pyMach
+   target_link_libraries(pyMISO
       PUBLIC
-         mach
+         miso
          # "${MFEM_LIBRARIES}"
    )
 
    if (MFEM_USE_EGADS)
-      target_link_libraries(pyMach
+      target_link_libraries(pyMISO
          PUBLIC
             "${EGADS_LIBRARIES}"
       )
 
-      target_include_directories(pyMach
+      target_include_directories(pyMISO
          PUBLIC
             "${EGADS_INCLUDE_DIRS}"
       )
@@ -361,17 +366,17 @@ if (BUILD_PYTHON_WRAPPER)
       OUTPUT_VARIABLE MPI4PY_INCLUDE_DIRS
    )
    
-   target_include_directories(pyMach
+   target_include_directories(pyMISO
       PRIVATE
          "${MPI4PY_INCLUDE_DIRS}"
    )
 
-   # target_compile_options(pyMach
+   # target_compile_options(pyMISO
    #    PRIVATE 
    #       "$<$<CONFIG:DEBUG>:${DEBUG_OPTIONS}>"
    #       "$<$<CONFIG:RELEASE>:${RELEASE_OPTIONS}>"
    # )
-   # set_target_properties(pyMach
+   # set_target_properties(pyMISO
    #    PROPERTIES 
    #       CXX_EXTENSIONS OFF
    #       POSITION_INDEPENDENT_CODE ON
@@ -380,12 +385,12 @@ if (BUILD_PYTHON_WRAPPER)
    #       INTERPROCEDURAL_OPTIMIZATION OFF
    # )
 
-   install(TARGETS pyMach
-      LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/mach"
+   install(TARGETS pyMISO
+      LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/miso"
    )
 
 endif (BUILD_PYTHON_WRAPPER)
 
 add_custom_target(format
-   DEPENDS mach-format pymach-format
+   DEPENDS miso-format pymiso-format
 )

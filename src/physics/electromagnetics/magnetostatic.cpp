@@ -1,25 +1,30 @@
+#include <iostream>
 #include <memory>
 #include <string>
+#include <variant>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
 #include "common_outputs.hpp"
+#include "data_logging.hpp"
 #include "electromag_integ.hpp"
 #include "electromag_outputs.hpp"
+#include "finite_element_state.hpp"
 #include "functional_output.hpp"
 #include "l2_transfer_operator.hpp"
+#include "pde_solver.hpp"
 
 #include "magnetostatic.hpp"
 
 namespace
 {
-// mach::MeshDependentCoefficient constructSigma(const nlohmann::json &options,
+// miso::MeshDependentCoefficient constructSigma(const nlohmann::json &options,
 //                                               const nlohmann::json
 //                                               &materials)
 // {
-//    mach::MeshDependentCoefficient sigma;
+//    miso::MeshDependentCoefficient sigma;
 //    /// loop over all components, construct conductivity for each
 //    for (auto &component : options["components"])
 //    {
@@ -62,30 +67,101 @@ std::vector<int> getCurrentAttributes(nlohmann::json &options)
 
 }  // anonymous namespace
 
-namespace mach
+namespace miso
 {
 MagnetostaticSolver::MagnetostaticSolver(MPI_Comm comm,
                                          const nlohmann::json &solver_options,
                                          std::unique_ptr<mfem::Mesh> smesh)
  : PDESolver(comm, solver_options, 1, std::move(smesh)),
    nu(options, materials),
-   rho(constructMaterialCoefficient("rho", options["components"], materials)),
-   sigma(
-       constructMaterialCoefficient("sigma", options["components"], materials))
+   // rho(constructMaterialCoefficient("rho", options["components"],
+   // materials)),
+   sigma(options, materials)
+// mag_coeff(diff_stack, options["magnets"], materials, 2),
+// B_knee(options, materials)
 {
+   std::cout << "state size: " << state().gridFunc().Size() << "\n";
+
    options["time-dis"]["type"] = "steady";
 
-   spatial_res = std::make_unique<MachResidual>(MagnetostaticResidual(
+   if (auto temp_iter = fields.find("temperature"); temp_iter == fields.end())
+   {
+      fields.emplace(
+          "temperature",
+          FiniteElementState(
+              mesh(), FiniteElementVector::Options{.name = "temperature"}));
+   }
+   auto &temp = fields.at("temperature");
+   temp.gridFunc() = 273.15;
+
+   spatial_res = std::make_unique<MISOResidual>(MagnetostaticResidual(
        diff_stack, fes(), fields, options, materials, nu));
-   mach::setOptions(*spatial_res, options);
+   miso::setOptions(*spatial_res, options);
 
    auto *prec = getPreconditioner(*spatial_res);
    auto lin_solver_opts = options["lin-solver"];
-   linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+   linear_solver = miso::constructLinearSolver(comm, lin_solver_opts, prec);
    auto nonlin_solver_opts = options["nonlin-solver"];
    nonlinear_solver =
-       mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+       miso::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*spatial_res);
+
+   auto state_degree =
+       AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   nlohmann::json dg_field_options{{"degree", state_degree},
+                                   {"basis-type", "DG"}};
+   fields.emplace("flux_magnitude",
+                  FiniteElementState(mesh(), dg_field_options));
+   fields.emplace("peak_flux", FiniteElementState(mesh(), dg_field_options));
+
+   auto paraview = options["paraview"]["log"].get<bool>();
+   if (paraview)
+   {
+      auto paraview_dir_name = options["paraview"]["directory"];
+      miso::ParaViewLogger logger(paraview_dir_name, &mesh());
+      const auto &logged_fields = options["paraview"]["fields"];
+      for (const auto &field : logged_fields)
+      {
+         if (fields.count(field) > 0)
+         {
+            logger.registerField(field, fields.at(field).gridFunc());
+         }
+         else if (duals.count(field) > 0)
+         {
+            logger.registerField(field,
+                                 dynamic_cast<mfem::ParGridFunction &>(
+                                     duals.at(field).localVec()));
+         }
+         else
+         {
+            std::cerr << "attempting to log unknown field \"" << field
+                      << "\"!\n";
+         }
+      }
+      addLogger(std::move(logger), {});
+   }
+   // miso::ParaViewLogger paraview("magnetostatic", &mesh());
+   // paraview.registerField("state", fields.at("state").gridFunc());
+   // paraview.registerField("adjoint", fields.at("adjoint").gridFunc());
+   // paraview.registerField(
+   //     "residual",
+   //     dynamic_cast<mfem::ParGridFunction
+   //     &>(duals.at("residual").localVec()));
+
+   // paraview.registerField("peak_flux", fields.at("peak_flux").gridFunc());
+
+   // const auto &temp_field_iter = fields.find("temperature");
+   // if (temp_field_iter != fields.end())
+   // {
+   //    auto &temp_field = temp_field_iter->second;
+   //    paraview.registerField("temperature", temp_field.gridFunc());
+   // }
+
+   // // Adding a field for the pm demag constraint field
+   // paraview.registerField("pm_demag_field",
+   // fields.at("pm_demag_field").gridFunc());
+
+   // addLogger(std::move(paraview), {});
 }
 
 void MagnetostaticSolver::addOutput(const std::string &fun,
@@ -95,7 +171,16 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    if (fun.rfind("energy", 0) == 0)
    {
       FunctionalOutput out(fes(), fields);
-      out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu));
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu),
+                                       attributes);
+      }
+      else
+      {
+         out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(nu));
+      }
       outputs.emplace(fun, std::move(out));
    }
    else if (fun.rfind("force", 0) == 0)
@@ -131,19 +216,40 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
                      std::forward_as_tuple(
                          mesh(), dg_field_options, mesh().SpaceDimension()));
 
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<miso::ParaViewLogger>(logger))
+      // {
+      //    auto &paraview = std::get<miso::ParaViewLogger>(logger);
+      //    paraview.registerField("flux_density",
+      //                           fields.at("flux_density").gridFunc());
+      // }
+
       auto &dg_field = fields.at(fun);
       L2CurlProjection out(state(), fields.at("mesh_coords"), dg_field);
       outputs.emplace(fun, std::move(out));
    }
    else if (fun.rfind("flux_magnitude", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple(fun),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple(fun),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
+
+      // miso::ParaViewLogger paraview("flux_magnitude", &mesh());
+      // paraview.registerField("flux_magnitude",
+      // fields.at("flux_magnitude").gridFunc());
+      // addLogger(std::move(paraview), {});
+
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<miso::ParaViewLogger>(logger))
+      // {
+      //    auto &paraview = std::get<miso::ParaViewLogger>(logger);
+      //    paraview.registerField("flux_magnitude",
+      //                           fields.at("flux_magnitude").gridFunc());
+      // }
 
       auto &dg_field = fields.at(fun);
       L2CurlMagnitudeProjection out(
@@ -162,11 +268,18 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("max_state", 0) == 0)
    {
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
+
       mfem::ParFiniteElementSpace *fes = nullptr;
       if (options.contains("state"))
       {
          auto field_name = options["state"].get<std::string>();
-         std::cout << "field name: " << field_name << "\n";
          fes = &fields.at(field_name).space();
       }
       else
@@ -186,13 +299,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("ac_loss", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
+
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<miso::ParaViewLogger>(logger))
+      // {
+      //    std::cout << "adding peak flux to logger!\n";
+      //    auto &paraview = std::get<miso::ParaViewLogger>(logger);
+      //    paraview.registerField("peak_flux",
+      //    fields.at("peak_flux").gridFunc());
+      // }
 
       auto ac_loss_options = options;
       ac_loss_options["attributes"] =
@@ -202,13 +324,22 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("core_loss", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
+
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<miso::ParaViewLogger>(logger))
+      // {
+      //    std::cout << "adding peak flux to logger!\n";
+      //    auto &paraview = std::get<miso::ParaViewLogger>(logger);
+      //    paraview.registerField("peak_flux",
+      //    fields.at("peak_flux").gridFunc());
+      // }
 
       CoreLossFunctional out(
           fields, AbstractSolver2::options["components"], materials, options);
@@ -227,39 +358,143 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("heat_source", 0) == 0)
    {
-      auto state_degree =
-          AbstractSolver2::options["space-dis"]["degree"].get<int>();
-      nlohmann::json dg_field_options{{"degree", state_degree},
-                                      {"basis-type", "DG"}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("peak_flux"),
-                     std::forward_as_tuple(mesh(), dg_field_options));
+      // auto state_degree =
+      //     AbstractSolver2::options["space-dis"]["degree"].get<int>();
+      // nlohmann::json dg_field_options{{"degree", state_degree},
+      //                                 {"basis-type", "DG"}};
+      // fields.emplace(std::piecewise_construct,
+      //                std::forward_as_tuple("peak_flux"),
+      //                std::forward_as_tuple(mesh(), dg_field_options));
 
-      auto temp_degree = options["space-dis"]["degree"].get<int>();
-      auto temp_basis = options["space-dis"]["basis-type"].get<std::string>();
-      nlohmann::json temp_field_options{{"degree", temp_degree},
-                                        {"basis-type", temp_basis}};
-      fields.emplace(std::piecewise_construct,
-                     std::forward_as_tuple("temperature"),
-                     std::forward_as_tuple(mesh(), temp_field_options));
+      // auto &[logger, logger_opts] = loggers.back();
+      // if (std::holds_alternative<miso::ParaViewLogger>(logger))
+      // {
+      //    std::cout << "adding peak flux to logger!\n";
+      //    auto &paraview = std::get<miso::ParaViewLogger>(logger);
+      //    paraview.registerField("peak_flux",
+      //    fields.at("peak_flux").gridFunc());
+      // }
 
       EMHeatSourceOutput out(fields,
-                             rho,
                              sigma,
                              AbstractSolver2::options["components"],
                              materials,
                              options);
       outputs.emplace(fun, std::move(out));
    }
+   // else if (fun.rfind("pm_demag", 0) == 0)
+   // {
+   //    // Make the pm demag constraint field
+   //    auto state_degree =
+   //        AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   //    nlohmann::json dg_field_options{{"degree", state_degree},
+   //                                    {"basis-type", "DG"}};
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple(fun),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
+
+   //    ///TODO: Just need regular flux density, which is assumed to be the
+   //    elfun passed in to integrator. Look into making this change
+   //    // Adding the peak flux field so can visualize it
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("peak_flux"),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
+   //    /*
+   //    auto state_degree =
+   //        AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   //    nlohmann::json dg_field_options{{"degree", state_degree},
+   //                                    {"basis-type", "DG"}};
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("peak_flux"),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
+   //    */
+
+   //    // Adding the pm demag field so can visualize it
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("pm_demag_field"),
+   //                   std::forward_as_tuple(mesh(), dg_field_options));
+
+   //    // Add the pm demag constraint to paraview
+   //    auto &[logger, logger_opts] = loggers.back();
+   //    if (std::holds_alternative<miso::ParaViewLogger>(logger))
+   //    {
+   //       auto &paraview = std::get<miso::ParaViewLogger>(logger);
+   //       paraview.registerField("pm_demag",
+   //                              fields.at("pm_demag").gridFunc());
+   //       paraview.registerField("pm_demag_field",
+   //                              fields.at("pm_demag_field").gridFunc());
+   //    }
+
+   //    ///TODO: If needed, emplace the temperature field as was done for heat
+   //    source outputs
+
+   //    // std::cout << "magnetostatic.cpp, pre PMDemagOutput call\n";
+   //    PMDemagOutput out(
+   //        fields, AbstractSolver2::options["components"], materials,
+   //        options);
+   //    // std::cout << "magnetostatic.cpp, post PMDemagOutput call\n";
+   //    outputs.emplace(fun, std::move(out));
+   //    // std::cout << "magnetostatic.cpp, post output emplace\n";
+   // }
+   // else if (fun.rfind("demag_proximity", 0) == 0)
+   // {
+   //    auto state_degree =
+   //        AbstractSolver2::options["space-dis"]["degree"].get<int>();
+   //    nlohmann::json dg_field_options{{"degree", state_degree},
+   //                                    {"basis-type", "DG"}};
+   //    fields.emplace(std::piecewise_construct,
+   //                   std::forward_as_tuple("flux_density"),
+   //                   std::forward_as_tuple(
+   //                       mesh(), dg_field_options, mesh().SpaceDimension()));
+
+   //    auto &[logger, logger_opts] = loggers.back();
+   //    if (std::holds_alternative<miso::ParaViewLogger>(logger))
+   //    {
+   //       auto &paraview = std::get<miso::ParaViewLogger>(logger);
+   //       paraview.registerField("flux_density",
+   //                              fields.at("flux_density").gridFunc());
+   //    }
+
+   //    /* Pseudo-code
+   //    // Get the B field from L2CurlProjection then turn it into a grid
+   //    function
+   //    // Get the temperature field and turn it into grid function
+
+   //    // For a pointwise evaluation (integrator logic):
+   //    Get trans, ip, etc.
+   //    double temperature -> shape functions dotted with temp_elfun
+   //    mfem::Vector B -> shape functions dotted with B_elfun
+   //    double B_demag = B_knee.Eval(trans, ip, temperature);
+   //    VectorStateCoefficient M;
+   //    magnetization.Eval(M, trans, ip, temperature)
+   //    double demag_prox = B_demag - (B * M)/M.Norml2();
+
+   //    // The above is for one single point in space
+   //    */
+
+   //    // Obtain the flux density field
+   //    auto &dg_B_field = fields.at("flux_density");
+   //    L2CurlProjection out(state(), fields.at("mesh_coords"), dg_B_field);
+   //    outputs.emplace(fun, std::move(out));
+   // }
    else
    {
-      throw MachException("Output with name " + fun +
+      throw MISOException("Output with name " + fun +
                           " not supported by "
                           "MagnetostaticSolver!\n");
    }
 }
 
-}  // namespace mach
+void MagnetostaticSolver::derivedPDETerminalHook(int iter,
+                                                 double t_final,
+                                                 const mfem::Vector &state)
+{
+   // work.SetSize(state.Size());
+   // calcResidual(state, work);
+   // res_vec().distributeSharedDofs(work);
+}
+
+}  // namespace miso
 
 // using namespace std;
 // using namespace mfem;
@@ -280,7 +515,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    if (!component["linear"].get<bool>())
 //    {
 //       std::unique_ptr<mfem::Coefficient> lin_coeff;
-//       std::unique_ptr<mach::StateCoefficient> nonlin_coeff;
+//       std::unique_ptr<miso::StateCoefficient> nonlin_coeff;
 
 //       auto mu_r = materials[material]["mu_r"].get<double>();
 //       lin_coeff =
@@ -289,29 +524,29 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 //       // if (material == "team13")
 //       // {
-//       //    nonlin_coeff.reset(new mach::team13ReluctivityCoefficient());
+//       //    nonlin_coeff.reset(new miso::team13ReluctivityCoefficient());
 //       // }
 //       // else
 //       // {
 //       auto b = materials[material]["B"].get<std::vector<double>>();
 //       auto h = materials[material]["H"].get<std::vector<double>>();
 //       nonlin_coeff =
-//           std::make_unique<mach::NonlinearReluctivityCoefficient>(b, h);
+//           std::make_unique<miso::NonlinearReluctivityCoefficient>(b, h);
 //       // }
 
 //       temp_coeff =
-//       std::make_unique<mach::ParameterContinuationCoefficient>(
+//       std::make_unique<miso::ParameterContinuationCoefficient>(
 //           move(lin_coeff), move(nonlin_coeff));
 
 //       // if (material == "team13")
 //       // {
-//       //    temp_coeff.reset(new mach::team13ReluctivityCoefficient());
+//       //    temp_coeff.reset(new miso::team13ReluctivityCoefficient());
 //       // }
 //       // else
 //       // {
 //       // auto b = materials[material]["B"].get<std::vector<double>>();
 //       // auto h = materials[material]["H"].get<std::vector<double>>();
-//       // temp_coeff.reset(new mach::ReluctivityCoefficient(b, h));
+//       // temp_coeff.reset(new miso::ReluctivityCoefficient(b, h));
 //       // }
 //    }
 //    else
@@ -719,7 +954,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 
 // }  // anonymous namespace
 
-// namespace mach
+// namespace miso
 // {
 // MagnetostaticSolver::MagnetostaticSolver(const nlohmann::json
 // &json_options,
@@ -1048,7 +1283,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    {
 //       FunctionalOutput out(*fes, res_fields);
 //       out.addOutputDomainIntegrator(new MagneticEnergyIntegrator(*nu));
-//       // MachOutput mout(std::move(out));
+//       // MISOOutput mout(std::move(out));
 //       outputs.emplace(fun, std::move(out));
 //    }
 //    else if (fun == "ac_loss")
@@ -1096,7 +1331,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    }
 //    else
 //    {
-//       throw MachException("Output with name " + fun +
+//       throw MISOException("Output with name " + fun +
 //                           " not supported by "
 //                           "MagnetostaticSolver!\n");
 //    }
@@ -1111,12 +1346,12 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // {
 //    // MagnetostaticResidual mres(
 //    //     *fes, res_fields, *current_coeff, *mag_coeff, *nu);
-//    // new_res = std::make_unique<MachResidual>(std::move(mres));
+//    // new_res = std::make_unique<MISOResidual>(std::move(mres));
 //    // mass.reset(new BilinearFormType(fes.get()));
 //    res = std::make_unique<NonlinearFormType>(fes.get());
 //    magnetostatic_load = std::make_unique<MagnetostaticLoad>(
 //        *fes, *current_coeff, *mag_coeff, *nu);
-//    load = std::make_unique<MachLoad>(*magnetostatic_load);
+//    load = std::make_unique<MISOLoad>(*magnetostatic_load);
 //    // old_load.reset(new ParGridFunction(fes.get()));
 //    ent = std::make_unique<ParNonlinearForm>(fes.get());
 // }
@@ -1431,7 +1666,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    }
 //    else
 //    {
-//       throw MachException("MagnetostaticSolver requires steady
+//       throw MISOException("MagnetostaticSolver requires steady
 //       time-dis!\n");
 //    }
 // }
@@ -1470,7 +1705,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    }
 //    else
 //    {
-//       throw MachException("MagnetostaticSolver requires steady
+//       throw MISOException("MagnetostaticSolver requires steady
 //       time-dis!\n");
 //    }
 // }
@@ -1505,7 +1740,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // //    }
 // //    else
 // //    {
-// //    throw MachException("Unsupported nonlinear solver type!\n"
+// //    throw MISOException("Unsupported nonlinear solver type!\n"
 // //    "\tavilable options are: newton, inexactnewton\n");
 // //    }
 
@@ -3002,7 +3237,7 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 // double MagnetostaticSolver::remnant_flux = 0.0;
 // double MagnetostaticSolver::mag_mu_r = 0.0;
 
-// void setInputs(MagnetostaticLoad &load, const MachInputs &inputs)
+// void setInputs(MagnetostaticLoad &load, const MISOInputs &inputs)
 // {
 //    setInputs(load.current_load, inputs);
 //    setInputs(load.magnetic_load, inputs);
@@ -3039,4 +3274,4 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
 //    vectorJacobianProduct(load.magnetic_load, res_bar, wrt, wrt_bar);
 // }
 
-// }  // namespace mach
+// }  // namespace miso

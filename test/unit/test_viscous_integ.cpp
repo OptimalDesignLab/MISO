@@ -31,10 +31,10 @@ TEMPLATE_TEST_CASE_SIG("ViscousIntegrator::AssembleElementVector",
         &mesh, fec.get(), num_state, Ordering::byVDIM));
 
     NonlinearForm res(fes.get());
-    res.AddDomainIntegrator(new mach::LaplaceIntegrator<2>(diff_stack));
-    res.AddDomainIntegrator(new mach::SourceIntegrator(p));
+    res.AddDomainIntegrator(new miso::LaplaceIntegrator<2>(diff_stack));
+    res.AddDomainIntegrator(new miso::SourceIntegrator(p));
     res.AddBdrFaceIntegrator(
-        new mach::LaplaceNaturalBC<2>(diff_stack, fec.get()));
+        new miso::LaplaceNaturalBC<2>(diff_stack, fec.get()));
     GridFunction u(fes.get()), r(fes.get());
     VectorFunctionCoefficient u0(1, uexact<p>);
     u.ProjectCoefficient(u0);

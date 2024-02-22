@@ -4,7 +4,7 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-namespace mach
+namespace miso
 {
 /// steady ode solver
 class SteadyODESolver : public mfem::ODESolver
@@ -105,6 +105,14 @@ public:
    /// \param[in] offsets - mark the start of each row/column block
    BlockJacobiPreconditioner(const mfem::Array<int> &offsets);
 
+   BlockJacobiPreconditioner(const BlockJacobiPreconditioner &) = delete;
+   BlockJacobiPreconditioner &operator=(const BlockJacobiPreconditioner &) =
+       delete;
+
+   BlockJacobiPreconditioner(BlockJacobiPreconditioner &&) noexcept = delete;
+   BlockJacobiPreconditioner &operator=(BlockJacobiPreconditioner &&) noexcept =
+       delete;
+
    /// Add a square block op in the block-entry (iblock, iblock)
    /// \param[in] iblock - the index of row-column block entry being set
    /// \param[in] op - the solver used to define the (iblock, iblock) entry
@@ -154,12 +162,12 @@ public:
                               mfem::Vector &y) const override;
 
    /// Preconditioner destructor
-   ~BlockJacobiPreconditioner();
+   ~BlockJacobiPreconditioner() override;
 
    /// Controls the ownership of the blocks
    /// \note if nonzero, BlockJacobiPreconditioner will delete all blocks that
    /// are set (non-NULL); the default value is zero.
-   int owns_blocks;
+   bool owns_blocks;
 
 private:
    /// Number of Blocks
@@ -193,6 +201,6 @@ std::unique_ptr<mfem::NewtonSolver> constructNonlinearSolver(
     const nlohmann::json &nonlin_options,
     mfem::Solver &lin_solver);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

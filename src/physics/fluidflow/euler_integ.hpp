@@ -1,14 +1,14 @@
-#ifndef MACH_EULER_INTEG
-#define MACH_EULER_INTEG
+#ifndef MISO_EULER_INTEG
+#define MISO_EULER_INTEG
 
 #include "adept.h"
 #include "mfem.hpp"
 
 #include "inviscid_integ.hpp"
 #include "euler_fluxes.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for the Euler flux over an element
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
@@ -496,7 +496,7 @@ public:
    /// \param[in/out] integ - the boundary integrator whose time is being set
    /// \param[in] inputs - holds the time value
    friend void setInputs(EntropyConserveBC &integ,
-                         const mach::MachInputs &inputs)
+                         const miso::MISOInputs &inputs)
    {
       setValueFromInputs(inputs, "time", integ.t);
    }
@@ -589,7 +589,7 @@ public:
    /// Set the control for the integrator
    /// \param[in/out] integ - the boundary integrator whose control is being set
    /// \param[in] inputs - holds the control value
-   friend void setInputs(ControlBC &integ, const mach::MachInputs &inputs)
+   friend void setInputs(ControlBC &integ, const miso::MISOInputs &inputs)
    {
       setValueFromInputs(inputs, "control", integ.control);
       setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
@@ -917,7 +917,7 @@ public:
    /// Set the inputs that define the integrator
    /// \param[in/out] integ - the boundary integrator whose inputs are being set
    /// \param[in] inputs - holds the actuator position
-   friend void setInputs(BoundaryEntropy &integ, const mach::MachInputs &inputs)
+   friend void setInputs(BoundaryEntropy &integ, const miso::MISOInputs &inputs)
    {
       setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);
    }
@@ -992,7 +992,7 @@ private:
    mfem::Vector work_vec;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "euler_integ_def.hpp"
 

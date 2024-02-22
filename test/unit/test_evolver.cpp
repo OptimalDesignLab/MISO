@@ -9,7 +9,7 @@
 TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
 {
    const bool verbose = false; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
 
    // For solving dense matrix systems
@@ -32,7 +32,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    // Operator for exponential-entropy ODE, Eq. (3.1) in Ranocha et al. 2020
-   class ExponentialODE : public mach::EntropyConstrainedOperator
+   class ExponentialODE : public miso::EntropyConstrainedOperator
    {
    public:
       ExponentialODE() : EntropyConstrainedOperator(
@@ -103,7 +103,7 @@ TEST_CASE("Testing RRKImplicitMidpointSolver", "[rrk]")
    };
 
    std::unique_ptr<TimeDependentOperator> ode(new ExponentialODE());
-   std::unique_ptr<ODESolver> solver(new mach::RRKImplicitMidpointSolver(out));
+   std::unique_ptr<ODESolver> solver(new miso::RRKImplicitMidpointSolver(out));
    solver->Init(*ode);
 
    double t_final = 5.0;

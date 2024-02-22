@@ -9,7 +9,7 @@
 #include "thermal.hpp"
 
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 auto em_options = R"(
 {
@@ -345,7 +345,7 @@ TEST_CASE("Coupled Motor Solve",
    // });
    // therm_solver->setResidualInput("mvp", *em_state);
 
-   MachInputs inputs;
+   MISOInputs inputs;
    em_solver->solveForState(inputs, *em_state);
    // therm_solver->solveForState(*therm_state);
 

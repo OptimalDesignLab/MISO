@@ -37,7 +37,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          // we use res for finite-difference approximation
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-            new mach::IsmailRoeIntegrator<2,entvar>(diff_stack));
+            new miso::IsmailRoeIntegrator<2,entvar>(diff_stack));
 
          // initialize state and adjoint; here we randomly perturb a constant state
          GridFunction state(fes.get()), adjoint(fes.get());
@@ -52,7 +52,7 @@ TEMPLATE_TEST_CASE_SIG("IsmailRoeMeshSensIntegrator::AssembleElementVector",
          // build the linear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddDomainIntegrator(
-            new mach::IsmailRoeMeshSensIntegrator<2,entvar>(
+            new miso::IsmailRoeMeshSensIntegrator<2,entvar>(
                state, adjoint, num_state));
          dfdx.Assemble();
 
@@ -113,7 +113,7 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
          // we use res for finite-difference approximation
          NonlinearForm res(fes.get());
          res.AddBdrFaceIntegrator(
-             new mach::SlipWallBC<2, entvar>(diff_stack, fec.get()));
+             new miso::SlipWallBC<2, entvar>(diff_stack, fec.get()));
 
          // initialize state and adjoint; here we randomly perturb a constant state
          GridFunction state(fes.get()), adjoint(fes.get());
@@ -128,7 +128,7 @@ TEMPLATE_TEST_CASE_SIG("SlipWallBCMeshSens::AssembleRHSElementVect",
          // build the linear form for d(psi^T R)/dx 
          LinearForm dfdx(mesh_fes);
          dfdx.AddBdrFaceIntegrator(
-            new mach::SlipWallBCMeshSens<2, entvar>(
+            new miso::SlipWallBCMeshSens<2, entvar>(
                diff_stack, state, adjoint, num_state));
          dfdx.Assemble();
 

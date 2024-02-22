@@ -1,13 +1,13 @@
 /// Functions related to Navier-Stokes equations
-#ifndef MACH_NAVIER_STOKES_FLUXES
-#define MACH_NAVIER_STOKES_FLUXES
+#ifndef MISO_NAVIER_STOKES_FLUXES
+#define MISO_NAVIER_STOKES_FLUXES
 
 #include <algorithm>  // std::max
 
 #include "utils.hpp"
 #include "euler_fluxes.hpp"
 
-namespace mach
+namespace miso
 {
 /// For constants related to the Navier-Stokes equations
 namespace navierstokes
@@ -787,6 +787,6 @@ void calcViscousMMS(int dim, double mu, double Pr, const xdouble *x, xdouble *sr
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

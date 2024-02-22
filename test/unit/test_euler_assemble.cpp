@@ -30,7 +30,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EulerIntegrator<2>(diff_stack));
+         res.AddDomainIntegrator(new miso::EulerIntegrator<2>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -70,7 +70,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad", "[EulerIntegrator]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EulerIntegrator<2>(diff_stack));
+         res.AddDomainIntegrator(new miso::EulerIntegrator<2>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -128,7 +128,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad3D", "[EulerIntegrator]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EulerIntegrator<dim>(diff_stack));
+         res.AddDomainIntegrator(new miso::EulerIntegrator<dim>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -193,7 +193,7 @@ TEST_CASE("EulerIntegrator::AssembleElementGrad3D - 1 tet element", "[EulerInteg
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EulerIntegrator<dim>(diff_stack));
+         res.AddDomainIntegrator(new miso::EulerIntegrator<dim>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -251,7 +251,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddBdrFaceIntegrator(new mach::SlipWallBC<dim>(diff_stack,
+         res.AddBdrFaceIntegrator(new miso::SlipWallBC<dim>(diff_stack,
                                                             fec.get()));
 
          // initialize state; here we randomly perturb a constant state
@@ -292,7 +292,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad", "[SlipWallBC]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddBdrFaceIntegrator(new mach::SlipWallBC<dim>(diff_stack,
+         res.AddBdrFaceIntegrator(new miso::SlipWallBC<dim>(diff_stack,
                                                             fec.get()));
 
          // initialize state; here we randomly perturb a constant state
@@ -351,7 +351,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad3D", "[SlipWallBC]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddBdrFaceIntegrator(new mach::SlipWallBC<dim>(diff_stack,
+         res.AddBdrFaceIntegrator(new miso::SlipWallBC<dim>(diff_stack,
                                                             fec.get()));
 
          // initialize state; here we randomly perturb a constant state
@@ -417,7 +417,7 @@ TEST_CASE("SlipWallBC::AssembleFaceGrad3D - 1 tet element", "[SlipWallBC]")
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddBdrFaceIntegrator(new mach::SlipWallBC<dim>(diff_stack,
+         res.AddBdrFaceIntegrator(new miso::SlipWallBC<dim>(diff_stack,
                                                             fec.get()));
 
          // initialize state; here we randomly perturb a constant state
@@ -482,7 +482,7 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
-            new mach::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
+            new miso::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -518,7 +518,7 @@ TEST_CASE("PressureForce::AssembleVector", "[PressureForce]")
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
-            new mach::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
+            new miso::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -578,7 +578,7 @@ TEST_CASE("PressureForce::AssembleVector3D", "[PressureForce]")
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
-            new mach::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
+            new miso::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -646,7 +646,7 @@ TEST_CASE("PressureForce::AssembleVector3D - 1 tet element", "[PressureForce]")
 
          NonlinearForm drag(fes.get());
          drag.AddBdrFaceIntegrator(
-            new mach::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
+            new miso::PressureForce<dim>(diff_stack, fec.get(), drag_dir));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -702,7 +702,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-            new mach::IsmailRoeIntegrator<2,entvar>(diff_stack));
+            new miso::IsmailRoeIntegrator<2,entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -742,7 +742,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad",
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::IsmailRoeIntegrator<2, entvar>(diff_stack));
+         res.AddDomainIntegrator(new miso::IsmailRoeIntegrator<2, entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -803,7 +803,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad3D",
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-            new mach::IsmailRoeIntegrator<dim,entvar>(diff_stack));
+            new miso::IsmailRoeIntegrator<dim,entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -873,7 +873,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad3D - 1 tet elem
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-            new mach::IsmailRoeIntegrator<dim,entvar>(diff_stack));
+            new miso::IsmailRoeIntegrator<dim,entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -936,7 +936,7 @@ TEMPLATE_TEST_CASE_SIG("DyadicFluxIntegrator::AssembleElementGrad3D - 1 tet elem
 //              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
 //          NonlinearForm res(fes.get());
-//          res.AddInteriorFaceIntegrator(new mach::InterfaceIntegrator<dim>(
+//          res.AddInteriorFaceIntegrator(new miso::InterfaceIntegrator<dim>(
 //              diff_stack, diss_coeff, fec.get()));
 
 //          // initialize state; here we randomly perturb a constant state
@@ -998,7 +998,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::EntStableLPSIntegrator<2, entvar>(diff_stack));
+             new miso::EntStableLPSIntegrator<2, entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -1038,7 +1038,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad using entvar
              &mesh, fec.get(), num_state, Ordering::byVDIM));
 
          NonlinearForm res(fes.get());
-         res.AddDomainIntegrator(new mach::EntStableLPSIntegrator<2, entvar>(diff_stack));
+         res.AddDomainIntegrator(new miso::EntStableLPSIntegrator<2, entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -1099,7 +1099,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad3D using entv
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::EntStableLPSIntegrator<dim, entvar>(diff_stack));
+             new miso::EntStableLPSIntegrator<dim, entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -1167,7 +1167,7 @@ TEMPLATE_TEST_CASE_SIG("EntStableLPSIntegrator::AssembleElementGrad3D(1 tet elem
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::EntStableLPSIntegrator<dim, entvar>(diff_stack));
+             new miso::EntStableLPSIntegrator<dim, entvar>(diff_stack));
 
          // initialize state; here we randomly perturb a constant state
          GridFunction q(fes.get());
@@ -1237,7 +1237,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<2, entvar>(diff_stack));
+             new miso::MassIntegrator<2, entvar>(diff_stack));
 
          // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(u);
@@ -1278,7 +1278,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad",
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<2, entvar>(diff_stack));
+             new miso::MassIntegrator<2, entvar>(diff_stack));
 
          // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(u);
@@ -1338,7 +1338,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad3D",
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<dim, entvar>(diff_stack));
+             new miso::MassIntegrator<dim, entvar>(diff_stack));
 
          // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(u);
@@ -1406,7 +1406,7 @@ TEMPLATE_TEST_CASE_SIG("MassIntegrator::AssembleElementGrad3D - 1 tet element",
 
          NonlinearForm res(fes.get());
          res.AddDomainIntegrator(
-             new mach::MassIntegrator<dim, entvar>(diff_stack));
+             new miso::MassIntegrator<dim, entvar>(diff_stack));
 
          // evaluate the Jacobian and compute its product with v
          Operator &Jac = res.GetGradient(u);
@@ -1460,7 +1460,7 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad",
 
          NonlinearForm res(fes.get());
          res.AddInteriorFaceIntegrator(
-             new mach::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
+             new miso::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
                                                         fec.get()));
 
          // initialize state; here we randomly perturb a constant state
@@ -1525,7 +1525,7 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad3D",
 
          NonlinearForm res(fes.get());
          res.AddInteriorFaceIntegrator(
-             new mach::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
+             new miso::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
                                                         fec.get()));
          
          // initialize state; here we randomly perturb a constant state
@@ -1597,7 +1597,7 @@ TEMPLATE_TEST_CASE_SIG("InviscidFaceIntegrator::AssembleFaceGrad3D - 1 tet eleme
 
          NonlinearForm res(fes.get());
          res.AddInteriorFaceIntegrator(
-             new mach::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
+             new miso::InterfaceIntegrator<dim, entvar>(diff_stack, diss_coeff,
                                                         fec.get()));
          
          // initialize state; here we randomly perturb a constant state

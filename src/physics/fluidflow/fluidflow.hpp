@@ -1,5 +1,5 @@
-#ifndef MACH_FLUIDFLOW
-#define MACH_FLUIDFLOW
+#ifndef MISO_FLUIDFLOW
+#define MISO_FLUIDFLOW
 
 #include "advection.hpp"
 #include "euler_fluxes.hpp"

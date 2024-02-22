@@ -1,5 +1,5 @@
-#ifndef MACH_NAVIER_STOKES_INTEG_DEF
-#define MACH_NAVIER_STOKES_INTEG_DEF
+#ifndef MISO_NAVIER_STOKES_INTEG_DEF
+#define MISO_NAVIER_STOKES_INTEG_DEF
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -10,7 +10,7 @@
 #include "navier_stokes_fluxes.hpp"
 #include "navier_stokes_integ.hpp"
 
-namespace mach
+namespace miso
 {
 using adept::adouble;
 //==============================================================================
@@ -38,7 +38,7 @@ void ESViscousIntegrator<dim>::applyScalingJacState(int d,
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
    applyViscousScaling<adouble, dim>(
@@ -73,7 +73,7 @@ void ESViscousIntegrator<dim>::applyScalingJacDw(
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
    applyViscousScaling<adouble, dim>(
@@ -184,23 +184,23 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    // Step 1: apply the EC slip wall flux
-   mach::calcSlipWallFlux<adouble, dim>(
+   miso::calcSlipWallFlux<adouble, dim>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
-   mach::calcAdiabaticWallFlux<adouble, dim>(
+   miso::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
    for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
    // Step 3: evaluate the no-slip penalty
-   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
+   miso::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
                                              jac,
                                              mu_Re,
                                              Pr,
@@ -244,23 +244,23 @@ void NoSlipAdiabaticWallBC<dim>::calcFluxJacDw(
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    // Step 1: apply the EC slip wall flux
-   mach::calcSlipWallFlux<adouble, dim>(
+   miso::calcSlipWallFlux<adouble, dim>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
-   mach::calcAdiabaticWallFlux<adouble, dim>(
+   miso::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
    for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
    // Step 3: evaluate the no-slip penalty
-   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
+   miso::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
                                              jac,
                                              mu_Re,
                                              Pr,
@@ -408,7 +408,7 @@ void ViscousSlipWallBC<dim>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcSlipWallFlux<adouble, dim>(
+   miso::calcSlipWallFlux<adouble, dim>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
 #if 1
    std::vector<adouble> Dw_work(Dw_size);
@@ -472,7 +472,7 @@ void ViscousSlipWallBC<dim>::calcFluxJacDw(
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    // Step 1: apply the EC slip wall flux
-   mach::calcSlipWallFlux<adouble, dim>(
+   miso::calcSlipWallFlux<adouble, dim>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    // Step 2: evaluate the derivative flux
    std::vector<adouble> Dw_work(Dw_size);
@@ -480,7 +480,7 @@ void ViscousSlipWallBC<dim>::calcFluxJacDw(
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
    std::vector<adouble> work_a(q.Size());
@@ -574,7 +574,7 @@ void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
                                             mfem::DenseMatrix &flux_jac)
 {
    // function defined in euler_fluxes.hpp
-   mach::calcFluxJacState<dim>(
+   miso::calcFluxJacState<dim>(
        x, dir, jac, q, Dw, q_in, work_vec, this->stack, flux_jac);
 #if 0
    // create containers for active double objects for each input
@@ -595,7 +595,7 @@ void ViscousInflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(), q_in_a.data(), q_a.data(),
+   miso::calcBoundaryFlux<adouble, dim>(dir_a.data(), q_in_a.data(), q_a.data(),
                                         work_vec_a.data(), flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -678,7 +678,7 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
                                              const mfem::DenseMatrix &Dw,
                                              mfem::DenseMatrix &flux_jac)
 {
-   mach::calcFluxJacState<dim>(
+   miso::calcFluxJacState<dim>(
        x, dir, jac, q, Dw, q_out, work_vec, this->stack, flux_jac);
 #if 0
    int Dw_size = Dw.Height() * Dw.Width();
@@ -700,13 +700,13 @@ void ViscousOutflowBC<dim>::calcFluxJacState(const mfem::Vector &x,
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    // Part 1: apply the inviscid inflow boundary condition
-   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(), q_out_a.data(), q_a.data(),
+   miso::calcBoundaryFlux<adouble, dim>(dir_a.data(), q_out_a.data(), q_a.data(),
                                         work_vec_a.data(), flux_a.data());
    // Part 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
    for (int d = 0; d < dim; ++d)
@@ -770,7 +770,7 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &x,
                                               const mfem::DenseMatrix &Dw,
                                               mfem::DenseMatrix &flux_jac)
 {
-   mach::calcFluxJacState<dim>(
+   miso::calcFluxJacState<dim>(
        x, dir, jac, q, Dw, qfs, work_vec, this->stack, flux_jac);
 #if 0
    // create containers for active double objects for each input
@@ -786,7 +786,7 @@ void ViscousFarFieldBC<dim>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(), qfs_a.data(), q_a.data(),
+   miso::calcBoundaryFlux<adouble, dim>(dir_a.data(), qfs_a.data(), q_a.data(),
                                         work_vec_a.data(), flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -1308,23 +1308,23 @@ void SurfaceForce<dim>::calcBndryFunJacState(const mfem::Vector &x,
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    // Step 1: apply the EC slip wall flux
-   mach::calcSlipWallFlux<adouble, dim>(
+   miso::calcSlipWallFlux<adouble, dim>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
-   mach::calcAdiabaticWallFlux<adouble, dim>(
+   miso::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
    for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
    // Step 3: evaluate the no-slip penalty
-   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
+   miso::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
                                              jac,
                                              mu_Re,
                                              Pr,
@@ -1370,23 +1370,23 @@ void SurfaceForce<dim>::calcBndryFunJacDw(const mfem::Vector &x,
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
    // Step 1: apply the EC slip wall flux
-   mach::calcSlipWallFlux<adouble, dim>(
+   miso::calcSlipWallFlux<adouble, dim>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    // Step 2: evaluate the adiabatic flux
    adouble mu_Re = mu;
    if (mu < 0.0)
    {
-      mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+      mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
    }
    mu_Re /= Re;
-   mach::calcAdiabaticWallFlux<adouble, dim>(
+   miso::calcAdiabaticWallFlux<adouble, dim>(
        dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
    for (size_t i = 0; i < flux_a.size(); ++i)
    {
       flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
    }
    // Step 3: evaluate the no-slip penalty
-   mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
+   miso::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
                                              jac,
                                              mu_Re,
                                              Pr,
@@ -1447,7 +1447,7 @@ double SurfaceForce<dim>::GetFaceEnergy(const mfem::FiniteElement &el_bnd,
       sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -1542,7 +1542,7 @@ void SurfaceForce<dim>::AssembleFaceVector(
       sbp_face = fec->FiniteElementForGeometry(Geometry::TRIANGLE);
       break;
    default:
-      throw mach::MachException(
+      throw miso::MISOException(
           "ViscousBoundaryIntegrator::AssembleFaceVector())\n"
           "\tcannot handle given dimension");
    }
@@ -1623,6 +1623,6 @@ void SurfaceForce<dim>::AssembleFaceVector(
    }        // k/i loop
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

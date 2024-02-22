@@ -1,222 +1,248 @@
 #include <iostream>
 #include <random>
 
-#include "adept.h"
 #include "catch.hpp"
-#include "mfem.hpp"
 #include "nlohmann/json.hpp"
+#include "mfem.hpp"
 
 #include "utils.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "magnetic_load.hpp"
-#include "material_library.hpp"
 
-static std::default_random_engine gen;
-static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+using namespace miso;
+using namespace mfem;
 
-using namespace mach;
+void northMagnetizationSource(const Vector &x,
+                              Vector &M);
+
+void southMagnetizationSource(const Vector &x,
+                              Vector &M);
 
 /// Generate mesh 
 /// \param[in] nxy - number of nodes in the x and y directions
 /// \param[in] nz - number of nodes in the z direction
-mfem::Mesh buildMesh(int nxy, int nz);
+Mesh buildMesh(int nxy, int nz);
 
-TEST_CASE("MagneticLoad Value Test")
+static std::default_random_engine gen;
+static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+TEST_CASE("LegacyMagneticLoad Value Test")
 {
-   auto smesh = buildMesh(3, 3);
-   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+
+   Mesh smesh = buildMesh(10, 10);
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
 
    auto p = 2;
    const auto dim = mesh.Dimension();
 
    // get the finite-element space for the state
-   mfem::ND_FECollection fec(p, dim);
-   mfem::ParFiniteElementSpace fes(&mesh, &fec);
+   ND_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
 
-   adept::Stack diff_stack;
-   std::map<std::string, FiniteElementState> fields;
+   // create mag_coeff coefficient
+   VectorMeshDependentCoefficient mag_coeff(dim);
    {
-      auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
-      auto &mesh_fespace = *mesh_gf.ParFESpace();
-
-      /// create new state vector copying the mesh's fe space
-      fields.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple("mesh_coords"),
-            std::forward_as_tuple(mesh, mesh_fespace, "mesh_coords"));
-      auto &mesh_coords = fields.at("mesh_coords");
-      /// set the values of the new GF to those of the mesh's old nodes
-      mesh_coords.gridFunc() = mesh_gf;
-      /// tell the mesh to use this GF for its Nodes
-      /// (and that it doesn't own it)
-      mesh.NewNodes(mesh_coords.gridFunc(), false);
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+            new VectorFunctionCoefficient(dim,
+                                          northMagnetizationSource));
+      mag_coeff.addCoefficient(1, move(temp_coeff));
+   }
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+            new VectorFunctionCoefficient(dim,
+                                          southMagnetizationSource));
+      mag_coeff.addCoefficient(2, move(temp_coeff));
    }
 
-   auto options = R"({
-      "magnets": {
-         "testmat": {
-            "north": [1],
-            "south": [2]
-         }
-      }
-   })"_json;
-   mfem::ConstantCoefficient nu(1.0); ///(M_PI*4e-7));
+   // create nu coeff
+   ConstantCoefficient nu(1.0);///(M_PI*4e-7));
 
-   MagneticLoad load(diff_stack, fes, fields, options, material_library, nu);
+   LegacyMagneticLoad load(fes, mag_coeff, nu);
+   MISOLoad ml(load);
 
-   MachInputs inputs;
-   setInputs(load, inputs);
+   HypreParVector tv(&fes);
 
-   mfem::Vector tv(getSize(load));
+   MISOInputs inputs;
+   setInputs(ml, inputs);
    tv = 0.0;
-   addLoad(load, tv);
+   addLoad(ml, tv);
 
-   auto norm = mfem::ParNormlp(tv, 2.0, MPI_COMM_WORLD);
-   REQUIRE(norm == Approx(1.8280057201).margin(1e-10));
+   auto norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
+   // std::cout << "norm: " << norm << "\n";
 
-   setInputs(load, inputs);
+   REQUIRE(norm == Approx(1.7467088168).margin(1e-10));
+
+   setInputs(ml, inputs);
    tv = 0.0;
-   addLoad(load, tv);
+   addLoad(ml, tv);
 
    norm = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
-   REQUIRE(norm == Approx(1.8280057201).margin(1e-10));
+   // std::cout << "norm: " << norm << "\n";
+
+   REQUIRE(norm == Approx(1.7467088168).margin(1e-10));
+}
+
+TEST_CASE("MagneticLoad Value Test")
+{
+   Mesh smesh = buildMesh(3, 3);
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
+   mesh.EnsureNodes();
+
+   auto p = 2;
+   const auto dim = mesh.Dimension();
+
+   // get the finite-element space for the state
+   ND_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
+
+   // create mag_coeff coefficient
+   VectorMeshDependentCoefficient mag_coeff(dim);
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+            new VectorFunctionCoefficient(dim,
+                                          northMagnetizationSource));
+      mag_coeff.addCoefficient(1, move(temp_coeff));
+   }
+   {
+      std::unique_ptr<mfem::VectorCoefficient> temp_coeff(
+            new VectorFunctionCoefficient(dim,
+                                          southMagnetizationSource));
+      mag_coeff.addCoefficient(2, move(temp_coeff));
+   }
+
+   // create nu coeff
+   ConstantCoefficient nu(1.0);///(M_PI*4e-7));
+
+   MagneticLoad loadLF(fes, mag_coeff, nu);
+   MISOLoad mlLF(loadLF);
+
+   HypreParVector tv(&fes);
+
+   MISOInputs inputs;
+
+   setInputs(mlLF, inputs);
+   tv = 0.0;
+   addLoad(mlLF, tv);
+
+   auto normLF = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
+   // std::cout << "normLF: " << normLF << "\n";
+
+   REQUIRE(normLF == Approx(1.8280057201).margin(1e-10));
+
+   setInputs(mlLF, inputs);
+   tv = 0.0;
+   addLoad(mlLF, tv);
+
+   normLF = ParNormlp(tv, 2.0, MPI_COMM_WORLD);
+   // std::cout << "normLF: " << normLF << "\n";
+
+   REQUIRE(normLF == Approx(1.8280057201).margin(1e-10));
 }
 
 TEST_CASE("MagneticLoad vectorJacobianProduct wrt mesh_coords")
 {
-   auto smesh = buildMesh(4, 4);
-   mfem::ParMesh mesh(MPI_COMM_WORLD, smesh);
+   Mesh smesh = buildMesh(10, 10);
+   ParMesh mesh(MPI_COMM_WORLD, smesh);
    mesh.EnsureNodes();
 
    auto p = 2;
    const auto dim = mesh.Dimension();
 
    // get the finite-element space for the state
-   mfem::ND_FECollection fec(p, dim);
-   mfem::ParFiniteElementSpace fes(&mesh, &fec);
+   ND_FECollection fec(p, dim);
+   ParFiniteElementSpace fes(&mesh, &fec);
 
-   adept::Stack diff_stack;
-   std::map<std::string, FiniteElementState> fields;
-   
-   auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
-   auto &mesh_fespace = *mesh_gf.ParFESpace();
+   // create mag_coeff coefficient
+   // VectorFunctionCoefficient mag_coeff(dim, northMagnetizationSource);
+   Vector mag_const(3); mag_const = 1.0;
+   VectorConstantCoefficient mag_coeff(mag_const);
 
-   /// create new state vector copying the mesh's fe space
-   fields.emplace(
-         std::piecewise_construct,
-         std::forward_as_tuple("mesh_coords"),
-         std::forward_as_tuple(mesh, mesh_fespace, "mesh_coords"));
-   auto &mesh_coords = fields.at("mesh_coords");
-   /// set the values of the new GF to those of the mesh's old nodes
-   mesh_coords.gridFunc() = mesh_gf;
-   /// tell the mesh to use this GF for its Nodes
-   /// (and that it doesn't own it)
-   mesh.NewNodes(mesh_coords.gridFunc(), false);
+   // create nu coeff
+   ConstantCoefficient nu(1.0);
 
-   auto options = R"({
-      "magnets": {
-         "testmat": {
-            "north": [1],
-            "south": [2]
-         }
-      }
-   })"_json;
-   mfem::ConstantCoefficient nu(1.0); ///(M_PI*4e-7));
+   MagneticLoad load(fes, mag_coeff, nu);
+   MISOLoad ml(load);
 
-   MagneticLoad load(diff_stack, fes, fields, options, material_library, nu);
+   // extract mesh nodes and get their finite-element space
+   auto &x_nodes = *dynamic_cast<mfem::ParGridFunction*>(mesh.GetNodes());
+   auto &mesh_fes = *x_nodes.ParFESpace();
 
-   mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
-   mesh_coords.setTrueVec(mesh_coords_tv);
-
-   auto inputs = MachInputs({
-      {"mesh_coords", mesh_coords_tv}
+   auto inputs = MISOInputs({
+      {"mesh_coords", x_nodes}
    });
-   setInputs(load, inputs);
+   setInputs(ml, inputs);
 
-   mfem::Vector load_bar(getSize(load));
-   for (int i = 0; i < load_bar.Size(); ++i)
+   HypreParVector load_bar(&fes);
    {
-      load_bar(i) = uniform_rand(gen);
+      for (int i = 0; i < load_bar.Size(); ++i)
+      {
+         load_bar(i) = uniform_rand(gen);
+      }
    }
 
-   mfem::Vector wrt_bar(mesh_coords.space().GetTrueVSize());
-   wrt_bar = 0.0;
-   vectorJacobianProduct(load, load_bar, "mesh_coords", wrt_bar);
+   HypreParVector wrt_bar(&mesh_fes); wrt_bar = 0.0;
+   vectorJacobianProduct(ml, load_bar, "mesh_coords", wrt_bar);
 
    // initialize the vector that we use to perturb the mesh nodes
-   mfem::Vector v_tv(mesh_coords.space().GetTrueVSize());
-   for (int i = 0; i < v_tv.Size(); ++i)
+   ParGridFunction v(&mesh_fes);
+   VectorFunctionCoefficient pert(3, [](const mfem::Vector &x, mfem::Vector &u)
    {
-      v_tv(i) = uniform_rand(gen);
-   }
+      for (int i = 0; i < u.Size(); ++i)
+         u(i) = uniform_rand(gen);
+   });
+   v.ProjectCoefficient(pert);
+   HypreParVector v_tv(&mesh_fes);
+   v.ParallelAssemble(v_tv);
 
-   auto dJdx_v_local = wrt_bar * v_tv;
-   double dJdx_v;
-   MPI_Allreduce(&dJdx_v_local,
-                 &dJdx_v,
-                 1,
-                 MPI_DOUBLE,
-                 MPI_SUM,
-                 MPI_COMM_WORLD);
+   double dJdx_v = wrt_bar * v_tv;
 
    // now compute the finite-difference approximation...
    auto delta = 1e-5;
-   double dJdx_v_fd_local = 0.0;
-   mfem::Vector load_vec(getSize(load));
 
-   add(mesh_coords_tv, delta, v_tv, mesh_coords_tv);
-   mesh_coords.distributeSharedDofs(mesh_coords_tv); // update mesh nodes
-   inputs.at("mesh_coords") = mesh_coords_tv;
-   setInputs(load, inputs);
-
+   HypreParVector load_vec(&fes);
+   ParGridFunction x_pert(x_nodes);
+   x_pert.Add(delta, v);
+   mesh.SetNodes(x_pert);
+   fes.Update();
+   inputs.at("mesh_coords") = x_pert;
+   setInputs(ml, inputs);
    load_vec = 0.0;
-   addLoad(load, load_vec);
-   dJdx_v_fd_local += load_bar * load_vec;
+   addLoad(ml, load_vec);
+   double dJdx_v_fd = load_bar * load_vec;
 
-   add(mesh_coords_tv, -2*delta, v_tv, mesh_coords_tv);
-   mesh_coords.distributeSharedDofs(mesh_coords_tv); // update mesh nodes
-   inputs.at("mesh_coords") = mesh_coords_tv;
-   setInputs(load, inputs);
-
+   x_pert.Add(-2 * delta, v);
+   mesh.SetNodes(x_pert);
+   fes.Update();
+   inputs.at("mesh_coords") = x_pert;
+   setInputs(ml, inputs);
    load_vec = 0.0;
-   addLoad(load, load_vec);
-   dJdx_v_fd_local -= load_bar * load_vec;
+   addLoad(ml, load_vec);
+   dJdx_v_fd -= load_bar * load_vec;
+   dJdx_v_fd /= 2*delta;
 
-   dJdx_v_fd_local /= 2*delta;
+   mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+   fes.Update();
 
-   double dJdx_v_fd;
-   MPI_Allreduce(&dJdx_v_fd_local,
-                 &dJdx_v_fd,
-                 1,
-                 MPI_DOUBLE,
-                 MPI_SUM,
-                 MPI_COMM_WORLD);
-
-   int rank;
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-   if (rank == 0)
-   {
-      std::cout << "dJdx_v: " << dJdx_v << "\n";
-      std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
-   }
+   std::cout << "dJdx_v: " << dJdx_v << "\n";
+   std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
 
    REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
 }
 
-mfem::Mesh buildMesh(int nxy, int nz)
+Mesh buildMesh(int nxy, int nz)
 {
    /// generate a simple hex mesh
-   auto mesh = mfem::Mesh::MakeCartesian3D(nxy, nxy, nz,
-                                           mfem::Element::TETRAHEDRON, 1.0,
-                                           1.0, (double)nz / (double)nxy, true);
+   auto mesh = Mesh::MakeCartesian3D(nxy, nxy, nz,
+                                     Element::TETRAHEDRON, 1.0,
+                                     1.0, (double)nz / (double)nxy, true);
 
    // assign attributes to top and bottom sides
    for (int i = 0; i < mesh.GetNE(); ++i)
    {
-      auto *elem = mesh.GetElement(i);
+      Element *elem = mesh.GetElement(i);
 
-      mfem::Array<int> verts;
+      Array<int> verts;
       elem->GetVertices(verts);
 
       bool below = true;
@@ -242,4 +268,46 @@ mfem::Mesh buildMesh(int nxy, int nz)
       }
    }
    return mesh;
+}
+
+template <typename xdouble = double>
+void north_magnetization(const xdouble& remnant_flux,
+                         const xdouble *x,
+                         xdouble *M)
+{
+   xdouble r[] = {0.0, 0.0, 0.0};
+   r[0] = x[0];
+   r[1] = x[1];
+   xdouble norm_r = sqrt(r[0]*r[0] + r[1]*r[1]);
+   M[0] = r[0] * remnant_flux / norm_r;
+   M[1] = r[1] * remnant_flux / norm_r;
+   M[2] = 0.0;
+}
+
+void northMagnetizationSource(const Vector &x,
+                              Vector &M)
+{
+   constexpr auto remnant_flux = 1.0;
+   north_magnetization(remnant_flux, x.GetData(), M.GetData());
+}
+
+template <typename xdouble = double>
+void south_magnetization(const xdouble& remnant_flux,
+                         const xdouble *x,
+                         xdouble *M)
+{
+   xdouble r[] = {0.0, 0.0, 0.0};
+   r[0] = x[0];
+   r[1] = x[1];
+   xdouble norm_r = sqrt(r[0]*r[0] + r[1]*r[1]);
+   M[0] = -r[0] * remnant_flux / norm_r;
+   M[1] = -r[1] * remnant_flux / norm_r;
+   M[2] = 0.0;
+}
+
+void southMagnetizationSource(const Vector &x,
+                              Vector &M)
+{
+   constexpr auto remnant_flux = 1.0;
+   south_magnetization(remnant_flux, x.GetData(), M.GetData());
 }

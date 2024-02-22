@@ -1,11 +1,11 @@
-#ifndef MACH_NAVIER_STOKES
-#define MACH_NAVIER_STOKES
+#ifndef MISO_NAVIER_STOKES
+#define MISO_NAVIER_STOKES
 
 #include "mfem.hpp"
 
 #include "euler.hpp"
 
-namespace mach
+namespace miso
 {
 /// Solver for Navier-Stokes flows
 /// dim - number of spatial dimensions (1, 2, or 3)
@@ -78,6 +78,6 @@ void shockExact(const mfem::Vector &x, mfem::Vector &u);
 /// \param[out] u - conservative variables stored as a (dim+2)-vector
 void viscousMMSExact(int dim, const mfem::Vector &x, mfem::Vector &u);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

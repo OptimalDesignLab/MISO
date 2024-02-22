@@ -4,18 +4,18 @@
 
 #include "catch.hpp"
 
-#include "mach.hpp"
+#include "miso.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
 {
    "print-options": false,
    "flow-param": {
-      "mach": 1.0,
+      "miso": 1.0,
       "aoa": 0.0
    },
    "space-dis": {
@@ -122,7 +122,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
          FlowSolver<2, entvar> solver(MPI_COMM_WORLD, options, std::move(mesh));
          Vector state_tv(solver.getStateSize());
          solver.setState(uexact, state_tv);
-         MachInputs inputs({{"state", state_tv}});
+         MISOInputs inputs({{"state", state_tv}});
          solver.solveForState(inputs, state_tv);
 
          // Compute error and check against appropriate target:
@@ -134,7 +134,7 @@ TEMPLATE_TEST_CASE_SIG("Steady Vortex Solver Regression Test",
          // Compute drag and check against target 
          solver.createOutput("drag", options["outputs"].at("drag"));
          double drag = solver.calcOutput("drag", inputs);
-         double drag_error = fabs(drag - (-1 /mach::euler::gamma));
+         double drag_error = fabs(drag - (-1 /miso::euler::gamma));
          REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }

@@ -1,5 +1,5 @@
-#ifndef MACH_EULER_INTEG_DEF
-#define MACH_EULER_INTEG_DEF
+#ifndef MISO_EULER_INTEG_DEF
+#define MISO_EULER_INTEG_DEF
 
 #include "adept.h"
 #include "mfem.hpp"
@@ -8,7 +8,7 @@
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
 
-namespace mach
+namespace miso
 {
 using adept::adouble;
 
@@ -27,7 +27,7 @@ void EulerIntegrator<dim>::calcFluxJacState(const mfem::Vector &dir,
    this->stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> flux_a(q.Size());
-   mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(), flux_a.data());
+   miso::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(), flux_a.data());
    // set the independent and dependent variable
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -50,7 +50,7 @@ void EulerIntegrator<dim>::calcFluxJacDir(const mfem::Vector &dir,
    this->stack.new_recording();
    // the depedent variable must be declared after the recording
    std::vector<adouble> flux_a(q.Size());
-   mach::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(), flux_a.data());
+   miso::calcEulerFlux<adouble, dim>(dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
    // calculate the jacobian w.r.t state vaiables
@@ -124,12 +124,12 @@ void IsmailRoeIntegrator<dim, entvar>::calcFluxJacStates(
    // run algorithm
    if constexpr (entvar)
    {
-      mach::calcIsmailRoeFluxUsingEntVars<adouble, dim>(
+      miso::calcIsmailRoeFluxUsingEntVars<adouble, dim>(
           di, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFlux<adouble, dim>(
+      miso::calcIsmailRoeFlux<adouble, dim>(
           di, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // identify independent and dependent variables
@@ -418,7 +418,7 @@ void IsentropicVortexBC<dim, entvar>::calcFluxJacState(
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcIsentropicVortexFlux<adouble, entvar>(
+   miso::calcIsentropicVortexFlux<adouble, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -444,7 +444,7 @@ void IsentropicVortexBC<dim, entvar>::calcFluxJacDir(
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcIsentropicVortexFlux<adouble, entvar>(
+   miso::calcIsentropicVortexFlux<adouble, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -491,7 +491,7 @@ void SlipWallBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcSlipWallFlux<adouble, dim, entvar>(
+   miso::calcSlipWallFlux<adouble, dim, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(q_a.data(), q.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -516,7 +516,7 @@ void SlipWallBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcSlipWallFlux<adouble, dim, entvar>(
+   miso::calcSlipWallFlux<adouble, dim, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    this->stack.independent(dir_a.data(), dir.Size());
    this->stack.dependent(flux_a.data(), q.Size());
@@ -567,7 +567,7 @@ void FarFieldBC<dim, entvar>::calcFluxJacState(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcFarFieldFlux2<adouble, dim, entvar>(dir_a.data(),
+   miso::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
                                                 qfs_a.data(),
                                                 q_a.data(),
                                                 work_vec_a.data(),
@@ -596,7 +596,7 @@ void FarFieldBC<dim, entvar>::calcFluxJacDir(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcFarFieldFlux2<adouble, dim, entvar>(dir_a.data(),
+   miso::calcFarFieldFlux<adouble, dim, entvar>(dir_a.data(),
                                                 qfs_a.data(),
                                                 q_a.data(),
                                                 work_vec_a.data(),
@@ -863,12 +863,12 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacState(const mfem::Vector &dir,
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+      miso::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
           dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
+      miso::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
           dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
@@ -904,12 +904,12 @@ void InterfaceIntegrator<dim, entvar>::calcFluxJacDir(
    std::vector<adouble> flux_a(qL.Size());
    if (entvar)
    {
-      mach::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
+      miso::calcIsmailRoeFaceFluxWithDissUsingEntVars<adouble, dim>(
           dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    else
    {
-      mach::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
+      miso::calcIsmailRoeFaceFluxWithDiss<adouble, dim>(
           dir_a.data(), diss_coeff_a, qL_a.data(), qR_a.data(), flux_a.data());
    }
    // set the independent and dependent variables
@@ -949,7 +949,7 @@ void PressureForce<dim, entvar>::calcFlux(const mfem::Vector &x,
    this->stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcSlipWallFlux<adouble, dim, entvar>(
+   miso::calcSlipWallFlux<adouble, dim, entvar>(
        x_a.data(), dir_a.data(), q_a.data(), flux_a.data());
    auto fun_a = dot<adouble, dim>(force_nrm_a.data(), flux_a.data() + 1);
    fun_a.set_gradient(1.0);
@@ -994,6 +994,6 @@ double SupplyRate<dim, entvar>::calcBndryFun(const mfem::Vector &x,
    return dot<double, dim>(dir.GetData(), q.GetData()+1) - w * flux_vec;
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

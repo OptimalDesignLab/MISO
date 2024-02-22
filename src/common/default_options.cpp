@@ -1,6 +1,6 @@
 #include "default_options.hpp"
 
-namespace mach
+namespace miso
 {
 /// This is placed in its own file because options are likely to grow large.
 /// Also, while it would have been nice to use a raw string here to define the
@@ -11,6 +11,8 @@ const nlohmann::json default_options{
     {"paraview",              // options related to paraview visualization
      {
          {"directory", "solver"},
+         {"log", true},  // if false, disable all paraview logging
+         {"fields", {"state"}},
          {"each-timestep", false}  // if true, paraview file is saved each step
      }},
     {"test-ode", false},  // if true, use a simple conservative controller
@@ -112,10 +114,10 @@ const nlohmann::json default_options{
 
     {"mesh",
      {
-         {"file", "mach.mesh"},       // mesh file name
-         {"model-file", "mach.dmg"},  // model file name
+         {"file", "miso.mesh"},       // mesh file name
+         {"model-file", "miso.dmg"},  // model file name
          {"refine", 0}  // recursive uniform refinement; 0 = no refinement
      }},
 };
 
-}  // namespace mach
+}  // namespace miso

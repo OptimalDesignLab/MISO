@@ -1,9 +1,9 @@
-#ifndef MACH_JOULE
-#define MACH_JOULE
+#ifndef MISO_JOULE
+#define MISO_JOULE
 
 #include "solver.hpp"
 
-namespace mach
+namespace miso
 {
 class MagnetostaticSolver;
 class ThermalSolver;
@@ -63,6 +63,6 @@ private:
                                               MPI_Comm comm);
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef MACH_MMS_INTEG_DEF
-#define MACH_MMS_INTEG_DEF
+#ifndef MISO_MMS_INTEG_DEF
+#define MISO_MMS_INTEG_DEF
 
 #include "mfem.hpp"
 
@@ -7,7 +7,7 @@
 #include "utils.hpp"
 #include "mms_integ.hpp"
 
-namespace mach
+namespace miso
 {
 template <typename Derived>
 void MMSIntegrator<Derived>::AssembleElementVector(
@@ -58,6 +58,6 @@ void MMSIntegrator<Derived>::AssembleElementGrad(
    elmat = 0.0;
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

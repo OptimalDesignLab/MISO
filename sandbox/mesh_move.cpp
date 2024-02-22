@@ -1,14 +1,14 @@
 #include "mfem.hpp"
 #include "thermal.hpp"
 #include "gmi_egads.h"
-#include "mach_egads.hpp"
+#include "miso_egads.hpp"
 
 #include <fstream>
 #include <iostream>
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 #ifdef MFEM_USE_PUMI
 int main(int argc, char *argv[])
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
    {
     
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
 
    }

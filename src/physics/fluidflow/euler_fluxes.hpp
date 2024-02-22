@@ -1,7 +1,7 @@
 /// Functions related to Euler equations
 
-#ifndef MACH_EULER_FLUXES
-#define MACH_EULER_FLUXES
+#ifndef MISO_EULER_FLUXES
+#define MISO_EULER_FLUXES
 
 #include <algorithm>  // std::max
 
@@ -11,7 +11,7 @@
 
 using adept::adouble;
 
-namespace mach
+namespace miso
 {
 /// For constants related to the Euler equations
 namespace euler
@@ -137,8 +137,8 @@ void calcEntropyVars(const xdouble *q, xdouble *w)
       w[dim + 1] = -q[0] * fac;
 
       // The following was added for the affine-transformed entropy
-      w[0] -= (euler::gamma - euler::ent_ref) / euler::gami;
-      w[dim + 1] += euler::rho_ref/euler::press_ref;
+      //w[0] -= (euler::gamma - euler::ent_ref) / euler::gami;
+      //w[dim + 1] += euler::rho_ref/euler::press_ref;
    }
 }
 
@@ -196,16 +196,16 @@ inline xdouble entropy(const xdouble *q)
    }
    else
    {
-      //return -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
+      return -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
 
       // The following computes the affine transformed entropy based on
       // reference state
-      xdouble Sref = -euler::rho_ref*euler::ent_ref/euler::gami;
-      xdouble S = -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
-      S -= Sref; 
-      S += (euler::ent_ref - euler::gamma)*(q[0] - euler::rho_ref)/euler::gami;
-      S += euler::rho_ref*(q[dim+1] - euler::e_ref)/euler::press_ref;
-      return S;
+      //xdouble Sref = -euler::rho_ref*euler::ent_ref/euler::gami;
+      //xdouble S = -q[0] * log(pressure<xdouble, dim>(q) / pow(q[0], euler::gamma)) / euler::gami;
+      //S -= Sref; 
+      //S += (euler::ent_ref - euler::gamma)*(q[0] - euler::rho_ref)/euler::gami;
+      //S += euler::rho_ref*(q[dim+1] - euler::e_ref)/euler::press_ref;
+      //return S;
    }
 }
 
@@ -1045,7 +1045,7 @@ void calcFluxJacState(const mfem::Vector &x,
    stack.new_recording();
    // create container for active double flux output
    std::vector<adouble> flux_a(q.Size());
-   mach::calcBoundaryFlux<adouble, dim>(dir_a.data(),
+   miso::calcBoundaryFlux<adouble, dim>(dir_a.data(),
                                         q_ref_a.data(),
                                         q_a.data(),
                                         work_vec_a.data(),
@@ -1419,6 +1419,6 @@ void calcInviscidMMS(int dim, const xdouble *x, xdouble *src)
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

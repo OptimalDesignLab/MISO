@@ -1,12 +1,12 @@
-#ifndef MACH_MMS_INTEG
-#define MACH_MMS_INTEG
+#ifndef MISO_MMS_INTEG
+#define MISO_MMS_INTEG
 
 #include "mfem.hpp"
 
 #include "sbp_fe.hpp"
 #include "utils.hpp"
 
-namespace mach
+namespace miso
 {
 /// Integrator for method-of-manufactured solution (MMS) sources
 /// \tparam Derived - a class Derived from this one (needed for CRTP)
@@ -80,7 +80,7 @@ protected:
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #include "mms_integ_def.hpp"
 

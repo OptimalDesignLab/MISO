@@ -4,7 +4,7 @@
 
 #include "magnetostatic.hpp"
 
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto em_options = R"(
@@ -28,9 +28,10 @@ auto em_options = R"(
       "max-iter": 10
    },
    "lin-solver": {
-      "type": "minres",
+      "type": "gmres",
       "printlevel": 0,
-      "maxiter": 100,
+      "maxiter": 200,
+      "kdim": 200,
       "abstol": 1e-14,
       "reltol": 1e-14
    },
@@ -41,7 +42,7 @@ auto em_options = R"(
    "nonlin-solver": {
       "type": "newton",
       "printlevel": 3,
-      "maxiter": 50,
+      "maxiter": 1,
       "reltol": 1e-10,
       "abstol": 1e-12
    },
@@ -82,7 +83,7 @@ TEST_CASE("Torque Loop Regression Test")
    // The volume is lower because of bad mesh resolution
    constexpr auto current_density = M_1_PI * 1e7 * 1.5884635222882089;
 
-   MachInputs inputs {
+   MISOInputs inputs {
       {"current_density:test", current_density},
       {"state", em_state}
    };

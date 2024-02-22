@@ -8,7 +8,7 @@
 
 # Object, binary, and library files
 *.o
-/libmach.*
+/libmiso.*
 *.bin
 *.so
 *.a
@@ -42,11 +42,11 @@
 build/*
 lib/*
 include/*
-!build/mach_config.sh
+!build/miso_config.sh
 
 # python wrapper related files
-/mach/__pycache__
-/mach.egg-info
+/miso/__pycache__
+/miso.egg-info
 
 # smb meshes in the sandbox
 sandbox/*.smb

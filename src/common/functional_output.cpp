@@ -2,21 +2,21 @@
 
 #include "mfem.hpp"
 
-#include "mach_input.hpp"
-#include "mach_integrator.hpp"
+#include "miso_input.hpp"
+#include "miso_integrator.hpp"
 #include "functional_output.hpp"
 
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
-void setInputs(FunctionalOutput &output, const MachInputs &inputs)
+void setInputs(FunctionalOutput &output, const MISOInputs &inputs)
 {
    for (const auto &[name, input] : inputs)
    {
       if (std::holds_alternative<InputVector>(input))
       {
-         if (output.func_fields)
+         if (output.func_fields != nullptr)
          {
             auto it = output.func_fields->find(name);
             if (it != output.func_fields->end())
@@ -50,12 +50,12 @@ void setOptions(FunctionalOutput &output, const nlohmann::json &options)
    }
 }
 
-double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
+double calcOutput(FunctionalOutput &output, const MISOInputs &inputs)
 {
    setInputs(output, inputs);
    Vector state;
-   setVectorFromInputs(inputs, "state", state);
-   if (state.Size() == 0)
+   setVectorFromInputs(inputs, output.state_name, state);
+   if (state.Size() != output.output.ParFESpace()->GetTrueVSize())
    {
       output.scratch.SetSize(output.output.ParFESpace()->GetTrueVSize());
       state.NewDataAndSize(output.scratch.GetData(),
@@ -66,14 +66,14 @@ double calcOutput(FunctionalOutput &output, const MachInputs &inputs)
 
 double calcOutputPartial(FunctionalOutput &output,
                          const std::string &wrt,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
 {
    return NAN;
 }
 
 void calcOutputPartial(FunctionalOutput &output,
                        const std::string &wrt,
-                       const MachInputs &inputs,
+                       const MISOInputs &inputs,
                        Vector &partial)
 {
    setInputs(output, inputs);
@@ -104,11 +104,45 @@ double jacobianVectorProduct(FunctionalOutput &output,
    }
    else
    {
-      output.output_sens.at(wrt).Assemble();
-      output.output_sens.at(wrt).ParallelAssemble(output.scratch);
+      if (wrt_dot.Size() == 1)
+      {
+         Vector state;
+         output.func_fields->at("state").setTrueVec(state);
+         const auto &state_gf = output.func_fields->at("state").gridFunc();
+
+         auto wrt_key = wrt.substr(0, wrt.find(':'));
+         // output.scratch(0) =
+         // output.output_scalar_sens.at(wrt).GetEnergy(state);
+         // TODO: need to confirm what OpenMDAO expects in terms of parallel
+         // outputs: should we give it the already reduced value or not?
+         output.scratch(0) =
+             output.output_scalar_sens.at(wrt_key).GetEnergy(state_gf);
+      }
+      else
+      {
+         output.output_sens.at(wrt).Assemble();
+         output.output_sens.at(wrt).ParallelAssemble(output.scratch);
+      }
    }
 
    return InnerProduct(output.scratch, wrt_dot);
+}
+
+double vectorJacobianProduct(FunctionalOutput &output,
+                             const mfem::Vector &out_bar,
+                             const std::string &wrt)
+{
+   // Vector state;
+   // output.func_fields->at("state").setTrueVec(state);
+   const auto &state_gf = output.func_fields->at("state").gridFunc();
+
+   auto wrt_key = wrt.substr(0, wrt.find(':'));
+   // double sens = output.output_scalar_sens.at(wrt_key).GetEnergy(state);
+   // TODO: need to confirm what OpenMDAO expects in terms of parallel outputs:
+   // should we give it the already reduced value or not?
+   double sens = output.output_scalar_sens.at(wrt_key).GetEnergy(state_gf);
+
+   return sens * out_bar(0);
 }
 
 void vectorJacobianProduct(FunctionalOutput &output,
@@ -132,4 +166,4 @@ void vectorJacobianProduct(FunctionalOutput &output,
    wrt_bar.Add(out_bar(0), output.scratch);
 }
 
-}  // namespace mach
+}  // namespace miso

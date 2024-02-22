@@ -1,17 +1,17 @@
-#ifndef MACH_LINEAR_EVOLVER
-#define MACH_LINEAR_EVOLVER
+#ifndef MISO_LINEAR_EVOLVER
+#define MISO_LINEAR_EVOLVER
 
 #include "adept.h"
 #include "mfem.hpp"
 
 #include "inexact_newton.hpp"
-#include "mach_load.hpp"  /// should be able to remove this eventually
-#include "mach_residual.hpp"
-#include "mach_types.hpp"
+#include "miso_load.hpp"  /// should be able to remove this eventually
+#include "miso_residual.hpp"
+#include "miso_types.hpp"
 
-namespace mach
+namespace miso
 {
-/// Wraps a MachResidual so that it can be used by MFEM's Newton solver, e.g.
+/// Wraps a MISOResidual so that it can be used by MFEM's Newton solver, e.g.
 /// \note This is the operator provided to Newton's method for the nonlinear
 /// equations that arise from implicit time-marching schemes
 class ODESystemOperator final : public mfem::Operator
@@ -21,7 +21,7 @@ public:
    /// \param[in] residual - defines the dynamics of the ODE
    /// \note The `evaluate` method for `residual` must compute the space-time
    /// residual when provided the inputs for the "state" and "dxdt".
-   ODESystemOperator(MachResidual &residual)
+   ODESystemOperator(MISOResidual &residual)
     : Operator(getSize(residual)),
       res(&residual),
       dt(0.0),
@@ -53,7 +53,7 @@ public:
 
 private:
    /// Defines the ODE, both the mass matrix and dynamics
-   MachResidual *res;
+   MISOResidual *res;
    /// Current time step size
    double dt;
    /// Pointer to the solution at the previous time step
@@ -113,7 +113,7 @@ public:
 
 /// Class that can handle implicit or explicit time marching of linear or
 /// nonlinear ODEs
-class MachEvolver : public EntropyConstrainedOperator
+class MISOEvolver : public EntropyConstrainedOperator
 {
 public:
    /// Serves as an base class for linear/nonlinear explicit/implicit time
@@ -129,12 +129,12 @@ public:
    /// \param[in] start_time - time to start integration from
    ///                         (important for time-variant sources)
    /// \param[in] type - solver type; explicit or implicit
-   MachEvolver(mfem::Array<int> &ess_bdr,
+   MISOEvolver(mfem::Array<int> &ess_bdr,
                NonlinearFormType *nonlinear_mass,
                BilinearFormType *mass,
                NonlinearFormType *res,
                BilinearFormType *stiff,
-               MachLoad *load,
+               MISOLoad *load,
                NonlinearFormType *ent,
                std::ostream &outstream,
                double start_time,
@@ -194,12 +194,12 @@ public:
                         const mfem::Vector &k) override;
 
    /// explicitly prohibit copy/move construction
-   MachEvolver(const MachEvolver &) = delete;
-   MachEvolver &operator=(const MachEvolver &) = delete;
-   MachEvolver(MachEvolver &&) = delete;
-   MachEvolver &operator=(MachEvolver &&) = delete;
+   MISOEvolver(const MISOEvolver &) = delete;
+   MISOEvolver &operator=(const MISOEvolver &) = delete;
+   MISOEvolver(MISOEvolver &&) = delete;
+   MISOEvolver &operator=(MISOEvolver &&) = delete;
 
-   ~MachEvolver() override;
+   ~MISOEvolver() override;
 
 protected:
    /// pointer to nonlinear mass bilinear form (not owned)
@@ -211,7 +211,7 @@ protected:
    /// pointer to stiffness bilinear form (not owned)
    mfem::OperatorHandle stiff;
    /// pointer to load vector (not owned)
-   MachLoad *load;
+   MISOLoad *load;
    /// pointer to a form for computing the entropy  (not owned)
    NonlinearFormType *ent;
    /// outstream for printing
@@ -235,7 +235,7 @@ protected:
 
    /// pointer-to-implementation idiom
    /// Hides implementation details of this operator, and because it's private,
-   /// it doesn't pollute the mach namespace
+   /// it doesn't pollute the miso namespace
    class SystemOperator;
    /// Operator that combines the linear/nonlinear spatial discretization with
    /// the load vector into one operator used for implicit solves
@@ -250,6 +250,6 @@ protected:
                           double dt_stage = -1.0);
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

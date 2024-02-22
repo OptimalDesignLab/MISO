@@ -4,7 +4,7 @@
 
 #include "magnetostatic.hpp"
 
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto em_options = R"(
@@ -28,9 +28,10 @@ auto em_options = R"(
       "max-iter": 10
    },
    "lin-solver": {
-      "type": "minres",
+      "type": "gmres",
       "printlevel": 1,
-      "maxiter": 100,
+      "maxiter": 200,
+      "kdim": 200,
       "abstol": 1e-14,
       "reltol": 1e-14
    },
@@ -39,9 +40,9 @@ auto em_options = R"(
       "printlevel": 0
    },
    "nonlin-solver": {
-      "type": "newton",
+      "type": "relaxednewton",
       "printlevel": 1,
-      "maxiter": 50,
+      "maxiter": 1,
       "reltol": 1e-10,
       "abstol": 1e-12
    },
@@ -70,7 +71,7 @@ TEST_CASE("Force Regression Test Coulomb 1984 Paper")
    em_state = 0.0; // initialize zero field
 
    auto current_density = 3e6;
-   MachInputs inputs {
+   MISOInputs inputs {
       {"current_density:test", current_density},
       {"state", em_state}
    };

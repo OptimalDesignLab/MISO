@@ -1,12 +1,14 @@
-#ifndef MACH_THERMAL
-#define MACH_THERMAL
+#ifndef MISO_THERMAL
+#define MISO_THERMAL
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "pde_solver.hpp"
 
-namespace mach
+#include "coefficient.hpp"
+
+namespace miso
 {
 /// Solver for steady thermal problems
 class ThermalSolver : public PDESolver
@@ -20,9 +22,21 @@ private:
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,
                   const nlohmann::json &options) override;
+
+   // Material dependent coefficient representing thermal conductivity
+   MeshDependentCoefficient kappa;  // Making a member of ThermalSolver instead
+                                    // so can be used to compute outputs
+
+   /// Code that should be executed after time stepping ends
+   /// \param[in] iter - the terminal iteration
+   /// \param[in] t_final - the final time
+   /// \param[in] state - the current state
+   void derivedPDETerminalHook(int iter,
+                               double t_final,
+                               const mfem::Vector &state) override;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 // #include "solver.hpp"
 // #include "evolver.hpp"
@@ -35,7 +49,7 @@ private:
 // #include <limits>
 // #include <random>
 
-// namespace mach
+// namespace miso
 // {
 // class MachLoad;
 // class MachLinearForm;

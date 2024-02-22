@@ -10,7 +10,7 @@ constexpr bool entvar = true;
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 std::default_random_engine gen(std::random_device{}());
 std::uniform_real_distribution<double> normal_rand(-1.0,1.0);
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
                 << solver->calcL2Error(u0_function) << '\n' << endl;
 
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

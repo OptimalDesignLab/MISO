@@ -1,5 +1,5 @@
-#ifndef MACH_COMMON
-#define MACH_COMMON
+#ifndef MISO_COMMON
+#define MISO_COMMON
 
 #include "default_options.hpp"
 #include "evolver.hpp"

@@ -1,9 +1,9 @@
-#ifndef MACH_ORTHOPOLY
-#define MACH_ORTHOPOLY
+#ifndef MISO_ORTHOPOLY
+#define MISO_ORTHOPOLY
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 /// computes the LGL quadrature nodes and weights on the interval [-1,1]
 /// \param[in] num_nodes - the number of nodes (degree+1)
@@ -93,6 +93,6 @@ void getVandermondeForTet(const mfem::Vector &x,
                           int degree,
                           mfem::DenseMatrix &V);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

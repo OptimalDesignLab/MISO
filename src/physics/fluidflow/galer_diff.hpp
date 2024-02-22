@@ -2,7 +2,7 @@
 // #define MFEM_GALER_DIFF
 // #include "mfem.hpp"
 // #include "solver.hpp"
-// #include "mach_types.hpp"
+// #include "miso_types.hpp"
 // #include "pumi.h"
 
 // namespace mfem
@@ -16,7 +16,7 @@
 //    /// Class constructor.
 //    /// \param[in] opt_file_name - file where options are stored
 //    GalerkinDifference(const std::string &opt_file_name =
-//                         std::string("mach_options.json"));
+//                         std::string("miso_options.json"));
 
 //    /// constructs the neighbour matrices for all mesh elements.
 //    /// and second neighbours (shared vertices).
@@ -84,5 +84,5 @@
 
 // };
 
-// } // end of namespace mach
+// } // end of namespace miso
 // #endif

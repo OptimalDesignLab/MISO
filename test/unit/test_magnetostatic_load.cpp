@@ -7,11 +7,11 @@
 #include "mfem.hpp"
 
 #include "utils.hpp"
-#include "mach_load.hpp"
+#include "miso_load.hpp"
 #include "magnetostatic.hpp"
 #include "material_library.hpp"
 
-using namespace mach;
+using namespace miso;
 
 /// Generate mesh 
 /// \param[in] nxy - number of nodes in the x and y directions
@@ -77,7 +77,7 @@ TEST_CASE("MagnetostaticLoad Value Test")
 
    mfem::HypreParVector tv(&fes);
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"current_density:group1", 1.0}
    });
 
@@ -111,167 +111,6 @@ TEST_CASE("MagnetostaticLoad Value Test")
    // REQUIRE(norm == Approx(1.8280057201).margin(1e-10));
 
 }
-
-// TEST_CASE("MagnetostaticLoad vectorJacobianProduct wrt current_density")
-// {
-//    Mesh smesh = buildMesh(3, 3);
-//    ParMesh mesh(MPI_COMM_WORLD, smesh);
-//    mesh.EnsureNodes();
-
-//    auto p = 2;
-//    const auto dim = mesh.Dimension();
-
-//    // get the finite-element space for the state
-//    ND_FECollection fec(p, dim);
-//    ParFiniteElementSpace fes(&mesh, &fec);
-
-//    // create current_coeff coefficient
-//    VectorFunctionCoefficient current_coeff(dim,
-//                                            simpleCurrent,
-//                                            simpleCurrentRevDiff);
-
-//    // create mag_coeff coefficient
-//    Vector mag_const(3); mag_const = 1.0;
-//    VectorConstantCoefficient mag_coeff(mag_const);
-
-//    // create nu coeff
-//    ConstantCoefficient nu(1.0);
-
-//    MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
-//    MachLoad ml(load);
-
-//    auto current_density = 1e6;
-//    auto inputs = MachInputs({
-//       {"current_density", current_density}
-//    });
-//    setInputs(ml, inputs);
-
-//    HypreParVector load_bar(&fes);
-//    {
-//       // std::default_random_engine gen;
-//       // std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
-//       for (int i = 0; i < load_bar.Size(); ++i)
-//       {
-//          load_bar(i) = uniform_rand(gen);
-//       }
-//    }
-//    double wrt_bar = vectorJacobianProduct(ml, load_bar, "current_density");
-
-//    /// somewhat large step size since the magnitude of current density is large
-//    auto delta = 1e-2;
-//    HypreParVector tv(&fes);
-//    inputs.at("current_density") = current_density + delta;
-//    setInputs(ml, inputs);
-//    tv = 0.0;
-//    addLoad(ml, tv);
-//    double wrt_bar_fd = load_bar * tv;
-
-//    inputs.at("current_density") = current_density - delta;
-//    setInputs(ml, inputs);
-//    tv = 0.0;
-//    addLoad(ml, tv);
-//    wrt_bar_fd -= load_bar * tv;
-//    wrt_bar_fd /= 2*delta;
-
-//    // std::cout << "wrt_bar: " << wrt_bar << "\n";
-//    // std::cout << "wrt_bar_fd: " << wrt_bar_fd << "\n";
-//    REQUIRE(wrt_bar == Approx(wrt_bar_fd));
-// }
-
-// TEST_CASE("MagnetostaticLoad vectorJacobianProduct wrt mesh_coords")
-// {
-//    Mesh smesh = buildMesh(3, 3);
-//    ParMesh mesh(MPI_COMM_WORLD, smesh);
-//    mesh.EnsureNodes();
-
-//    auto p = 2;
-//    const auto dim = mesh.Dimension();
-
-//    // get the finite-element space for the state
-//    ND_FECollection fec(p, dim);
-//    ParFiniteElementSpace fes(&mesh, &fec);
-
-//    // create current_coeff coefficient
-//    VectorFunctionCoefficient current_coeff(dim,
-//                                            simpleCurrent,
-//                                            simpleCurrentRevDiff);
-
-//    // create mag_coeff coefficient
-//    // VectorFunctionCoefficient mag_coeff(dim, northMagnetizationSource);
-//    Vector mag_const(3); mag_const = 1.0;
-//    VectorConstantCoefficient mag_coeff(mag_const);
-
-//    // create nu coeff
-//    ConstantCoefficient nu(1.0);
-
-//    MagnetostaticLoad load(fes, current_coeff, mag_coeff, nu);
-//    MachLoad ml(load);
-
-//    // extract mesh nodes and get their finite-element space
-//    auto &x_nodes = *dynamic_cast<mfem::ParGridFunction*>(mesh.GetNodes());
-//    auto &mesh_fes = *x_nodes.ParFESpace();
-
-//    auto inputs = MachInputs({
-//       {"mesh_coords", x_nodes}
-//    });
-//    setInputs(ml, inputs);
-
-//    HypreParVector load_bar(&fes);
-//    {
-//       for (int i = 0; i < load_bar.Size(); ++i)
-//       {
-//          load_bar(i) = uniform_rand(gen);
-//       }
-//    }
-
-//    HypreParVector wrt_bar(&mesh_fes); wrt_bar = 0.0;
-//    vectorJacobianProduct(ml, load_bar, "mesh_coords", wrt_bar);
-
-//    // initialize the vector that we use to perturb the mesh nodes
-//    ParGridFunction v(&mesh_fes);
-//    VectorFunctionCoefficient pert(3, [](const mfem::Vector &x, mfem::Vector &u)
-//    {
-//       for (int i = 0; i < u.Size(); ++i)
-//          u(i) = uniform_rand(gen);
-//    });
-//    v.ProjectCoefficient(pert);
-//    HypreParVector v_tv(&mesh_fes);
-//    v.ParallelAssemble(v_tv);
-
-//    double dJdx_v = wrt_bar * v_tv;
-
-//    // now compute the finite-difference approximation...
-//    auto delta = 1e-5;
-
-//    HypreParVector load_vec(&fes);
-//    ParGridFunction x_pert(x_nodes);
-//    x_pert.Add(delta, v);
-//    mesh.SetNodes(x_pert);
-//    fes.Update();
-//    inputs.at("mesh_coords") = x_pert;
-//    setInputs(ml, inputs);
-//    load_vec = 0.0;
-//    addLoad(ml, load_vec);
-//    double dJdx_v_fd = load_bar * load_vec;
-
-//    x_pert.Add(-2 * delta, v);
-//    mesh.SetNodes(x_pert);
-//    fes.Update();
-//    inputs.at("mesh_coords") = x_pert;
-//    setInputs(ml, inputs);
-//    load_vec = 0.0;
-//    addLoad(ml, load_vec);
-//    dJdx_v_fd -= load_bar * load_vec;
-//    dJdx_v_fd /= 2*delta;
-
-//    mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
-//    fes.Update();
-
-//    std::cout << "dJdx_v: " << dJdx_v << "\n";
-//    std::cout << "dJdx_v_fd: " << dJdx_v_fd << "\n";
-
-//    REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
-// }
 
 mfem::Mesh buildMesh(int nxy, int nz)
 {
