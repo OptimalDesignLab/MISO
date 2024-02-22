@@ -1,5 +1,5 @@
-#ifndef MACH_PDE_SOLVER
-#define MACH_PDE_SOLVER
+#ifndef MISO_PDE_SOLVER
+#define MISO_PDE_SOLVER
 
 #include <memory>
 #include <vector>
@@ -11,7 +11,7 @@
 #include "apf.h"
 #include "apfMesh2.h"
 
-namespace mach
+namespace miso
 {
 struct pumiDeleter
 {
@@ -25,16 +25,16 @@ struct pumiDeleter
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 #endif
 
 #include "abstract_solver.hpp"
 #include "finite_element_state.hpp"
 #include "finite_element_dual.hpp"
 
-namespace mach
+namespace miso
 {
-struct MachMesh
+struct MISOMesh
 {
    std::unique_ptr<mfem::ParMesh> mesh = nullptr;
 #ifdef MFEM_USE_PUMI
@@ -42,24 +42,24 @@ struct MachMesh
    static int pumi_mesh_count;
    static bool PCU_previously_initialized;
 
-   MachMesh();
+   MISOMesh();
 
-   MachMesh(const MachMesh &) = delete;
-   MachMesh &operator=(const MachMesh &) = delete;
+   MISOMesh(const MISOMesh &) = delete;
+   MISOMesh &operator=(const MISOMesh &) = delete;
 
-   MachMesh(MachMesh &&) noexcept;
-   MachMesh &operator=(MachMesh &&) noexcept;
+   MISOMesh(MISOMesh &&) noexcept;
+   MISOMesh &operator=(MISOMesh &&) noexcept;
 
-   ~MachMesh();
+   ~MISOMesh();
 #endif
 };
 
-MachMesh constructMesh(MPI_Comm comm,
+MISOMesh constructMesh(MPI_Comm comm,
                        const nlohmann::json &mesh_options,
                        std::unique_ptr<mfem::Mesh> smesh = nullptr,
                        bool keep_boundaries = false);
 
-MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options);
+MISOMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options);
 
 class PDESolver : public AbstractSolver2
 {
@@ -100,7 +100,7 @@ public:
 
 protected:
    /// object defining the mfem computational mesh
-   MachMesh mesh_;
+   MISOMesh mesh_;
 
    /// Reference to solver state vector
    mfem::ParMesh &mesh() { return *mesh_.mesh; }
@@ -193,6 +193,6 @@ protected:
    { }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

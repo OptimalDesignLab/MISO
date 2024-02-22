@@ -1,5 +1,5 @@
-#ifndef MACH_FINITE_ELEMENT_STATE
-#define MACH_FINITE_ELEMENT_STATE
+#ifndef MISO_FINITE_ELEMENT_STATE
+#define MISO_FINITE_ELEMENT_STATE
 
 #include <functional>
 #include <memory>
@@ -8,7 +8,7 @@
 
 #include "finite_element_vector.hpp"
 
-namespace mach
+namespace miso
 {
 /// \brief Class for encapsulating the critical MFEM components of a primal
 /// finite element field
@@ -164,6 +164,6 @@ inline double calcLpError(
    return calcLpError(state, coeff, p, entry);
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

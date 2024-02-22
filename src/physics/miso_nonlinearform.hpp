@@ -303,7 +303,7 @@ void MISONonlinearForm::addBdrFaceIntegrator(
 }
 
 template <typename T>
-void MachNonlinearForm::addInternalBoundaryFaceIntegrator(T *integrator)
+void MISONonlinearForm::addInternalBoundaryFaceIntegrator(T *integrator)
 {
    integs.emplace_back(*integrator);
    nf.AddInternalBoundaryFaceIntegrator(integrator);
@@ -318,7 +318,7 @@ void MachNonlinearForm::addInternalBoundaryFaceIntegrator(T *integrator)
 }
 
 template <typename T>
-void MachNonlinearForm::addInternalBoundaryFaceIntegrator(
+void MISONonlinearForm::addInternalBoundaryFaceIntegrator(
     T *integrator,
     const std::vector<int> &bdr_attr_marker)
 {

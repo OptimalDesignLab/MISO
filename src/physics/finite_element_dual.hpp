@@ -1,5 +1,5 @@
-#ifndef MACH_FINITE_ELEMENT_DUAL
-#define MACH_FINITE_ELEMENT_DUAL
+#ifndef MISO_FINITE_ELEMENT_DUAL
+#define MISO_FINITE_ELEMENT_DUAL
 
 #include <memory>
 
@@ -7,7 +7,7 @@
 
 #include "finite_element_vector.hpp"
 
-namespace mach
+namespace miso
 {
 /// \brief Class for encapsulating the dual vector space of a finite element
 /// space (i.e. the space of linear forms as applied to a specific basis set)
@@ -63,6 +63,6 @@ public:
    // }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

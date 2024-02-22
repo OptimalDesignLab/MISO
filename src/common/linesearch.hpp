@@ -1,11 +1,11 @@
-#ifndef MACH_LINESEARCH
-#define MACH_LINESEARCH
+#ifndef MISO_LINESEARCH
+#define MISO_LINESEARCH
 
 #include <functional>
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 class LineSearch
 {
@@ -57,6 +57,6 @@ public:
    const double dphi0;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

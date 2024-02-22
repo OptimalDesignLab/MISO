@@ -1,5 +1,5 @@
-#ifndef MACH_ABSTRACT_SOLVER
-#define MACH_ABSTRACT_SOLVER
+#ifndef MISO_ABSTRACT_SOLVER
+#define MISO_ABSTRACT_SOLVER
 
 #include <any>
 #include <memory>
@@ -10,13 +10,13 @@
 #include "nlohmann/json.hpp"
 
 #include "data_logging.hpp"
-#include "mach_input.hpp"
-#include "mach_output.hpp"
-#include "mach_residual.hpp"
+#include "miso_input.hpp"
+#include "miso_output.hpp"
+#include "miso_residual.hpp"
 #include "ode.hpp"
 #include "utils.hpp"
 
-namespace mach
+namespace miso
 {
 /// Serves as a base class for specific solvers
 /// \todo Rename to AbstractSolver once we have old AbstractSolver inherit it
@@ -65,7 +65,7 @@ public:
    /// \param[in] inputs - scalars and fields that the `res` may depend on
    /// \param[inout] state - the solution to the governing equation
    /// \note On input, `state` should hold the initial condition
-   void solveForState(const MachInputs &inputs, mfem::Vector &state);
+   void solveForState(const MISOInputs &inputs, mfem::Vector &state);
 
    /// Solve for the adjoint based on the @a state and the @a state_bar
    /// \param[in] state - the converged solution that satisfies R(state) = 0
@@ -87,7 +87,7 @@ public:
    /// @a state
    /// \param[out] adjoint - the solution to the equation
    /// \partial R / \partial @a state * adjoint^T = @a state_bar
-   void solveForAdjoint(const MachInputs &inputs,
+   void solveForAdjoint(const MISOInputs &inputs,
                         const mfem::Vector &state_bar,
                         mfem::Vector &adjoint);
 
@@ -100,7 +100,7 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \param[out] residual - the discrete residual vector
-   void calcResidual(const MachInputs &inputs, mfem::Vector &residual) const;
+   void calcResidual(const MISOInputs &inputs, mfem::Vector &residual) const;
 
    /// Compute the residual norm based on inputs
    /// \param[in] state - the state to evaluate the residual at
@@ -111,7 +111,7 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating residual
    /// \return the norm of the discrete residual vector
-   double calcResidualNorm(const MachInputs &inputs) const;
+   double calcResidualNorm(const MISOInputs &inputs) const;
 
    /// \return the size of the state vector
    int getStateSize() const;
@@ -122,13 +122,13 @@ public:
    /// \note if the field @a name is unrecognized by the solver, 0 is returned
    virtual int getFieldSize(const std::string &name) const;
 
-   /// Creates a MachOutput for the specified @a output based on @a options
+   /// Creates a MISOOutput for the specified @a output based on @a options
    /// \param[in] output - specifies the desired output
    /// \note if an output for @a output has already been created an
    /// exception will be thrown
    void createOutput(const std::string &output);
 
-   /// Creates a MachOutput for the specified @a output based on @a options
+   /// Creates a MISOOutput for the specified @a output based on @a options
    /// \param[in] output - specifies the desired output
    /// \param[in] options - options needed for configuring the output
    /// \note if an output for @a output has already been created an
@@ -153,7 +153,7 @@ public:
    /// \param[in] inputs - collection of field or scalar inputs to set before
    ///                     evaluating the output
    /// \return scalar value of estimated output value
-   double calcOutput(const std::string &output, const MachInputs &inputs);
+   double calcOutput(const std::string &output, const MISOInputs &inputs);
 
    /// Evaluates the vector-valued output specifed by @a output
    /// \param[in] output - specifies the desired output
@@ -161,7 +161,7 @@ public:
    ///                     evaluating the output
    /// \param[out] out_vec - estimated vector-valued output
    void calcOutput(const std::string &output,
-                   const MachInputs &inputs,
+                   const MISOInputs &inputs,
                    mfem::Vector &out_vec);
 
    /// Evaluates and returns the partial derivative of output specifed by
@@ -173,7 +173,7 @@ public:
    /// \param[out] partial - the partial with respect to a scalar-valued input
    void calcOutputPartial(const std::string &of,
                           const std::string &wrt,
-                          const MachInputs &inputs,
+                          const MISOInputs &inputs,
                           double &partial);
 
    /// Evaluates and returns the partial derivative of the output specifed by
@@ -185,7 +185,7 @@ public:
    /// \param[out] partial - the partial with respect to a vector-valued input
    void calcOutputPartial(const std::string &of,
                           const std::string &wrt,
-                          const MachInputs &inputs,
+                          const MISOInputs &inputs,
                           mfem::Vector &partial);
 
    /// Compute an output's sensitivity to @a wrt and contract it with @a wrt_dot
@@ -197,7 +197,7 @@ public:
    /// \param[inout] out_dot - the assembled/contracted sensitivity is
    /// accumulated into out_dot
    void outputJacobianVectorProduct(const std::string &of,
-                                    const MachInputs &inputs,
+                                    const MISOInputs &inputs,
                                     const mfem::Vector &wrt_dot,
                                     const std::string &wrt,
                                     mfem::Vector &out_dot);
@@ -211,14 +211,14 @@ public:
    /// \param[inout] wrt_bar - the assembled/contracted sensitivity is
    /// accumulated into wrt_bar
    void outputVectorJacobianProduct(const std::string &of,
-                                    const MachInputs &inputs,
+                                    const MISOInputs &inputs,
                                     const mfem::Vector &out_bar,
                                     const std::string &wrt,
                                     mfem::Vector &wrt_bar);
 
    /// Cache inputs for the residual and internally store Jacobians
    /// \param[in] inputs - the independent variables at which to evaluate `res`
-   void linearize(const MachInputs &inputs);
+   void linearize(const MISOInputs &inputs);
 
    /// Compute the residual's sensitivity to a scalar and contract it with
    /// wrt_dot
@@ -278,7 +278,7 @@ protected:
    /// print object
    std::ostream *out;
 
-   /// storage for algorithmic differentiation (shared by everything in mach)
+   /// storage for algorithmic differentiation (shared by everything in miso)
    adept::Stack &diff_stack;
 
    /// work vector for solvers
@@ -288,9 +288,9 @@ protected:
    nlohmann::json options;
 
    /// residual defines the just the spatial dynamics of a problem
-   std::unique_ptr<MachResidual> spatial_res;
+   std::unique_ptr<MISOResidual> spatial_res;
    /// residual defines the dynamics of an ODE (including steady ODEs)
-   std::unique_ptr<MachResidual> space_time_res;
+   std::unique_ptr<MISOResidual> space_time_res;
 
    /// linear system solver used in newton solver
    std::unique_ptr<mfem::Solver> linear_solver;
@@ -305,7 +305,7 @@ protected:
    std::unique_ptr<FirstOrderODE> ode;
 
    /// map of outputs the solver can compute
-   std::map<std::string, MachOutput> outputs;
+   std::map<std::string, MISOOutput> outputs;
 
    /// Optional data loggers that will save state vectors during timestepping
    std::vector<DataLoggerWithOpts> loggers;
@@ -473,6 +473,6 @@ double AbstractSolver2::calcStateError(T ex_sol,
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

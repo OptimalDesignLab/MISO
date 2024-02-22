@@ -18,7 +18,7 @@ std::unique_ptr<miso::LineSearch> createLineSearch(
 {
    if (type == "backtracking")
    {
-      auto ls = std::make_unique<mach::BacktrackingLineSearch>();
+      auto ls = std::make_unique<miso::BacktrackingLineSearch>();
       if (options.is_object())
       {
          ls->mu = options.value("mu", ls->mu);
@@ -34,13 +34,13 @@ std::unique_ptr<miso::LineSearch> createLineSearch(
       std::string err_msg = "Unknown linesearch type \"";
       err_msg += type;
       err_msg += "\"!\n";
-      throw mach::MISOException(err_msg);
+      throw miso::MISOException(err_msg);
    }
 }
 
 }  // namespace
 
-namespace mach
+namespace miso
 {
 RelaxedNewton::RelaxedNewton(MPI_Comm comm, const nlohmann::json &options)
  : NewtonSolver(comm)
@@ -83,4 +83,4 @@ double RelaxedNewton::ComputeScalingFactor(const mfem::Vector &x,
    return ls->search(phi, phi.phi0, phi.dphi0, 1.0);
 }
 
-}  // namespace mach
+}  // namespace miso

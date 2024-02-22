@@ -55,11 +55,11 @@ protected:
    std::string error_msg;
 };
 
-class NotImplementedException : public MachException
+class NotImplementedException : public MISOException
 {
 private:
    NotImplementedException(const char *message, const char *function)
-    : MachException(
+    : MISOException(
           [&]()
           {
              std::string msg = function;

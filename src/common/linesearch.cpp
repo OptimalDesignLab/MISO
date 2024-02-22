@@ -53,7 +53,7 @@ double cubic_interp(double phi0,
 
 }  // namespace
 
-namespace mach
+namespace miso
 {
 double BacktrackingLineSearch::search(const std::function<double(double)> &phi,
                                       double phi0,
@@ -135,4 +135,4 @@ double Phi::operator()(double alpha)
    return residual.Norml2();
 }
 
-}  // namespace mach
+}  // namespace miso

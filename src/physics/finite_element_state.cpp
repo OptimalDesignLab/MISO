@@ -1,6 +1,6 @@
 #include "finite_element_state.hpp"
 
-namespace mach
+namespace miso
 {
 double calcLpNorm(const FiniteElementState &state, const double p)
 {
@@ -314,4 +314,4 @@ double calcLpError(const FiniteElementState &state,
    return mfem::GlobalLpNorm(p, loc_error, state.comm());
 }
 
-}  // namespace mach
+}  // namespace miso

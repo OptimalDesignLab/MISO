@@ -1,12 +1,12 @@
-#ifndef MATRIX_OPERATORS
-#define MATRIX_OPERATORS
+#ifndef MISO_MATRIX_OPERATORS
+#define MISO_MATRIX_OPERATORS
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "mach_residual.hpp"
+#include "miso_residual.hpp"
 
-namespace mach
+namespace miso
 {
 /// Linear combination of two `Operators`
 class SumOfOperators : public mfem::Operator
@@ -99,7 +99,7 @@ public:
    /// Sets the state at which the Jacobian is evaluated
    /// \param[in] inputs - contains key "state" where Jacobian is evaluated
    /// \note This function also evaluates the residual at given state
-   void setState(const MachInputs &inputs);
+   void setState(const MISOInputs &inputs);
 
    /// Approximates `y = J*x` using a forward difference approximation
    /// \param[in] x - the vector being multiplied by the Jacobian
@@ -146,12 +146,12 @@ void JacobianFree<T>::setState(const mfem::Vector &baseline)
    // store baseline state, because we need to perturb it later
    state = baseline;
    // initialize the res_at_state vector for later use
-   auto inputs = MachInputs({{"state", baseline}});
+   auto inputs = MISOInputs({{"state", baseline}});
    evaluate(res, inputs, res_at_state);
 }
 
 template <typename T>
-void JacobianFree<T>::setState(const MachInputs &inputs)
+void JacobianFree<T>::setState(const MISOInputs &inputs)
 {
    // store baseline state, because we need to perturb it later
    setVectorFromInputs(inputs, "state", state, true, true);
@@ -164,7 +164,7 @@ void JacobianFree<T>::Mult(const mfem::Vector &x, mfem::Vector &y) const
    double eps_fd = getStepSize(state, x);
    // create the perturbed vector, and evaluate the residual
    add(state, eps_fd, x, state_pert);
-   auto inputs = MachInputs({{"state", state_pert}});
+   auto inputs = MISOInputs({{"state", state_pert}});
    evaluate(res, inputs, y);
    // subtract the baseline residual and divide by eps_fd to get product
    subtract(1 / eps_fd, y, res_at_state, y);
@@ -206,12 +206,12 @@ class JacobianFree : public mfem::Operator
 public:
    /// Construct a Jacobian-free matrix-vector product operator
    /// \param[in] residual - the equation/residual that defines the Jacobian
-   JacobianFree(MachResidual &residual);
+   JacobianFree(MISOResidual &residual);
 
    /// Construct a Jacobian-free matrix-vector product operator
    /// \param[in] residual - the equation/residual that defines the Jacobian
    /// \param[in] mat_explicit - (optional) explicit part of the operator
-   JacobianFree(MachResidual &residual, mfem::Operator &mat_explicit)
+   JacobianFree(MISOResidual &residual, mfem::Operator &mat_explicit)
     : JacobianFree(residual)
    {
       explicit_part = &mat_explicit;
@@ -228,7 +228,7 @@ public:
    /// Sets the state at which the Jacobian is evaluated
    /// \param[in] inputs - contains key "state" where Jacobian is evaluated
    /// \note This function also evaluates the residual at given state
-   void setState(const MachInputs &inputs);
+   void setState(const MISOInputs &inputs);
 
    /// Approximates `y = J*x` using a forward difference approximation
    /// \param[in] x - the vector being multiplied by the Jacobian
@@ -238,7 +238,7 @@ public:
    /// Return operator corresponding to the `i`th block
    /// \param[in] i - the block that is desired
    /// \note If the underlying residual does not support `getJacobianBlock`, an
-   /// exception will be thrown by MachResidual.
+   /// exception will be thrown by MISOResidual.
    mfem::Operator &getDiagonalBlock(int i) const;
 
    /// Write a file with the explicit matrix entries
@@ -252,7 +252,7 @@ private:
    /// Scaling that is applied to the Jacobian-free part of the operator
    double scale;
    /// residual that defines the Jacobian
-   MachResidual &res;
+   MISOResidual &res;
    /// matrix-explicit part of the operator (optional)
    mfem::Operator *explicit_part;
    /// baseline state about which we perturb
@@ -270,6 +270,6 @@ private:
                       const mfem::Vector &pert) const;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif  // MATRIX_OPERATORS

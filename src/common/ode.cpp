@@ -6,7 +6,7 @@
 
 #include "ode.hpp"
 
-namespace mach
+namespace miso
 {
 /// \brief Helper function to add A + dt*B = C
 /// Supports case where A, B, and C are all HypreParMatrix
@@ -46,16 +46,16 @@ void addJacobians(mfem::Operator &A,
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
-namespace mach
+namespace miso
 {
 int getSize(const TimeDependentResidual &residual)
 {
    return getSize(residual.spatial_res_);
 }
 
-void setInputs(TimeDependentResidual &residual, const mach::MachInputs &inputs)
+void setInputs(TimeDependentResidual &residual, const miso::MISOInputs &inputs)
 {
    // auto it = inputs.find("state");
    // if (it != inputs.end())
@@ -93,7 +93,7 @@ void setOptions(TimeDependentResidual &residual, const nlohmann::json &options)
 }
 
 void evaluate(TimeDependentResidual &residual,
-              const mach::MachInputs &inputs,
+              const miso::MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    auto &dt = residual.dt;
@@ -102,13 +102,13 @@ void evaluate(TimeDependentResidual &residual,
    auto &work = residual.work;
    if (dt == 0.0)
    {
-      MachInputs input{{"state", state}};
+      MISOInputs input{{"state", state}};
       evaluate(residual.spatial_res_, input, res_vec);
    }
    else
    {
       add(state, dt, state_dot, work);
-      MachInputs input{{"state", work}};
+      MISOInputs input{{"state", work}};
       evaluate(residual.spatial_res_, input, res_vec);
    }
    residual.mass_matrix_->Mult(residual.state_dot, residual.work);
@@ -116,7 +116,7 @@ void evaluate(TimeDependentResidual &residual,
 }
 
 mfem::Operator &getJacobian(TimeDependentResidual &residual,
-                            const mach::MachInputs &inputs,
+                            const miso::MISOInputs &inputs,
                             const std::string &wrt)
 {
    auto &dt = residual.dt;
@@ -130,7 +130,7 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    auto &state_dot = residual.state_dot;
    auto &work = residual.work;
    add(state, dt, state_dot, work);
-   MachInputs input{{"state", work}};
+   MISOInputs input{{"state", work}};
 
    auto *jac_free = dynamic_cast<JacobianFree *>(residual.jac_.get());
    if (jac_free)
@@ -150,19 +150,19 @@ mfem::Operator &getJacobian(TimeDependentResidual &residual,
    return *residual.jac_;
 }
 
-double calcEntropy(TimeDependentResidual &residual, const MachInputs &inputs)
+double calcEntropy(TimeDependentResidual &residual, const MISOInputs &inputs)
 {
    return calcEntropy(residual.spatial_res_, inputs);
 }
 
 double calcEntropyChange(TimeDependentResidual &residual,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
 {
    return calcEntropyChange(residual.spatial_res_, inputs);
 }
 
 double calcSupplyRate(TimeDependentResidual &residual,
-                      const MachInputs &inputs)
+                      const MISOInputs &inputs)
 {
    return calcSupplyRate(residual.spatial_res_, inputs);
 }
@@ -190,7 +190,7 @@ double calcSupplyRate(TimeDependentResidual &residual,
 //    }
 // }
 
-FirstOrderODE::FirstOrderODE(MachResidual &residual,
+FirstOrderODE::FirstOrderODE(MISOResidual &residual,
                              const nlohmann::json &ode_options,
                              mfem::Solver &solver,
                              std::ostream *out_stream)
@@ -210,7 +210,7 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
 {
    if (ode_options.contains("ode-solver"))
    {
-      throw MachException(
+      throw MISOException(
           "The option key \"ode-solver\" is deprecated.\n"
           "Please use the key \"type\" instead.");
    }
@@ -229,24 +229,24 @@ void FirstOrderODE::setTimestepper(const nlohmann::json &ode_options)
    }
    else if ((timestepper == "RRK") || (timestepper == "RRKMIDPOINT"))
    {
-      ode_solver_ = std::make_unique<mach::RRKImplicitMidpointSolver>(out);
+      ode_solver_ = std::make_unique<miso::RRKImplicitMidpointSolver>(out);
    }
    else if (timestepper == "RRK6")
    {
-      ode_solver_ = std::make_unique<mach::RRK6Solver>(out);
+      ode_solver_ = std::make_unique<miso::RRK6Solver>(out);
    }
    else if (timestepper == "PTC")
    {
-      ode_solver_ = std::make_unique<mach::PseudoTransientSolver>();
+      ode_solver_ = std::make_unique<miso::PseudoTransientSolver>();
    }
    else if (timestepper == "steady")
    {
-      ode_solver_ = std::make_unique<mach::SteadyODESolver>();
+      ode_solver_ = std::make_unique<miso::SteadyODESolver>();
       solver_.iterative_mode = true;
    }
    else
    {
-      throw MachException("Unknown ODE solver type: " +
+      throw MISOException("Unknown ODE solver type: " +
                           ode_options["ode-solver"].get<std::string>());
       // TODO: parallel exit
    }
@@ -257,7 +257,7 @@ void FirstOrderODE::solve(const double dt,
                           const mfem::Vector &u,
                           mfem::Vector &du_dt) const
 {
-   MachInputs inputs{
+   MISOInputs inputs{
        {"state", u}, {"state_dot", du_dt}, {"dt", dt}, {"time", t}};
 
    setInputs(residual_, inputs);
@@ -266,4 +266,4 @@ void FirstOrderODE::solve(const double dt,
    // Solver did not converge.");
 }
 
-}  // namespace mach
+}  // namespace miso

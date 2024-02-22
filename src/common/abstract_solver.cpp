@@ -6,7 +6,7 @@
 
 namespace
 {
-void logState(mach::DataLogger &logger,
+void logState(miso::DataLogger &logger,
               const mfem::Vector &state,
               std::string fieldname,
               int timestep,
@@ -20,7 +20,7 @@ void logState(mach::DataLogger &logger,
 
 }  // namespace
 
-namespace mach
+namespace miso
 {
 AbstractSolver2::AbstractSolver2(MPI_Comm incomm,
                                  const nlohmann::json &solver_options)
@@ -67,7 +67,7 @@ double AbstractSolver2::calcStateError_(std::any ex_sol,
        {
           if (vec.Size() != state.Size())
           {
-             throw MachException(
+             throw MISOException(
                  "Input vector for exact solution is not "
                  "the same size as the "
                  "state vector!");
@@ -78,7 +78,7 @@ double AbstractSolver2::calcStateError_(std::any ex_sol,
        });
 }
 
-void AbstractSolver2::solveForState(const MachInputs &inputs,
+void AbstractSolver2::solveForState(const MISOInputs &inputs,
                                     mfem::Vector &state)
 {
    if (spatial_res)
@@ -133,7 +133,7 @@ void AbstractSolver2::solveForState(const MachInputs &inputs,
    }
 }
 
-void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
+void AbstractSolver2::solveForAdjoint(const MISOInputs &inputs,
                                       const mfem::Vector &state_bar,
                                       mfem::Vector &adjoint)
 {
@@ -145,7 +145,7 @@ void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
    /// if solving an unsteady problem
    if (ode)
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver2::solveForAdjoint not implemented for unsteady "
           "problems!\n");
    }
@@ -176,11 +176,11 @@ void AbstractSolver2::solveForAdjoint(const MachInputs &inputs,
 void AbstractSolver2::calcResidual(const mfem::Vector &state,
                                    mfem::Vector &residual) const
 {
-   MachInputs inputs{{"state", state}};
+   MISOInputs inputs{{"state", state}};
    calcResidual(inputs, residual);
 }
 
-void AbstractSolver2::calcResidual(const MachInputs &inputs,
+void AbstractSolver2::calcResidual(const MISOInputs &inputs,
                                    mfem::Vector &residual) const
 {
    setInputs(*spatial_res, inputs);
@@ -189,11 +189,11 @@ void AbstractSolver2::calcResidual(const MachInputs &inputs,
 
 double AbstractSolver2::calcResidualNorm(const mfem::Vector &state) const
 {
-   MachInputs inputs{{"state", state}};
+   MISOInputs inputs{{"state", state}};
    return calcResidualNorm(inputs);
 }
 
-double AbstractSolver2::calcResidualNorm(const MachInputs &inputs) const
+double AbstractSolver2::calcResidualNorm(const MISOInputs &inputs) const
 {
    work.SetSize(getSize(*spatial_res));
    calcResidual(inputs, work);
@@ -212,7 +212,7 @@ int AbstractSolver2::getStateSize() const
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "getStateSize(): residual not defined! State size unknown.\n");
    }
 }
@@ -242,7 +242,7 @@ void AbstractSolver2::createOutput(const std::string &output,
    }
    else
    {
-      throw MachException("Output with name " + output + " already created!\n");
+      throw MISOException("Output with name " + output + " already created!\n");
    }
 }
 
@@ -253,9 +253,9 @@ int AbstractSolver2::getOutputSize(const std::string &output)
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map!\n");
+         throw MISOException("Did not find " + output + " in output map!\n");
       }
-      return mach::getSize(output_iter->second);
+      return miso::getSize(output_iter->second);
    }
    catch (const std::out_of_range &exception)
    {
@@ -272,9 +272,9 @@ void AbstractSolver2::setOutputOptions(const std::string &output,
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map!\n");
+         throw MISOException("Did not find " + output + " in output map!\n");
       }
-      mach::setOptions(output_iter->second, options);
+      miso::setOptions(output_iter->second, options);
    }
    catch (const std::out_of_range &exception)
    {
@@ -283,17 +283,17 @@ void AbstractSolver2::setOutputOptions(const std::string &output,
 }
 
 double AbstractSolver2::calcOutput(const std::string &output,
-                                   const MachInputs &inputs)
+                                   const MISOInputs &inputs)
 {
    try
    {
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map!\n");
+         throw MISOException("Did not find " + output + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
-      return mach::calcOutput(output_iter->second, inputs);
+      return miso::calcOutput(output_iter->second, inputs);
    }
    catch (const std::out_of_range &exception)
    {
@@ -303,7 +303,7 @@ double AbstractSolver2::calcOutput(const std::string &output,
 }
 
 void AbstractSolver2::calcOutput(const std::string &output,
-                                 const MachInputs &inputs,
+                                 const MISOInputs &inputs,
                                  mfem::Vector &out_vec)
 {
    try
@@ -311,16 +311,16 @@ void AbstractSolver2::calcOutput(const std::string &output,
       auto output_iter = outputs.find(output);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + output + " in output map!\n");
+         throw MISOException("Did not find " + output + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
       if (out_vec.Size() == 1)
       {
-         out_vec(0) = mach::calcOutput(output_iter->second, inputs);
+         out_vec(0) = miso::calcOutput(output_iter->second, inputs);
       }
       else
       {
-         mach::calcOutput(output_iter->second, inputs, out_vec);
+         miso::calcOutput(output_iter->second, inputs, out_vec);
       }
    }
    catch (const std::out_of_range &exception)
@@ -331,7 +331,7 @@ void AbstractSolver2::calcOutput(const std::string &output,
 
 void AbstractSolver2::calcOutputPartial(const std::string &of,
                                         const std::string &wrt,
-                                        const MachInputs &inputs,
+                                        const MISOInputs &inputs,
                                         double &partial)
 {
    try
@@ -339,10 +339,10 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
       auto output_iter = outputs.find(of);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map!\n");
+         throw MISOException("Did not find " + of + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
-      double part = mach::calcOutputPartial(output_iter->second, wrt, inputs);
+      double part = miso::calcOutputPartial(output_iter->second, wrt, inputs);
       partial += part;
    }
    catch (const std::out_of_range &exception)
@@ -354,7 +354,7 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
 
 void AbstractSolver2::calcOutputPartial(const std::string &of,
                                         const std::string &wrt,
-                                        const MachInputs &inputs,
+                                        const MISOInputs &inputs,
                                         mfem::Vector &partial)
 {
    try
@@ -362,10 +362,10 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
       auto output_iter = outputs.find(of);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map!\n");
+         throw MISOException("Did not find " + of + " in output map!\n");
       }
       setInputs(output_iter->second, inputs);
-      mach::calcOutputPartial(output_iter->second, wrt, inputs, partial);
+      miso::calcOutputPartial(output_iter->second, wrt, inputs, partial);
    }
    catch (const std::out_of_range &exception)
    {
@@ -374,7 +374,7 @@ void AbstractSolver2::calcOutputPartial(const std::string &of,
 }
 
 void AbstractSolver2::outputJacobianVectorProduct(const std::string &of,
-                                                  const MachInputs &inputs,
+                                                  const MISOInputs &inputs,
                                                   const mfem::Vector &wrt_dot,
                                                   const std::string &wrt,
                                                   mfem::Vector &out_dot)
@@ -384,17 +384,17 @@ void AbstractSolver2::outputJacobianVectorProduct(const std::string &of,
       auto output_iter = outputs.find(of);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map!\n");
+         throw MISOException("Did not find " + of + " in output map!\n");
       }
       auto &output = output_iter->second;
       setInputs(output, inputs);
       if (out_dot.Size() == 1)
       {
-         out_dot(0) += mach::jacobianVectorProduct(output, wrt_dot, wrt);
+         out_dot(0) += miso::jacobianVectorProduct(output, wrt_dot, wrt);
       }
       else
       {
-         mach::jacobianVectorProduct(output, wrt_dot, wrt, out_dot);
+         miso::jacobianVectorProduct(output, wrt_dot, wrt, out_dot);
       }
    }
    catch (const std::out_of_range &exception)
@@ -404,7 +404,7 @@ void AbstractSolver2::outputJacobianVectorProduct(const std::string &of,
 }
 
 void AbstractSolver2::outputVectorJacobianProduct(const std::string &of,
-                                                  const MachInputs &inputs,
+                                                  const MISOInputs &inputs,
                                                   const mfem::Vector &out_bar,
                                                   const std::string &wrt,
                                                   mfem::Vector &wrt_bar)
@@ -414,17 +414,17 @@ void AbstractSolver2::outputVectorJacobianProduct(const std::string &of,
       auto output_iter = outputs.find(of);
       if (output_iter == outputs.end())
       {
-         throw MachException("Did not find " + of + " in output map!\n");
+         throw MISOException("Did not find " + of + " in output map!\n");
       }
       auto &output = output_iter->second;
       setInputs(output, inputs);
       if (wrt_bar.Size() == 1)
       {
-         wrt_bar(0) += mach::vectorJacobianProduct(output, out_bar, wrt);
+         wrt_bar(0) += miso::vectorJacobianProduct(output, out_bar, wrt);
       }
       else
       {
-         mach::vectorJacobianProduct(output, out_bar, wrt, wrt_bar);
+         miso::vectorJacobianProduct(output, out_bar, wrt, wrt_bar);
       }
    }
    catch (const std::out_of_range &exception)
@@ -433,18 +433,18 @@ void AbstractSolver2::outputVectorJacobianProduct(const std::string &of,
    }
 }
 
-void AbstractSolver2::linearize(const MachInputs &inputs)
+void AbstractSolver2::linearize(const MISOInputs &inputs)
 {
    /// if solving an unsteady problem
    if (ode)
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver2::vectorJacobianProduct not implemented for unsteady "
           "problems!\n");
    }
    else  /// steady problem
    {
-      mach::linearize(*spatial_res, inputs);
+      miso::linearize(*spatial_res, inputs);
    }
 }
 
@@ -454,13 +454,13 @@ double AbstractSolver2::jacobianVectorProduct(const mfem::Vector &wrt_dot,
    /// if solving an unsteady problem
    if (ode)
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver2::jacobianVectorProduct not implemented for unsteady "
           "problems!\n");
    }
    else  /// steady problem
    {
-      return mach::jacobianVectorProduct(*spatial_res, wrt_dot, wrt);
+      return miso::jacobianVectorProduct(*spatial_res, wrt_dot, wrt);
    }
 }
 
@@ -471,13 +471,13 @@ void AbstractSolver2::jacobianVectorProduct(const mfem::Vector &wrt_dot,
    /// if solving an unsteady problem
    if (ode)
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver2::jacobianVectorProduct not implemented for unsteady "
           "problems!\n");
    }
    else  /// steady problem
    {
-      mach::jacobianVectorProduct(*spatial_res, wrt_dot, wrt, res_dot);
+      miso::jacobianVectorProduct(*spatial_res, wrt_dot, wrt, res_dot);
    }
 }
 double AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
@@ -486,13 +486,13 @@ double AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
    /// if solving an unsteady problem
    if (ode)
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver2::vectorJacobianProduct not implemented for unsteady "
           "problems!\n");
    }
    else  /// steady problem
    {
-      return mach::vectorJacobianProduct(*spatial_res, res_bar, wrt);
+      return miso::vectorJacobianProduct(*spatial_res, res_bar, wrt);
    }
 }
 
@@ -503,13 +503,13 @@ void AbstractSolver2::vectorJacobianProduct(const mfem::Vector &res_bar,
    /// if solving an unsteady problem
    if (ode)
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver2::vectorJacobianProduct not implemented for unsteady "
           "problems!\n");
    }
    else  /// steady problem
    {
-      mach::vectorJacobianProduct(*spatial_res, res_bar, wrt, wrt_bar);
+      miso::vectorJacobianProduct(*spatial_res, res_bar, wrt, wrt_bar);
    }
 }
 
@@ -580,4 +580,4 @@ void AbstractSolver2::terminalHook(int iter,
    }
 }
 
-}  // namespace mach
+}  // namespace miso

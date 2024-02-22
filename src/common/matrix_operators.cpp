@@ -5,7 +5,7 @@
 using namespace std;
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 SumOfOperators::SumOfOperators(double alpha,
                                Operator &oper1,
@@ -21,7 +21,7 @@ SumOfOperators::SumOfOperators(double alpha,
    if ((oper_a->Height() != oper_b->Height()) ||
        (oper_a->Width() != oper_b->Width()))
    {
-      throw MachException("SumOfOperators: Operator sizes are incompatible!\n");
+      throw MISOException("SumOfOperators: Operator sizes are incompatible!\n");
    }
 }
 
@@ -59,7 +59,7 @@ void SumOfOperators::Mult(const Vector &x, Vector &y) const
    y += work_vec;
 }
 
-JacobianFree::JacobianFree(MachResidual &residual)
+JacobianFree::JacobianFree(MISOResidual &residual)
  : Operator(getSize(residual)),
    comm(getMPIComm(residual)),
    scale(1.0),
@@ -75,11 +75,11 @@ void JacobianFree::setState(const mfem::Vector &baseline)
    // store baseline state, because we need to perturb it later
    state = baseline;
    // initialize the res_at_state vector for later use
-   auto inputs = MachInputs({{"state", baseline}});
+   auto inputs = MISOInputs({{"state", baseline}});
    evaluate(res, inputs, res_at_state);
 }
 
-void JacobianFree::setState(const MachInputs &inputs)
+void JacobianFree::setState(const MISOInputs &inputs)
 {
    // store baseline state, because we need to perturb it later
    setVectorFromInputs(inputs, "state", state, true, true);
@@ -94,7 +94,7 @@ void JacobianFree::Mult(const mfem::Vector &x, mfem::Vector &y) const
       double eps_fd = getStepSize(state, x);
       // create the perturbed vector, and evaluate the residual
       add(state, eps_fd, x, state_pert);
-      auto inputs = MachInputs({{"state", state_pert}});
+      auto inputs = MISOInputs({{"state", state_pert}});
       evaluate(res, inputs, y);
       // subtract the baseline residual and divide by eps_fd to get product
       subtract(1 / eps_fd, y, res_at_state, y);
@@ -115,12 +115,12 @@ mfem::Operator &JacobianFree::getDiagonalBlock(int i) const
 {
    // First, extract the Jacobian block and cast the explicit part
    // We assume that `state` holds where the Jacobian is to be evaluated
-   auto inputs = MachInputs({{"state", state}});
+   auto inputs = MISOInputs({{"state", state}});
    Operator &jac = getJacobianBlock(res, inputs, i);
    BlockOperator *block_op = dynamic_cast<BlockOperator *>(explicit_part);
    if (explicit_part != nullptr && block_op == nullptr)
    {
-      throw MachException(
+      throw MISOException(
           "JacobianFree::getDiagonalBlock:\n"
           "explicit part of operator must be castable to "
           "BlockOperator!\n");
@@ -153,7 +153,7 @@ mfem::Operator &JacobianFree::getDiagonalBlock(int i) const
       return jac;
    }
    // If we get here, there was some kind of problem
-   throw MachException(
+   throw MISOException(
        "JacobianFree::getDiagonalBlock:\n"
        "incompatible operators/matrices!\n");
 }
@@ -191,7 +191,7 @@ void JacobianFree::print(string file_name) const
       // perturb state in jth variable
       state_pert = state;
       state_pert(j) += eps_fd;
-      auto inputs = MachInputs({{"state", state_pert}});
+      auto inputs = MISOInputs({{"state", state_pert}});
       evaluate(res, inputs, y);
       // subtract the baseline residual and divide by eps_fd to get product
       subtract(1 / eps_fd, y, res_at_state, y);
@@ -222,4 +222,4 @@ void JacobianFree::print(string file_name) const
    matrix_file.close();
 }
 
-}  // namespace mach
+}  // namespace miso

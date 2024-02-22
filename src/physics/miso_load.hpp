@@ -28,7 +28,7 @@ public:
    /// Gets the size of the underlying load vector
    /// \param[in] load - the load vector whose size is being queried
    /// \returns the size of the load vector
-   friend int getSize(const MachLoad &load);
+   friend int getSize(const MISOLoad &load);
 
    /// Used to set scalar inputs in the underlying load type
    /// Ends up calling `setInputs` on either the `MISOLinearForm` or
@@ -48,7 +48,7 @@ public:
    /// \param[in] wrt - string denoting what variable to take the derivative
    /// with respect to
    /// \return the assembled/contracted sensitivity
-   friend double jacobianVectorProduct(MachLoad &load,
+   friend double jacobianVectorProduct(MISOLoad &load,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
 
@@ -60,7 +60,7 @@ public:
    /// with respect to
    /// \param[inout] res_dot - the assembled/contracted sensitivity is
    /// accumulated into res_dot
-   friend void jacobianVectorProduct(MachLoad &load,
+   friend void jacobianVectorProduct(MISOLoad &load,
                                      const mfem::Vector &wrt_dot,
                                      const std::string &wrt,
                                      mfem::Vector &res_dot);

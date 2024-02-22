@@ -1,5 +1,5 @@
-#ifndef MACH_FINITE_ELEMENT_VECTOR
-#define MACH_FINITE_ELEMENT_VECTOR
+#ifndef MISO_FINITE_ELEMENT_VECTOR
+#define MISO_FINITE_ELEMENT_VECTOR
 
 #include <memory>
 #include <string>
@@ -9,7 +9,7 @@
 
 #include "utils.hpp"
 
-namespace mach
+namespace miso
 {
 /// \brief Class for encapsulating the data associated with a vector derived
 /// from a MFEM finite element space. Specifically, it contains the information
@@ -167,6 +167,6 @@ protected:
 // /// nodal averages depending on the choice of finite element basis.
 // double min(const FiniteElementVector &fe_vector);
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

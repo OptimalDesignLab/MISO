@@ -1022,7 +1022,7 @@ SBPTetrahedronElement::SBPTetrahedronElement(const int degree, const int num_nod
    eta -= 1.0;
    zeta *= 2.0;
    zeta -= 1.0;
-   mach::getVandermondeForTet(xi, eta, zeta, order, V);
+   miso::getVandermondeForTet(xi, eta, zeta, order, V);
    // scale V to account for the different reference elements
    V *= 2.0*sqrt(2.0);
  }
@@ -1063,7 +1063,7 @@ void SBPTetrahedronElement::CalcShape(const IntegrationPoint &ip, Vector &shape)
          {  
             for (int k = 0; k <= r-j; ++k)
             {
-               mach::prorioPoly(xvec, yvec, zvec, r-j-k, k, j, poly);
+               miso::prorioPoly(xvec, yvec, zvec, r-j-k, k, j, poly);
                poly *= 2.0*sqrt(2.0); // scale to mfem reference element
 
                for (int l = 0; l < GetDof(); ++l)

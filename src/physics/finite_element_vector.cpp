@@ -32,7 +32,7 @@ std::unique_ptr<const mfem::FiniteElementCollection> copyFEColl(
 
 }  // namespace
 
-namespace mach
+namespace miso
 {
 FiniteElementVector::FiniteElementVector(mfem::ParMesh &mesh,
                                          FiniteElementVector::Options &&options)
@@ -201,4 +201,4 @@ FiniteElementVector &FiniteElementVector::operator=(
 //    return global_min;
 // }
 
-}  // namespace mach
+}  // namespace miso

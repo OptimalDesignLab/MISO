@@ -1,13 +1,13 @@
-#ifndef MACH_ODE
-#define MACH_ODE
+#ifndef MISO_ODE
+#define MISO_ODE
 
 #include "mfem.hpp"
 
 #include "evolver.hpp"
-#include "mach_residual.hpp"
+#include "miso_residual.hpp"
 #include "matrix_operators.hpp"
 
-namespace mach
+namespace miso
 {
 /// Builds a space-time residual out of a given spatial residual
 /// \note The class assumes the mass matrix is a HypreParMatrix.  If we need to
@@ -18,29 +18,29 @@ class TimeDependentResidual final
 public:
    friend int getSize(const TimeDependentResidual &residual);
    friend void setInputs(TimeDependentResidual &residual,
-                         const mach::MachInputs &inputs);
+                         const miso::MISOInputs &inputs);
 
    friend void setOptions(TimeDependentResidual &residual,
                           const nlohmann::json &options);
 
    /// Evaluates the residual `M du_dt + R(u, p, t) = 0`
    friend void evaluate(TimeDependentResidual &residual,
-                        const mach::MachInputs &inputs,
+                        const miso::MISOInputs &inputs,
                         mfem::Vector &res_vec);
 
    /// Returns the Jacobian of the residual with respect to `du_dt`
    friend mfem::Operator &getJacobian(TimeDependentResidual &residual,
-                                      const mach::MachInputs &inputs,
+                                      const miso::MISOInputs &inputs,
                                       const std::string &wrt);
 
    friend double calcEntropy(TimeDependentResidual &residual,
-                             const MachInputs &inputs);
+                             const MISOInputs &inputs);
 
    friend double calcEntropyChange(TimeDependentResidual &residual,
-                                   const MachInputs &inputs);
+                                   const MISOInputs &inputs);
 
    friend double calcSupplyRate(TimeDependentResidual &residual,
-                                const MachInputs &inputs);
+                                const MISOInputs &inputs);
 
    friend mfem::Solver *getPreconditioner(TimeDependentResidual &residual,
                                           const nlohmann::json &options)
@@ -90,7 +90,7 @@ public:
 
 private:
    /// \brief reference to the residual that defines the dynamics of the ODE
-   MachResidual &spatial_res_;
+   MISOResidual &spatial_res_;
    /// \brief pointer to mass matrix used for ODE integration
    mfem::Operator *mass_matrix_;
    /// \brief default mass matrix if none provided
@@ -129,7 +129,7 @@ public:
        mfem::TimeDependentOperator::Mult corresponds to the case where dt is
        zero mfem::TimeDependentOperator::ImplicitSolve corresponds to the case
        where dt is nonzero */
-   FirstOrderODE(MachResidual &residual,
+   FirstOrderODE(MISOResidual &residual,
                  const nlohmann::json &ode_options,
                  mfem::Solver &solver,
                  std::ostream *out_stream = nullptr);
@@ -169,7 +169,7 @@ public:
    /// \return the entropy functional
    double Entropy(const mfem::Vector &u) override
    {
-      MachInputs input{{"state", u}};
+      MISOInputs input{{"state", u}};
       return calcEntropy(residual_, input);
    }
 
@@ -185,7 +185,7 @@ public:
                         const mfem::Vector &u,
                         const mfem::Vector &du_dt) override
    {
-      MachInputs inputs{
+      MISOInputs inputs{
           {"state", u}, {"state_dot", du_dt}, {"time", t}, {"dt", dt}};
       return calcEntropyChange(residual_, inputs);
    }
@@ -194,7 +194,7 @@ public:
                      const mfem::Vector &u,
                      const mfem::Vector &du_dt) override
    {
-      MachInputs inputs{
+      MISOInputs inputs{
           {"state", u}, {"state_dot", du_dt}, {"time", t}, {"dt", dt}};
       return calcSupplyRate(residual_, inputs);
    }
@@ -202,7 +202,7 @@ public:
 private:
    /// \brief reference to the underlying residual that defines the dynamics of
    /// the ODE
-   MachResidual &residual_;
+   MISOResidual &residual_;
 
    /// \brief reference to the equation solver used to solve for du_dt
    mfem::Solver &solver_;
@@ -229,6 +229,6 @@ private:
    void setTimestepper(const nlohmann::json &ode_options);
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

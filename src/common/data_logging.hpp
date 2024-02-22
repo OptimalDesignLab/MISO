@@ -1,5 +1,5 @@
-#ifndef MACH_DATA_LOGGING
-#define MACH_DATA_LOGGING
+#ifndef MISO_DATA_LOGGING
+#define MISO_DATA_LOGGING
 
 #include <iostream>
 #include <filesystem>
@@ -9,7 +9,7 @@
 
 #include "mfem.hpp"
 
-namespace mach
+namespace miso
 {
 struct LoggingOptions
 {
@@ -161,6 +161,6 @@ private:
 using DataLogger = std::variant<ASCIILogger, BinaryLogger, ParaViewLogger>;
 using DataLoggerWithOpts = std::pair<DataLogger, LoggingOptions>;
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

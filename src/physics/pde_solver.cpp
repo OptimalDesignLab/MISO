@@ -72,33 +72,33 @@
 //    return vec;
 // }
 
-// mach::FiniteElementState createState(mfem::ParMesh &mesh,
+// miso::FiniteElementState createState(mfem::ParMesh &mesh,
 //                                      const nlohmann::json &space_options,
 //                                      const int num_states,
 //                                      const std::string &name)
 // {
-//    return createFiniteElementVector<mach::FiniteElementState>(
+//    return createFiniteElementVector<miso::FiniteElementState>(
 //        mesh, space_options, num_states, name);
 // }
 
-// mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
+// miso::FiniteElementDual createDual(mfem::ParMesh &mesh,
 //                                    const nlohmann::json &space_options,
 //                                    const int num_states,
 //                                    const std::string &name)
 // {
-//    return createFiniteElementVector<mach::FiniteElementDual>(
+//    return createFiniteElementVector<miso::FiniteElementDual>(
 //        mesh, space_options, num_states, name);
 // }
 
 // }  // namespace
 
-namespace mach
+namespace miso
 {
 #ifdef MFEM_USE_PUMI
-int MachMesh::pumi_mesh_count = 0;
-bool MachMesh::PCU_previously_initialized = false;
+int MISOMesh::pumi_mesh_count = 0;
+bool MISOMesh::PCU_previously_initialized = false;
 
-MachMesh::MachMesh()
+MISOMesh::MISOMesh()
 {
    /// If Something else has initialized PCU
    if (PCU_Comm_Initialized() && pumi_mesh_count == 0)
@@ -127,13 +127,13 @@ MachMesh::MachMesh()
    ++pumi_mesh_count;
 }
 
-MachMesh::MachMesh(MachMesh &&other) noexcept
+MISOMesh::MISOMesh(MISOMesh &&other) noexcept
  : mesh(std::move(other.mesh)), pumi_mesh(std::move(other.pumi_mesh))
 {
    ++pumi_mesh_count;
 }
 
-MachMesh &MachMesh::operator=(MachMesh &&other) noexcept
+MISOMesh &MISOMesh::operator=(MISOMesh &&other) noexcept
 {
    if (this != &other)
    {
@@ -143,7 +143,7 @@ MachMesh &MachMesh::operator=(MachMesh &&other) noexcept
    return *this;
 }
 
-MachMesh::~MachMesh()
+MISOMesh::~MISOMesh()
 {
    --pumi_mesh_count;
    /// If we started PCU and we're the last one using it, close it
@@ -163,7 +163,7 @@ MachMesh::~MachMesh()
 }
 #endif
 
-MachMesh constructMesh(MPI_Comm comm,
+MISOMesh constructMesh(MPI_Comm comm,
                        const nlohmann::json &mesh_options,
                        std::unique_ptr<mfem::Mesh> smesh,
                        bool keep_boundaries)
@@ -177,12 +177,12 @@ MachMesh constructMesh(MPI_Comm comm,
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver::constructMesh(smesh)\n"
           "\tMesh file has no extension!\n");
    }
 
-   MachMesh mesh;
+   MISOMesh mesh;
    // if serial mesh passed in, use that
    if (smesh != nullptr)
    {
@@ -202,7 +202,7 @@ MachMesh constructMesh(MPI_Comm comm,
    }
    else
    {
-      throw MachException("Unrecognized mesh file extension!\n");
+      throw MISOException("Unrecognized mesh file extension!\n");
    }
    mesh.mesh->EnsureNodes();
 
@@ -216,7 +216,7 @@ MachMesh constructMesh(MPI_Comm comm,
    return mesh;
 }
 
-MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
+MISOMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
 {
 #ifdef MFEM_USE_PUMI  // if using pumi mesh
    auto model_file = mesh_options["model-file"].get<std::string>();
@@ -230,7 +230,7 @@ MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
    /// Switch PUMI MPI Comm to the mesh's comm
    PCU_Switch_Comm(comm);
 
-   MachMesh mesh;
+   MISOMesh mesh;
    if (mesh_ext == "ugrid")
    {
       gmi_model *g = gmi_load(model_file.c_str());  // will this leak?
@@ -304,7 +304,7 @@ MachMesh constructPumiMesh(MPI_Comm comm, const nlohmann::json &mesh_options)
    mesh.mesh->SetAttributes();
    return mesh;
 #else
-   throw MachException(
+   throw MISOException(
        "AbstractSolver::constructPumiMesh()\n"
        "\tMFEM was not built with PUMI!\n"
        "\trecompile MFEM with PUMI\n");
@@ -473,7 +473,7 @@ void PDESolver::initialHook(const mfem::Vector &state)
    int inverted_elems = mesh().CheckElementOrientation(false);
    if (inverted_elems > 0)
    {
-      throw MachException("Mesh contains inverted elements!\n");
+      throw MISOException("Mesh contains inverted elements!\n");
    }
    else
    {
@@ -500,4 +500,4 @@ void PDESolver::terminalHook(int iter,
    AbstractSolver2::terminalHook(iter, t_final, state);
 }
 
-}  // namespace mach
+}  // namespace miso
