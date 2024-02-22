@@ -1,16 +1,16 @@
-set(MACH_MESH_WARP_HEADERS
+set(MISO_MESH_WARP_HEADERS
    mesh_warper.hpp
 )
 
-target_sources(mach
+target_sources(miso
    PUBLIC
       mesh_warper.cpp
-      ${MACH_MESH_WARP_HEADERS}
+      ${MISO_MESH_WARP_HEADERS}
 )
 
-add_public_headers_to_target(mach "${MACH_MESH_WARP_HEADERS}")
+add_public_headers_to_target(miso "${MISO_MESH_WARP_HEADERS}")
 
-target_include_directories(mach
+target_include_directories(miso
    PUBLIC
      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDE_DIR}>"
