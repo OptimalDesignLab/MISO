@@ -1,21 +1,23 @@
-#ifndef MACH_MAGNETOSTATIC_RESIDUAL
-#define MACH_MAGNETOSTATIC_RESIDUAL
+#ifndef MISO_MAGNETOSTATIC_RESIDUAL
+#define MISO_MAGNETOSTATIC_RESIDUAL
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "adept.h"
+#include "miso_load.hpp"
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
 #include "electromag_integ.hpp"
-#include "mach_input.hpp"
-#include "mach_residual.hpp"
-#include "mach_nonlinearform.hpp"
+#include "miso_input.hpp"
+#include "miso_residual.hpp"
+#include "miso_nonlinearform.hpp"
 #include "magnetostatic_load.hpp"
 
-namespace mach
+namespace miso
 {
 class MagnetostaticResidual final
 {
@@ -23,31 +25,37 @@ public:
    friend int getSize(const MagnetostaticResidual &residual);
 
    friend void setInputs(MagnetostaticResidual &residual,
-                         const MachInputs &inputs);
+                         const MISOInputs &inputs);
 
    friend void setOptions(MagnetostaticResidual &residual,
                           const nlohmann::json &options);
 
    friend void evaluate(MagnetostaticResidual &residual,
-                        const MachInputs &inputs,
+                        const MISOInputs &inputs,
                         mfem::Vector &res_vec);
 
    friend void linearize(MagnetostaticResidual &residual,
-                         const mach::MachInputs &inputs);
+                         const miso::MISOInputs &inputs);
 
    friend mfem::Operator &getJacobian(MagnetostaticResidual &residual,
-                                      const MachInputs &inputs,
+                                      const MISOInputs &inputs,
                                       const std::string &wrt);
 
    friend mfem::Operator &getJacobianTranspose(MagnetostaticResidual &residual,
-                                               const mach::MachInputs &inputs,
+                                               const miso::MISOInputs &inputs,
                                                const std::string &wrt);
 
    friend void setUpAdjointSystem(MagnetostaticResidual &residual,
                                   mfem::Solver &adj_solver,
-                                  const mach::MachInputs &inputs,
+                                  const miso::MISOInputs &inputs,
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
+
+   friend void finalizeAdjointSystem(MagnetostaticResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const miso::MISOInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
 
    friend double jacobianVectorProduct(MagnetostaticResidual &residual,
                                        const mfem::Vector &wrt_dot,
@@ -78,13 +86,28 @@ public:
 
 private:
    /// Nonlinear form that handles the curl curl term of the weak form
-   MachNonlinearForm res;
+   MISONonlinearForm res;
+   /// coefficient for weakly imposed boundary conditions
+   std::unique_ptr<mfem::Coefficient> g;
    /// Load vector for current and magnetic sources
-   MagnetostaticLoad load;
+   // MagnetostaticLoad load;
+   std::unique_ptr<MISOLoad> load;
+   std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+   std::unique_ptr<MagnetizationCoefficient> mag_coeff;
+   // std::unique_ptr<mfem::ScalarVectorProductCoefficient> nuM; // No. Needs to
+   // be a miso::ScalarVectorProductCoefficient rather than an
+   // mfem::ScalarVectorProductCoefficient now
+   std::unique_ptr<miso::ScalarVectorProductCoefficient>
+       nuM;  // Yes. Needs to be a miso::ScalarVectorProductCoefficient rather
+             // than an mfem::ScalarVectorProductCoefficient now
+
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
+
+   /// Work vector
+   mfem::Vector scratch;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

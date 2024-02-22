@@ -1,23 +1,23 @@
-#ifndef FLOW_RESIDUAL
-#define FLOW_RESIDUAL
+#ifndef MISO_FLOW_RESIDUAL
+#define MISO_FLOW_RESIDUAL
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 #include "adept.h"
 
-#include "mach_input.hpp"
-#include "mach_nonlinearform.hpp"
-#include "mach_output.hpp"
+#include "miso_input.hpp"
+#include "miso_nonlinearform.hpp"
+#include "miso_output.hpp"
 #include "functional_output.hpp"
 
-namespace mach
+namespace miso
 {
-/// Class for flow equations that follows the MachResidual API
+/// Class for flow equations that follows the MISOResidual API
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \note We do not use friend functions with this class because it is
 /// templated, which would require a large number of forward declaration.
-/// Instead we define member functions needed by the MachResidual interface,
+/// Instead we define member functions needed by the MISOResidual interface,
 /// and then use these in non-friend functions.
 template <int dim, bool entvar = false>
 class FlowResidual final
@@ -41,7 +41,7 @@ public:
 
    /// Set inputs in the given flow residual object
    /// \param[in] inputs - defines values and fields being set
-   void setInputs_(const MachInputs &inputs);
+   void setInputs_(const MISOInputs &inputs);
 
    /// Set options in the given flow residual object
    /// \param[in] options - object containing the options
@@ -54,7 +54,7 @@ public:
    /// residual is used in an explicit or implicit time integration.  This
    /// behavior is controlled by setting `options["implicit"]` to true and
    /// passing this to `setOptions`.
-   void evaluate_(const MachInputs &inputs, mfem::Vector &res_vec);
+   void evaluate_(const MISOInputs &inputs, mfem::Vector &res_vec);
 
    /// Returns the Jacobian of the fully-discrete flow residual equations
    /// \param[in] inputs - defines values and fields needed for the Jacobian
@@ -64,7 +64,7 @@ public:
    /// the residual is used in an explicit or implicit time integration.  This
    /// behavior is controlled by setting `options["implicit"]` to true and
    /// passing this to `setOptions`.
-   mfem::Operator &getJacobian_(const MachInputs &inputs,
+   mfem::Operator &getJacobian_(const MISOInputs &inputs,
                                 const std::string &wrt);
 
    /// Returns the total integrated entropy over the domain
@@ -72,7 +72,7 @@ public:
    /// \returns the total entropy over the domain
    /// \note The entropy depends only on the state, but the residual helps
    /// distinguish if conservative or entropy-variables are used for the state.
-   double calcEntropy_(const MachInputs &inputs);
+   double calcEntropy_(const MISOInputs &inputs);
 
    /// Evaluate the residual weighted by the entropy variables
    /// \param[in] inputs - the variables needed to evaluate the entropy
@@ -80,7 +80,7 @@ public:
    /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
    /// `t+dt`
    /// \note optional, but must be implemented for relaxation RK
-   double calcEntropyChange_(const MachInputs &inputs);
+   double calcEntropyChange_(const MISOInputs &inputs);
 
    /// Return mass matrix for the flow equations
    /// \param[in] options - options (not presently used)
@@ -115,8 +115,8 @@ public:
    /// Returns an output capable of evaluting `fun`
    /// \param[in] fun - the name of the output to be constructed
    /// \param[in] options - used to define the output
-   /// \returns a `MachOutput`, which is **not** owned by residual
-   MachOutput constructOutput(const std::string &fun,
+   /// \returns a `MISOOutput`, which is **not** owned by residual
+   MISOOutput constructOutput(const std::string &fun,
                               const nlohmann::json &options);
 
    /// Set the given vector to the free-stream *conservative* variables
@@ -127,7 +127,7 @@ public:
 
    bool isViscous() const { return viscous; }
    double getViscosity() const { return mu; }
-   double getMach() const { return mach_fs; }
+   double getMISO() const { return mach_fs; }
    double getAoA() const { return aoa_fs; }
    double getReynolds() const { return re_fs; }
    double getPrandtl() const { return pr_fs; }
@@ -143,7 +143,7 @@ private:
    bool viscous;
    /// nondimensional viscosity (if mu is negative, we use Sutherland's)
    double mu;
-   /// free-stream Mach number
+   /// free-stream MISO number
    double mach_fs;
    /// free-stream angle of attack
    double aoa_fs;
@@ -166,15 +166,15 @@ private:
    /// Map of all state vectors used by the residual
    std::map<std::string, FiniteElementState> &fields;
    /// Defines the nonlinear form used to compute the residual and its Jacobian
-   mach::MachNonlinearForm res;
-   /// Bilinear form for the mass-matrix operator (make a MachNonlinearForm?)
+   miso::MISONonlinearForm res;
+   /// Bilinear form for the mass-matrix operator (make a MISONonlinearForm?)
    mfem::ParBilinearForm mass;
    /// Mass matrix as HypreParMatrix
    std::unique_ptr<mfem::Operator> mass_mat;
    /// Preconditioner for the spatial Jacobian
    std::unique_ptr<mfem::Solver> prec;
    /// Defines the output used to evaluate the entropy
-   mach::FunctionalOutput ent;
+   miso::FunctionalOutput ent;
    /// Work vector
    mfem::Vector work;
 
@@ -215,7 +215,7 @@ int getSize(const FlowResidual<dim, entvar> &residual)
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 template <int dim, bool entvar>
-void setInputs(FlowResidual<dim, entvar> &residual, const MachInputs &inputs)
+void setInputs(FlowResidual<dim, entvar> &residual, const MISOInputs &inputs)
 {
    residual.setInputs_(inputs);
 }
@@ -244,7 +244,7 @@ void setOptions(FlowResidual<dim, entvar> &residual,
 /// passing this to `setOptions`.
 template <int dim, bool entvar>
 void evaluate(FlowResidual<dim, entvar> &residual,
-              const MachInputs &inputs,
+              const MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    residual.evaluate_(inputs, res_vec);
@@ -263,7 +263,7 @@ void evaluate(FlowResidual<dim, entvar> &residual,
 /// passing this to `setOptions`.
 template <int dim, bool entvar>
 mfem::Operator &getJacobian(FlowResidual<dim, entvar> &residual,
-                            const MachInputs &inputs,
+                            const MISOInputs &inputs,
                             const std::string &wrt)
 {
    return residual.getJacobian_(inputs, wrt);
@@ -279,7 +279,7 @@ mfem::Operator &getJacobian(FlowResidual<dim, entvar> &residual,
 /// distinguish if conservative or entropy-variables are used for the state.
 template <int dim, bool entvar>
 double calcEntropy(FlowResidual<dim, entvar> &residual,
-                   const MachInputs &inputs)
+                   const MISOInputs &inputs)
 {
    return residual.calcEntropy_(inputs);
 }
@@ -295,7 +295,7 @@ double calcEntropy(FlowResidual<dim, entvar> &residual,
 /// \note optional, but must be implemented for relaxation RK
 template <int dim, bool entvar>
 double calcEntropyChange(FlowResidual<dim, entvar> &residual,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
 {
    return residual.calcEntropyChange_(inputs);
 }
@@ -323,6 +323,6 @@ mfem::Solver *getPreconditioner(FlowResidual<dim, entvar> &residual)
    return residual.getPreconditioner_();
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif  // FLOW_RESIDUAL

@@ -1104,17 +1104,17 @@ void ViscousControlBC<dim>::calcFluxJacState(const mfem::Vector &x,
       adouble mu_Re = mu;
       if (mu < 0.0)
       {
-         mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+         mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
       }
       mu_Re /= Re;
-      mach::calcAdiabaticWallFlux<adouble, dim>(
+      miso::calcAdiabaticWallFlux<adouble, dim>(
           dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
       for (size_t i = 0; i < flux_a.size(); ++i)
       {
          flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
       }
       // Step 3: evaluate the no-slip penalty
-      mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
+      miso::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
                                                 jac,
                                                 mu_Re,
                                                 Pr,
@@ -1168,17 +1168,17 @@ void ViscousControlBC<dim>::calcFluxJacDw(
       adouble mu_Re = mu;
       if (mu < 0.0)
       {
-         mu_Re = mach::calcSutherlandViscosity<adouble, dim>(q_a.data());
+         mu_Re = miso::calcSutherlandViscosity<adouble, dim>(q_a.data());
       }
       mu_Re /= Re;
-      mach::calcAdiabaticWallFlux<adouble, dim>(
+      miso::calcAdiabaticWallFlux<adouble, dim>(
           dir_a.data(), mu_Re, Pr, q_a.data(), Dw_a.data(), work_vec_a.data());
       for (size_t i = 0; i < flux_a.size(); ++i)
       {
          flux_a[i] -= work_vec_a[i];  // note the minus sign!!!
       }
       // Step 3: evaluate the no-slip penalty
-      mach::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
+      miso::calcNoSlipPenaltyFlux<adouble, dim>(dir_a.data(),
                                                 jac,
                                                 mu_Re,
                                                 Pr,

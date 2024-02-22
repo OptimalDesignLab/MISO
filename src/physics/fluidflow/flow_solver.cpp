@@ -18,7 +18,7 @@ int getNumFlowStates(const nlohmann::json &solver_options, int space_dim)
    return space_dim + 2;
 }
 
-namespace mach
+namespace miso
 {
 template <int dim, bool entvar>
 FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
@@ -29,7 +29,7 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
    // Check for consistency between the template parameters, mesh, and options
    if (mesh().SpaceDimension() != dim)
    {
-      throw MachException(
+      throw MISOException(
           "FlowSolver<dim,entvar> constructor:\n"
           "\tMesh space dimension does not match template"
           "parameter dim");
@@ -37,25 +37,25 @@ FlowSolver<dim, entvar>::FlowSolver(MPI_Comm incomm,
    bool ent_state = options["flow-param"]["entropy-state"];
    if (ent_state != entvar)
    {
-      throw MachException(
+      throw MISOException(
           "FlowSolver<dim,entvar> constructor:\n"
           "\tentropy-state option is inconsistent with entvar"
           "template parameter");
    }
    if ((entvar) && (!options["time-dis"]["steady"]))
    {
-      throw MachException(
+      throw MISOException(
           "FlowSolver<dim,entvar> constructor:\n"
           "\tnot set up for using entropy-variables as states for unsteady "
           "problem (need nonlinear mass-integrator).");
    }
 
    // Construct spatial residual and the space-time residual
-   spatial_res = std::make_unique<mach::MachResidual>(
+   spatial_res = std::make_unique<miso::MISOResidual>(
        FlowResidual<dim, entvar>(options, fes(), fields, diff_stack, *out));
    auto *mass_matrix = getMassMatrix(*spatial_res, options);
-   space_time_res = std::make_unique<mach::MachResidual>(
-       mach::TimeDependentResidual(*spatial_res, mass_matrix));
+   space_time_res = std::make_unique<miso::MISOResidual>(
+       miso::TimeDependentResidual(*spatial_res, mass_matrix));
 
    // get the preconditioner, and construct the linear solver and nonlinear
    // solver
@@ -97,7 +97,7 @@ void FlowSolver<dim, entvar>::derivedPDEInitialHook(const Vector &state)
    if (options["time-dis"]["entropy-log"])
    {
       double t0 = options["time-dis"]["t-initial"];  // Should be passed in!!!
-      auto inputs = MachInputs({{"time", t0}, {"state", state}});
+      auto inputs = MISOInputs({{"time", t0}, {"state", state}});
       double entropy = calcEntropy(*spatial_res, inputs);
       if (rank == 0)
       {
@@ -117,7 +117,7 @@ void FlowSolver<dim, entvar>::derivedPDEIterationHook(int iter,
 {
    if (options["time-dis"]["entropy-log"])
    {
-      auto inputs = MachInputs({{"time", t}, {"state", state}});
+      auto inputs = MISOInputs({{"time", t}, {"state", state}});
       double entropy = calcEntropy(*spatial_res, inputs);
       if (rank == 0)
       {
@@ -192,7 +192,7 @@ void FlowSolver<dim, entvar>::derivedPDETerminalHook(int iter,
 {
    if (options["time-dis"]["entropy-log"])
    {
-      auto inputs = MachInputs({{"time", t_final}, {"state", state}});
+      auto inputs = MISOInputs({{"time", t_final}, {"state", state}});
       double entropy = calcEntropy(*spatial_res, inputs);
       if (rank == 0)
       {
@@ -232,7 +232,7 @@ template class FlowSolver<3, false>;
 Notes:
 ode will call nonlinear_solver->Mult, which will use the residual
 space_time_res. The residual will be passed references to {"state", u},
-{"state_dot", du_dt}, {"dt", dt}, {"time", t} via MachInputs before the
+{"state_dot", du_dt}, {"dt", dt}, {"time", t} via MISOInputs before the
 nonlinear solve happens.  The residual can use this information to decide if
 this is an explicit or implicit solve.
 
@@ -258,4 +258,4 @@ TimeDependentOperator that takes in a second residual (?).
 
 */
 
-}  // namespace mach
+}  // namespace miso

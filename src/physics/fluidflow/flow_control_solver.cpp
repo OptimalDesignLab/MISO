@@ -75,27 +75,27 @@ using namespace mfem;
 //    return vec;
 // }
 
-// mach::FiniteElementState createState(mfem::ParMesh &mesh,
+// miso::FiniteElementState createState(mfem::ParMesh &mesh,
 //                                      const nlohmann::json &space_options,
 //                                      const int num_states,
 //                                      const std::string &name)
 // {
-//    return createFiniteElementVector<mach::FiniteElementState>(
+//    return createFiniteElementVector<miso::FiniteElementState>(
 //        mesh, space_options, num_states, name);
 // }
 
-// mach::FiniteElementDual createDual(mfem::ParMesh &mesh,
+// miso::FiniteElementDual createDual(mfem::ParMesh &mesh,
 //                                    const nlohmann::json &space_options,
 //                                    const int num_states,
 //                                    const std::string &name)
 // {
-//    return createFiniteElementVector<mach::FiniteElementDual>(
+//    return createFiniteElementVector<miso::FiniteElementDual>(
 //        mesh, space_options, num_states, name);
 // }
 
 // }  // namespace
 
-namespace mach
+namespace miso
 {
 template <int dim, bool entvar>
 FlowControlSolver<dim, entvar>::FlowControlSolver(
@@ -115,7 +115,7 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
    // Check for consistency between the template parameters, mesh, and options
    if (mesh_->SpaceDimension() != dim)
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlSolver<dim,entvar> constructor:\n"
           "\tMesh space dimension does not match template"
           "parameter dim");
@@ -123,14 +123,14 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
    bool ent_state = options["flow-param"].value("entropy-state", false);
    if (ent_state != entvar)
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlSolver<dim,entvar> constructor:\n"
           "\tentropy-state option is inconsistent with entvar"
           "template parameter");
    }
    if ((entvar) && (!options["time-dis"]["steady"]))
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlSolver<dim,entvar> constructor:\n"
           "\tnot set up for using entropy-variables as states for unsteady "
           "problem (need nonlinear mass-integrator).");
@@ -138,11 +138,11 @@ FlowControlSolver<dim, entvar>::FlowControlSolver(
 
    // Construct spatial residual and the space-time residual
    spatial_res =
-       std::make_unique<mach::MachResidual>(FlowControlResidual<dim, entvar>(
+       std::make_unique<miso::MISOResidual>(FlowControlResidual<dim, entvar>(
            options, fes(), fields, diff_stack, *out));
    auto *mass_matrix = getMassMatrix(*spatial_res, options);
-   space_time_res = std::make_unique<mach::MachResidual>(
-       mach::TimeDependentResidual(*spatial_res, mass_matrix));
+   space_time_res = std::make_unique<miso::MISOResidual>(
+       miso::TimeDependentResidual(*spatial_res, mass_matrix));
 
    // get the preconditioner, and construct the linear solver and nonlinear
    // solver
@@ -182,7 +182,7 @@ std::unique_ptr<mfem::ParMesh> FlowControlSolver<dim, entvar>::constructMesh(
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "AbstractSolver::constructMesh(smesh)\n"
           "\tMesh file has no extension!\n");
    }
@@ -249,7 +249,7 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
    // getState().distributeSharedDofs(state);
    if (options["time-dis"]["steady"])
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlSolver not set up to handle steady "
           "simulations!\n");
    }
@@ -263,16 +263,16 @@ void FlowControlSolver<dim, entvar>::initialHook(const mfem::Vector &state)
       *out << "Outputs before time marching:" << endl;
       for (auto &pair : outputs)
       {
-         auto inputs = MachInputs({});
+         auto inputs = MISOInputs({});
          if (pair.first == "entropy")  // need compound state
          {
-            inputs = MachInputs({{"time", t0}, {"state", state}});
+            inputs = MISOInputs({{"time", t0}, {"state", state}});
          }
          else
          {
-            inputs = MachInputs({{"time", t0}, {"state", flow_state}});
+            inputs = MISOInputs({{"time", t0}, {"state", flow_state}});
          }
-         double fun = mach::calcOutput(pair.second, inputs);
+         double fun = miso::calcOutput(pair.second, inputs);
          *out << "\t" << pair.first << " = " << fun << endl;
          if (rank == 0)
          {
@@ -308,16 +308,16 @@ void FlowControlSolver<dim, entvar>::iterationHook(int iter,
       extractStates(state, control_state, flow_state);
       for (auto &pair : outputs)
       {
-         auto inputs = MachInputs({});
+         auto inputs = MISOInputs({});
          if (pair.first == "entropy")  // need compound state
          {
-            inputs = MachInputs({{"time", t}, {"state", state}});
+            inputs = MISOInputs({{"time", t}, {"state", state}});
          }
          else
          {
-            inputs = MachInputs({{"time", t}, {"state", flow_state}});
+            inputs = MISOInputs({{"time", t}, {"state", flow_state}});
          }
-         double fun = mach::calcOutput(pair.second, inputs);
+         double fun = miso::calcOutput(pair.second, inputs);
          if (rank == 0)
          {
             output_log[pair.first] << t << ' ' << fun << endl;
@@ -335,7 +335,7 @@ double FlowControlSolver<dim, entvar>::calcStepSize(int iter,
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlSolver not set up to handle steady "
           "simulations!\n");
    }
@@ -365,7 +365,7 @@ bool FlowControlSolver<dim, entvar>::iterationExit(int iter,
 {
    if (options["time-dis"]["steady"].template get<bool>())
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlSolver not set up to handle steady "
           "simulations!\n");
    }
@@ -392,16 +392,16 @@ void FlowControlSolver<dim, entvar>::terminalHook(int iter,
       extractStates(state, control_state, flow_state);
       for (auto &pair : outputs)
       {
-         auto inputs = MachInputs({});
+         auto inputs = MISOInputs({});
          if (pair.first == "entropy")  // need compound state
          {
-            inputs = MachInputs({{"time", t_final}, {"state", state}});
+            inputs = MISOInputs({{"time", t_final}, {"state", state}});
          }
          else
          {
-            inputs = MachInputs({{"time", t_final}, {"state", flow_state}});
+            inputs = MISOInputs({{"time", t_final}, {"state", flow_state}});
          }
-         double fun = mach::calcOutput(pair.second, inputs);
+         double fun = miso::calcOutput(pair.second, inputs);
          if (rank == 0)
          {
             output_log[pair.first] << t_final << ' ' << fun << endl;
@@ -428,4 +428,4 @@ template class FlowControlSolver<2, false>;
 template class FlowControlSolver<3, true>;
 template class FlowControlSolver<3, false>;
 
-}  // namespace mach
+}  // namespace miso

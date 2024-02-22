@@ -1,14 +1,14 @@
-#ifndef INVISCID_MMS_INTEG
-#define INVISCID_MMS_INTEG
+#ifndef MISO_EULER_INTEG_MMS
+#define MISO_EULER_INTEG_MMS
 
 #include "adept.h"
 #include "mfem.hpp"
 
 #include "mms_integ.hpp"
 #include "euler_fluxes.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 /// Source-term integrator for a 2D/3D Inviscid MMS problem
 /// \note For details on the MMS problem, see the file viscous_mms.py
@@ -34,6 +34,7 @@ private:
    /// Dimension of the problem
    int dim;
 };
-}
 
-#endif INVISCID_MMS_INTEG
+} // namespace miso
+
+#endif

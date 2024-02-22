@@ -1,5 +1,5 @@
-#ifndef MACH_RELUCTIVITY_COEFFICIENT
-#define MACH_RELUCTIVITY_COEFFICIENT
+#ifndef MISO_RELUCTIVITY_COEFFICIENT
+#define MISO_RELUCTIVITY_COEFFICIENT
 
 #include <map>
 #include <string>
@@ -8,15 +8,15 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 class ReluctivityCoefficient : public StateCoefficient
 {
 public:
    friend void setInputs(ReluctivityCoefficient &current,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
    { }
 
    double Eval(mfem::ElementTransformation &trans,
@@ -37,6 +37,7 @@ public:
    void EvalRevDiff(const double Q_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override;
 
    ReluctivityCoefficient(const nlohmann::json &nu_options,
@@ -47,6 +48,6 @@ private:
    MeshDependentCoefficient nu;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

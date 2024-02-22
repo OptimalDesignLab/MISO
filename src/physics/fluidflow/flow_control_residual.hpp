@@ -1,16 +1,16 @@
-#ifndef MACH_FLOW_CONTROL
-#define MACH_FLOW_CONTROL
+#ifndef MISO_FLOW_CONTROL
+#define MISO_FLOW_CONTROL
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 #include "adept.h"
 
 #include "flow_residual.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "matrix_operators.hpp"
 #include "mfem_extensions.hpp"
 
-namespace mach
+namespace miso
 {
 /// Defines the ODE for passive system control-law
 class ControlResidual final
@@ -32,7 +32,7 @@ public:
    /// Set inputs in the underlying passive-control residual
    /// \param[inout] residual - passive-control residual being assigned inputs
    /// \param[in] inputs - the inputs that are being assigned
-   friend void setInputs(ControlResidual &residual, const MachInputs &inputs);
+   friend void setInputs(ControlResidual &residual, const MISOInputs &inputs);
 
    /// Set options in the passive-control residual
    /// \param[inout] residual - passive-control residual whose options are set
@@ -45,7 +45,7 @@ public:
    /// \param[in] inputs - the independent variables at which to evaluate res
    /// \param[out] res_vec - the dependent variable, the output from `residual`
    friend void evaluate(ControlResidual &residual,
-                        const MachInputs &inputs,
+                        const MISOInputs &inputs,
                         mfem::Vector &res_vec);
 
    /// Compute the "Jacobian" of the passive-control residual and return it
@@ -55,7 +55,7 @@ public:
    /// \returns a reference to the residual's Jacobian with respect to `wrt`
    /// \note the underlying `Operator` is owned by `residual`
    friend mfem::Operator &getJacobian(ControlResidual &residual,
-                                      const MachInputs &inputs,
+                                      const MISOInputs &inputs,
                                       std::string wrt);
 
    /// Evaluate the entropy/Lyapunov functional at the given state
@@ -64,7 +64,7 @@ public:
    /// \return the entropy functional
    /// \note optional, but must be implemented for relaxation RK
    friend double calcEntropy(ControlResidual &residual,
-                             const MachInputs &inputs);
+                             const MISOInputs &inputs);
 
    /// Evaluate the passive-control residual weighted by the entropy variables
    /// \param[inout] residual - function with an associated entropy
@@ -74,7 +74,7 @@ public:
    /// \note `res` is equal to `-state_dot`, but may be recomputed if necessary
    /// \note optional, but must be implemented for relaxation RK
    friend double calcEntropyChange(ControlResidual &residual,
-                                   const MachInputs &inputs);
+                                   const MISOInputs &inputs);
 
    /// Return mass matrix (operator) for the control equations
    /// \param[inout] residual - residual whose mass matrix is desired
@@ -100,7 +100,7 @@ public:
    /// Return the control velocity, which can be then fed into a flow solver
    /// \param[in] inputs - holds the control state vector and boundary entropy
    /// \return the control velocity
-   double getControlVelocity(const MachInputs &inputs);
+   double getControlVelocity(const MISOInputs &inputs);
 
 private:
    /// communicator used by MPI group for communication
@@ -136,13 +136,13 @@ private:
    bool test_ode = false;
 };
 
-/// Class for flow-control equations that follows the MachResidual API
+/// Class for flow-control equations that follows the MISOResidual API
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 /// \note We do not use friend functions in all cases with this class because
 /// it is templated and would require a large number of forward declarations.
 /// Instead, for more involved functions, we define member functions needed by
-/// the MachResidual interface and then use these in non-friend functions.
+/// the MISOResidual interface and then use these in non-friend functions.
 template <int dim, bool entvar = false>
 class FlowControlResidual final
 {
@@ -173,7 +173,7 @@ public:
 
    /// Set inputs in the underlying residual
    /// \param[in] inputs - the inputs that are being assigned
-   void setInputs_(const MachInputs &inputs);
+   void setInputs_(const MISOInputs &inputs);
 
    /// Set options in the underlying residual type
    /// \param[inout] residual - flow-control residual whose options are set
@@ -191,20 +191,20 @@ public:
    /// \param[out] res_vec - the dependent variable, the output from `residual`
    /// \note This assumes that inputs like `time` have already been set using a
    /// call to `setInputs`
-   void evaluate_(const MachInputs &inputs, mfem::Vector &res_vec);
+   void evaluate_(const MISOInputs &inputs, mfem::Vector &res_vec);
 
    /// Compute the Jacobian of the flow-control residual and return a reference
    /// \param[in] inputs - the variables needed to evaluate the Jacobian
    /// \param[in] wrt - the input we are differentiating with respect to
    /// \returns a reference to the residual's Jacobian with respect to `wrt`
    /// \note the underlying `Operator` is owned by `residual`
-   // mfem::Operator &getJacobian_(const MachInputs &inputs,
+   // mfem::Operator &getJacobian_(const MISOInputs &inputs,
    //                             const std::string &wrt);
    friend mfem::Operator &getJacobian(FlowControlResidual &residual,
-                                      const MachInputs &inputs,
+                                      const MISOInputs &inputs,
                                       const std::string &wrt)
    {
-      throw MachException(
+      throw MISOException(
           "getJacobian not implemented for FlowControlResidual!\n");
    }
 
@@ -212,7 +212,7 @@ public:
    /// \param[in] inputs - the variables needed to evaluate the entropy
    /// \return the entropy functional
    /// \note optional, but must be implemented for relaxation RK
-   double calcEntropy_(const MachInputs &inputs);
+   double calcEntropy_(const MISOInputs &inputs);
 
    /// Evaluate the flow-control residual weighted by the entropy variables
    /// \param[in] inputs - the variables needed to evaluate the entropy
@@ -220,9 +220,9 @@ public:
    /// \note `w` and `res` are evaluated at `state + dt*state_dot` and time
    /// `t+dt` as provided by `inputs`.
    /// \note optional, but must be implemented for relaxation RK
-   double calcEntropyChange_(const MachInputs &inputs);
+   double calcEntropyChange_(const MISOInputs &inputs);
 
-   double calcSupplyRate_(const MachInputs &inputs);
+   double calcSupplyRate_(const MISOInputs &inputs);
 
    /// Return mass matrix (operator) for the flow-control equations
    /// \param[inout] residual - residual whose mass matrix is desired
@@ -250,7 +250,7 @@ public:
    /// \param[in] inputs - the variables needed to evaluate the Jacobian
    /// \param[in] i - selects either the control or flow Jacobian to return
    /// \returns the Jacobian operator for the control or flow residual
-   mfem::Operator &getJacobianBlock_(const MachInputs &inputs, int i);
+   mfem::Operator &getJacobianBlock_(const MISOInputs &inputs, int i);
 
    /// Returns the minimum time step for a given state and CFL number
    /// \param[in] cfl - the target maximum allowable CFL number
@@ -262,8 +262,8 @@ public:
    /// Returns an output capable of evaluting `fun`
    /// \param[in] fun - the name of the output to be constructed
    /// \param[in] options - used to define the output
-   /// \returns a `MachOutput`, which is **not** owned by residual
-   MachOutput constructOutput(const std::string &fun,
+   /// \returns a `MISOOutput`, which is **not** owned by residual
+   MISOOutput constructOutput(const std::string &fun,
                               const nlohmann::json &options);
 
    /// Helper function that separates `state` into control and flow states
@@ -283,7 +283,7 @@ public:
    /// \note No memory is allocated for the output states, they simply wrap the
    /// data passed in by inputs.
    /// \note An exception is raised if `inputs` does not hold a `state` element.
-   void extractStates(const MachInputs &inputs,
+   void extractStates(const MISOInputs &inputs,
                       mfem::Vector &control_state,
                       mfem::Vector &flow_state) const;
 
@@ -310,9 +310,9 @@ private:
    /// Preconditioner for the Jacobian
    std::unique_ptr<BlockJacobiPreconditioner> prec;
    /// Defines the flow output fed into the control
-   mach::MachOutput boundary_entropy;
+   miso::MISOOutput boundary_entropy;
    /// Defines the supply rate 
-   mach::MachOutput supply_rate;
+   miso::MISOOutput supply_rate;
    /// The Jacobian-free operator
    // JacobianFree jac;
    /// Reference to control state-sized array; memory not owned
@@ -336,7 +336,7 @@ private:
 /// \tparam entvar - if true, the entropy variables are used in the integrators
 template <int dim, bool entvar>
 void setInputs(FlowControlResidual<dim, entvar> &residual,
-               const MachInputs &inputs)
+               const MISOInputs &inputs)
 {
    residual.setInputs_(inputs);
 }
@@ -353,7 +353,7 @@ void setInputs(FlowControlResidual<dim, entvar> &residual,
 /// passing this to `setOptions`.
 template <int dim, bool entvar>
 void evaluate(FlowControlResidual<dim, entvar> &residual,
-              const MachInputs &inputs,
+              const MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    residual.evaluate_(inputs, res_vec);
@@ -372,7 +372,7 @@ void evaluate(FlowControlResidual<dim, entvar> &residual,
 /// passing this to `setOptions`.
 // template <int dim, bool entvar>
 // mfem::Operator &getJacobian(FlowControlResidual<dim, entvar> &residual,
-//                             const MachInputs &inputs,
+//                             const MISOInputs &inputs,
 //                             const std::string &wrt)
 // {
 //    return residual.getJacobian_(inputs, wrt);
@@ -388,7 +388,7 @@ void evaluate(FlowControlResidual<dim, entvar> &residual,
 /// distinguish if conservative or entropy-variables are used for the state.
 template <int dim, bool entvar>
 double calcEntropy(FlowControlResidual<dim, entvar> &residual,
-                   const MachInputs &inputs)
+                   const MISOInputs &inputs)
 {
    return residual.calcEntropy_(inputs);
 }
@@ -404,14 +404,14 @@ double calcEntropy(FlowControlResidual<dim, entvar> &residual,
 /// \note optional, but must be implemented for relaxation RK
 template <int dim, bool entvar>
 double calcEntropyChange(FlowControlResidual<dim, entvar> &residual,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
 {
    return residual.calcEntropyChange_(inputs);
 }
 
 template <int dim, bool entvar>
 double calcSupplyRate(FlowControlResidual<dim, entvar> &residual,
-                      const MachInputs &inputs)
+                      const MISOInputs &inputs)
 {
    return residual.calcSupplyRate_(inputs);
 }
@@ -425,12 +425,12 @@ double calcSupplyRate(FlowControlResidual<dim, entvar> &residual,
 /// \returns the Jacobian operator for the control or flow residual
 template <int dim, bool entvar>
 mfem::Operator &getJacobianBlock(FlowControlResidual<dim, entvar> &residual,
-                                 const MachInputs &inputs,
+                                 const MISOInputs &inputs,
                                  int i)
 {
    return residual.getJacobianBlock_(inputs, i);
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

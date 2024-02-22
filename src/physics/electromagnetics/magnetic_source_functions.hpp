@@ -1,5 +1,5 @@
-#ifndef MACH_MAGNETIC_SOURCE_FUNCTIONS
-#define MACH_MAGNETIC_SOURCE_FUNCTIONS
+#ifndef MISO_MAGNETIC_SOURCE_FUNCTIONS
+#define MISO_MAGNETIC_SOURCE_FUNCTIONS
 
 #include <map>
 #include <string>
@@ -8,24 +8,37 @@
 #include "mfem.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+#include "remnant_flux_coefficient.hpp"
+
+namespace miso
 {
-class MagnetizationCoefficient : public mfem::VectorCoefficient
+class MagnetizationCoefficient : public VectorStateCoefficient
 {
 public:
    friend void setInputs(MagnetizationCoefficient &mag_coeff,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
    { }
 
    void Eval(mfem::Vector &V,
              mfem::ElementTransformation &trans,
              const mfem::IntegrationPoint &ip) override;
 
+   void Eval(mfem::Vector &V,
+             mfem::ElementTransformation &trans,
+             const mfem::IntegrationPoint &ip,
+             double state) override;
+
+   void EvalStateDeriv(mfem::Vector &vec_dot,
+                       mfem::ElementTransformation &trans,
+                       const mfem::IntegrationPoint &ip,
+                       double state) override;
+
    void EvalRevDiff(const mfem::Vector &V_bar,
                     mfem::ElementTransformation &trans,
                     const mfem::IntegrationPoint &ip,
+                    double state,
                     mfem::DenseMatrix &PointMat_bar) override;
 
    MagnetizationCoefficient(adept::Stack &diff_stack,
@@ -35,11 +48,13 @@ public:
 
 private:
    /// The underlying coefficient that does all the heavy lifting
-   VectorMeshDependentCoefficient mag_coeff;
+   VectorMeshDependentStateCoefficient mag_coeff;
    /// Map that holds the remnant flux for each magnet material group
-   std::map<std::string, double> remnant_flux_map;
+   std::map<std::string, RemnantFluxCoefficient> remnant_flux_coeffs;
+   /// Map that owns all of the underlying magnetization direction coefficients
+   std::map<int, mfem::VectorFunctionCoefficient> mag_direction_coeffs;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

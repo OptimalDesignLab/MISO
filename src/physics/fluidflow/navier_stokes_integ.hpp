@@ -7,7 +7,7 @@
 #include "viscous_integ.hpp"
 #include "mms_integ.hpp"
 #include "euler_fluxes.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "navier_stokes_fluxes.hpp"
 
 namespace miso
@@ -1200,7 +1200,7 @@ public:
    /// \param[in/out] integ - the boundary integrator whose control is being set
    /// \param[in] inputs - holds the control value
    friend void setInputs(ViscousControlBC &integ,
-                         const mach::MachInputs &inputs)
+                         const miso::MISOInputs &inputs)
    {
       setValueFromInputs(inputs, "control", integ.control);
       setVectorFromInputs(inputs, "x-actuator", integ.x_actuator);

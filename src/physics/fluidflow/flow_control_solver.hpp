@@ -1,5 +1,5 @@
-#ifndef MACH_FLOW_CONTROL_SOLVER
-#define MACH_FLOW_CONTROL_SOLVER
+#ifndef MISO_FLOW_CONTROL_SOLVER
+#define MISO_FLOW_CONTROL_SOLVER
 
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@
 #ifdef MFEM_USE_PUMI
 #include "apf.h"
 #include "apfMesh2.h"
-namespace mach
+namespace miso
 {
 struct pumiDeleter
 {
@@ -21,7 +21,7 @@ struct pumiDeleter
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 #endif
 
 #include "abstract_solver.hpp"
@@ -29,7 +29,7 @@ struct pumiDeleter
 #include "finite_element_dual.hpp"
 #include "flow_control_residual.hpp"
 
-namespace mach
+namespace miso
 {
 /// Class for solving FlowControlResidual based problems
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
@@ -160,6 +160,6 @@ private:
                              const mfem::Vector &state) override final;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

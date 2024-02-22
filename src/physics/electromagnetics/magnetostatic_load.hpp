@@ -1,5 +1,5 @@
-#ifndef MACH_MAGNETOSTATIC_LOAD
-#define MACH_MAGNETOSTATIC_LOAD
+#ifndef MISO_MAGNETOSTATIC_LOAD
+#define MISO_MAGNETOSTATIC_LOAD
 
 #include <map>
 #include <memory>
@@ -11,16 +11,16 @@
 
 #include "current_load.hpp"
 #include "finite_element_state.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "magnetic_load.hpp"
 
-namespace mach
+namespace miso
 {
 class MagnetostaticLoad final
 {
 public:
    friend inline void setInputs(MagnetostaticLoad &load,
-                                const MachInputs &inputs)
+                                const MISOInputs &inputs)
    {
       if (load.current_load.has_value())
       {
@@ -131,6 +131,6 @@ private:
    std::optional<MagneticLoad> magnetic_load;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

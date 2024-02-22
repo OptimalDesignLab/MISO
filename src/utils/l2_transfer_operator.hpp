@@ -1,13 +1,13 @@
-#ifndef MACH_L2_TRANSFER_OPERATOR
-#define MACH_L2_TRANSFER_OPERATOR
+#ifndef MISO_L2_TRANSFER_OPERATOR
+#define MISO_L2_TRANSFER_OPERATOR
 
 #include "mfem.hpp"
 
 #include "finite_element_dual.hpp"
 #include "finite_element_state.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
-namespace mach
+namespace miso
 {
 class L2TransferOperation
 {
@@ -67,15 +67,15 @@ public:
    }
 
    /// compute the action of the operator
-   void apply(const MachInputs &inputs, mfem::Vector &out_vec);
+   void apply(const MISOInputs &inputs, mfem::Vector &out_vec);
    /// \overload
    void apply(const mfem::Vector &state_tv, mfem::Vector &out_vec)
    {
-      MachInputs inputs{{"state", state_tv}};
+      MISOInputs inputs{{"state", state_tv}};
       apply(inputs, out_vec);
    }
 
-   friend void setInputs(L2TransferOperator &output, const MachInputs &inputs);
+   friend void setInputs(L2TransferOperator &output, const MISOInputs &inputs);
 
    void vectorJacobianProduct(const mfem::Vector &out_bar,
                               const std::string &wrt,
@@ -109,6 +109,42 @@ protected:
 
    std::unique_ptr<L2TransferOperation> operation;
 };
+
+inline void setInputs(L2TransferOperator &output, const MISOInputs &inputs)
+{
+   mfem::Vector state_tv;
+   setVectorFromInputs(inputs, "state", state_tv);
+   if (state_tv.Size() > 0)
+   {
+      output.state.distributeSharedDofs(state_tv);
+   }
+   mfem::Vector mesh_coords_tv;
+   setVectorFromInputs(inputs, "mesh_coords", mesh_coords_tv);
+   if (mesh_coords_tv.Size() > 0)
+   {
+      output.mesh_coords.distributeSharedDofs(mesh_coords_tv);
+   }
+}
+
+inline double calcOutput(L2TransferOperator &output, const MISOInputs &inputs)
+{
+   return NAN;
+}
+
+inline void calcOutput(L2TransferOperator &output,
+                       const MISOInputs &inputs,
+                       mfem::Vector &out_vec)
+{
+   output.apply(inputs, out_vec);
+}
+
+inline void vectorJacobianProduct(L2TransferOperator &output,
+                                  const mfem::Vector &out_bar,
+                                  const std::string &wrt,
+                                  mfem::Vector &wrt_bar)
+{
+   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
+}
 
 /// Conveniece class that wraps the projection of an H1 state to its DG
 /// representation
@@ -145,7 +181,7 @@ public:
       return output.output.space().GetTrueVSize();
    }
 
-   friend void setInputs(L2CurlProjection &output, const MachInputs &inputs);
+   friend void setInputs(L2CurlProjection &output, const MISOInputs &inputs);
 };
 
 /// Conveniece class that wraps the projection of the magnitude of the curl of
@@ -156,9 +192,16 @@ public:
    L2CurlMagnitudeProjection(FiniteElementState &state,
                              FiniteElementState &mesh_coords,
                              FiniteElementState &output);
+   friend inline int getSize(const L2CurlMagnitudeProjection &output)
+   {
+      return output.output.space().GetTrueVSize();
+   }
+   friend void setInputs(L2CurlMagnitudeProjection &output,
+                         const MISOInputs &inputs);
 };
 
-inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
+inline void setInputs(L2CurlMagnitudeProjection &output,
+                      const MISOInputs &inputs)
 {
    mfem::Vector state_tv;
    setVectorFromInputs(inputs, "state", state_tv);
@@ -174,13 +217,8 @@ inline void setInputs(L2TransferOperator &output, const MachInputs &inputs)
    }
 }
 
-inline double calcOutput(L2TransferOperator &output, const MachInputs &inputs)
-{
-   return NAN;
-}
-
 inline void calcOutput(L2CurlMagnitudeProjection &output,
-                       const MachInputs &inputs,
+                       const MISOInputs &inputs,
                        mfem::Vector &out_vec)
 {
    output.apply(inputs, out_vec);
@@ -194,23 +232,8 @@ inline void vectorJacobianProduct(L2CurlMagnitudeProjection &output,
    output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
 }
 
-inline void calcOutput(L2TransferOperator &output,
-                       const MachInputs &inputs,
-                       mfem::Vector &out_vec)
-{
-   output.apply(inputs, out_vec);
-}
-
-inline void vectorJacobianProduct(L2TransferOperator &output,
-                                  const mfem::Vector &out_bar,
-                                  const std::string &wrt,
-                                  mfem::Vector &wrt_bar)
-{
-   output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
-}
-
 inline void calcOutput(L2CurlProjection &output,
-                       const MachInputs &inputs,
+                       const MISOInputs &inputs,
                        mfem::Vector &out_vec)
 {
    output.apply(inputs, out_vec);
@@ -224,7 +247,7 @@ inline void vectorJacobianProduct(L2CurlProjection &output,
    output.vectorJacobianProduct(out_bar, wrt, wrt_bar);
 }
 
-inline void setInputs(L2CurlProjection &output, const MachInputs &inputs)
+inline void setInputs(L2CurlProjection &output, const MISOInputs &inputs)
 {
    mfem::Vector state_tv;
    setVectorFromInputs(inputs, "state", state_tv);
@@ -240,6 +263,6 @@ inline void setInputs(L2CurlProjection &output, const MachInputs &inputs)
    }
 }
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

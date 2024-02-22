@@ -10,7 +10,7 @@
 using namespace std;
 using namespace mfem;
 
-namespace mach
+namespace miso
 {
 ControlResidual::ControlResidual(MPI_Comm incomm,
                                  const nlohmann::json &control_options)
@@ -50,7 +50,7 @@ ControlResidual::ControlResidual(MPI_Comm incomm,
    }
 }
 
-void setInputs(ControlResidual &residual, const MachInputs &inputs)
+void setInputs(ControlResidual &residual, const MISOInputs &inputs)
 {
    // Set state, time, and boundary entropy value
    setValueFromInputs(inputs, "time", residual.time);
@@ -102,7 +102,7 @@ void setInputs(ControlResidual &residual, const MachInputs &inputs)
       if (fabs(p_vector(1) - p_vector(2)) >
           10000.0 * numeric_limits<double>::epsilon())
       {
-         throw MachException(
+         throw MISOException(
              "setInputs(ControlResidual, inputs): "
              "P-matrix is not symmetric!");
       }
@@ -115,7 +115,7 @@ void setOptions(ControlResidual &residual, const nlohmann::json &options)
 }
 
 void evaluate(ControlResidual &residual,
-              const MachInputs &inputs,
+              const MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    setInputs(residual, inputs);
@@ -160,7 +160,7 @@ void evaluate(ControlResidual &residual,
 }
 
 Operator &getJacobian(ControlResidual &residual,
-                      const MachInputs &inputs,
+                      const MISOInputs &inputs,
                       std::string wrt)
 {
    setInputs(residual, inputs);
@@ -193,7 +193,7 @@ Operator &getJacobian(ControlResidual &residual,
    return *residual.Jac;
 }
 
-double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
+double calcEntropy(ControlResidual &residual, const MISOInputs &inputs)
 {
    setInputs(residual, inputs);
    double ent = 0.0;
@@ -214,7 +214,7 @@ double calcEntropy(ControlResidual &residual, const MachInputs &inputs)
    return ent;
 }
 
-double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
+double calcEntropyChange(ControlResidual &residual, const MISOInputs &inputs)
 {
    // This only sets residual.x, time, and boundary_entropy
    setInputs(residual, inputs);
@@ -237,7 +237,7 @@ double calcEntropyChange(ControlResidual &residual, const MachInputs &inputs)
    return ent_change;
 }
 
-double ControlResidual::getControlVelocity(const MachInputs &inputs)
+double ControlResidual::getControlVelocity(const MISOInputs &inputs)
 {
    setInputs(*this, inputs);
    double vel = 0.0;
@@ -308,14 +308,14 @@ FlowControlResidual<dim, entvar>::FlowControlResidual(
                             .get<vector<int>>();
       if (bc_marker != fun_marker)
       {
-         throw MachException(
+         throw MISOException(
              "FlowControlResidual:\n"
              "control bc and boundary entropy markers are inconsistent!\n");
       }
    }
    else
    {
-      throw MachException("FlowControlResidual must have control BCs!\n");
+      throw MISOException("FlowControlResidual must have control BCs!\n");
    }
 }
 
@@ -329,7 +329,7 @@ void FlowControlResidual<dim, entvar>::extractStates(const Vector &state,
 }
 
 template <int dim, bool entvar>
-void FlowControlResidual<dim, entvar>::extractStates(const MachInputs &inputs,
+void FlowControlResidual<dim, entvar>::extractStates(const MISOInputs &inputs,
                                                      Vector &control_state,
                                                      Vector &flow_state) const
 {
@@ -339,10 +339,10 @@ void FlowControlResidual<dim, entvar>::extractStates(const MachInputs &inputs,
 }
 
 template <int dim, bool entvar>
-void FlowControlResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
+void FlowControlResidual<dim, entvar>::setInputs_(const MISOInputs &inputs)
 {
-   auto control_inputs = MachInputs(inputs);
-   auto flow_inputs = MachInputs(inputs);
+   auto control_inputs = MISOInputs(inputs);
+   auto flow_inputs = MISOInputs(inputs);
    if (inputs.find("state") != inputs.end())
    {
       extractStates(inputs, control_ref, flow_ref);
@@ -355,7 +355,7 @@ void FlowControlResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
 }
 
 template <int dim, bool entvar>
-void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
+void FlowControlResidual<dim, entvar>::evaluate_(const MISOInputs &inputs,
                                                  Vector &res_vec)
 {
    setInputs_(inputs);
@@ -367,10 +367,10 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
 
    // get the coupling variables/outputs
    auto flow_inputs =
-       MachInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
+       MISOInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
    auto control_inputs =
-       MachInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
+       MISOInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
    double control_vel = control_res.getControlVelocity(control_inputs);
 
    // evaluate the residuals
@@ -380,20 +380,20 @@ void FlowControlResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
 }
 
 template <int dim, bool entvar>
-double FlowControlResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
+double FlowControlResidual<dim, entvar>::calcEntropy_(const MISOInputs &inputs)
 {
    // extract flow and control states to compute entropy
    // extractStates(inputs, control_ref, flow_ref);
    setInputs_(inputs);
-   auto flow_inputs = MachInputs({{"state", flow_ref}});
-   auto control_inputs = MachInputs({{"state", control_ref}});
+   auto flow_inputs = MISOInputs({{"state", flow_ref}});
+   auto control_inputs = MISOInputs({{"state", control_ref}});
    return calcEntropy(flow_res, flow_inputs) +
           calcEntropy(control_res, control_inputs);
 }
 
 template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcEntropyChange_(
-    const MachInputs &inputs)
+    const MISOInputs &inputs)
 {
    // extract flow and control states to compute entropy
    extractStates(inputs, control_ref, flow_ref);
@@ -410,18 +410,18 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
    // get the control velocity; for this we need the boundary entropy at the
    // new state, so compute that first
    auto flow_inputs =
-       MachInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
+       MISOInputs({{"state", flow_ref}, {"x-actuator", x_actuator}});
    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
    auto control_inputs =
-       MachInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
+       MISOInputs({{"state", control_ref}, {"boundary-entropy", bndry_ent}});
    double control_vel = control_res.getControlVelocity(control_inputs);
 
-   flow_inputs = MachInputs({{"state", flow_ref},
+   flow_inputs = MISOInputs({{"state", flow_ref},
                              {"state_dot", flow_dxdt},
                              {"control", control_vel},
                              {"time", time},
                              {"dt", dt}});
-   control_inputs = MachInputs({{"state", control_ref},
+   control_inputs = MISOInputs({{"state", control_ref},
                                 {"state_dot", control_dxdt},
                                 {"time", time},
                                 {"dt", dt}});
@@ -431,7 +431,7 @@ double FlowControlResidual<dim, entvar>::calcEntropyChange_(
 
 template <int dim, bool entvar>
 double FlowControlResidual<dim, entvar>::calcSupplyRate_(
-    const MachInputs &inputs)
+    const MISOInputs &inputs)
 {
    // extract flow and control states to compute supply rate
    extractStates(inputs, control_ref, flow_ref);
@@ -444,29 +444,29 @@ double FlowControlResidual<dim, entvar>::calcSupplyRate_(
    double dt = NAN;
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
-   auto flow_inputs = MachInputs({{"state", flow_ref}});
+   auto flow_inputs = MISOInputs({{"state", flow_ref}});
    return calcOutput(supply_rate, flow_inputs);
 }
 
 template <int dim, bool entvar>
 mfem::Operator &FlowControlResidual<dim, entvar>::getJacobianBlock_(
-    const MachInputs &inputs,
+    const MISOInputs &inputs,
     int i)
 {
    setInputs_(inputs);
    if (i == 0)
    {
-      auto control_inputs = MachInputs({{"state", control_ref}});
+      auto control_inputs = MISOInputs({{"state", control_ref}});
       return getJacobian(control_res, control_inputs, "state");
    }
    else if (i == 1)
    {
-      auto flow_inputs = MachInputs({{"state", flow_ref}});
+      auto flow_inputs = MISOInputs({{"state", flow_ref}});
       return getJacobian(flow_res, flow_inputs, "state");
    }
    else
    {
-      throw MachException(
+      throw MISOException(
           "FlowControlResidual::GetJacobianBlock: \n"
           "invalid block index (must be 0 or 1)!\n");
    }
@@ -481,7 +481,7 @@ double FlowControlResidual<dim, entvar>::minCFLTimeStep(
 }
 
 template <int dim, bool entvar>
-MachOutput FlowControlResidual<dim, entvar>::constructOutput(
+MISOOutput FlowControlResidual<dim, entvar>::constructOutput(
     const std::string &fun,
     const nlohmann::json &options)
 {
@@ -498,7 +498,7 @@ MachOutput FlowControlResidual<dim, entvar>::constructOutput(
    }
    else
    {
-      throw MachException("Output with name " + fun +
+      throw MISOException("Output with name " + fun +
                           " not supported by "
                           "FlowControlResidual!\n");
    }
@@ -512,4 +512,4 @@ template class FlowControlResidual<2, false>;
 template class FlowControlResidual<3, true>;
 template class FlowControlResidual<3, false>;
 
-}  // namespace mach
+}  // namespace miso

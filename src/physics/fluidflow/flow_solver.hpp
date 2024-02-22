@@ -1,12 +1,12 @@
-#ifndef MACH_FLOW_SOLVER
-#define MACH_FLOW_SOLVER
+#ifndef MISO_FLOW_SOLVER
+#define MISO_FLOW_SOLVER
 
 #include "mfem.hpp"
 
 #include "flow_residual.hpp"
 #include "pde_solver.hpp"
 
-namespace mach
+namespace miso
 {
 /// Class for solving FlowResidual based problems
 /// \tparam dim - number of spatial dimensions (1, 2, or 3)
@@ -14,7 +14,7 @@ namespace mach
 /// \note This assumes a constant mass matrix at present; that is, it does not
 /// accommodate entropy variables as states with modal or DGD-type
 /// discretizations.  However, this could be accommodated by making the mass
-/// operator its own MachResidual, and then modifying the
+/// operator its own MISOResidual, and then modifying the
 /// `TimeDependentResidual` accordingly.
 template <int dim, bool entvar = false>
 class FlowSolver : public PDESolver
@@ -113,6 +113,6 @@ private:
                   const nlohmann::json &options) override;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

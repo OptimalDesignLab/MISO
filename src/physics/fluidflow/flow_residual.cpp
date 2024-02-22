@@ -70,7 +70,7 @@ std::unique_ptr<mfem::Solver> constructPreconditioner(
    }
    else
    {
-      throw mach::MachException(
+      throw miso::MISOException(
           "Unsupported preconditioner type!\n"
           "\tavilable options are: HypreEuclid, HypreILU, HypreAMS,"
           " HypreBoomerAMG.\n");
@@ -80,7 +80,7 @@ std::unique_ptr<mfem::Solver> constructPreconditioner(
 
 }  // namespace
 
-namespace mach
+namespace miso
 {
 template <int dim, bool entvar>
 FlowResidual<dim, entvar>::FlowResidual(
@@ -103,7 +103,7 @@ FlowResidual<dim, entvar>::FlowResidual(
 
    if (!options.contains("flow-param") || !options.contains("space-dis"))
    {
-      throw MachException(
+      throw MISOException(
           "FlowResidual::addFlowIntegrators: options must"
           "contain flow-param and space-dis!\n");
    }
@@ -149,7 +149,7 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
    {
       if (entvar)
       {
-         throw MachException(
+         throw MISOException(
              "Invalid inviscid integrator for entropy"
              " state!\n");
       }
@@ -176,7 +176,7 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
          if (dim != 2)
          {  
             res.addDomainIntegrator(new NavierStokesMMSIntegrator(re_fs, pr_fs, -1., 3));
-            // throw MachException("Viscous MMS problem only available for 2D!");
+            // throw MISOException("Viscous MMS problem only available for 2D!");
          }
          else
          {
@@ -200,7 +200,7 @@ void FlowResidual<dim, entvar>::addFlowInterfaceIntegrators(
           stack, iface_coeff, fes.FEColl()));
       if (flow["viscous"])
       {
-         throw MachException(
+         throw MISOException(
              "Viscous DG interface terms have not been"
              " implemented!");
       }
@@ -233,7 +233,7 @@ void FlowResidual<dim, entvar>::addInviscidBoundaryIntegrators(
    {  // isentropic vortex BC
       if (dim != 2)
       {
-         throw MachException(
+         throw MISOException(
              "FlowResidual::addFlowBoundaryIntegrators()\n"
              "\tisentropic vortex BC must use 2D mesh!");
       }
@@ -271,8 +271,8 @@ void FlowResidual<dim, entvar>::addInviscidBoundaryIntegrators(
          q[0] = 1.0 / (1.0 - xL);
          q[1] = q[0] * uL * sin(t);
          q[2] = 0.0;
-         double press = pow(q[0], mach::euler::gamma);
-         q[3] = press / mach::euler::gami + 0.5 * q[1] * q[1] / q[0];
+         double press = pow(q[0], miso::euler::gamma);
+         q[3] = press / miso::euler::gami + 0.5 * q[1] * q[1] / q[0];
       };
       res.addBdrFaceIntegrator(
           new EntropyConserveBC<dim, entvar>(stack, fes.FEColl(), pump),
@@ -382,7 +382,7 @@ int FlowResidual<dim, entvar>::getSize_() const
 }
 
 template <int dim, bool entvar>
-void FlowResidual<dim, entvar>::setInputs_(const MachInputs &inputs)
+void FlowResidual<dim, entvar>::setInputs_(const MISOInputs &inputs)
 {
    // What if aoa_fs or mach_fs are being changed?
    setInputs(res, inputs);
@@ -404,21 +404,21 @@ void FlowResidual<dim, entvar>::setOptions_(const nlohmann::json &options)
    state_is_entvar = options["flow-param"]["entropy-state"];
    if (iroll == ipitch)
    {
-      throw MachException("iroll and ipitch must be distinct dimensions!");
+      throw MISOException("iroll and ipitch must be distinct dimensions!");
    }
    if ((iroll < 0) || (iroll > 2))
    {
-      throw MachException("iroll axis must be between 0 and 2!");
+      throw MISOException("iroll axis must be between 0 and 2!");
    }
    if ((ipitch < 0) || (ipitch > 2))
    {
-      throw MachException("ipitch axis must be between 0 and 2!");
+      throw MISOException("ipitch axis must be between 0 and 2!");
    }
    setOptions(res, options);
 }
 
 template <int dim, bool entvar>
-void FlowResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
+void FlowResidual<dim, entvar>::evaluate_(const MISOInputs &inputs,
                                           Vector &res_vec)
 {  
    setInputs(res, inputs);
@@ -427,21 +427,21 @@ void FlowResidual<dim, entvar>::evaluate_(const MachInputs &inputs,
 
 template <int dim, bool entvar>
 mfem::Operator &FlowResidual<dim, entvar>::getJacobian_(
-    const MachInputs &inputs,
+    const MISOInputs &inputs,
     const string &wrt)
 {
    return getJacobian(res, inputs, wrt);
 }
 
 template <int dim, bool entvar>
-double FlowResidual<dim, entvar>::calcEntropy_(const MachInputs &inputs)
+double FlowResidual<dim, entvar>::calcEntropy_(const MISOInputs &inputs)
 {
    setInputs(ent, inputs);  // needed to set parameters in integrators
    return calcOutput(ent, inputs);
 }
 
 template <int dim, bool entvar>
-double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
+double FlowResidual<dim, entvar>::calcEntropyChange_(const MISOInputs &inputs)
 {
    setInputs(res, inputs);  // needed to set parameters in integrators
    Vector x;
@@ -453,7 +453,7 @@ double FlowResidual<dim, entvar>::calcEntropyChange_(const MachInputs &inputs)
    setValueFromInputs(inputs, "time", time, true);
    setValueFromInputs(inputs, "dt", dt, true);
 
-   auto form_inputs = MachInputs({{"state", x}, {"time", time + dt}});
+   auto form_inputs = MISOInputs({{"state", x}, {"time", time + dt}});
    return calcFormOutput(res, form_inputs);
 
    // ParGridFunction state(&fes), dstate(&fes);
@@ -692,7 +692,7 @@ double FlowResidual<dim, entvar>::calcConservativeVarsL2Error(
 }
 
 template <int dim, bool entvar>
-MachOutput FlowResidual<dim, entvar>::constructOutput(
+MISOOutput FlowResidual<dim, entvar>::constructOutput(
     const std::string &fun,
     const nlohmann::json &options)
 {
@@ -800,7 +800,7 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
    {
       // This is the source term for the entropy balance equation
       auto bdrs = options["boundaries"].get<vector<int>>();
-      FunctionalOutput fun_out(fes, *fields);
+      FunctionalOutput fun_out(fes, fields);
       Vector qfar(dim + 2);
       getFreeStreamState(qfar);
       fun_out.addOutputBdrFaceIntegrator(
@@ -810,7 +810,7 @@ MachOutput FlowResidual<dim, entvar>::constructOutput(
    }
    else
    {
-      throw MachException("Output with name " + fun +
+      throw MISOException("Output with name " + fun +
                           " not supported by "
                           "FlowResidual!\n");
    }
@@ -830,4 +830,4 @@ template class FlowResidual<2, false>;
 template class FlowResidual<3, true>;
 template class FlowResidual<3, false>;
 
-}  // namespace mach
+}  // namespace miso
