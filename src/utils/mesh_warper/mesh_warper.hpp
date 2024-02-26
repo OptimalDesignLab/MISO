@@ -1,5 +1,5 @@
-#ifndef MACH_MESH_WARPER
-#define MACH_MESH_WARPER
+#ifndef MISO_MESH_WARPER
+#define MISO_MESH_WARPER
 
 #include <map>
 #include <string>
@@ -13,7 +13,7 @@
 #include "finite_element_state.hpp"
 #include "pde_solver.hpp"
 
-namespace mach
+namespace miso
 {
 class MeshWarper : public AbstractSolver2
 {
@@ -33,7 +33,7 @@ public:
 
 private:
    /// object defining the mfem computational mesh
-   MachMesh mesh_;
+   MISOMesh mesh_;
 
    /// Reference to solver state vector
    mfem::ParMesh &mesh() { return *mesh_.mesh; }
@@ -58,6 +58,6 @@ private:
    mfem::Vector vol_coords;
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

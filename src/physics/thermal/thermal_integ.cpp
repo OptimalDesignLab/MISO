@@ -1,10 +1,10 @@
 #include "mfem.hpp"
 
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
 #include "thermal_integ.hpp"
 
-namespace mach
+namespace miso
 {
 void ConvectionBCIntegrator::AssembleFaceVector(
     const mfem::FiniteElement &el1,
@@ -86,4 +86,4 @@ void ConvectionBCIntegrator::AssembleFaceGrad(
    }
 }
 
-}  // namespace mach
+}  // namespace miso

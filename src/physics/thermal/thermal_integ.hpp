@@ -1,18 +1,18 @@
-#ifndef MACH_THERMAL_INTEG
-#define MACH_THERMAL_INTEG
+#ifndef MISO_THERMAL_INTEG
+#define MISO_THERMAL_INTEG
 
 #include "mfem.hpp"
 
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "mfem_common_integ.hpp"
 
-namespace mach
+namespace miso
 {
 class ConvectionBCIntegrator : public mfem::NonlinearFormIntegrator
 {
 public:
    friend void setInputs(ConvectionBCIntegrator &integ,
-                         const MachInputs &inputs)
+                         const MISOInputs &inputs)
    {
       setValueFromInputs(inputs, "h", integ.h);
       setValueFromInputs(inputs, "fluid_temp", integ.theta_f);
@@ -44,6 +44,6 @@ private:
 #endif
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

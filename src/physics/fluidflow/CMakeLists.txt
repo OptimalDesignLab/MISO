@@ -1,11 +1,9 @@
 set(MISO_PHYSICS_FLUIDS_HEADERS
-   # advection.hpp
    euler_fluxes.hpp
    euler_integ_def.hpp
    euler_integ.hpp
    euler_sens_integ.hpp
    euler_sens_integ_def.hpp
-   # euler.hpp
    fluidflow.hpp
    flow_control_residual.hpp
    flow_control_solver.hpp
@@ -21,7 +19,6 @@ set(MISO_PHYSICS_FLUIDS_HEADERS
    navier_stokes_fluxes.hpp
    navier_stokes_integ_def.hpp
    navier_stokes_integ.hpp
-   # navier_stokes.hpp
    viscous_integ_def.hpp
    viscous_integ.hpp
 )

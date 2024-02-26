@@ -11,7 +11,6 @@ set(MISO_PHYSICS_HEADERS
    mfem_common_integ.hpp
    pde_solver.hpp
    physics.hpp
-   # solver.hpp
 )
 
 target_sources(miso
@@ -25,7 +24,6 @@ target_sources(miso
       miso_nonlinearform.cpp
       mfem_common_integ.cpp
       pde_solver.cpp
-      # solver.cpp
       ${MISO_PHYSICS_HEADERS}
 )
 
@@ -45,6 +43,4 @@ target_include_directories(miso
 
 add_subdirectory(electromagnetics)
 add_subdirectory(fluidflow)
-# add_subdirectory(joule)
-add_subdirectory(meshmove)
 add_subdirectory(thermal)

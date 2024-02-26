@@ -23,7 +23,7 @@ ThermalSolver::ThermalSolver(MPI_Comm comm,
 {
    options["time-dis"]["type"] = "steady";
 
-   spatial_res = std::make_unique<MachResidual>(
+   spatial_res = std::make_unique<MISOResidual>(
        ThermalResidual(fes(), fields, options, materials));
    miso::setOptions(*spatial_res, options);
 
@@ -129,8 +129,8 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 // #include "thermal.hpp"
 // #include "utils.hpp"
 
-// #include "mach_load.hpp"
-// #include "mach_linearform.hpp"
+// #include "miso_load.hpp"
+// #include "miso_linearform.hpp"
 
 // using namespace std;
 // using namespace mfem;
@@ -156,7 +156,7 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 
 // }  // anonymous namespace
 
-// namespace mach
+// namespace miso
 // {
 // ThermalSolver::ThermalSolver(const nlohmann::json &options,
 //                              std::unique_ptr<mfem::Mesh> smesh,
@@ -570,7 +570,7 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 //       }
 //       else
 //       {
-//          throw MachException(
+//          throw MISOException(
 //              "Using convection boundary condition without"
 //              "specifying heat transfer coefficient!\n");
 //       }
@@ -787,8 +787,8 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 // {
 //    mass = std::make_unique<BilinearFormType>(fes.get());
 //    res = std::make_unique<ParNonlinearForm>(fes.get());
-//    therm_load = std::make_unique<MachLinearForm>(*fes, res_fields);
-//    load = std::make_unique<MachLoad>(*therm_load);
+//    therm_load = std::make_unique<MISOLinearForm>(*fes, res_fields);
+//    load = std::make_unique<MISOLoad>(*therm_load);
 // }
 
 // void ThermalSolver::addMassIntegrators(double alpha)
@@ -848,7 +848,7 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 // {
 //    // auto *load_lf = dynamic_cast<ParLinearForm*>(load.get());
 //    // if (!load_lf)
-//    //    throw MachException("Couldn't cast load to LinearFormType!\n");
+//    //    throw MISOException("Couldn't cast load to LinearFormType!\n");
 
 //    /// determine type of flux function
 //    auto &bcs = options["bcs"];
@@ -864,12 +864,12 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 //          }
 //          else
 //          {
-//             throw MachException("Specified flux function not supported!\n");
+//             throw MISOException("Specified flux function not supported!\n");
 //          }
 //       }
 //       else
 //       {
-//          throw MachException(
+//          throw MISOException(
 //              "Must specify outflux type if using outflux "
 //              "boundary conditions!");
 //       }
@@ -896,11 +896,11 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 // ThermalEvolver::ThermalEvolver(Array<int> ess_bdr,
 //                                BilinearFormType *mass,
 //                                ParNonlinearForm *res,
-//                                MachLoad *load,
+//                                MISOLoad *load,
 //                                std::ostream &outstream,
 //                                double start_time,
 //                                VectorCoefficient *_flux_coeff)
-//  : MachEvolver(ess_bdr,
+//  : MISOEvolver(ess_bdr,
 //                nullptr,
 //                mass,
 //                res,
@@ -917,11 +917,11 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 //    if (flux_coeff != nullptr)
 //    {
 //       flux_coeff->SetTime(t);
-//       MachInputs inputs({{"time", t}});
+//       MISOInputs inputs({{"time", t}});
 //       setInputs(*load, inputs);
 //    }
 
-//    MachEvolver::Mult(x, y);
+//    MISOEvolver::Mult(x, y);
 // }
 
 // void ThermalEvolver::ImplicitSolve(const double dt, const Vector &x, Vector
@@ -931,11 +931,11 @@ void ThermalSolver::derivedPDETerminalHook(int iter,
 //    if (flux_coeff != nullptr)
 //    {
 //       flux_coeff->SetTime(t);
-//       MachInputs inputs({{"time", t}});
+//       MISOInputs inputs({{"time", t}});
 //       setInputs(*load, inputs);
 //    }
 
-//    MachEvolver::ImplicitSolve(dt, x, k);
+//    MISOEvolver::ImplicitSolve(dt, x, k);
 // }
 
-// }  // namespace mach
+// }  // namespace miso

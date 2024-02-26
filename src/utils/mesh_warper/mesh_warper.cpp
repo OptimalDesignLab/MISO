@@ -3,7 +3,7 @@
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
-#include "mach_nonlinearform.hpp"
+#include "miso_nonlinearform.hpp"
 #include "mesh_move_integ.hpp"
 #include "mfem_extensions.hpp"
 
@@ -17,29 +17,29 @@ public:
    friend int getSize(const MeshWarperResidual &residual);
 
    friend void setInputs(MeshWarperResidual &residual,
-                         const mach::MachInputs &inputs);
+                         const miso::MISOInputs &inputs);
 
    friend void setOptions(MeshWarperResidual &residual,
                           const nlohmann::json &options);
 
    friend void evaluate(MeshWarperResidual &residual,
-                        const mach::MachInputs &inputs,
+                        const miso::MISOInputs &inputs,
                         mfem::Vector &res_vec);
 
    friend void linearize(MeshWarperResidual &residual,
-                         const mach::MachInputs &inputs);
+                         const miso::MISOInputs &inputs);
 
    friend mfem::Operator &getJacobian(MeshWarperResidual &residual,
-                                      const mach::MachInputs &inputs,
+                                      const miso::MISOInputs &inputs,
                                       const std::string &wrt);
 
    friend mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
-                                               const mach::MachInputs &inputs,
+                                               const miso::MISOInputs &inputs,
                                                const std::string &wrt);
 
    friend void setUpAdjointSystem(MeshWarperResidual &residual,
                                   mfem::Solver &adj_solver,
-                                  const mach::MachInputs &inputs,
+                                  const miso::MISOInputs &inputs,
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
@@ -64,24 +64,24 @@ public:
    friend mfem::Solver *getPreconditioner(MeshWarperResidual &residual);
 
    MeshWarperResidual(mfem::ParFiniteElementSpace &fes,
-                      std::map<std::string, mach::FiniteElementState> &fields,
+                      std::map<std::string, miso::FiniteElementState> &fields,
                       const nlohmann::json &options,
                       const mfem::Array<int> &surface_indices)
     : res(fes, fields),
       lambda_c(std::make_unique<mfem::ConstantCoefficient>(1.0)),
       mu_c(std::make_unique<mfem::ConstantCoefficient>(1.0)),
-      // lambda_c(std::make_unique<mach::LameFirstParameter>()),
-      // mu_c(std::make_unique<mach::LameSecondParameter>()),
+      // lambda_c(std::make_unique<miso::LameFirstParameter>()),
+      // mu_c(std::make_unique<miso::LameSecondParameter>()),
       surface_indices(surface_indices),
       prec(constructPreconditioner(fes, options["lin-prec"]))
    {
       res.addDomainIntegrator(
-          new mach::ElasticityPositionIntegrator(*lambda_c, *mu_c));
+          new miso::ElasticityPositionIntegrator(*lambda_c, *mu_c));
    }
 
 private:
    /// Nonlinear form that solves linear elasticity problem
-   mach::MachNonlinearForm res;
+   miso::MISONonlinearForm res;
 
    /// Stiffness coefficients
    std::unique_ptr<mfem::Coefficient> lambda_c;
@@ -108,7 +108,7 @@ int getSize(const MeshWarperResidual &residual)
    return getSize(residual.res);
 }
 
-void setInputs(MeshWarperResidual &residual, const mach::MachInputs &inputs)
+void setInputs(MeshWarperResidual &residual, const miso::MISOInputs &inputs)
 {
    setInputs(residual.res, inputs);
 }
@@ -119,7 +119,7 @@ void setOptions(MeshWarperResidual &residual, const nlohmann::json &options)
 }
 
 void evaluate(MeshWarperResidual &residual,
-              const mach::MachInputs &inputs,
+              const miso::MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    evaluate(residual.res, inputs, res_vec);
@@ -140,20 +140,20 @@ void evaluate(MeshWarperResidual &residual,
    }
 }
 
-void linearize(MeshWarperResidual &residual, const mach::MachInputs &inputs)
+void linearize(MeshWarperResidual &residual, const miso::MISOInputs &inputs)
 {
    linearize(residual.res, inputs);
 }
 
 mfem::Operator &getJacobian(MeshWarperResidual &residual,
-                            const mach::MachInputs &inputs,
+                            const miso::MISOInputs &inputs,
                             const std::string &wrt)
 {
    return getJacobian(residual.res, inputs, wrt);
 }
 
 mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
-                                     const mach::MachInputs &inputs,
+                                     const miso::MISOInputs &inputs,
                                      const std::string &wrt)
 {
    return getJacobianTranspose(residual.res, inputs, wrt);
@@ -161,7 +161,7 @@ mfem::Operator &getJacobianTranspose(MeshWarperResidual &residual,
 
 void setUpAdjointSystem(MeshWarperResidual &residual,
                         mfem::Solver &adj_solver,
-                        const mach::MachInputs &inputs,
+                        const miso::MISOInputs &inputs,
                         mfem::Vector &state_bar,
                         mfem::Vector &adjoint)
 {
@@ -221,7 +221,7 @@ mfem::Solver *getPreconditioner(MeshWarperResidual &residual)
 
 }  // anonymous namespace
 
-namespace mach
+namespace miso
 {
 int MeshWarper::getSurfaceCoordsSize() const { return surf_coords.Size(); }
 
@@ -288,17 +288,17 @@ MeshWarper::MeshWarper(MPI_Comm incomm,
    vol_coords.GetSubVector(surface_indices, surf_coords);
 
    options["time-dis"]["type"] = "steady";
-   spatial_res = std::make_unique<MachResidual>(
+   spatial_res = std::make_unique<MISOResidual>(
        MeshWarperResidual(fes(), fields, options, surface_indices));
-   mach::setOptions(*spatial_res, options);
+   miso::setOptions(*spatial_res, options);
 
    auto *prec = getPreconditioner(*spatial_res);
    auto lin_solver_opts = options["lin-solver"];
-   linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+   linear_solver = miso::constructLinearSolver(comm, lin_solver_opts, prec);
    auto nonlin_solver_opts = options["nonlin-solver"];
    nonlinear_solver =
-       mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+       miso::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
    nonlinear_solver->SetOperator(*spatial_res);
 }
 
-}  // namespace mach
+}  // namespace miso

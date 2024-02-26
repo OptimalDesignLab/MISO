@@ -1,5 +1,5 @@
-#ifndef MACH_MAGNETOSTATIC_RESIDUAL
-#define MACH_MAGNETOSTATIC_RESIDUAL
+#ifndef MISO_THERMAL_RESIDUAL
+#define MISO_THERMAL_RESIDUAL
 
 #include <map>
 #include <memory>
@@ -9,41 +9,41 @@
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
-#include "mach_residual.hpp"
-#include "mach_nonlinearform.hpp"
+#include "miso_input.hpp"
+#include "miso_residual.hpp"
+#include "miso_nonlinearform.hpp"
 #include "thermal_integ.hpp"
 
-namespace mach
+namespace miso
 {
 class ThermalResidual final
 {
 public:
    friend int getSize(const ThermalResidual &residual);
 
-   friend void setInputs(ThermalResidual &residual, const MachInputs &inputs);
+   friend void setInputs(ThermalResidual &residual, const MISOInputs &inputs);
 
    friend void setOptions(ThermalResidual &residual,
                           const nlohmann::json &options);
 
    friend void evaluate(ThermalResidual &residual,
-                        const MachInputs &inputs,
+                        const MISOInputs &inputs,
                         mfem::Vector &res_vec);
 
    friend void linearize(ThermalResidual &residual,
-                         const mach::MachInputs &inputs);
+                         const miso::MISOInputs &inputs);
 
    friend mfem::Operator &getJacobian(ThermalResidual &residual,
-                                      const MachInputs &inputs,
+                                      const MISOInputs &inputs,
                                       const std::string &wrt);
 
    friend mfem::Operator &getJacobianTranspose(ThermalResidual &residual,
-                                               const mach::MachInputs &inputs,
+                                               const miso::MISOInputs &inputs,
                                                const std::string &wrt);
 
    friend void setUpAdjointSystem(ThermalResidual &residual,
                                   mfem::Solver &adj_solver,
-                                  const mach::MachInputs &inputs,
+                                  const miso::MISOInputs &inputs,
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
@@ -74,7 +74,7 @@ public:
 
 private:
    /// Nonlinear form that handles the weak form
-   MachNonlinearForm res;
+   MISONonlinearForm res;
    /// Material dependent coefficient representing thermal conductivity
    std::unique_ptr<MeshDependentCoefficient> kappa;
    /// Material dependent coefficient representing density
@@ -99,6 +99,6 @@ private:
    }
 };
 
-}  // namespace mach
+}  // namespace miso
 
 #endif

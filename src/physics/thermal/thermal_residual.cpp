@@ -4,17 +4,17 @@
 #include "nlohmann/json.hpp"
 
 #include "coefficient.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "mfem_common_integ.hpp"
 #include "thermal_integ.hpp"
 
 #include "thermal_residual.hpp"
 
-namespace mach
+namespace miso
 {
 int getSize(const ThermalResidual &residual) { return getSize(residual.res); }
 
-void setInputs(ThermalResidual &residual, const mach::MachInputs &inputs)
+void setInputs(ThermalResidual &residual, const miso::MISOInputs &inputs)
 {
    setInputs(residual.res, inputs);
 
@@ -31,7 +31,7 @@ void setOptions(ThermalResidual &residual, const nlohmann::json &options)
 }
 
 void evaluate(ThermalResidual &residual,
-              const mach::MachInputs &inputs,
+              const miso::MISOInputs &inputs,
               mfem::Vector &res_vec)
 {
    evaluate(residual.res, inputs, res_vec);
@@ -42,20 +42,20 @@ void evaluate(ThermalResidual &residual,
    }
 }
 
-void linearize(ThermalResidual &residual, const mach::MachInputs &inputs)
+void linearize(ThermalResidual &residual, const miso::MISOInputs &inputs)
 {
    linearize(residual.res, inputs);
 }
 
 mfem::Operator &getJacobian(ThermalResidual &residual,
-                            const mach::MachInputs &inputs,
+                            const miso::MISOInputs &inputs,
                             const std::string &wrt)
 {
    return getJacobian(residual.res, inputs, wrt);
 }
 
 mfem::Operator &getJacobianTranspose(ThermalResidual &residual,
-                                     const mach::MachInputs &inputs,
+                                     const miso::MISOInputs &inputs,
                                      const std::string &wrt)
 {
    return getJacobianTranspose(residual.res, inputs, wrt);
@@ -63,7 +63,7 @@ mfem::Operator &getJacobianTranspose(ThermalResidual &residual,
 
 void setUpAdjointSystem(ThermalResidual &residual,
                         mfem::Solver &adj_solver,
-                        const mach::MachInputs &inputs,
+                        const miso::MISOInputs &inputs,
                         mfem::Vector &state_bar,
                         mfem::Vector &adjoint)
 {
@@ -125,7 +125,7 @@ ThermalResidual::ThermalResidual(
    if (basis_type != "H1" && basis_type != "h1" && basis_type != "CG" &&
        basis_type != "cg")
    {
-      throw MachException(
+      throw MISOException(
           "Thermal residual currently only supports H1 state field!\n");
    }
 
@@ -146,4 +146,4 @@ ThermalResidual::ThermalResidual(
    }
 }
 
-}  // namespace mach
+}  // namespace miso
