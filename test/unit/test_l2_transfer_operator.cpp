@@ -24,24 +24,24 @@ TEST_CASE("ScalarL2IdentityProjection::apply")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "H1"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}});
 
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
+   miso::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -84,25 +84,25 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt state")
    const auto p = 4;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "H1"}});
       // {"basis-type", "DG"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}});
 
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
+   miso::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -197,7 +197,7 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
    /// create new state vector copying the mesh's fe space
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto &mesh_fespace = *mesh_gf.ParFESpace();
-   mach::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
+   miso::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
    /// set the values of the new GF to those of the mesh's old nodes
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
@@ -207,7 +207,7 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
    mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
    mesh_coords.setTrueVec(mesh_coords_tv);
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "H1"}});
       // {"basis-type", "DG"}});
@@ -219,11 +219,11 @@ TEST_CASE("ScalarL2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
    });
    state.project(state_coeff, state_tv);
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p-1},
       {"basis-type", "DG"}});
 
-   mach::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
+   miso::ScalarL2IdentityProjection op(state, mesh_coords, dg_state);
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
    mfem::FunctionCoefficient adj_coeff(
    [](const mfem::Vector &x)
@@ -308,11 +308,11 @@ TEST_CASE("L2IdentityProjection::apply")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}},
       dim);
@@ -320,13 +320,13 @@ TEST_CASE("L2IdentityProjection::apply")
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::L2IdentityProjection op(state, mesh_coords, dg_state);
+   miso::L2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -375,11 +375,11 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}},
       dim);
@@ -387,13 +387,13 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt state")
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::L2IdentityProjection op(state, mesh_coords, dg_state);
+   miso::L2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -482,7 +482,7 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
    /// create new state vector copying the mesh's fe space
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto &mesh_fespace = *mesh_gf.ParFESpace();
-   mach::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
+   miso::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
    /// set the values of the new GF to those of the mesh's old nodes
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
@@ -492,16 +492,16 @@ TEST_CASE("L2IdentityProjection::vectorJacobianProduct wrt mesh_coords")
    mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
    mesh_coords.setTrueVec(mesh_coords_tv);
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2IdentityProjection op(state, mesh_coords, dg_state);
+   miso::L2IdentityProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -588,15 +588,15 @@ TEST_CASE("L2CurlProjection::apply")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState curl(mesh, nlohmann::json{
+   miso::FiniteElementState curl(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "RT"}});
 
-   mach::FiniteElementState dg_curl(mesh, nlohmann::json{
+   miso::FiniteElementState dg_curl(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}},
       dim);
@@ -604,13 +604,13 @@ TEST_CASE("L2CurlProjection::apply")
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::L2CurlProjection op(state, mesh_coords, dg_curl);
+   miso::L2CurlProjection op(state, mesh_coords, dg_curl);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -628,7 +628,7 @@ TEST_CASE("L2CurlProjection::apply")
    dg_curl.distributeSharedDofs(dg_curl_tv);
 
    /// Compute curl conventionally
-   mach::DiscreteCurlOperator curl_op(&state.space(), &curl.space());
+   miso::DiscreteCurlOperator curl_op(&state.space(), &curl.space());
    curl_op.Assemble();
    curl_op.Finalize();
    curl_op.Mult(state.gridFunc(), curl.gridFunc());
@@ -662,11 +662,11 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}},
       dim);
@@ -674,13 +674,13 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt state")
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::L2CurlProjection op(state, mesh_coords, dg_state);
+   miso::L2CurlProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -772,7 +772,7 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt mesh_coords")
    /// create new state vector copying the mesh's fe space
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto &mesh_fespace = *mesh_gf.ParFESpace();
-   mach::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
+   miso::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
    /// set the values of the new GF to those of the mesh's old nodes
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
@@ -782,16 +782,16 @@ TEST_CASE("L2CurlProjection::vectorJacobianProduct wrt mesh_coords")
    mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
    mesh_coords.setTrueVec(mesh_coords_tv);
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}},
       dim);
 
-   mach::L2CurlProjection op(state, mesh_coords, dg_state);
+   miso::L2CurlProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -879,28 +879,28 @@ TEST_CASE("L2CurlMagnitudeProjection::apply")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState curl(mesh, nlohmann::json{
+   miso::FiniteElementState curl(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "RT"}});
 
-   mach::FiniteElementState dg_curl(mesh, nlohmann::json{
+   miso::FiniteElementState dg_curl(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}});
 
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_curl);
+   miso::L2CurlMagnitudeProjection op(state, mesh_coords, dg_curl);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_curl_tv(dg_curl.space().GetTrueVSize());
@@ -918,7 +918,7 @@ TEST_CASE("L2CurlMagnitudeProjection::apply")
    dg_curl.distributeSharedDofs(dg_curl_tv);
 
    /// Compute curl conventionally
-   mach::DiscreteCurlOperator curl_op(&state.space(), &curl.space());
+   miso::DiscreteCurlOperator curl_op(&state.space(), &curl.space());
    curl_op.Assemble();
    curl_op.Finalize();
    curl_op.Mult(state.gridFunc(), curl.gridFunc());
@@ -952,24 +952,24 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt state")
    const auto p = 2;
    const auto dim = mesh.Dimension();
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}});
 
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto *mesh_fespace = mesh_gf.ParFESpace();
 
-   mach::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
+   miso::FiniteElementState mesh_coords(mesh,  *mesh_fespace);
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
    /// (and that it doesn't own it)
    mesh.NewNodes(mesh_coords.gridFunc(), false);
 
-   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
+   miso::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());
@@ -1061,7 +1061,7 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords")
    /// create new state vector copying the mesh's fe space
    auto &mesh_gf = *dynamic_cast<mfem::ParGridFunction *>(mesh.GetNodes());
    auto &mesh_fespace = *mesh_gf.ParFESpace();
-   mach::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
+   miso::FiniteElementState mesh_coords(mesh, mesh_fespace, "mesh_coords");
    /// set the values of the new GF to those of the mesh's old nodes
    mesh_coords.gridFunc() = mesh_gf;
    /// tell the mesh to use this GF for its Nodes
@@ -1071,15 +1071,15 @@ TEST_CASE("L2CurlMagnitudeProjection::vectorJacobianProduct wrt mesh_coords")
    mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
    mesh_coords.setTrueVec(mesh_coords_tv);
 
-   mach::FiniteElementState state(mesh, nlohmann::json{
+   miso::FiniteElementState state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "ND"}});
 
-   mach::FiniteElementState dg_state(mesh, nlohmann::json{
+   miso::FiniteElementState dg_state(mesh, nlohmann::json{
       {"degree", p},
       {"basis-type", "DG"}});
 
-   mach::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
+   miso::L2CurlMagnitudeProjection op(state, mesh_coords, dg_state);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
    mfem::Vector dg_state_tv(dg_state.space().GetTrueVSize());

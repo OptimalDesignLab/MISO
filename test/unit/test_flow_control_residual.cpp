@@ -8,11 +8,11 @@
 #include "flow_residual.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 auto options = R"(
 {
@@ -88,7 +88,7 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    // P(1) = sigma;
    // P(2) = sigma;
    // P(3) = 1.0;
-   auto inputs = MachInputs({{"Kp", Kp},
+   auto inputs = MISOInputs({{"Kp", Kp},
                              {"Ti", Ti},
                              {"Td", Td},
                              {"beta", beta},
@@ -108,7 +108,7 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
       x(i) = uniform_rand(gen);
    }
    double time = uniform_rand(gen);
-   inputs = MachInputs({{"state", x}, {"time", time}});
+   inputs = MISOInputs({{"state", x}, {"time", time}});
    Vector res_vec(num_var);
    evaluate(res, inputs, res_vec);
    if (rank == 0)
@@ -172,7 +172,7 @@ TEST_CASE("ControlResidual construction and evaluation", "[ControlResidual]")
    // check entropy change; `calcEntropyChange` uses `k = -state_dot` directly,
    // so since `k + res_vec = 0`, we need to scale res_vec by neg one.
    res_vec *= -1.0;
-   inputs = MachInputs({{"state", x}, {"state_dot", res_vec}});
+   inputs = MISOInputs({{"state", x}, {"state_dot", res_vec}});
    double entropy_change = calcEntropyChange(res, inputs);
    if (rank == 0)
    {
@@ -203,7 +203,7 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    std::map<std::string, FiniteElementState> fields;
 
    // construct the residuals
-   MachResidual res(
+   MISOResidual res(
        FlowControlResidual<dim, false>(options, fespace, fields, diff_stack));
    FlowResidual<dim, false> flow_res(options, fespace, fields, diff_stack);
    ControlResidual control_res(MPI_COMM_WORLD, options);
@@ -225,7 +225,7 @@ TEST_CASE("FlowControlResidual construction and evaluation",
    //P(1) = sigma;
    //P(2) = sigma;
    //P(3) = 1.0;
-   auto inputs = MachInputs({{"Kp", Kp},
+   auto inputs = MISOInputs({{"Kp", Kp},
                              {"Ti", Ti},
                              {"Td", Td},
                              {"beta", beta},
@@ -262,19 +262,19 @@ TEST_CASE("FlowControlResidual construction and evaluation",
 
    // Set up the inputs to the three residuals, and evaluate coupling variables
    Vector x_actuator({0.0, 0.5});
-   MachOutput boundary_entropy(flow_res.constructOutput(
+   MISOOutput boundary_entropy(flow_res.constructOutput(
        "boundary-entropy", options["outputs"]["boundary-entropy"]));
    Vector flow_state(q.GetData() + ptr, getSize(flow_res));
    double time = 0.0;
-   auto flow_inputs = MachInputs(
+   auto flow_inputs = MISOInputs(
        {{"state", flow_state}, {"time", time}, {"x-actuator", x_actuator}});
    double bndry_ent = calcOutput(boundary_entropy, flow_inputs);
-   auto control_inputs = MachInputs(
+   auto control_inputs = MISOInputs(
        {{"state", q}, {"time", time}, {"boundary-entropy", bndry_ent}});
    double vel_control = control_res.getControlVelocity(control_inputs);
    flow_inputs.emplace("control", vel_control);
    inputs =
-       MachInputs({{"state", q}, {"time", time}, {"x-actuator", x_actuator}});
+       MISOInputs({{"state", q}, {"time", time}, {"x-actuator", x_actuator}});
 
    Vector res_vec(num_var);
    Vector res_vec_control(getSize(control_res));

@@ -8,28 +8,28 @@
 #include "abstract_solver.hpp"
 #include "data_logging.hpp"
 #include "finite_element_state.hpp"
-#include "mach_input.hpp"
-#include "mach_linearform.hpp"
-#include "mach_load.hpp"
-#include "mach_nonlinearform.hpp"
-#include "mach_residual.hpp"
+#include "miso_input.hpp"
+#include "miso_linearform.hpp"
+#include "miso_load.hpp"
+#include "miso_nonlinearform.hpp"
+#include "miso_residual.hpp"
 #include "mfem_extensions.hpp"
 #include "pde_solver.hpp"
 #include "sbp_fe.hpp"
 #include "utils.hpp"
 
-/// Class for ODE that follows the MachResidual API
+/// Class for ODE that follows the MISOResidual API
 class ThermalResidual final
 {
 
 public:
    ThermalResidual(mfem::ParFiniteElementSpace &fes,
-                   std::map<std::string, mach::FiniteElementState> &fields,
+                   std::map<std::string, miso::FiniteElementState> &fields,
                    const nlohmann::json &options)
     : fes_(fes),
       res(fes_, fields),
       // kappa(std::make_unique<mfem::ConstantCoefficient>(1.0))
-      load(std::make_unique<mach::MachLinearForm>(fes_, fields)),
+      load(std::make_unique<miso::MISOLinearForm>(fes_, fields)),
       force(std::make_unique<mfem::FunctionCoefficient>([](const mfem::Vector &p, double t)
       {
          auto x = p(0);
@@ -47,7 +47,7 @@ public:
       return getSize(residual.res);
    }
 
-   friend void setInputs(ThermalResidual &residual, const mach::MachInputs &inputs)
+   friend void setInputs(ThermalResidual &residual, const miso::MISOInputs &inputs)
    {
       setInputs(residual.res, inputs);
       setInputs(*residual.load, inputs);
@@ -57,7 +57,7 @@ public:
       //    residual.force->SetTime(input->second.getValue());
       // }
       double time = 1e16;
-      mach::setValueFromInputs(inputs, "time", time);
+      miso::setValueFromInputs(inputs, "time", time);
       residual.force->SetTime(time);
    }
 
@@ -68,7 +68,7 @@ public:
    }
 
    friend void evaluate(ThermalResidual &residual,
-                        const mach::MachInputs &inputs,
+                        const miso::MISOInputs &inputs,
                         mfem::Vector &res_vec)
    {
       evaluate(residual.res, inputs, res_vec);
@@ -77,7 +77,7 @@ public:
    }
 
    friend mfem::Operator &getJacobian(ThermalResidual &residual,
-                                      const mach::MachInputs &inputs,
+                                      const miso::MISOInputs &inputs,
                                       std::string wrt)
    {
       return getJacobian(residual.res, inputs, std::move(wrt));
@@ -91,9 +91,9 @@ public:
 private:
    mfem::ParFiniteElementSpace &fes_;
    // std::unique_ptr<std::unordered_map<std::string, mfem::ParGridFunction>> fields;
-   mach::MachNonlinearForm res;
+   miso::MISONonlinearForm res;
    // std::unique_ptr<mfem::ConstantCoefficient> kappa;
-   std::unique_ptr<mach::MachLinearForm> load;
+   std::unique_ptr<miso::MISOLinearForm> load;
    std::unique_ptr<mfem::FunctionCoefficient> force;
 
    /// preconditioner for inverting residual's state Jacobian
@@ -109,7 +109,7 @@ private:
 };
 
 /// Solver that uses `ThermalResidual` to define its dynamics
-class ThermalSolver : public mach::PDESolver
+class ThermalSolver : public miso::PDESolver
 {
 public:
    ThermalSolver(MPI_Comm comm,
@@ -117,15 +117,15 @@ public:
                  std::unique_ptr<mfem::Mesh> smesh)
       : PDESolver(comm, solver_options, num_states, std::move(smesh))
    {
-      spatial_res = std::make_unique<mach::MachResidual>(ThermalResidual(fes(), fields, options));
-      mach::setOptions(*spatial_res, options);
+      spatial_res = std::make_unique<miso::MISOResidual>(ThermalResidual(fes(), fields, options));
+      miso::setOptions(*spatial_res, options);
 
       nlohmann::json prec_options;
       auto *prec = getPreconditioner(*spatial_res);
       auto lin_solver_opts = options["lin-solver"];
-      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts, prec);
+      linear_solver = miso::constructLinearSolver(comm, lin_solver_opts, prec);
       auto nonlin_solver_opts = options["nonlin-solver"];
-      nonlinear_solver = mach::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
+      nonlinear_solver = miso::constructNonlinearSolver(comm, nonlin_solver_opts, *linear_solver);
       nonlinear_solver->SetOperator(*spatial_res);
 
       /// if solving an unsteady problem
@@ -147,16 +147,16 @@ public:
          mass_mat.emplace();
          mass->FormSystemMatrix(ess_tdof_list, *mass_mat);
 
-         space_time_res = std::make_unique<mach::MachResidual>(
-            mach::TimeDependentResidual(*spatial_res, &(*mass_mat)));
+         space_time_res = std::make_unique<miso::MISOResidual>(
+            miso::TimeDependentResidual(*spatial_res, &(*mass_mat)));
 
          nonlinear_solver->SetOperator(*space_time_res);
 
          auto ode_opts = options["time-dis"];
-         ode = std::make_unique<mach::FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
+         ode = std::make_unique<miso::FirstOrderODE>(*space_time_res, ode_opts, *nonlinear_solver);
       }
 
-      mach::ParaViewLogger paraview("test_pde_solver", &mesh());
+      miso::ParaViewLogger paraview("test_pde_solver", &mesh());
       paraview.registerField("state", fields.at("state").gridFunc());
       addLogger(std::move(paraview), {.each_timestep=true});
    }
@@ -171,9 +171,9 @@ private:
 TEST_CASE("Testing PDESolver unsteady heat equation MMS")
 {
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    // Provide the options explicitly for regression tests
    auto options = R"(
@@ -220,7 +220,7 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
    });
    solver.setState(exact_sol, state_tv);
 
-   MachInputs inputs;
+   MISOInputs inputs;
    solver.solveForState(inputs, state_tv);
 
 
@@ -242,9 +242,9 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
 TEST_CASE("Testing PDESolver steady heat equation MMS")
 {
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    // Provide the options explicitly for regression tests
    auto options = R"(

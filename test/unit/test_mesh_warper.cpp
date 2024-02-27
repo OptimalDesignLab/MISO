@@ -48,7 +48,7 @@ TEST_CASE("MeshWarper::solveForState")
       mfem::Mesh::MakeCartesian3D(nxyz, nxyz, nxyz,
                                   mfem::Element::TETRAHEDRON));
 
-   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+   miso::MeshWarper warper(comm, warp_options, std::move(smesh));
 
    auto surf_mesh_size = warper.getSurfaceCoordsSize();
    mfem::Vector surf_coords(surf_mesh_size);
@@ -98,7 +98,7 @@ TEST_CASE("MeshWarper::vectorJacobianProduct wrt state")
       // mfem::Mesh::MakeCartesian1D(nx));
       mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
 
-   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+   miso::MeshWarper warper(comm, warp_options, std::move(smesh));
 
    auto surf_mesh_size = warper.getSurfaceCoordsSize();
    mfem::Vector surf_coords(surf_mesh_size);
@@ -118,7 +118,7 @@ TEST_CASE("MeshWarper::vectorJacobianProduct wrt state")
 
    warper.solveForState(vol_coords);
 
-   mach::MachInputs inputs{
+   miso::MISOInputs inputs{
       {"surf_mesh_coords", surf_coords},
       {"state", vol_coords}
    };
@@ -258,7 +258,7 @@ TEST_CASE("MeshWarper::jacobianVectorProduct wrt state")
       // mfem::Mesh::MakeCartesian1D(nx));
       mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
 
-   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+   miso::MeshWarper warper(comm, warp_options, std::move(smesh));
 
    auto surf_mesh_size = warper.getSurfaceCoordsSize();
    mfem::Vector surf_coords(surf_mesh_size);
@@ -278,7 +278,7 @@ TEST_CASE("MeshWarper::jacobianVectorProduct wrt state")
 
    warper.solveForState(vol_coords);
 
-   mach::MachInputs inputs{
+   miso::MISOInputs inputs{
       {"surf_mesh_coords", surf_coords},
       {"state", vol_coords}
    };
@@ -359,7 +359,7 @@ TEST_CASE("MeshWarper::vectorJacobianProduct wrt surf_mesh_coords")
       // mfem::Mesh::MakeCartesian1D(nx));
       mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
 
-   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+   miso::MeshWarper warper(comm, warp_options, std::move(smesh));
 
    auto surf_mesh_size = warper.getSurfaceCoordsSize();
    mfem::Vector surf_coords(surf_mesh_size);
@@ -379,7 +379,7 @@ TEST_CASE("MeshWarper::vectorJacobianProduct wrt surf_mesh_coords")
 
    warper.solveForState(vol_coords);
 
-   mach::MachInputs inputs{
+   miso::MISOInputs inputs{
       {"surf_mesh_coords", surf_coords},
       {"state", vol_coords}
    };
@@ -460,7 +460,7 @@ TEST_CASE("MeshWarper::jacobianVectorProduct wrt surf_mesh_coords")
       // mfem::Mesh::MakeCartesian1D(nx));
       mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
 
-   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+   miso::MeshWarper warper(comm, warp_options, std::move(smesh));
 
    auto surf_mesh_size = warper.getSurfaceCoordsSize();
    mfem::Vector surf_coords(surf_mesh_size);
@@ -480,7 +480,7 @@ TEST_CASE("MeshWarper::jacobianVectorProduct wrt surf_mesh_coords")
 
    warper.solveForState(vol_coords);
 
-   mach::MachInputs inputs{
+   miso::MISOInputs inputs{
       {"surf_mesh_coords", surf_coords},
       {"state", vol_coords}
    };
@@ -561,7 +561,7 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
       // mfem::Mesh::MakeCartesian1D(nx));
       mfem::Mesh::MakeCartesian2D(nx, nx, mfem::Element::QUADRILATERAL));
 
-   mach::MeshWarper warper(comm, warp_options, std::move(smesh));
+   miso::MeshWarper warper(comm, warp_options, std::move(smesh));
 
    auto surf_mesh_size = warper.getSurfaceCoordsSize();
    mfem::Vector surf_coords(surf_mesh_size);
@@ -580,7 +580,7 @@ TEST_CASE("MeshWarper total derivative of vol_coords wrt surf_coords")
    }
    warper.solveForState(vol_coords);
 
-   mach::MachInputs inputs{
+   miso::MISOInputs inputs{
       {"surf_mesh_coords", surf_coords},
       {"state", vol_coords}
    };

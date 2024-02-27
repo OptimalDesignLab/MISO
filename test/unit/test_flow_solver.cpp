@@ -10,7 +10,7 @@
 /// \param[out] q - conservative variables at `x`.
 void vortexExact(const mfem::Vector &xy, mfem::Vector& q)
 {
-   using namespace mach;
+   using namespace miso;
 
    double t = 0.0;
    double x = xy(0) - 5.0 - t; // x0 = 5.0
@@ -38,7 +38,7 @@ void vortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
    w.SetSize(4);
    mfem::Vector q(4);
    vortexExact(x, q);
-   mach::calcEntropyVars<double, 2, true>(q.GetData(), w.GetData());
+   miso::calcEntropyVars<double, 2, true>(q.GetData(), w.GetData());
 }
 
 // TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on unsteady isentropic vortex",
@@ -49,9 +49,9 @@ TEST_CASE("Testing FlowSolver on unsteady isentropic vortex", "[FlowSolver]")
    const bool entvar = false;
 
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
    auto uexact = !entvar ? vortexExact : vortexExactEntVars;
 
    // Provide the options explicitly for regression tests
@@ -130,14 +130,14 @@ TEST_CASE("Testing FlowSolver on unsteady isentropic vortex", "[FlowSolver]")
 
          // write the initial state for debugging 
          auto &state = solver.getState();
-         mach::ParaViewLogger paraview("test_flow_solver",
+         miso::ParaViewLogger paraview("test_flow_solver",
             state.gridFunc().ParFESpace()->GetParMesh());
          paraview.registerField("state", state.gridFunc());
          paraview.saveState(state_tv, "state", 0, 1.0, 0);
 
          // get the initial entropy 
          solver.createOutput("entropy", options["outputs"].at("entropy"));
-         MachInputs inputs({{"state", state_tv}});
+         MISOInputs inputs({{"state", state_tv}});
          double entropy0 = solver.calcOutput("entropy", inputs);
 
          // Solve for the state; inputs are not used at present...
@@ -157,7 +157,7 @@ TEST_CASE("Testing FlowSolver on unsteady isentropic vortex", "[FlowSolver]")
 /// \param[out] q - conservative variables at `x`.
 void steadyVortexExact(const mfem::Vector &x, mfem::Vector& q)
 {
-   using namespace mach;
+   using namespace miso;
    q.SetSize(4);
    double ri = 1.0;
    double Mai = 0.5; //0.95 
@@ -195,16 +195,16 @@ void steadyVortexExactEntVars(const mfem::Vector &x, mfem::Vector& w)
    w.SetSize(4);
    mfem::Vector q(4);
    steadyVortexExact(x, q);
-   mach::calcEntropyVars<double, 2, false>(q.GetData(), w.GetData());
+   miso::calcEntropyVars<double, 2, false>(q.GetData(), w.GetData());
 }
 
 TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
                        "[Euler-Vortex]", ((bool entvar), entvar), true, false)
 {
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
    auto uexact = !entvar ? steadyVortexExact : steadyVortexExactEntVars;
 
    // Provide the options explicitly for regression tests
@@ -288,12 +288,12 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
 
          // write the initial state for debugging 
          auto &state = solver.getState();
-         mach::ParaViewLogger paraview("test_flow_solver", &state.mesh());
+         miso::ParaViewLogger paraview("test_flow_solver", &state.mesh());
          paraview.registerField("state", state.gridFunc());
          paraview.saveState(state_tv, "state", 0, 1.0, 0);
 
          // Solve for the state
-         MachInputs inputs;
+         MISOInputs inputs;
          solver.solveForState(inputs, state_tv);
          state.distributeSharedDofs(state_tv);
 
@@ -301,11 +301,11 @@ TEMPLATE_TEST_CASE_SIG("Testing FlowSolver on steady isentropic vortex",
          std::cout << "l2 error = " << l2_error << std::endl;
          REQUIRE(l2_error == Approx(target_error[nx - 1]).margin(1e-10));
  
-         inputs = MachInputs({
+         inputs = MISOInputs({
             {"time", M_PI}, {"state", state.gridFunc()}
          });
          solver.createOutput("drag", options["outputs"].at("drag"));
-         double drag_error = fabs(solver.calcOutput("drag", inputs) - (-1 /mach::euler::gamma));
+         double drag_error = fabs(solver.calcOutput("drag", inputs) - (-1 /miso::euler::gamma));
          REQUIRE(drag_error == Approx(target_drag_error[nx-1]).margin(1e-10));
       }
    }

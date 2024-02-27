@@ -1,9 +1,11 @@
 set(MISO_MESH_WARP_HEADERS
+   mesh_move_integ.hpp
    mesh_warper.hpp
 )
 
 target_sources(miso
    PUBLIC
+      mesh_move_integ.cpp
       mesh_warper.cpp
       ${MISO_MESH_WARP_HEADERS}
 )

@@ -6,24 +6,19 @@
 #include "mfem.hpp"
 
 #include "finite_element_state.hpp"
-#include "mach_integrator.hpp"
-#include "mach_nonlinearform.hpp"
+#include "miso_integrator.hpp"
+#include "miso_linearform.hpp"
 
-class TestIntegrator : public mfem::NonlinearFormIntegrator
+class TestIntegrator : public mfem::LinearFormIntegrator
 {
 public:
    TestIntegrator()
    : time(0.0)
    { }
 
-   // The form here is just the integral of v * cos(t) * u^2, where v is the 
-   // test function, t is the time, and u is the state.  The test below sets 
-   // v = 1 and u = x + y and integrates over [0,1]^2.  This should give a
-   // value of 7*cos(t)/6 when `elvect` is summed.
-   void AssembleElementVector(
+   void AssembleRHSElementVect(
       const mfem::FiniteElement &el,
       mfem::ElementTransformation &trans,
-      const mfem::Vector &elfun,
       mfem::Vector &elvect) override
    {
       const mfem::IntegrationRule *ir = IntRule;
@@ -41,16 +36,13 @@ public:
          trans.SetIntPoint(&ip);
          const double w = ip.weight * trans.Weight();
          el.CalcShape(ip, shape);
-         auto u2 = pow(mfem::InnerProduct(shape, elfun), 2);
-         for (int j = 0; j < el.GetDof(); ++j)
-         {
-            elvect(j) += shape(j) * w * cos(time) * u2;
-         }
+
+         elvect.Add(w*cos(time), shape);
       }
    }
 
    // used to set the time variable for the form 
-   friend void setInputs(TestIntegrator &integ, const mach::MachInputs &inputs);
+   friend void setInputs(TestIntegrator &integ, const miso::MISOInputs &inputs);
 
 private:
    double time;
@@ -118,17 +110,16 @@ public:
          const double w = ip.weight * trans.Weight();
 
          el.CalcShape(ip, shape);
-         auto u2 = pow(mfem::InnerProduct(shape, elfun), 2);
 
          auto v = psi * shape;
 
          /// dummy functional for adjoint-weighted residual
-         // double fun += v * cos(time) * u2 * w;
+         // double fun += v * cos(time) * w;
 
          /// start reverse pass
          double fun_bar = 1.0;
 
-         double w_bar = fun_bar * v * cos(integ.time) * u2;
+         double w_bar = fun_bar * v * cos(integ.time);
 
          /// const double w = ip.weight * trans.Weight();
          double trans_weight_bar = w_bar * ip.weight;
@@ -204,19 +195,18 @@ public:
          const double w = ip.weight * trans.Weight();
 
          el.CalcShape(ip, shape);
-         auto u2 = pow(mfem::InnerProduct(shape, elfun), 2);
 
          auto v = psi * shape;
 
          auto cos_time = cos(integ.time);
 
          /// dummy functional for adjoint-weighted residual
-         // double fun += v * cos(time) * u2 * w;
+         // double fun += v * cos(time) * w;
 
          /// start reverse pass
          double fun_bar = 1.0;
 
-         double cos_time_bar = fun_bar * v * u2 * w;
+         double cos_time_bar = fun_bar * v * w;
 
          /// auto cos_time = cos(integ.time);
          time_bar -= cos_time_bar * sin(integ.time);
@@ -234,38 +224,40 @@ private:
    mfem::Vector psi;
 };
 
-void setInputs(TestIntegrator &integ, const mach::MachInputs &inputs)
+void setInputs(TestIntegrator &integ, const miso::MISOInputs &inputs)
 {
-   mach::setValueFromInputs(inputs, "time", integ.time);
+   miso::setValueFromInputs(inputs, "time", integ.time);
 }
 
-inline void addSensitivityIntegrator(
+inline void addDomainSensitivityIntegrator(
     TestIntegrator &primal_integ,
-    std::map<std::string, mach::FiniteElementState> &fields,
+    std::map<std::string, miso::FiniteElementState> &fields,
     std::map<std::string, mfem::ParLinearForm> &rev_sens,
     std::map<std::string, mfem::ParNonlinearForm> &rev_scalar_sens,
     std::map<std::string, mfem::ParLinearForm> &fwd_sens,
-    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens)
+    std::map<std::string, mfem::ParNonlinearForm> &fwd_scalar_sens,
+    mfem::Array<int> *attr_marker,
+    std::string adjoint_name)
 {
    auto &mesh_fes = fields.at("mesh_coords").space();
    rev_sens.emplace("mesh_coords", &mesh_fes);
    rev_sens.at("mesh_coords")
        .AddDomainIntegrator(
            new TestIntegratorMeshSens(fields.at("state").gridFunc(),
-                                      fields.at("adjoint").gridFunc(),
+                                      fields.at(adjoint_name).gridFunc(),
                                       primal_integ));
 
    auto &state_fes = fields.at("state").space();
    rev_scalar_sens.emplace("time", &state_fes);
    rev_scalar_sens.at("time")
        .AddDomainIntegrator(
-           new TestIntegratorTimeSens(fields.at("adjoint").gridFunc(),
+           new TestIntegratorTimeSens(fields.at(adjoint_name).gridFunc(),
                                       primal_integ));
 }
 
-using namespace mach;
+using namespace miso;
 
-TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
+TEST_CASE("MISOLinearForm vectorJacobianProduct (vector) test")
 {
    static std::default_random_engine gen;
    static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
@@ -279,7 +271,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
 
    auto p = 2;
 
-   // create a MachNonlinearForm and wrap it into a MachResidual
+   // create a MISONonlinearForm and wrap it into a MISOResidual
    std::map<std::string, FiniteElementState> fields;
 
    fields.emplace(std::piecewise_construct,
@@ -302,7 +294,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
 
    auto &state = fields.at("state");
 
-   MachNonlinearForm form(state.space(), fields);
+   MISOLinearForm form(state.space(), fields);
    form.addDomainIntegrator(new TestIntegrator);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
@@ -311,7 +303,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
    mfem::Vector mesh_coords_tv(mesh_coords.space().GetTrueVSize());
    mesh_coords.setTrueVec(mesh_coords_tv);
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"state", state_tv},
       {"mesh_coords", mesh_coords_tv}
    });
@@ -353,7 +345,8 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
    inputs.at("mesh_coords") = mesh_coords_tv;
 
    res_vec = 0.0;
-   evaluate(form, inputs, res_vec);
+   setInputs(form, inputs);
+   addLoad(form, res_vec);
    dJdx_v_fd_local += res_bar * res_vec;
 
    add(mesh_coords_tv, -2*delta, v_tv, mesh_coords_tv);
@@ -361,7 +354,8 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
    inputs.at("mesh_coords") = mesh_coords_tv;
 
    res_vec = 0.0;
-   evaluate(form, inputs, res_vec);
+   setInputs(form, inputs);
+   addLoad(form, res_vec);
    dJdx_v_fd_local -= res_bar * res_vec;
 
    dJdx_v_fd_local /= 2*delta;
@@ -385,7 +379,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (vector) test")
    REQUIRE(dJdx_v == Approx(dJdx_v_fd).margin(1e-8));
 }
 
-TEST_CASE("MachNonlinearForm vectorJacobianProduct (scalar) test")
+TEST_CASE("MISOLinearForm vectorJacobianProduct (scalar) test")
 {
    static std::default_random_engine gen;
    static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
@@ -399,7 +393,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (scalar) test")
 
    auto p = 2;
 
-   // create a MachNonlinearForm and wrap it into a MachResidual
+   // create a MISONonlinearForm and wrap it into a MISOResidual
    std::map<std::string, FiniteElementState> fields;
 
    fields.emplace(std::piecewise_construct,
@@ -422,7 +416,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (scalar) test")
 
    auto &state = fields.at("state");
 
-   MachNonlinearForm form(state.space(), fields);
+   MISOLinearForm form(state.space(), fields);
    form.addDomainIntegrator(new TestIntegrator);
 
    mfem::Vector state_tv(state.space().GetTrueVSize());
@@ -433,7 +427,7 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (scalar) test")
 
    double time = M_PI/2;
 
-   auto inputs = MachInputs({
+   auto inputs = MISOInputs({
       {"state", state_tv},
       {"mesh_coords", mesh_coords_tv},
       {"time", time}
@@ -462,13 +456,13 @@ TEST_CASE("MachNonlinearForm vectorJacobianProduct (scalar) test")
    res_vec = 0.0;
    inputs.at("time") = time + delta;
    setInputs(form, inputs);
-   evaluate(form, inputs, res_vec);
+   addLoad(form, res_vec);
    wrt_bar_fd_local += res_bar * res_vec;
 
    res_vec = 0.0;
    inputs.at("time") = time - delta;
    setInputs(form, inputs);
-   evaluate(form, inputs, res_vec);
+   addLoad(form, res_vec);
    wrt_bar_fd_local -= res_bar * res_vec;
 
    wrt_bar_fd_local /= 2*delta;

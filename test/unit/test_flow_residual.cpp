@@ -7,12 +7,12 @@
 #include "flow_residual.hpp"
 #include "sbp_fe.hpp"
 #include "euler_fluxes.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "euler_test_data.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 auto options = R"(
 {
@@ -72,7 +72,7 @@ TEST_CASE("FlowResidual construction and evaluation", "[FlowResidual]")
    {
       getFreeStreamQ<double, dim>(mach, aoa, 0, 1, q.GetData()+num_state*i);
    }
-   auto inputs = MachInputs({{"state", q}});
+   auto inputs = MISOInputs({{"state", q}});
    Vector res_vec(num_var);
    evaluate(res, inputs, res_vec);
 
@@ -132,10 +132,10 @@ TEST_CASE("FlowResidual calcEntropyChange", "[FlowResidual]")
    // evaluate the entropy change based on q; by setting dqdt to be the 
    // residual evaluated at q, we ensure the entropy change should be zero for 
    // the periodic domain and lps coeff = 0.0
-   auto inputs = MachInputs({{"state", q}});
+   auto inputs = MISOInputs({{"state", q}});
    Vector dqdt(num_var);
    evaluate(res, inputs, dqdt);
-   inputs = MachInputs({
+   inputs = MISOInputs({
       {"state", q}, {"state_dot", dqdt}, {"time", 0.0}, {"dt", 0.0}
    });
    REQUIRE( calcEntropyChange(res, inputs) == Approx(0.0).margin(1e-14) );
