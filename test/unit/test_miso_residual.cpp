@@ -80,7 +80,7 @@ TEST_CASE("MISOResidual Scalar Input Test",
    ParFiniteElementSpace fes(mesh.get(), &fec);
 
    // create a MISONonlinearForm and wrap it into a MISOResidual
-   std::unordered_map<std::string, mfem::ParGridFunction> fields;
+   std::map<std::string, FiniteElementState> fields;
    MISONonlinearForm nf(fes, fields);
    nf.addDomainIntegrator(new TestIntegrator);
    MISOResidual res(std::move(nf));
@@ -100,7 +100,7 @@ TEST_CASE("MISOResidual Scalar Input Test",
 
    // set the time using a MISOInput to pi, and set state
    auto inputs = MISOInputs({
-      {"time", M_PI}, {"state", state.GetData()}
+      {"time", M_PI}, {"state", state}
    });
    setInputs(res, inputs);
 

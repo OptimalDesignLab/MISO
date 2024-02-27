@@ -4,7 +4,6 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "solver.hpp"
 #include "test_miso_inputs.hpp"
 
 auto options = R"(
@@ -72,7 +71,7 @@ TEST_CASE("MISOInputs Scalar Input Test",
    mfem::Vector test_field(solver.getStateSize());
    test_field = 0.0;
 
-   auto inputs = MISOInputs({
+   MISOInputs inputs{
       {"test_val", 2.0},
       {"test_field", test_field},
       {"state", state}

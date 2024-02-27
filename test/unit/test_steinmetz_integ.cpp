@@ -26,8 +26,8 @@ TEST_CASE("SteinmetzLossIntegrator::GetElementEnergy")
    mfem::ConstantCoefficient k_s(0.01);
    mfem::ConstantCoefficient alpha(1.21);
    mfem::ConstantCoefficient beta(1.62);
-   auto *integ = new mach::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
-   setInputs(*integ, {
+   auto *integ = new miso::SteinmetzLossIntegrator(rho, k_s, alpha, beta);
+   miso::setInputs(*integ, {
       {"frequency", 151.0},
       {"max_flux_magnitude", 2.2}
    });

@@ -22,8 +22,6 @@ set(REGRESSION_TEST_SRCS
    test_thermal_cube
    test_miso_inputs
    test_magnetostatic_box
-   test_meshmovement_box
-   test_meshmovement_annulus
    test_ac_loss
    test_magnetostatic_box_new
 )

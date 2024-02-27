@@ -5,7 +5,7 @@
 #include "nlohmann/json.hpp"
 
 #include "functional_output.hpp"
-#include "mach_nonlinearform.hpp"
+#include "miso_nonlinearform.hpp"
 #include "pde_solver.hpp"
 #include "utils.hpp"
 
@@ -68,8 +68,8 @@ public:
                        std::unique_ptr<mfem::Mesh> smesh)
    :  PDESolver(comm, json_options, 1, move(smesh))
    {
-      spatial_res = std::make_unique<mach::MachResidual>(
-         mach::MachNonlinearForm(fes(), fields));
+      spatial_res = std::make_unique<miso::MISOResidual>(
+         miso::MISONonlinearForm(fes(), fields));
 
       fields.emplace(
           std::piecewise_construct,

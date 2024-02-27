@@ -17,7 +17,7 @@ TEST_CASE("Test ASCII Data Logging")
    {
       test_vec(i) = u(r);
    }
-   mach::ASCIILogger logger;
+   miso::ASCIILogger logger;
    logger.saveState(test_vec, "test_vec", 0, time, 0);
 
    double read_time;
@@ -47,7 +47,7 @@ TEST_CASE("Test Binary Data Logging")
    {
       test_vec(i) = u(r);
    }
-   mach::BinaryLogger logger;
+   miso::BinaryLogger logger;
    logger.saveState(test_vec, "test_vec", 0, time, 0);
 
    double read_time;

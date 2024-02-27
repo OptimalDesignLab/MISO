@@ -7,7 +7,7 @@
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
 #include "euler_test_data.hpp"
-#include "mach_input.hpp"
+#include "miso_input.hpp"
 #include "simple_integ.hpp"
 
 using namespace std;
@@ -29,7 +29,7 @@ TEST_CASE("SIMPLE INTEGRATOR::2_ELEMENT_TETRAHEDRAL_MESH", "[SimpleIntegrator]")
 {   
     using namespace mfem;
     using namespace euler_data;
-    using namespace mach;
+    using namespace miso;
 
     // Generate 2 element mesh
     const int dim = 3; // templating is hard here because mesh constructors
@@ -52,7 +52,7 @@ TEST_CASE("SIMPLE INTEGRATOR::2_ELEMENT_TETRAHEDRAL_MESH", "[SimpleIntegrator]")
 
                     mfem::Vector x_chk({0.,0.,0.});
                     NonlinearForm res(fes.get());
-                    res.AddDomainIntegrator(new mach::SimpleIntegrator(x_chk, num_state, 1.));
+                    res.AddDomainIntegrator(new miso::SimpleIntegrator(x_chk, num_state, 1.));
 
                     GridFunction q(fes.get()), r(fes.get());
                     q = 1.0;
@@ -79,7 +79,7 @@ TEST_CASE("SIMPLE INTEGRATOR::3_ELEMENT_TETRAHEDRAL_MESH", "[SimpleIntegrator]")
 {   
     using namespace mfem;
     using namespace euler_data;
-    using namespace mach;
+    using namespace miso;
 
     // Generate 2 element mesh
     const int dim = 3; // templating is hard here because mesh constructors
@@ -102,7 +102,7 @@ TEST_CASE("SIMPLE INTEGRATOR::3_ELEMENT_TETRAHEDRAL_MESH", "[SimpleIntegrator]")
 
                     mfem::Vector x_chk({0.,0.,0.});
                     NonlinearForm res(fes.get());
-                    res.AddDomainIntegrator(new mach::SimpleIntegrator(x_chk, num_state, 1.));
+                    res.AddDomainIntegrator(new miso::SimpleIntegrator(x_chk, num_state, 1.));
 
                     GridFunction q(fes.get()), r(fes.get());
                     q = 1.0;
@@ -129,7 +129,7 @@ TEST_CASE("SIMPLE INTEGRATOR::6_ELEMENT_TETRAHEDRAL_MESH", "[SimpleIntegrator]")
 {   
     using namespace mfem;
     using namespace euler_data;
-    using namespace mach;
+    using namespace miso;
 
     // Generate 2 element mesh
     const int dim = 3; // templating is hard here because mesh constructors
@@ -180,7 +180,7 @@ TEST_CASE("SIMPLE INTEGRATOR::6_ELEMENT_TETRAHEDRAL_MESH", "[SimpleIntegrator]")
             //mfem::Vector x_chk({1.-0.3333333333333333,0.3333333333333333,0.3333333333333333});
             mfem::Vector x_chk({0.,0.,0.});
             NonlinearForm res(fes.get());
-            res.AddDomainIntegrator(new mach::SimpleIntegrator(x_chk, num_state, 1.));
+            res.AddDomainIntegrator(new miso::SimpleIntegrator(x_chk, num_state, 1.));
 
             GridFunction q(fes.get()), r(fes.get());
             q = 1.0;

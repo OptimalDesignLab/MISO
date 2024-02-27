@@ -21,14 +21,14 @@ TEST_CASE("StateAverageFunctional::calcOutput (3D)")
    mfem::H1_FECollection fec(p, dim);
    mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-   std::map<std::string, mach::FiniteElementState> fields;
+   std::map<std::string, miso::FiniteElementState> fields;
 
    fields.emplace(
       std::piecewise_construct,
       std::forward_as_tuple("state"),
       std::forward_as_tuple(mesh, fes, "state"));
 
-   mach::StateAverageFunctional out(fes, fields);
+   miso::StateAverageFunctional out(fes, fields);
 
    auto &state = fields.at("state");
    mfem::Vector state_tv(state.space().GetTrueVSize());
@@ -38,7 +38,7 @@ TEST_CASE("StateAverageFunctional::calcOutput (3D)")
       return sin(p(0)) * sin(p(0));
    }, state_tv);
 
-   mach::MachInputs inputs{{"state", state_tv}};
+   miso::MISOInputs inputs{{"state", state_tv}};
    double rms = sqrt(calcOutput(out, inputs));
 
    REQUIRE(rms == Approx(sqrt(2)/2).margin(1e-10));
@@ -57,7 +57,7 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    mfem::H1_FECollection fec(p, dim);
    mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-   std::map<std::string, mach::FiniteElementState> fields;
+   std::map<std::string, miso::FiniteElementState> fields;
    fields.emplace(
       std::piecewise_construct,
       std::forward_as_tuple("state"),
@@ -67,7 +67,7 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
    mfem::Vector state_tv(state.space().GetTrueVSize());
 
    nlohmann::json output_opts{{"rho", 50.0}};
-   mach::IEAggregateFunctional out(fes, fields, output_opts);
+   miso::IEAggregateFunctional out(fes, fields, output_opts);
 
    state.project([](const mfem::Vector &p)
    {
@@ -77,7 +77,7 @@ TEST_CASE("IEAggregateFunctional::calcOutput")
       return - pow(x - 0.5, 2) - pow(x - 0.5, 2) + 1;
    }, state_tv);
 
-   mach::MachInputs inputs{{"state", state_tv}};
+   miso::MISOInputs inputs{{"state", state_tv}};
    double max_state = calcOutput(out, inputs);
 
    /// Should be 1.0
@@ -104,7 +104,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    mfem::ND_FECollection fec(p, dim);
    mfem::ParFiniteElementSpace fes(&mesh, &fec);
 
-   std::map<std::string, mach::FiniteElementState> fields;
+   std::map<std::string, miso::FiniteElementState> fields;
    fields.emplace(
       std::piecewise_construct,
       std::forward_as_tuple("state"),
@@ -114,7 +114,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
    mfem::Vector state_tv(state.space().GetTrueVSize());
 
    nlohmann::json output_opts{{"rho", 50.0}};
-   mach::IECurlMagnitudeAggregateFunctional out(fes, fields, output_opts);
+   miso::IECurlMagnitudeAggregateFunctional out(fes, fields, output_opts);
 
    state.project([](const mfem::Vector &p, mfem::Vector &A)
    {
@@ -126,7 +126,7 @@ TEST_CASE("IECurlMagnitudeAggregateFunctional::calcOutput")
       A(2) = sin(x) + cos(y);
    }, state_tv);
 
-   mach::MachInputs inputs{{"state", state_tv}};
+   miso::MISOInputs inputs{{"state", state_tv}};
    double max_state = calcOutput(out, inputs);
 
    /// Should be sqrt(sin(1.0)^2 + 1.0)

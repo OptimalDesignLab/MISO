@@ -3005,7 +3005,7 @@ TEST_CASE("nuFuncIntegrator::AssembleRHSElementVect",
    }
 }
 
-namespace mach
+namespace miso
 {
 /// Compute the finite-difference approximation of the derivative of the
 /// magnetic energy with respect to B

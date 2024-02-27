@@ -4,8 +4,8 @@
 #include "mfem.hpp"
 
 #include "abstract_solver.hpp"
-#include "mach_input.hpp"
-#include "mach_residual.hpp"
+#include "miso_input.hpp"
+#include "miso_residual.hpp"
 #include "matrix_operators.hpp"
 #include "mfem_extensions.hpp"
 #include "utils.hpp"
@@ -13,7 +13,7 @@
 using std::cout;
 using std::endl;
 
-/// Class for ODE that follows the MachResidual API
+/// Class for ODE that follows the MISOResidual API
 class ExpODEResidual final
 {
 public:
@@ -22,17 +22,17 @@ public:
    friend int getSize(const ExpODEResidual &residual) { return 2; }
 
    friend void setInputs(ExpODEResidual &residual,
-                         const mach::MachInputs &inputs)
+                         const miso::MISOInputs &inputs)
    {
-      mach::setValueFromInputs(inputs, "dt", residual.dt);
-      mach::setVectorFromInputs(inputs, "state", residual.state);
+      miso::setValueFromInputs(inputs, "dt", residual.dt);
+      miso::setVectorFromInputs(inputs, "state", residual.state);
    }
    friend void evaluate(ExpODEResidual &residual,
-                        const mach::MachInputs &inputs,
+                        const miso::MISOInputs &inputs,
                         mfem::Vector &res_vec)
    {
       mfem::Vector dxdt;
-      mach::setVectorFromInputs(inputs, "state", dxdt);
+      miso::setVectorFromInputs(inputs, "state", dxdt);
       res_vec.SetSize(2);
       res_vec(0) = dxdt(0);
       res_vec(1) = dxdt(1);
@@ -53,7 +53,7 @@ public:
       }
    }
    friend mfem::Operator &getJacobian(ExpODEResidual &residual,
-                                      const mach::MachInputs &inputs,
+                                      const miso::MISOInputs &inputs,
                                       std::string wrt)
    {
       using std::cout;
@@ -68,7 +68,7 @@ public:
       }
       // Implicit time marching
       mfem::Vector dxdt;
-      mach::setVectorFromInputs(inputs, "state", dxdt);
+      miso::setVectorFromInputs(inputs, "state", dxdt);
       auto &x = residual.work;
       add(residual.state, residual.dt, dxdt, x);
       residual.Jac(0,0) = 1.0;
@@ -78,20 +78,20 @@ public:
       return residual.Jac;
    }
    friend double calcEntropy(ExpODEResidual &residual,
-                             const mach::MachInputs &inputs)
+                             const miso::MISOInputs &inputs)
    {
       mfem::Vector x;
-      mach::setVectorFromInputs(inputs, "state", x, false, true);
+      miso::setVectorFromInputs(inputs, "state", x, false, true);
       return exp(x(0)) + exp(x(1));
    }
    friend double calcEntropyChange(ExpODEResidual &residual,
-                                   const mach::MachInputs &inputs)
+                                   const miso::MISOInputs &inputs)
    {
       mfem::Vector x, dxdt;
-      mach::setVectorFromInputs(inputs, "state", x, false, true);
-      mach::setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
+      miso::setVectorFromInputs(inputs, "state", x, false, true);
+      miso::setVectorFromInputs(inputs, "state_dot", dxdt, false, true);
       double dt;
-      mach::setValueFromInputs(inputs, "dt", dt, true);
+      miso::setValueFromInputs(inputs, "dt", dt, true);
       //auto &y = residual.work;
       //add(x, dt, dxdt, y);
       // should be zero 
@@ -106,23 +106,23 @@ private:
 };
 
 /// Solver that uses `ExpODEResidual` to define its dynamics
-class ExponentialODESolver : public mach::AbstractSolver2
+class ExponentialODESolver : public miso::AbstractSolver2
 {
 public:
    ExponentialODESolver(MPI_Comm comm, const nlohmann::json &solver_options)
       : AbstractSolver2(comm, solver_options)
    {
-      space_time_res = std::make_unique<mach::MachResidual>(ExpODEResidual());
+      space_time_res = std::make_unique<miso::MISOResidual>(ExpODEResidual());
 
       auto lin_solver_opts = options["lin-solver"];
-      linear_solver = mach::constructLinearSolver(comm, lin_solver_opts);
+      linear_solver = miso::constructLinearSolver(comm, lin_solver_opts);
       auto nonlin_solver_opts = options["nonlin-solver"];
-      nonlinear_solver = mach::constructNonlinearSolver(
+      nonlinear_solver = miso::constructNonlinearSolver(
          comm, nonlin_solver_opts, *linear_solver);
       nonlinear_solver->SetOperator(*space_time_res);
 
       auto ode_opts = options["time-dis"];
-      ode = std::make_unique<mach::FirstOrderODE>(*space_time_res, ode_opts, 
+      ode = std::make_unique<miso::FirstOrderODE>(*space_time_res, ode_opts, 
                                                   *nonlinear_solver);
    }
 
@@ -131,9 +131,9 @@ public:
 TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")
 {
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    // Provide the options explicitly for regression tests
    auto options = R"(
@@ -162,7 +162,7 @@ TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")
    Vector u(solver.getStateSize());
    u(0) = 1.0;
    u(1) = 0.5;
-   MachInputs inputs;
+   MISOInputs inputs;
    solver.solveForState(inputs, u);
 
    // Check that solution is reasonable accurate
@@ -191,9 +191,9 @@ TEST_CASE("Testing AbstractSolver using RK4", "[abstract-solver]")
 TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
 {
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    // Provide the options explicitly for regression tests
    auto options = R"(
@@ -232,7 +232,7 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
    Vector u0(solver.getStateSize()), u(solver.getStateSize());
    solver.setState([&](mfem::Vector &u) {exact_sol(0.0, u); }, u0);
    u = u0;
-   MachInputs inputs;
+   MISOInputs inputs;
    solver.solveForState(inputs, u);
 
    auto t_final = options["time-dis"]["t-final"].get<double>();
@@ -260,9 +260,9 @@ TEST_CASE("Testing AbstractSolver using RRK", "[abstract-solver]")
 TEST_CASE("Testing AbstractSolver using RRK6", "[abstract-solver]")
 {
    const bool verbose = true; // set to true for some output 
-   std::ostream *out = verbose ? mach::getOutStream(0) : mach::getOutStream(1);
+   std::ostream *out = verbose ? miso::getOutStream(0) : miso::getOutStream(1);
    using namespace mfem;
-   using namespace mach;
+   using namespace miso;
 
    // Provide the options explicitly for regression tests
    auto options = R"(
@@ -301,7 +301,7 @@ TEST_CASE("Testing AbstractSolver using RRK6", "[abstract-solver]")
    Vector u0(solver.getStateSize()), u(solver.getStateSize());
    solver.setState([&](mfem::Vector &u) {exact_sol(0.0, u); }, u0);
    u = u0;
-   MachInputs inputs;
+   MISOInputs inputs;
    solver.solveForState(inputs, u);
 
    auto t_final = options["time-dis"]["t-final"].get<double>();

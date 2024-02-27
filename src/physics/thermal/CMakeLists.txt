@@ -1,4 +1,5 @@
 set(MISO_PHYSICS_THERMAL_HEADERS
+   temp_integ.hpp
    thermal_integ.hpp
    thermal_residual.hpp
    thermal.hpp
@@ -6,6 +7,7 @@ set(MISO_PHYSICS_THERMAL_HEADERS
 
 target_sources(miso
    PRIVATE
+      temp_integ.hpp
       thermal_integ.cpp
       thermal_residual.cpp
       thermal.cpp

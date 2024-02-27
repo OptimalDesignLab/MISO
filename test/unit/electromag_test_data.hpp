@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <random>
+#include <vector>
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
@@ -14,6 +15,11 @@ namespace electromag_data
 // define the random-number generator; uniform between -1 and 1
 static std::default_random_engine gen;
 static std::uniform_real_distribution<double> uniform_rand(-1.0,1.0);
+
+double randNumber()
+{
+   return uniform_rand(gen);
+}
 
 void randBaselineVectorPert(const mfem::Vector &x, mfem::Vector &u)
 {
@@ -76,7 +82,7 @@ void vectorFunc2RevDiff(const mfem::Vector &x, const mfem::Vector &v_bar, mfem::
    x_bar(2) = 2*sin(x(0))*x(2)*v_bar(0) - x(0)*v_bar(1) + sin(x(1))*exp(x(2))*v_bar(2);
 }
 
-/// Simple linear coefficient for testing CurlCurlNLFIntegrator
+/// Simple linear coefficient for testing CurlCurlNLFIntegrator. Also using for ACLFI, ACLFDI
 class LinearCoefficient : public miso::StateCoefficient
 {
 public:
@@ -100,11 +106,11 @@ private:
    double value;
 };
 
-/// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator
+/// Simple nonlinear coefficient for testing CurlCurlNLFIntegrator. Also using for DCLFI, DCLFDI
 class NonLinearCoefficient : public miso::StateCoefficient
 {
 public:
-   NonLinearCoefficient() {};
+   NonLinearCoefficient(double exponent = -0.5) : exponent(exponent) {}
 
    double Eval(mfem::ElementTransformation &trans,
                const mfem::IntegrationPoint &ip,
@@ -115,7 +121,8 @@ public:
       // double state_mag = state.Norml2();
       // return pow(state, 2.0);
       // return state;
-      return 0.5*pow(state+1, -0.5);
+      // return 0.5*pow(state+1, -0.5);
+      return 0.5*pow(state+1, exponent);
    }
 
    double EvalStateDeriv(mfem::ElementTransformation &trans,
@@ -127,7 +134,8 @@ public:
       // double state_mag = state.Norml2();
       // return 2.0*pow(state, 1.0);
       // return 1.0;
-      return -0.25*pow(state+1, -1.5);
+      // return -0.25*pow(state+1, -1.5);
+      return 0.5*(exponent)*pow(state+1, exponent-1);
    }
 
    double EvalState2ndDeriv(mfem::ElementTransformation &trans,
@@ -136,8 +144,492 @@ public:
    {
       // return 2.0;
       // return 0.0;
-      return 0.375*pow(state+1, -2.5);
+      // return 0.375*pow(state+1, -2.5);
+      return 0.5*(exponent)*(exponent-1)*pow(state+1, exponent-2);
    }
+
+   void EvalRevDiff(double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    const double state,
+                    mfem::DenseMatrix &PointMat_bar) override
+   { }
+
+private:
+   double exponent;
+};
+
+/// Simple linear coefficient (vectorstatecoefficient analog) for testing IEAggDemag 
+class LinearVectorCoefficient : public miso::VectorStateCoefficient
+{
+public:
+   LinearVectorCoefficient(int dim, double val = 1.0) : miso::VectorStateCoefficient(dim), value(val) {}
+   void Eval(mfem::Vector &vec, 
+            mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      vec = value; // independent of state value
+   }
+
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      // Not using, just need to "implement" because it is virtual in the base class
+   }
+
+private:
+   int dim;
+   double value;
+};
+
+/// Simple nonlinear coefficient (vectorstatecoefficient analog) for testing IEAggDemag 
+class NonLinearVectorCoefficient : public miso::VectorStateCoefficient
+{
+public:
+   NonLinearVectorCoefficient(int dim, double exponent = -0.5) : miso::VectorStateCoefficient(dim), exponent(exponent) {}   
+   
+   void Eval(mfem::Vector &vec, 
+            mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      vec = 0.5*pow(state+1, exponent);
+   }
+
+   void EvalRevDiff(const mfem::Vector &V_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      // Not using, just need to "implement" because it is virtual in the base class
+   }
+
+private:
+   int dim;
+   double exponent;
+};
+
+/*** No longer using SigmaCoefficient (unnecessary)
+/// Simple coefficient for conductivity for testing resistivity (and DCLFIMS)
+class SigmaCoefficient : public miso::StateCoefficient
+{
+public:
+   SigmaCoefficient(double alpha_resistivity = 3.8e-3, 
+                    double T_ref = 293.15,
+                    double sigma_T_ref = 5.6497e7) 
+   : alpha_resistivity(alpha_resistivity), T_ref(T_ref), sigma_T_ref(sigma_T_ref) {}
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               const double state) override
+   {
+      // Logic from ConductivityCoefficient
+      return sigma_T_ref/(1+alpha_resistivity*(state-T_ref));
+   }
+
+   double EvalStateDeriv(mfem::ElementTransformation &trans,
+                         const mfem::IntegrationPoint &ip,
+                         const double state) override
+   {
+      // Logic from ConductivityCoefficient
+      return (-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+
+   }
+
+   double EvalState2ndDeriv(mfem::ElementTransformation &trans,
+                            const mfem::IntegrationPoint &ip,
+                            const double state) override
+   {
+      // Logic from ConductivityCoefficient
+      return (2*sigma_T_ref*std::pow(alpha_resistivity,2))/std::pow(1+alpha_resistivity*(state-T_ref),3);
+   }
+
+   // Implementing method for the purposes of DCLossFunctionalIntegratorMeshSens test
+   void EvalRevDiff(const double Q_bar,
+                    mfem::ElementTransformation &trans,
+                    const mfem::IntegrationPoint &ip,
+                    mfem::DenseMatrix &PointMat_bar) override
+   {
+      // Implementing method for the purposes of DCLossFunctionalIntegratorMeshSens test
+      // Trivial implementation (MFEM just needs method to be present so it can call it)
+      ///FormerTODO: Make an actual implementation (nonzero implementation). Currently, PointMat_bar is not being updated
+      
+      // Using the old SteinmetzCoefficient::EvalRevDiff as inspiration
+
+      ///FormerTODO: Figure out how to get the element nodes so can pass them in to loop below (the below is not it)
+      // double *p;
+      // const int dim=PointMat_bar.Height();
+      // ip.Get(p, dim);
+      // std::cout << "p=[" << p[0];
+      // std::cout << "," << p[1] << ","; 
+      // std::cout << p[2] << "\n";
+
+      // Evaluate the reverse mode derivative of sigma w/r/t the mesh nodes
+      for (int d = 0; d < PointMat_bar.Height(); ++d)
+      {
+         for (int j = 0; j < PointMat_bar.Width(); ++j)
+         {
+            
+            // std::cout << "nodes(" << d << "," << j << " = " << nodes(d,j) << "\n";
+
+            ///FormerTODO: Assuming have the node locations, calculate the value for EvalRevDiff
+            // double dT_nodedx = 0;
+            // double T_node=37;
+            // PointMat_bar(d,j)+=(-sigma_T_ref*alpha_resistivity*dT_nodedx)/std::pow(1+alpha_resistivity*(T_node-T_ref),2);
+         }
+      }
+
+      // PointMat_bar+=0;
+      // PointMat_bar+=(-sigma_T_ref*alpha_resistivity)/std::pow(1+alpha_resistivity*(state-T_ref),2);
+      
+   } 
+private:
+   double alpha_resistivity;
+   double T_ref;
+   double sigma_T_ref;
+};
+*/
+
+/// Simple two state coefficient for testing PMDemagIntegrator
+class SimpleTwoStateCoefficient : public miso::TwoStateCoefficient
+{
+public:
+   SimpleTwoStateCoefficient() {}; 
+
+   double Eval(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      auto B = state1;
+      auto T = state2;
+
+      auto C_BT = pow(B,2)*T;
+      return C_BT;
+   }
+
+   double EvalDerivS1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      // First derivative with respect to flux density
+
+      auto B = state1;
+      auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      auto dC_BTdB = 2.0 * B * T;
+      return dC_BTdB;
+   }
+
+   double EvalDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      // First derivative with respect to temperature
+
+      auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      auto dC_BTdT = pow(B,2);
+      return dC_BTdT;
+   }
+
+   double Eval2ndDerivS1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Second derivative with respect to flux density
+
+      // auto B = state1;
+      auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdB = 2 * B * T;
+      auto d2C_BTdB2 = 2.0 * T; 
+      return d2C_BTdB2;
+   }
+
+   double Eval2ndDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Second derivative with respect to temperature
+
+      // auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdT = pow(B,2);
+      auto d2C_BTdT2 = 0.0;
+      return d2C_BTdT2;
+   }
+
+   double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Derivative with respect to flux density then temperature
+
+      auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdB = 2.0 * B * T;
+      auto d2C_BTdBdT = 2.0 * B;
+      return d2C_BTdBdT;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS2S1
+   double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2) override
+   {
+      // Assuming state1=flux density and state2=temperature
+      // Derivative with respect to temperature then flux density
+
+      auto B = state1;
+      // auto T = state2;
+
+      // auto C_BT = pow(B,2)*T;
+      // auto dC_BTdT = pow(B,2);      
+      auto d2C_BTdTdB = 2.0 * B;
+      return d2C_BTdTdB;
+   }
+};
+
+
+
+/// Simple coefficient for CAL2 coefficients for testing CAL2CoreLossIntegrator
+// Can represent either CAL2_kh coefficients or CAL2_ke coefficients
+class CAL2Coefficient : public miso::ThreeStateCoefficient
+{
+public:
+   // CAL2Coefficient(double &T0, 
+   //                  std::vector<double> &k_T0,
+   //                  double &T1,
+   //                  std::vector<double> &k_T1) 
+   // : T0(T0), k_T0(k_T0), T1(T1), k_T1(k_T1) {}
+   CAL2Coefficient() {};
+
+   double Eval(mfem::ElementTransformation &trans,
+               const mfem::IntegrationPoint &ip,
+               double state1,
+               double state2,
+               double state3) override
+   {      
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
+
+      return T*pow(Bm,-1.0);
+   }
+
+   double EvalDerivS1(mfem::ElementTransformation &trans,
+                           const mfem::IntegrationPoint &ip,
+                           const double state1,
+                           const double state2,
+                           const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return pow(Bm,-1.0);
+   }
+
+   double EvalDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+   double EvalDerivS3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return -T*pow(Bm,-2.0);
+   }
+
+   double Eval2ndDerivS1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+   double Eval2ndDerivS2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+   double Eval2ndDerivS3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 2.0*T*pow(Bm,-3.0);
+   }
+
+   double Eval2ndDerivS1S2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+   double Eval2ndDerivS1S3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return -1.0*pow(Bm,-2.0);
+   }
+
+   double Eval2ndDerivS2S3(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS1S2
+   double Eval2ndDerivS2S1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS1S3
+   double Eval2ndDerivS3S1(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return -1.0*pow(Bm,-2.0);
+   }
+
+   ///TODO: Likely not necessary because of Eval2ndDerivS2S3
+   double Eval2ndDerivS3S2(mfem::ElementTransformation &trans,
+                              const mfem::IntegrationPoint &ip,
+                              const double state1,
+                              const double state2,
+                              const double state3) override
+   {
+      // Assuming state1=temperature, state2=frequency, state3=max alternating flux density
+      // auto T = state1;
+      // auto f = state2;
+      // auto Bm = state3;
+
+      // return T*pow(Bm,-1.0);
+      return 0;
+   }
+
+private:
+   // double &T0;
+   // std::vector<double> &k_T0;
+   // double &T1;
+   // std::vector<double> &k_T1;
 };
 
 nlohmann::json getBoxOptions(int order)

@@ -8,14 +8,13 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "navier_stokes.hpp"
 #include "euler_fluxes.hpp"
 #include "euler_integ.hpp"
 #include "flow_solver.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 /// \brief Defines the exact solution for the manufactured solution + perturb by 5%
 /// \param[in] x - coordinate of the point at which the state is needed
@@ -147,8 +146,8 @@ TEST_CASE("Simple Far-Field test" , "NS-nonMMS")
     ns_solver.setState(uexact_pert, state_tv);
 
     // solve for solution
-    MachInputs inputs({{"state", state_tv}});
-    inputs = MachInputs({});
+    MISOInputs inputs({{"state", state_tv}});
+    inputs = MISOInputs({});
     ns_solver.solveForState(inputs, state_tv);
     auto &state = ns_solver.getState();
     state.distributeSharedDofs(state_tv);

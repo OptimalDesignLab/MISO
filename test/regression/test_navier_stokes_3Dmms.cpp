@@ -7,14 +7,12 @@
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "navier_stokes.hpp"
-// #include "euler_fluxes.hpp"
-// #include "euler_integ.hpp"
+#include "euler_fluxes.hpp"
 #include "flow_solver.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 // Provide the options explicitly for regression tests
 auto options = R"(
@@ -105,8 +103,8 @@ TEST_CASE( "Navier-Stokes 3D MMS inital norm convergance test", "[NS-MMS]")
             std::cout << "Number of nodes = " << solver.getStateSize() << "\n";
             solver.setState(uexact, state_tv);
 
-            // set Mach inputs and compute the initial residual norm
-            MachInputs inputs({{"state", state_tv}});
+            // set MISO inputs and compute the initial residual norm
+            MISOInputs inputs({{"state", state_tv}});
             res_norm[r]  = solver.calcResidualNorm(inputs);
             std::cout << "Overall initial residual norm is: " << res_norm[r] << "\n";
 

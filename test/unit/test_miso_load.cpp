@@ -81,7 +81,7 @@ TEST_CASE("MISOInputs Scalar Input Test",
    MISOLinearForm lf(fes, fields);
    lf.addDomainIntegrator(new TestMISOLoadIntegrator);
 
-   MISOLoad ml(lf);
+   MISOLoad ml(std::move(lf));
 
    auto inputs = MISOInputs({
       {"test_val", 5.0}

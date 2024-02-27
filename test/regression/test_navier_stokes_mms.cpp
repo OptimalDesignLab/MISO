@@ -117,12 +117,12 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
 
          // get the initial entropy 
          solver.createOutput("entropy", options["outputs"].at("entropy"));
-         MachInputs inputs({{"state", state_tv}});
+         MISOInputs inputs({{"state", state_tv}});
          double entropy0 = solver.calcOutput("entropy", inputs);
          cout << "before time stepping, entropy is " << entropy0 << endl;
 
          // Solve for the state and compute error
-         inputs = MachInputs({});
+         inputs = MISOInputs({});
          solver.solveForState(inputs, state_tv);
          auto &state = solver.getState();
          state.distributeSharedDofs(state_tv);
@@ -137,7 +137,7 @@ TEST_CASE( "Navier-Stokes MMS regression test", "[NS-MMS]")
             "boundaries": [1, 3]
          })"_json;
          solver.createOutput("drag", drag_opts);
-         inputs = MachInputs({
+         inputs = MISOInputs({
             {"state", state.gridFunc()}
          });
          double drag_error = solver.calcOutput("drag", inputs) - 1.6;

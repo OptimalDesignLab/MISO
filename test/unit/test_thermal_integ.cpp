@@ -1,343 +1,1070 @@
 #include <random>
-#include <string>
 
 #include "catch.hpp"
 #include "mfem.hpp"
 
-#include "euler_test_data.hpp"  // Do we need to include this?
+#include "electromag_test_data.hpp"
 
-#include "temp_integ.hpp"
-#include "therm_integ.hpp"
+#include "thermal_integ.hpp"
 
-TEST_CASE("AggregateIntegratorNumerator/Denominator::GetEnergy")
+using namespace mfem;
+using namespace miso;
+using namespace electromag_data;
+
+TEST_CASE("TestBCIntegratorMeshRevSens::AssembleRHSElementVect")
 {
-   using namespace mfem;
-   using namespace miso;
+   double delta = 1e-5;
 
-   constexpr int dim = 3;
+   // generate a 6 element mesh
    int num_edge = 2;
-   std::unique_ptr<Mesh> mesh(
-      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                     Element::TETRAHEDRON,
-                                     1.0, 1.0, 1.0, true)));
-   
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
    for (int p = 1; p <= 4; ++p)
    {
-      DYNAMIC_SECTION("... for degree p = " << p)
+      DYNAMIC_SECTION( "...for degree p = " << p )
       {
          H1_FECollection fec(p, dim);
-         FiniteElementSpace fes(mesh.get(), &fec);
+         FiniteElementSpace fes(&mesh, &fec);
 
-         GridFunction theta(&fes);
-         FunctionCoefficient parabola([](const Vector &x)
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::TestBCIntegrator;
+         res.AddBdrFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         // dfdx.AddBdrFaceIntegrator(
+         dfdx.AddBoundaryIntegrator(
+            new miso::TestBCIntegratorMeshRevSens(state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("L2ProjectionIntegrator::AssembleElementGrad")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   mfem::ConstantCoefficient one(1.0);
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         res.AddDomainIntegrator(new miso::L2ProjectionIntegrator(one));
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
          {
-            return -(x(0)-0.5)*(x(0)-0.5) + -(x(1)-0.5)*(x(1)-0.5) + 100;
-         });
-         theta.ProjectCoefficient(parabola);
-         {
-               std::ofstream sol_ofs("theta.vtk");
-               sol_ofs.precision(14);
-               int refine = p+1;
-               mesh->PrintVTK(sol_ofs, refine);
-               theta.SaveVTK(sol_ofs, "Solution", refine);
-               sol_ofs.close();
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
          }
-         Vector max(2);
-         max = 95;
-         double rho = 20;
-
-         NonlinearForm numer(&fes);
-         numer.AddDomainIntegrator(
-            new AggregateIntegratorNumerator(rho, max));
-
-         NonlinearForm denom(&fes);
-         denom.AddDomainIntegrator(
-            new AggregateIntegratorDenominator(rho, max));
-
-         double n = numer.GetEnergy(theta);
-         double d = denom.GetEnergy(theta);
-
-         double fun = n/d;
-         // std::cout << "n: " << n << " d: " << d << " fun: " << fun << "\n";
       }
    }
 }
 
-TEST_CASE("AggregateIntegrator::AssembleVector", "[AggregateIntegrator]")
+TEST_CASE("L2ProjectionIntegratorMeshRevSens::AssembleRHSElementVect")
 {
-   using namespace mfem;
-   using namespace euler_data;
-
-   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
-   // generate a 2 element mesh
-   int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(
-      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                     Element::TETRAHEDRON,
-                                     1.0, 1.0, 1.0, true)));
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   mfem::ConstantCoefficient one(1.0);
    for (int p = 1; p <= 4; ++p)
    {
-      DYNAMIC_SECTION("...for degree p = " << p)
+      DYNAMIC_SECTION( "...for degree p = " << p )
       {
-         std::unique_ptr<FiniteElementCollection> fec(
-             new H1_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get()));
-
-         std::unique_ptr<miso::AggregateIntegrator> func;
-
-         const double scale = 0.01;
-
-         Vector m;
-         m.SetSize(2);
-         m(0) = 0.5;
-         m(1) = 0.5;
-
-         double delta = 1e-5;
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
          FunctionCoefficient pert(randState);
-         q.ProjectCoefficient(pert);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
 
-         double rhoa = 5.0;
-         NonlinearForm agg(fes.get());
-         agg.AddDomainIntegrator(
-            new miso::AggregateIntegrator(fes.get(), rhoa, m, &q));
-         func.reset(new miso::AggregateIntegrator(fes.get(), rhoa, m));
-
-         // initialize the vector that dJdu multiplies
-         GridFunction v(fes.get());
-         FunctionCoefficient v_rand(randState);
-         v.ProjectCoefficient(v_rand);
-
-         // evaluate dJdu and compute its product with v
-         GridFunction dJdu(fes.get());
-         agg.Mult(q, dJdu);
-         double dJdu_dot_v = InnerProduct(dJdu, v);
-
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(q);
-         q_pert.Add(-delta, v);
-         double dJdu_dot_v_fd = -func->GetIEAggregate(&q_pert);
-         q_pert.Add(2 * delta, v);
-         dJdu_dot_v_fd += func->GetIEAggregate(&q_pert);
-         dJdu_dot_v_fd /= (2 * delta);
-         // std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
-         // std::cout << "dJdu_dot_v_fd = " << dJdu_dot_v_fd << std::endl;
-         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
-      }
-   }
-}
-
-TEST_CASE("TempIntegrator::AssembleVector", "[TempIntegrator]")
-{
-   using namespace mfem;
-   using namespace euler_data;
-
-   const int dim = 3; // templating is hard here because mesh constructors
-   double delta = 1e-5;
-
-   // generate a 2 element mesh
-   int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(
-      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                     Element::TETRAHEDRON,
-                                     1.0, 1.0, 1.0, true)));
-   for (int p = 1; p <= 4; ++p)
-   {
-      DYNAMIC_SECTION("...for degree p = " << p)
-      {
-         std::unique_ptr<FiniteElementCollection> fec(
-             new H1_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get()));
-
-         std::unique_ptr<miso::TempIntegrator> func;
-
-         const double scale = 0.01;
-
-         double delta = 1e-5;
-
-         // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         FunctionCoefficient pert(randState);
-         q.ProjectCoefficient(pert);
-
-         NonlinearForm tempint(fes.get());
-         tempint.AddDomainIntegrator(
-            new miso::TempIntegrator(fes.get(), &q));
-         func.reset(new miso::TempIntegrator(fes.get()));
-
-         // initialize the vector that dJdu multiplies
-         GridFunction v(fes.get());
-         FunctionCoefficient v_rand(randState);
-         v.ProjectCoefficient(v_rand);
-
-         // evaluate dJdu and compute its product with v
-         GridFunction dJdu(fes.get());
-         tempint.Mult(q, dJdu);
-         double dJdu_dot_v = InnerProduct(dJdu, v);
-
-         // now compute the finite-difference approximation...
-         GridFunction q_pert(q);
-         q_pert.Add(-delta, v);
-         double dJdu_dot_v_fd = -func->GetTemp(&q_pert);
-         q_pert.Add(2 * delta, v);
-         dJdu_dot_v_fd += func->GetTemp(&q_pert);
-         dJdu_dot_v_fd /= (2 * delta);
-         // std::cout << "dJdu_dot_v = " << dJdu_dot_v << std::endl;
-         // std::cout << "dJdu_dot_v_fd = " << dJdu_dot_v_fd << std::endl;
-         REQUIRE(dJdu_dot_v == Approx(dJdu_dot_v_fd));
-      }
-   }
-}
-
-TEST_CASE("AggregateResIntegrator::AssembleVector", "[AggregateResIntegrator]")
-{
-   using namespace mfem;
-   using namespace euler_data;
-
-   const int dim = 3; // templating is hard here because mesh constructors
-   double delta = 1e-5;
-
-   // generate a 2 element mesh
-   int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(
-      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                     Element::TETRAHEDRON,
-                                     1.0, 1.0, 1.0, true)));
-   mesh->EnsureNodes();
-   for (int p = 1; p <= 4; ++p)
-   {
-      DYNAMIC_SECTION("...for degree p = " << p)
-      {
-         // get the finite-element space for the state
-         std::unique_ptr<FiniteElementCollection> fec(
-             new H1_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get()));
-
-         std::unique_ptr<miso::AggregateResIntegrator> func;
-
-         const double scale = 0.01;
-
-         Vector m;
-         m.SetSize(2);
-         m(0) = 0.5;
-         m(1) = 0.5;
-
-         double delta = 1e-5;
-
-         // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
-         FunctionCoefficient pert(randState);
-         q.ProjectCoefficient(pert);
+         NonlinearForm res(&fes);
+         auto *integ = new miso::L2ProjectionIntegrator(one);
+         res.AddDomainIntegrator(integ);
 
          // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = mesh->GetNodes();
-         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
 
-         double rhoa = 5.0;
-         
-         // initialize the vector that dJdx multiplies
-         GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randVectorState);
-         v.ProjectCoefficient(v_rand);
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
 
-         // evaluate dJdx and compute its product with v
-         GridFunction dJdx(*x_nodes);
-         NonlinearForm agg(mesh_fes);
-         agg.AddDomainIntegrator(
-            new miso::AggregateResIntegrator(fes.get(), rhoa, m, &q));
-         func.reset(new miso::AggregateResIntegrator(fes.get(), rhoa, m));
-         agg.Mult(*x_nodes, dJdx);
-         double dJdx_dot_v = dJdx * v;
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddDomainIntegrator(
+            new miso::L2ProjectionIntegratorMeshRevSens(state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
 
          // now compute the finite-difference approximation...
-         GridFunction x_pert(*x_nodes);
-         x_pert.Add(-delta, v);
-         mesh->SetNodes(x_pert);
-         double dJdx_dot_v_fd = -func->GetIEAggregate(&q);
-         x_pert.Add(2 * delta, v);
-         mesh->SetNodes(x_pert);
-         dJdx_dot_v_fd += func->GetIEAggregate(&q);
-         dJdx_dot_v_fd /= (2 * delta);
-         // std::cout << "dJdx_dot_v = " << dJdx_dot_v << std::endl;
-         // std::cout << "dJdx_dot_v_fd = " << dJdx_dot_v_fd << std::endl;
-         REQUIRE(dJdx_dot_v == Approx(dJdx_dot_v_fd));
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }
 
-TEST_CASE("TempResIntegrator::AssembleVector", "[TempResIntegrator]")
+TEST_CASE("ThermalContactResistanceIntegrator::AssembleFaceGrad")
 {
-   using namespace mfem;
-   using namespace euler_data;
-
-   const int dim = 3; // templating is hard here because mesh constructors
    double delta = 1e-5;
 
-   // generate a 2 element mesh
-   int num_edge = 1;
-   std::unique_ptr<Mesh> mesh(
-      new Mesh(Mesh::MakeCartesian3D(num_edge, num_edge, num_edge,
-                                     Element::TETRAHEDRON,
-                                     1.0, 1.0, 1.0, true)));
-   mesh->EnsureNodes();
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
    for (int p = 1; p <= 4; ++p)
    {
-      DYNAMIC_SECTION("...for degree p = " << p)
+      DYNAMIC_SECTION( "...for degree p = " << p )
       {
-         // get the finite-element space for the state
-         std::unique_ptr<FiniteElementCollection> fec(
-             new H1_FECollection(p, dim));
-         std::unique_ptr<FiniteElementSpace> fes(new FiniteElementSpace(
-             mesh.get(), fec.get()));
-
-         std::unique_ptr<miso::TempResIntegrator> func;
-
-         const double scale = 0.01;
-
-         double delta = 1e-5;
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
 
          // initialize state; here we randomly perturb a constant state
-         GridFunction q(fes.get());
+         GridFunction state(&fes);
          FunctionCoefficient pert(randState);
-         q.ProjectCoefficient(pert);
+         state.ProjectCoefficient(pert);
 
-         // extract mesh nodes and get their finite-element space
-         GridFunction *x_nodes = mesh->GetNodes();
-         FiniteElementSpace *mesh_fes = x_nodes->FESpace();
-         
-         // initialize the vector that dJdx multiplies
-         GridFunction v(mesh_fes);
-         VectorFunctionCoefficient v_rand(dim, randVectorState);
-         v.ProjectCoefficient(v_rand);
+         NonlinearForm res(&fes);
+         res.AddInteriorFaceIntegrator(new miso::ThermalContactResistanceIntegrator);
 
-         // evaluate dJdx and compute its product with v
-         GridFunction dJdx(*x_nodes);
-         NonlinearForm tempint(mesh_fes);
-         tempint.AddDomainIntegrator(
-            new miso::TempResIntegrator(fes.get(), &q));
-         func.reset(new miso::TempResIntegrator(fes.get()));
-         tempint.Mult(*x_nodes, dJdx);
-         double dJdx_dot_v = dJdx * v;
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
 
          // now compute the finite-difference approximation...
-         GridFunction x_pert(*x_nodes);
-         x_pert.Add(-delta, v);
-         mesh->SetNodes(x_pert);
-         double dJdx_dot_v_fd = -func->GetTemp(&q);
-         x_pert.Add(2 * delta, v);
-         mesh->SetNodes(x_pert);
-         dJdx_dot_v_fd += func->GetTemp(&q);
-         dJdx_dot_v_fd /= (2 * delta);
-         // std::cout << "dJdx_dot_v = " << dJdx_dot_v << std::endl;
-         // std::cout << "dJdx_dot_v_fd = " << dJdx_dot_v_fd << std::endl;
-         REQUIRE(dJdx_dot_v == Approx(dJdx_dot_v_fd));
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
+TEST_CASE("ThermalContactResistanceIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::ThermalContactResistanceIntegrator;
+         res.AddInteriorFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new miso::ThermalContactResistanceIntegratorMeshRevSens(mesh_fes, state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ThermalContactResistanceIntegratorHRevSens::GetFaceEnergy")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::ThermalContactResistanceIntegrator;
+         setInputs(*integ, {
+            {"h", 10.0}
+         });
+         res.AddInteriorFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new miso::ThermalContactResistanceIntegratorHRevSens(state, adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"h", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"h", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegrator::AssembleFaceGrad")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   
+   // assign attributes to left and right sides
+   for (int i = 0; i < mesh.GetNE(); ++i)
+   {
+      auto *elem = mesh.GetElement(i);
+
+      Array<int> verts;
+      elem->GetVertices(verts);
+
+      bool left = true;
+      for (int i = 0; i < verts.Size(); ++i)
+      {
+         auto *vtx = mesh.GetVertex(verts[i]);
+         if (vtx[0] <= 0.5)
+         {
+            left = left;
+         }
+         else
+         {
+            left = false;
+         }
+      }
+      if (left)
+      {
+         elem->SetAttribute(1);
+      }
+      else
+      {
+         elem->SetAttribute(2);
+      }
+   }
+
+   // add internal boundary elements
+   for (int i = 0; i < mesh.GetNumFaces(); ++i)
+   {
+      int e1, e2;
+      mesh.GetFaceElements(i, &e1, &e2);
+      if (e1 >= 0 && e2 >= 0 && mesh.GetAttribute(e1) != mesh.GetAttribute(e2))
+      {
+         // This is the internal face between attributes.
+         auto *new_elem = mesh.GetFace(i)->Duplicate(&mesh);
+         new_elem->SetAttribute(5);
+         mesh.AddBdrElement(new_elem);
+      }
+   }
+   mesh.FinalizeTopology(); // Finalize to build relevant tables
+   mesh.Finalize();
+   mesh.SetAttributes(); 
+   mesh.EnsureNodes();
+
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         mfem::Array<int> bdr_attr(mesh.bdr_attributes.Max());
+         bdr_attr = 0;
+         bdr_attr[4] = 1;
+         res.AddInternalBoundaryFaceIntegrator(
+            new miso::InternalConvectionInterfaceIntegrator(1.0, 1.0),
+            bdr_attr);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         // std::cout << "jac_v: ";
+         // jac_v.Print(mfem::out, jac_v.Size());
+
+         // std::cout << "jac_v_fd: ";
+         jac_v_fd.Print(mfem::out, jac_v_fd.Size());
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::InternalConvectionInterfaceIntegrator;
+         res.AddInteriorFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new miso::InternalConvectionInterfaceIntegratorMeshRevSens(mesh_fes, state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegratorHRevSens::GetFaceEnergy")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::InternalConvectionInterfaceIntegrator;
+         setInputs(*integ, {
+            {"h", 10.0}
+         });
+         res.AddInteriorFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new miso::InternalConvectionInterfaceIntegratorHRevSens(state, adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"h", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"h", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("InternalConvectionInterfaceIntegratorFluidTempRevSens::GetFaceEnergy")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         L2_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::InternalConvectionInterfaceIntegrator;
+         setInputs(*integ, {
+            {"fluid_temp", 10.0}
+         });
+         res.AddInteriorFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddInteriorFaceIntegrator(
+            new miso::InternalConvectionInterfaceIntegratorFluidTempRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"fluid_temp", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"fluid_temp", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ConvectionBCIntegrator::AssembleFaceGrad")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         res.AddBdrFaceIntegrator(new miso::ConvectionBCIntegrator);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
+TEST_CASE("ConvectionBCIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::ConvectionBCIntegrator;
+         res.AddBdrFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         // dfdx.AddBdrFaceIntegrator(
+         dfdx.AddBoundaryIntegrator(
+            new miso::ConvectionBCIntegratorMeshRevSens(state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ConvectionBCIntegratorHRevSens::GetFaceEnergy")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::ConvectionBCIntegrator;
+         setInputs(*integ, {
+            {"h", 10.0}
+         });
+         res.AddBdrFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddBdrFaceIntegrator(
+         // dfdx.AddBoundaryIntegrator(
+            new miso::ConvectionBCIntegratorHRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"h", 10 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"h", 10 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("ConvectionBCIntegratorFluidTempRevSens::GetFaceEnergy")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::ConvectionBCIntegrator;
+         setInputs(*integ, {
+            {"fluid_temp", 100.0}
+         });
+         res.AddBdrFaceIntegrator(integ);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         NonlinearForm dfdx(&fes);
+         dfdx.AddBdrFaceIntegrator(
+         // dfdx.AddBoundaryIntegrator(
+            new miso::ConvectionBCIntegratorFluidTempRevSens(adjoint, *integ));
+
+         // random perturbation
+         double v = 0.3042434;
+         double dfdx_v = dfdx.GetEnergy(state) * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes);
+         setInputs(*integ, {
+            {"fluid_temp", 100 + delta * v}
+         });
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+
+         setInputs(*integ, {
+            {"fluid_temp", 100 - delta * v}
+         });
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+
+         std::cout << "dfdx_v: " << dfdx_v << " dfdx_v_fd: " << dfdx_v_fd << "\n";
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
+      }
+   }
+}
+
+TEST_CASE("OutfluxBCIntegrator::AssembleFaceGrad")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         res.AddBdrFaceIntegrator(new miso::OutfluxBCIntegrator);
+
+         // initialize the vector that the Jacobian multiplies
+         GridFunction v(&fes);
+         v.ProjectCoefficient(pert);
+
+         // evaluate the Jacobian and compute its product with v
+         Operator& jac = res.GetGradient(state);
+         GridFunction jac_v(&fes);
+         jac.Mult(v, jac_v);
+
+         // now compute the finite-difference approximation...
+         GridFunction r(&fes), jac_v_fd(&fes);
+         state.Add(-delta, v);
+         res.Mult(state, r);
+         state.Add(2*delta, v);
+         res.Mult(state, jac_v_fd);
+         jac_v_fd -= r;
+         jac_v_fd /= (2*delta);
+
+         for (int i = 0; i < jac_v.Size(); ++i)
+         {
+            REQUIRE(jac_v(i) == Approx(jac_v_fd(i)).margin(1e-6));
+         }
+      }
+   }
+}
+
+TEST_CASE("OutfluxBCIntegratorMeshRevSens::AssembleRHSElementVect")
+{
+   double delta = 1e-5;
+
+   // generate a 6 element mesh
+   int num_edge = 2;
+   auto mesh = Mesh::MakeCartesian2D(num_edge,
+                                     num_edge,
+                                     Element::TRIANGLE);
+   mesh.EnsureNodes();
+   const auto dim = mesh.SpaceDimension();
+
+   NonLinearCoefficient nu;
+   // LinearCoefficient nu;
+   for (int p = 1; p <= 4; ++p)
+   {
+      DYNAMIC_SECTION( "...for degree p = " << p )
+      {
+         H1_FECollection fec(p, dim);
+         FiniteElementSpace fes(&mesh, &fec);
+
+         // initialize state; here we randomly perturb a constant state
+         GridFunction state(&fes);
+         GridFunction adjoint(&fes);
+         FunctionCoefficient pert(randState);
+         state.ProjectCoefficient(pert);
+         adjoint.ProjectCoefficient(pert);
+
+         NonlinearForm res(&fes);
+         auto *integ = new miso::OutfluxBCIntegrator;
+         res.AddBdrFaceIntegrator(integ);
+
+         // extract mesh nodes and get their finite-element space
+         auto &x_nodes = *mesh.GetNodes();
+         auto &mesh_fes = *x_nodes.FESpace();
+
+         // initialize the vector that we use to perturb the mesh nodes
+         GridFunction v(&mesh_fes);
+         VectorFunctionCoefficient v_pert(dim, randVectorState);
+         v.ProjectCoefficient(v_pert);
+
+         // evaluate d(psi^T R)/dx and contract with v
+         LinearForm dfdx(&mesh_fes);
+         // dfdx.AddBdrFaceIntegrator(
+         dfdx.AddBoundaryIntegrator(
+            new miso::OutfluxBCIntegratorMeshRevSens(state, adjoint, *integ));
+         dfdx.Assemble();
+         double dfdx_v = dfdx * v;
+
+         // now compute the finite-difference approximation...
+         GridFunction x_pert(x_nodes);
+         GridFunction r(&fes);
+         x_pert.Add(delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         double dfdx_v_fd = adjoint * r;
+         x_pert.Add(-2 * delta, v);
+         mesh.SetNodes(x_pert);
+         fes.Update();
+         res.Mult(state, r);
+         dfdx_v_fd -= adjoint * r;
+         dfdx_v_fd /= (2 * delta);
+         mesh.SetNodes(x_nodes); // remember to reset the mesh nodes
+         fes.Update();
+
+         REQUIRE(dfdx_v == Approx(dfdx_v_fd).margin(1e-8));
       }
    }
 }

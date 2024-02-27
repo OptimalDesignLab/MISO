@@ -1,7 +1,9 @@
 #include "catch.hpp"
 #include "mfem.hpp"
-#include "euler.hpp"
+#include "euler_fluxes.hpp"
 #include "euler_test_data.hpp"
+
+using namespace miso;
 
 TEST_CASE( "Log-average is correct", "[log-avg]")
 {
