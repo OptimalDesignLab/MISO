@@ -53,6 +53,9 @@ auto options = R"(
       { 
          "boundary-entropy": {
             "boundaries": [1]
+         },
+         "far-field-supply-rate": {
+            "boundaries": []
          }
       }
 })"_json;

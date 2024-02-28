@@ -106,6 +106,7 @@ mfem::Operator &getJacobian(MISONonlinearForm &form,
                             const MISOInputs &inputs,
                             const std::string &wrt)
 {
+   // TODO: the warning below should be active at some level of verbosity
    std::cout << "Re-assembling Jacobian!\n";
 
    mfem::Vector state;

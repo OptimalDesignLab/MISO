@@ -15,7 +15,7 @@ auto options = R"(
 {
    "print-options": false,
    "flow-param": {
-      "miso": 1.0,
+      "mach": 1.0,
       "aoa": 0.0
    },
    "space-dis": {

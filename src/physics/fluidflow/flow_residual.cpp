@@ -154,11 +154,13 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
              " state!\n");
       }
       res.addDomainIntegrator(new EulerIntegrator<dim>(stack));
-      if (flow["inviscid-mms"])
-      {  
-         res.addDomainIntegrator(new InviscidMMSIntegrator(-1.0,dim));
-      }
    }
+
+   if (flow.value("inviscid-mms", false))
+   {  
+      res.addDomainIntegrator(new InviscidMMSIntegrator(-1.0,dim));
+   }
+   
    // add the LPS stabilization, if necessary
    auto lps_coeff = space_dis["lps-coeff"];
    if (lps_coeff > 0.0)
@@ -171,7 +173,7 @@ void FlowResidual<dim, entvar>::addFlowDomainIntegrators(
    {  
       res.addDomainIntegrator(
           new ESViscousIntegrator<dim>(stack, re_fs, pr_fs, mu));
-      if (flow["viscous-mms"])
+      if (flow.value("viscous-mms", false))
       {
          if (dim != 2)
          {  

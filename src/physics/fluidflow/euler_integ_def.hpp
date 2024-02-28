@@ -541,7 +541,7 @@ void FarFieldBC<dim, entvar>::calcFlux(const mfem::Vector &x,
                                        const mfem::Vector &q,
                                        mfem::Vector &flux_vec)
 {
-   calcFarFieldFlux2<double, dim, entvar>(dir.GetData(),
+   calcFarFieldFlux<double, dim, entvar>(dir.GetData(),
                                          qfs.GetData(),
                                          q.GetData(),
                                          work_vec.GetData(),

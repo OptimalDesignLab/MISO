@@ -28,6 +28,7 @@ const nlohmann::json default_options{
          {"Pr", 0.72},        // the Prandtl number
          {"mu",
           -1.0},  // nondimensional viscosity (if negative, use Sutherland's)
+         {"inviscid-mms", false}, // if true, include the inviscid MMS terms
          {"viscous-mms", false}  // if true, include MMS terms for viscous test
      }},
 
