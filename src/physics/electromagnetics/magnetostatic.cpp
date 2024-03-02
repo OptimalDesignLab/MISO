@@ -385,18 +385,11 @@ void MagnetostaticSolver::addOutput(const std::string &fun,
    }
    else if (fun.rfind("flux_linkage", 0) == 0)
    {
-      FunctionalOutput out(fes(), fields);
-      if (options.contains("attributes"))
-      {
-         auto attributes = options["attributes"].get<std::vector<int>>();
-         out.addOutputDomainIntegrator(new FluxLinkageIntegrator(current_coeff),
-                                       attributes);
-      }
-      else
-      {
-         out.addOutputDomainIntegrator(
-             new FluxLinkageIntegrator(current_coeff));
-      }
+      FluxLinkageOutput out(diff_stack,
+                            fes(),
+                            fields,
+                            options,
+                            AbstractSolver2::options["current"]);
       outputs.emplace(fun, std::move(out));
    }
    // else if (fun.rfind("pm_demag", 0) == 0)

@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "catch.hpp"
+#include "flow_solver.hpp"
 #include "nlohmann/json.hpp"
 #include "mfem.hpp"
 

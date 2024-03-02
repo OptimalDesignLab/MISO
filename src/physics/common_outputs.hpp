@@ -150,6 +150,8 @@ public:
       output.inputs = &inputs;
       double state = calcOutput(output.state_integ, inputs);
       double volume = calcOutput(output.volume, inputs);
+
+      std::cout << "state: " << state << " volume: " << volume << "\n";
       return state / volume;
    }
 

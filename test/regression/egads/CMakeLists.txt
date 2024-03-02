@@ -28,6 +28,7 @@ set(TEST_SRCS
 #   test_magnet_box
 #   test_femm_tutorial
    # test_thermal_solver_egads
+   test_inductance
 )
 
 add_custom_target(copy-egads-data-files ALL

@@ -5508,7 +5508,7 @@ TEST_CASE("FluxLinkageIntegrator::GetElementEnergy")
       return 1.5*p(1) - 0.5*pow(p(0), 2);
    });
 
-   std::vector<double> flux_linkage = {0.0052565586, 0.0092013889, 0.009375, 0.009375};
+   std::vector<double> flux_linkage = {-0.009211034, -0.009375, -0.009375, -0.009375};
 
    for (int p = 1; p <= 4; ++p)
    {
@@ -5525,7 +5525,7 @@ TEST_CASE("FluxLinkageIntegrator::GetElementEnergy")
          auto *integ = new mach::FluxLinkageIntegrator(J);
          functional.AddDomainIntegrator(integ);
 
-         setInputs(*integ, {{"rms_current", 2.0}});
+         setInputs(*integ, {{"current", 2.0}});
          const double fun = functional.GetEnergy(a);
 
          REQUIRE(fun == Approx(flux_linkage[p-1]));
@@ -5569,7 +5569,7 @@ TEST_CASE("FluxLinkageIntegrator::AssembleElementVector")
          auto *integ = new mach::FluxLinkageIntegrator(J);
          functional.AddDomainIntegrator(integ);
 
-         setInputs(*integ, {{"rms_current", 2.0}});
+         setInputs(*integ, {{"current", 2.0}});
 
          // initialize the vector that dJdu multiplies
          GridFunction p(&fes);
@@ -5637,7 +5637,7 @@ TEST_CASE("FluxLinkageIntegratorMeshSens::AssembleRHSElementVect")
          auto *integ = new mach::FluxLinkageIntegrator(J);
          functional.AddDomainIntegrator(integ);
 
-         setInputs(*integ, {{"rms_current", 2.0}});
+         setInputs(*integ, {{"current", 2.0}});
 
          // initialize the vector that dJdx multiplies
          GridFunction p(&mesh_fes);
@@ -5712,7 +5712,7 @@ TEST_CASE("FluxLinkageIntegratorRMSCurrentSens::GetElementEnergy")
          functional.AddDomainIntegrator(integ);
 
          double rms_current = 2.0;
-         setInputs(*integ, {{"rms_current", rms_current}});
+         setInputs(*integ, {{"current", rms_current}});
 
          NonlinearForm dFdx(&fes);
          dFdx.AddDomainIntegrator(new mach::FluxLinkageIntegratorRMSCurrentSens(*integ));
@@ -5721,10 +5721,10 @@ TEST_CASE("FluxLinkageIntegratorRMSCurrentSens::GetElementEnergy")
 
          // now compute the finite-difference approximation...
          double delta = 1e-5;
-         setInputs(*integ, {{"rms_current", rms_current - delta}});
+         setInputs(*integ, {{"current", rms_current - delta}});
          double dJdx_val_fd = -functional.GetEnergy(a);
 
-         setInputs(*integ, {{"rms_current", rms_current + delta}});
+         setInputs(*integ, {{"current", rms_current + delta}});
          dJdx_val_fd += functional.GetEnergy(a);
          dJdx_val_fd /= (2 * delta);
 

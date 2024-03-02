@@ -1,6 +1,8 @@
 #ifndef MACH_THERMAL
 #define MACH_THERMAL
 
+#include <memory>
+#include <mesh/mesh.hpp>
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
@@ -18,7 +20,7 @@ public:
                  const nlohmann::json &solver_options,
                  std::unique_ptr<mfem::Mesh> smesh = nullptr);
 
-private:
+protected:
    /// Add output @a fun based on @a options
    void addOutput(const std::string &fun,
                   const nlohmann::json &options) override;

@@ -11,6 +11,7 @@
 #include "nlohmann/json.hpp"
 
 #include "common_outputs.hpp"
+#include "current_source_functions.hpp"
 #include "electromag_integ.hpp"
 #include "functional_output.hpp"
 #include "mach_input.hpp"
@@ -618,6 +619,77 @@ private:
 
    std::map<std::string, FiniteElementState> &fields;
    mfem::Vector scratch;
+};
+
+/// this class will own a current source coefficient, but just use it for
+/// direction of linked flux
+class FluxLinkageOutput final
+{
+public:
+   friend inline int getSize(const FluxLinkageOutput &output)
+   {
+      return getSize(output.output);
+   }
+
+   friend void setInputs(FluxLinkageOutput &output, const MachInputs &inputs)
+   {
+      output.inputs = &inputs;
+      setInputs(output.output, inputs);
+      setInputs(output.volume, inputs);
+   }
+
+   friend double calcOutput(FluxLinkageOutput &output, const MachInputs &inputs)
+   {
+      output.inputs = &inputs;
+      double state = calcOutput(output.output, inputs);
+      double volume = calcOutput(output.volume, inputs);
+
+      std::cout << "state: " << state << " volume: " << volume << "\n";
+      return state / volume;
+   }
+
+   friend double jacobianVectorProduct(FluxLinkageOutput &output,
+                                       const mfem::Vector &wrt_dot,
+                                       const std::string &wrt);
+
+   friend void vectorJacobianProduct(FluxLinkageOutput &output,
+                                     const mfem::Vector &out_bar,
+                                     const std::string &wrt,
+                                     mfem::Vector &wrt_bar);
+
+   FluxLinkageOutput(adept::Stack &diff_stack,
+                     mfem::ParFiniteElementSpace &fes,
+                     std::map<std::string, FiniteElementState> &fields,
+                     const nlohmann::json &options,
+                     const nlohmann::json &current_opts)
+    : output(fes, fields),
+      volume(fes, fields),
+      current_coeff(std::make_unique<CurrentDensityCoefficient2D>(diff_stack,
+                                                                  current_opts))
+   {
+      if (options.contains("attributes"))
+      {
+         auto attributes = options["attributes"].get<std::vector<int>>();
+         output.addOutputDomainIntegrator(
+             new FluxLinkageIntegrator(*current_coeff), attributes);
+         volume.addOutputDomainIntegrator(new VolumeIntegrator, attributes);
+      }
+      else
+      {
+         output.addOutputDomainIntegrator(
+             new FluxLinkageIntegrator(*current_coeff));
+         volume.addOutputDomainIntegrator(new VolumeIntegrator);
+      }
+   }
+
+private:
+   FunctionalOutput output;
+   FunctionalOutput volume;
+
+   /// Coefficient representing the applied current density source
+   std::unique_ptr<CurrentDensityCoefficient2D> current_coeff;
+
+   MachInputs const *inputs = nullptr;
 };
 
 // Adding an output for the permanent magnet demagnetization constraint equation

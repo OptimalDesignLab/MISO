@@ -3937,11 +3937,15 @@ public:
                               const mfem::Vector &elfun,
                               mfem::Vector &elfun_bar) override;
 
-   FluxLinkageIntegrator(mfem::Coefficient &J) : J(J) { }
+   FluxLinkageIntegrator(mfem::Coefficient &J, std::string name = "")
+    : J(J), name(name)
+   { }
 
 private:
    /// Coefficient that defines current density
    mfem::Coefficient &J;
+   /// winding name
+   std::string name;
    /// Current flowing through phase windings
    double current = 1;
 

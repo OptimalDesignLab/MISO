@@ -53,14 +53,20 @@ auto options = R"(
          "attrs": [1],
          "material": {
             "name": "box1",
-            "mu_r": 795774.7154594767
+            "reluctivity": {
+               "model": "linear",
+               "mu_r": 795774.7154594767
+            }
          }
       },
       "box2": {
          "attrs": [2],
          "material": {
             "name": "box2",
-            "mu_r": 795774.7154594767
+            "reluctivity": {
+               "model": "linear",
+               "mu_r": 795774.7154594767
+            }
          }
       }
    },

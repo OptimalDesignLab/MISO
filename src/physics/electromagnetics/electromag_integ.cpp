@@ -157,6 +157,7 @@ void NonlinearDiffusionIntegrator::AssembleElementVector(
       const double pointflux_mag = pointflux_norm / trans_weight;
 
       double model_val = model.Eval(trans, ip, pointflux_mag);
+      // std::cout << "model val: " << model_val << "\n";
 
       pointflux *= w * model_val;
 
@@ -12950,7 +12951,15 @@ double CAL2CoreLossDistributionIntegratorFrequencyRevSens::GetElementEnergy(
 
 void setInputs(FluxLinkageIntegrator &integ, const MachInputs &inputs)
 {
-   setValueFromInputs(inputs, "rms_current", integ.current);
+   if (integ.name.empty())
+   {
+      setValueFromInputs(inputs, "current", integ.current);
+   }
+   else
+   {
+      setValueFromInputs(inputs, "current:" + integ.name, integ.current);
+   }
+   /// Need to handle named currents (current:phaseA, current:phaseB, so on)
 }
 
 double FluxLinkageIntegrator::GetElementEnergy(
@@ -12966,25 +12975,29 @@ double FluxLinkageIntegrator::GetElementEnergy(
 #endif
    shape.SetSize(ndof);
 
-   const IntegrationRule *ir = IntRule;
-   if (ir == nullptr)
-   {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 1;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
+   // const IntegrationRule *ir = IntRule;
+   // if (ir == nullptr)
+   // {
+   //    int order = [&]()
+   //    {
+   //       if (el.Space() == FunctionSpace::Pk)
+   //       {
+   //          return 2 * el.GetOrder() - 1;
+   //       }
+   //       else
+   //       {
+   //          return 2 * el.GetOrder();
+   //       }
+   //    }();
 
-      ir = &IntRules.Get(el.GetGeomType(), order);
-   }
+   //    ir = &IntRules.Get(el.GetGeomType(), order);
+   // }
+
+   const auto *ir =
+       &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + trans.OrderW());
 
    double fun = 0.0;
+   // double J_val_val = 0;
    for (int i = 0; i < ir->GetNPoints(); i++)
    {
       const IntegrationPoint &ip = ir->IntPoint(i);
@@ -12999,10 +13012,14 @@ double FluxLinkageIntegrator::GetElementEnergy(
       double A = shape * elfun;
 
       double J_val = J.Eval(trans, ip);
+      // J_val_val = J_val;
+      // std::cout << " current density: " << J_val_val << "\n";
 
-      fun += A * J_val * w;
+      fun += -A * J_val * w;
    }
 
+   // std::cout << "fluxlinkage phase name: " << name << " current value: " <<
+   // current << " current density: " << J_val_val << "\n";
    return fun / current;
 }
 
@@ -13019,23 +13036,26 @@ void FluxLinkageIntegrator::AssembleElementVector(const FiniteElement &el,
 #endif
    shape.SetSize(ndof);
 
-   const IntegrationRule *ir = IntRule;
-   if (ir == nullptr)
-   {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 1;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
+   // const IntegrationRule *ir = IntRule;
+   // if (ir == nullptr)
+   // {
+   //    int order = [&]()
+   //    {
+   //       if (el.Space() == FunctionSpace::Pk)
+   //       {
+   //          return 2 * el.GetOrder() - 1;
+   //       }
+   //       else
+   //       {
+   //          return 2 * el.GetOrder();
+   //       }
+   //    }();
 
-      ir = &IntRules.Get(el.GetGeomType(), order);
-   }
+   //    ir = &IntRules.Get(el.GetGeomType(), order);
+   // }
+
+   const auto *ir =
+       &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + trans.OrderW());
 
    elfun_bar.SetSize(ndof);
    elfun_bar = 0.0;
@@ -13054,8 +13074,8 @@ void FluxLinkageIntegrator::AssembleElementVector(const FiniteElement &el,
 
       double J_val = J.Eval(trans, ip);
 
-      // fun += A * J_val * w / current;
-      double fun_bar = 1.0;
+      // fun += -A * J_val * w / current;
+      double fun_bar = -1.0;
 
       double A_bar = 0.0;
       // double J_val_bar = 0.0;
@@ -13111,24 +13131,26 @@ void FluxLinkageIntegratorMeshSens::AssembleRHSElementVect(
    // cast the ElementTransformation
    auto &isotrans = dynamic_cast<mfem::IsoparametricTransformation &>(trans);
 
-   // Set the integration rule
-   const IntegrationRule *ir = IntRule;
-   if (ir == nullptr)
-   {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 1;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
+   // // Set the integration rule
+   // const IntegrationRule *ir = IntRule;
+   // if (ir == nullptr)
+   // {
+   //    int order = [&]()
+   //    {
+   //       if (el.Space() == FunctionSpace::Pk)
+   //       {
+   //          return 2 * el.GetOrder() - 1;
+   //       }
+   //       else
+   //       {
+   //          return 2 * el.GetOrder();
+   //       }
+   //    }();
 
-      ir = &IntRules.Get(trans.GetGeometryType(), order);
-   }
+   //    ir = &IntRules.Get(trans.GetGeometryType(), order);
+   // }
+   const auto *ir =
+       &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + trans.OrderW());
 
    auto &J = integ.J;
    auto current = integ.current;
@@ -13153,7 +13175,7 @@ void FluxLinkageIntegratorMeshSens::AssembleRHSElementVect(
       double J_val = J.Eval(trans, ip);
 
       // fun += A * J_val * w / current;
-      double fun_bar = 1.0;
+      double fun_bar = -1.0;
 
       // double A_bar = 0.0;
       double J_val_bar = 0.0;
@@ -13198,23 +13220,25 @@ double FluxLinkageIntegratorRMSCurrentSens::GetElementEnergy(
 #endif
    shape.SetSize(ndof);
 
-   const IntegrationRule *ir = IntRule;
-   if (ir == nullptr)
-   {
-      int order = [&]()
-      {
-         if (el.Space() == FunctionSpace::Pk)
-         {
-            return 2 * el.GetOrder() - 1;
-         }
-         else
-         {
-            return 2 * el.GetOrder();
-         }
-      }();
+   // const IntegrationRule *ir = IntRule;
+   // if (ir == nullptr)
+   // {
+   //    int order = [&]()
+   //    {
+   //       if (el.Space() == FunctionSpace::Pk)
+   //       {
+   //          return 2 * el.GetOrder() - 1;
+   //       }
+   //       else
+   //       {
+   //          return 2 * el.GetOrder();
+   //       }
+   //    }();
 
-      ir = &IntRules.Get(el.GetGeomType(), order);
-   }
+   //    ir = &IntRules.Get(el.GetGeomType(), order);
+   // }
+   const auto *ir =
+       &IntRules.Get(el.GetGeomType(), 2 * el.GetOrder() + trans.OrderW());
 
    auto &J = integ.J;
 
@@ -13234,7 +13258,7 @@ double FluxLinkageIntegratorRMSCurrentSens::GetElementEnergy(
 
       double J_val = J.Eval(trans, ip);
 
-      fun_dot += A * J_val * w;
+      fun_dot += -A * J_val * w;
    }
 
    return -fun_dot / pow(integ.current, 2);

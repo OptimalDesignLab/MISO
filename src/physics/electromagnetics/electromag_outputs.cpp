@@ -1818,6 +1818,87 @@ EMHeatSourceOutput::EMHeatSourceOutput(
    scratch(getSize(dc_loss))
 { }
 
+double jacobianVectorProduct(FluxLinkageOutput &output,
+                             const mfem::Vector &wrt_dot,
+                             const std::string &wrt)
+{
+   const MachInputs &inputs = *output.inputs;
+   if (wrt.rfind("state", 0) == 0)
+   {
+      // double state = calcOutput(output.output, inputs);
+      double state_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
+
+      double volume = calcOutput(output.volume, inputs);
+      // double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+
+      return state_dot / volume;
+   }
+   else if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      double state = calcOutput(output.output, inputs);
+      double state_dot = jacobianVectorProduct(output.output, wrt_dot, wrt);
+
+      double volume = calcOutput(output.volume, inputs);
+      double volume_dot = jacobianVectorProduct(output.volume, wrt_dot, wrt);
+
+      return state_dot / volume - state / pow(volume, 2) * volume_dot;
+   }
+   else
+   {
+      return 0.0;
+   }
+}
+
+void vectorJacobianProduct(FluxLinkageOutput &output,
+                           const mfem::Vector &out_bar,
+                           const std::string &wrt,
+                           mfem::Vector &wrt_bar)
+{
+   const MachInputs &inputs = *output.inputs;
+   if (wrt.rfind("state", 0) == 0)
+   {
+      // double state = calcOutput(output.output, inputs);
+      double volume = calcOutput(output.volume, inputs);
+
+      // double flux_linkage = state / volume;
+
+      /// Start reverse pass...
+      double flux_linkage_bar = out_bar(0);
+
+      /// double flux_linkage = state / volume;
+      double state_bar = flux_linkage_bar / volume;
+      // double volume_bar = -flux_linkage_bar * state / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      // mfem::Vector vol_bar_vec(&volume_bar, 1);
+      // vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+
+      mfem::Vector state_bar_vec(&state_bar, 1);
+      vectorJacobianProduct(output.output, state_bar_vec, wrt, wrt_bar);
+   }
+   else if (wrt.rfind("mesh_coords", 0) == 0)
+   {
+      double state = calcOutput(output.output, inputs);
+      double volume = calcOutput(output.volume, inputs);
+
+      // double flux_linkage = state / volume;
+
+      /// Start reverse pass...
+      double flux_linkage_bar = out_bar(0);
+
+      /// double flux_linkage = state / volume;
+      double state_bar = flux_linkage_bar / volume;
+      double volume_bar = -flux_linkage_bar * state / pow(volume, 2);
+
+      /// double volume = calcOutput(output.volume, inputs);
+      mfem::Vector vol_bar_vec(&volume_bar, 1);
+      vectorJacobianProduct(output.volume, vol_bar_vec, wrt, wrt_bar);
+
+      mfem::Vector state_bar_vec(&state_bar, 1);
+      vectorJacobianProduct(output.output, state_bar_vec, wrt, wrt_bar);
+   }
+}
+
 void setOptions(PMDemagOutput &output, const nlohmann::json &options)
 {
    // setOptions(output.lf, options);

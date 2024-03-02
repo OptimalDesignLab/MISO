@@ -145,10 +145,8 @@ public:
 };
 
 std::unique_ptr<mfem::Coefficient> constructLinearReluctivityCoeff(
-    const std::string &material_name,
-    const nlohmann::json &materials)
+    double mu_r = 1.0)
 {
-   auto mu_r = materials[material_name].value("mu_r", 1.0);
    return std::make_unique<mfem::ConstantCoefficient>(1.0 / (mu_r * mu_0));
 }
 
@@ -203,7 +201,7 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
    if (material.is_string())
    {
       const auto &material_name = material.get<std::string>();
-      temp_coeff = constructLinearReluctivityCoeff(material_name, materials);
+      temp_coeff = constructLinearReluctivityCoeff();
    }
    else
    {
@@ -215,8 +213,8 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
              material["reluctivity"]["model"].get<std::string>();
          if (nu_model == "linear")
          {
-            temp_coeff =
-                constructLinearReluctivityCoeff(material_name, materials);
+            auto mu_r = material["reluctivity"].value("mu_r", 1.0);
+            temp_coeff = constructLinearReluctivityCoeff(mu_r);
          }
          else if (nu_model == "lognu")
          {
@@ -253,7 +251,7 @@ std::unique_ptr<mfem::Coefficient> constructReluctivityCoeff(
       }
       else
       {
-         temp_coeff = constructLinearReluctivityCoeff(material_name, materials);
+         temp_coeff = constructLinearReluctivityCoeff();
       }
    }
 
