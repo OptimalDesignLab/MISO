@@ -3,7 +3,7 @@
       "file": "naca0012-5deg.mesh"
    },   
    "flow-param": {
-      "miso": 0.2,
+      "mach": 0.2,
       "aoa": 20.0,
       "roll-axis": 0,
       "pitch-axis": 1,

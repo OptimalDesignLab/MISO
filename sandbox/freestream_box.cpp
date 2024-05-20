@@ -1,11 +1,11 @@
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
 
-#include "mach.hpp"
+#include "miso.hpp"
 
 using namespace std;
 using namespace mfem;
-using namespace mach;
+using namespace miso;
 
 /// Set the initial value of the control state
 /// \param[out] u0 - the control state at time t0
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
       P(2) = -88.2050467;
       P(3) = 213.6134806;
       mfem::Vector x_actuator({0.0, 0.5});
-      MachInputs inputs({{"state", state_tv},
+      MISOInputs inputs({{"state", state_tv},
                          {"time", 0.0},
                          {"x-actuator", x_actuator},
                          {"Kp", Kp},
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
       double entropy = solver.calcOutput("entropy", inputs);
       cout << "final entropy = " << entropy << endl;
    }
-   catch (MachException &exception)
+   catch (MISOException &exception)
    {
       exception.print_message();
    }

@@ -14,6 +14,7 @@ function(create_sandbox source_list)
 endfunction(create_sandbox)
 
 set(SANDBOX_SRCS
+   air-gap
    steady_vortex
    steady_vortex_adjoint
    unsteady_vortex
