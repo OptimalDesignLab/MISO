@@ -404,10 +404,13 @@ void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double pointflux_norm = pointflux.Norml2();
       pointflux_bar = 0.0;
-      add(pointflux_bar,
-          pointflux_norm_bar / pointflux_norm,
-          pointflux,
-          pointflux_bar);
+      if (fabs(pointflux_norm) > 1e-16)
+      {
+         add(pointflux_bar,
+             pointflux_norm_bar / pointflux_norm,
+             pointflux,
+             pointflux_bar);
+      }
 
       /// const double curl_psi_dot_pointflux = curl_psi * pointflux;
       curl_psi_bar = 0.0;
@@ -1648,11 +1651,17 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double ip_flux2_norm = ip_flux2.Norml2();
       ip_flux2_bar = 0.0;
-      ip_flux2_bar.Add(ip_flux2_norm_bar / ip_flux2_norm, ip_flux2);
+      if (fabs(ip_flux2_norm) > 1e-16)
+      {
+         ip_flux2_bar.Add(ip_flux2_norm_bar / ip_flux2_norm, ip_flux2);
+      }
 
       /// const double ip_flux1_norm = ip_flux1.Norml2();
       ip_flux1_bar = 0.0;
-      ip_flux1_bar.Add(ip_flux1_norm_bar / ip_flux1_norm, ip_flux1);
+      if (fabs(ip_flux1_norm) > 1e-16)
+      {
+         ip_flux1_bar.Add(ip_flux1_norm_bar / ip_flux1_norm, ip_flux1);
+      }
 
       /// dshapedxt2.MultTranspose(elfun2, ip_flux2);
       AddMultVWt(elfun2, ip_flux2_bar, dshapedxt2_bar);

@@ -196,6 +196,10 @@ TEST_CASE("Testing PDESolver unsteady heat equation MMS")
          "printlevel": 1,
          "maxiter": 500
       },
+      "lin-prec": {
+         "type": "hypreboomeramg",
+         "printlevel": 0
+      },
       "nonlin-solver": {
          "maxiter": 1,
          "printlevel": 3
