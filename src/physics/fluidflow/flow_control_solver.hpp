@@ -7,21 +7,10 @@
 
 #include "mfem.hpp"
 #include "nlohmann/json.hpp"
+
 #ifdef MFEM_USE_PUMI
 #include "apf.h"
 #include "apfMesh2.h"
-namespace miso
-{
-struct pumiDeleter
-{
-   void operator()(apf::Mesh2 *mesh) const
-   {
-      mesh->destroyNative();
-      apf::destroyMesh(mesh);
-   }
-};
-
-}  // namespace miso
 #endif
 
 #include "abstract_solver.hpp"

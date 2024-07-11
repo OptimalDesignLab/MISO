@@ -8,8 +8,8 @@
 
 // #include "thermal.hpp"
 
-using namespace mfem;
-using namespace miso;
+// using namespace mfem;
+// using namespace mach;
 
 // // Provide the options explicitly for regression tests
 // auto current_options = R"(
