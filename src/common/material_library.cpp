@@ -310,21 +310,151 @@ const auto aluminum_wire = R"(
    },
    "conductivity": {
       "linear": {
-         "sigma_T_ref": 3.5e7,
+         "sigma_T_ref": 3.77e7,
          "T_ref": 293.15,
-         "alpha_resistivity": 2.25e-5
+         "alpha_resistivity": 4.31e-3
       }
    },
-   "sigma": 3.5e7
+   "sigma": 3.77e7
 }
 )"_json;
 
 // this is meant for the heatsink
 const auto aluminum = R"(
 {
-   "rho": 2710,
-   "drho_df": 2710,
+   "rho": 2700,
+   "drho_df": 2700,
    "kappa": 237
+}
+)"_json;
+
+const auto silver_wire = R"(
+{
+   "rho": {
+      "materials": ["silver", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "average"
+   },
+   "drho_df": {
+      "materials": ["silver", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "daverage"
+   },
+   "cv": 376,
+   "kappa": {
+      "materials": ["silver", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "Hashin-Shtrikman"
+   },
+   "dkappa_df": {
+      "materials": ["silver", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "dHashin-Shtrikman"
+   },
+   "conductivity":{
+      "linear":{
+         "sigma_T_ref": 6.3e7,
+         "T_ref": 293.15,
+         "alpha_resistivity": 3.82e-3
+      }
+   },
+   "sigma": 6.3e7
+}
+)"_json;
+
+// this is meant for the heatsink
+const auto silver = R"(
+{
+   "rho": 10490,
+   "drho_df": 10490,
+   "kappa": 429
+}
+)"_json;
+
+
+const auto magnesium_wire = R"(
+{
+   "rho": {
+      "materials": ["magnesium", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "average"
+   },
+   "drho_df": {
+      "materials": ["magnesium", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "daverage"
+   },
+   "cv": 376,
+   "kappa": {
+      "materials": ["magnesium", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "Hashin-Shtrikman"
+   },
+   "dkappa_df": {
+      "materials": ["magnesium", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "dHashin-Shtrikman"
+   },
+   "conductivity":{
+      "linear":{
+         "sigma_T_ref": 2.28e7,
+         "T_ref": 293.15,
+         "alpha_resistivity": 4.86e-3
+      }
+   },
+   "sigma": 2.28e7
+}
+)"_json;
+
+// this is meant for the heatsink
+const auto magnesium = R"(
+{
+   "rho": 1740,
+   "drho_df": 1740,
+   "kappa": 156
+}
+)"_json;
+
+const auto iron_wire = R"(
+{
+   "rho": {
+      "materials": ["iron", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "average"
+   },
+   "drho_df": {
+      "materials": ["iron", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "daverage"
+   },
+   "cv": 376,
+   "kappa": {
+      "materials": ["iron", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "Hashin-Shtrikman"
+   },
+   "dkappa_df": {
+      "materials": ["iron", "epoxy"],
+      "weighted_by": "fill_factor",
+      "weight": "dHashin-Shtrikman"
+   },
+   "conductivity":{
+      "linear":{
+         "sigma_T_ref": 1.03e7,
+         "T_ref": 293.15,
+         "alpha_resistivity": 5.67e-3
+      }
+   },
+   "sigma": 1.03e7
+}
+)"_json;
+
+// this is meant for the heatsink
+const auto iron = R"(
+{
+   "rho": 7874,
+   "drho_df": 7874,
+   "kappa": 79.5
 }
 )"_json;
 
@@ -354,6 +484,12 @@ const nlohmann::json material_library = {{"hiperco50", hiperco50},
                                          {"copper", copper},
                                          {"aluminumwire", aluminum_wire},
                                          {"aluminum", aluminum},
+                                         {"silverwire", silver_wire},
+                                         {"silver", silver},
+                                         {"magnesiumwire", magnesium_wire},
+                                         {"magnesium", magnesium},
+                                         {"ironwire", iron_wire},
+                                         {"iron", iron},
                                          {"2024_T3", Al2024_T3},
                                          {"epoxy", epoxy}};
 
