@@ -1,3 +1,4 @@
+#include <cstddef>
 #include "finite_element_dual.hpp"
 #include "mfem.hpp"
 
@@ -149,7 +150,7 @@ MISOMesh::~MISOMesh()
    /// If we started PCU and we're the last one using it, close it
    if (!PCU_previously_initialized && pumi_mesh_count == 0)
    {
-#ifdef HAVE_EGADS
+#ifdef MFEM_USE_EGADS
       gmi_egads_stop();
 #endif
 #ifdef HAVE_SIMMETRIX
@@ -204,12 +205,17 @@ MISOMesh constructMesh(MPI_Comm comm,
    {
       throw MISOException("Unrecognized mesh file extension!\n");
    }
+   // auto *nodes = mesh.mesh->GetNodes();
+   // if (nodes == nullptr)
+   // {
+   //    mesh.mesh->SetCurvature(1, false, 3, mfem::Ordering::byVDIM);
+   // }
    mesh.mesh->EnsureNodes();
 
-   if (!keep_boundaries)
-   {
-      mesh.mesh->RemoveInternalBoundaries();
-   }
+   // if (!keep_boundaries)
+   // {
+   //    mesh.mesh->RemoveInternalBoundaries();
+   // }
 
    // std::ofstream file("pde_solver_mesh.mesh");
    // mesh.mesh->Print(file);
@@ -339,9 +345,32 @@ PDESolver::PDESolver(MPI_Comm incomm,
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)
 {
+   /// loop over all components specified in options and add their specified
+   /// materials to the solver's known material library
+   if (solver_options.contains("components"))
+   {
+      for (const auto &component : solver_options["components"])
+      {
+         const auto &material = component["material"];
+         if (material.is_string())
+         {
+            continue;
+         }
+         else
+         {
+            const auto &material_name = material["name"].get<std::string>();
+            materials[material_name].merge_patch(material);
+         }
+      }
+   }
+
    fields.emplace(
        "state",
        FiniteElementState(mesh(), options["space-dis"], num_states, "state"));
+   fields.emplace(
+       "dirichlet_bc",
+       FiniteElementState(
+           mesh(), options["space-dis"], num_states, "dirichlet_bc"));
    fields.emplace(
        "adjoint",
        FiniteElementState(mesh(), options["space-dis"], num_states, "adjoint"));
@@ -349,13 +378,20 @@ PDESolver::PDESolver(MPI_Comm incomm,
        "residual",
        FiniteElementDual(mesh(), options["space-dis"], num_states, "residual"));
 
+   // // The pm demag constraint field
+   // fields.emplace(
+   //     "pm_demag_field",
+   //     FiniteElementState(mesh(), options["space-dis"], num_states,
+   //     "pm_demag_field"));
+
    setUpExternalFields();
 }
 
-PDESolver::PDESolver(MPI_Comm incomm,
-                     const nlohmann::json &solver_options,
-                     std::function<int(const nlohmann::json &, int)> num_states,
-                     std::unique_ptr<mfem::Mesh> smesh)
+PDESolver::PDESolver(
+    MPI_Comm incomm,
+    const nlohmann::json &solver_options,
+    const std::function<int(const nlohmann::json &, int)> &num_states,
+    std::unique_ptr<mfem::Mesh> smesh)
  : AbstractSolver2(incomm, solver_options),
    mesh_(constructMesh(comm, options["mesh"], std::move(smesh))),
    materials(material_library)
@@ -364,11 +400,20 @@ PDESolver::PDESolver(MPI_Comm incomm,
    fields.emplace(
        "state", FiniteElementState(mesh(), options["space-dis"], ns, "state"));
    fields.emplace(
+       "dirichlet_bc",
+       FiniteElementState(mesh(), options["space-dis"], ns, "dirichlet_bc"));
+   fields.emplace(
        "adjoint",
        FiniteElementState(mesh(), options["space-dis"], ns, "adjoint"));
    duals.emplace(
        "residual",
        FiniteElementDual(mesh(), options["space-dis"], ns, "residual"));
+
+   // // The pm demag constraint field
+   // fields.emplace(
+   //     "pm_demag_field",
+   //     FiniteElementState(mesh(), options["space-dis"], ns,
+   //     "pm_demag_field"));
 
    setUpExternalFields();
 }
@@ -427,6 +472,11 @@ void PDESolver::setState_(std::any function,
        { fields.at(name).project(vec_fun, state); },
        [&](mfem::VectorCoefficient *vec_coeff)
        { fields.at(name).project(*vec_coeff, state); });
+
+   if (name == "state")
+   {
+      PDESolver::setState_(function, "dirichlet_bc", state);
+   }
 }
 
 double PDESolver::calcStateError_(std::any ex_sol,
@@ -473,6 +523,8 @@ void PDESolver::initialHook(const mfem::Vector &state)
    int inverted_elems = mesh().CheckElementOrientation(false);
    if (inverted_elems > 0)
    {
+      mesh().PrintVTU("inverted_mesh", mfem::VTKFormat::BINARY, true);
+      std::cout << "!!!!inverted mesh!!!!\n";
       throw MISOException("Mesh contains inverted elements!\n");
    }
    else
@@ -498,6 +550,7 @@ void PDESolver::terminalHook(int iter,
                              const mfem::Vector &state)
 {
    AbstractSolver2::terminalHook(iter, t_final, state);
+   derivedPDETerminalHook(iter, t_final, state);
 }
 
 }  // namespace miso

@@ -14,16 +14,22 @@ endfunction(create_tests)
 
 # group together all regression tests
 set(REGRESSION_TEST_SRCS
-   test_steady_vortex
    test_navier_stokes_mms
    test_navier_stokes_3Dmms
-   test_inviscid_mms
-   test_FarField3D_exact
    test_thermal_cube
+   test_steady_thermal_cube
    test_miso_inputs
    test_magnetostatic_box
+   test_magnetostatic_box2d
+   #test_meshmovement_box
+   #test_meshmovement_annulus
    test_ac_loss
    test_magnetostatic_box_new
+   # test_2d_magnet_in_box
+   test_magnetostatic_residual
+   test_thermal_residual
+   test_weak_boundary
+   test_thermal_solver
 )
 
 create_tests("${REGRESSION_TEST_SRCS}" regression_data.cpp)
