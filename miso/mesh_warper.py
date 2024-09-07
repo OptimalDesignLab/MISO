@@ -1,16 +1,16 @@
 import numpy as np
 import openmdao.api as om
 
-from .pyMach import MeshWarper
+from .pyMISO import MeshWarper
 
-class MachMeshWarper(om.ImplicitComponent):
+class MISOMeshWarper(om.ImplicitComponent):
     def initialize(self):
         self.options.declare("warper", types=MeshWarper, recordable=False)
 
     def setup(self):
         warper = self.options["warper"]
 
-        # hold map of vector-valued I/O names -> contiguous vectors to pass to Mach
+        # hold map of vector-valued I/O names -> contiguous vectors to pass to MISO
         self.vectors = dict()
 
         local_surf_mesh_size = warper.getSurfaceCoordsSize()

@@ -1,5 +1,5 @@
-#ifndef MISO_THERMAL_RESIDUAL
-#define MISO_THERMAL_RESIDUAL
+#ifndef MISO_MAGNETOSTATIC_RESIDUAL
+#define MISO_MAGNETOSTATIC_RESIDUAL
 
 #include <map>
 #include <memory>
@@ -47,6 +47,12 @@ public:
                                   mfem::Vector &state_bar,
                                   mfem::Vector &adjoint);
 
+   friend void finalizeAdjointSystem(ThermalResidual &residual,
+                                     mfem::Solver &adj_solver,
+                                     const MISOInputs &inputs,
+                                     mfem::Vector &state_bar,
+                                     mfem::Vector &adjoint);
+
    friend double jacobianVectorProduct(ThermalResidual &residual,
                                        const mfem::Vector &wrt_dot,
                                        const std::string &wrt);
@@ -75,13 +81,15 @@ public:
 private:
    /// Nonlinear form that handles the weak form
    MISONonlinearForm res;
-   /// Material dependent coefficient representing thermal conductivity
+   /// coefficient for weakly imposed boundary conditions
+   std::unique_ptr<MeshDependentCoefficient> g;
+   // Material dependent coefficient representing thermal conductivity
    std::unique_ptr<MeshDependentCoefficient> kappa;
    /// Material dependent coefficient representing density
    std::unique_ptr<MeshDependentCoefficient> rho;
-   /// Material dependent coefficient representing specific heat
-   /// (at constant volume)
-   std::unique_ptr<MeshDependentCoefficient> cv;
+   // /// Material dependent coefficient representing specific heat
+   // /// (at constant volume)
+   // std::unique_ptr<MeshDependentCoefficient> cv;
 
    /// Right-hand-side load vector to apply to residual
    mfem::Vector load;
@@ -89,13 +97,26 @@ private:
    /// preconditioner for inverting residual's state Jacobian
    std::unique_ptr<mfem::Solver> prec;
 
-   std::unique_ptr<mfem::Solver> constructPreconditioner(
+   static std::unique_ptr<mfem::Solver> constructPreconditioner(
        mfem::ParFiniteElementSpace &fes,
        const nlohmann::json &prec_options)
    {
-      auto amg = std::make_unique<mfem::HypreBoomerAMG>();
-      amg->SetPrintLevel(prec_options["printlevel"].get<int>());
-      return amg;
+      auto prec_type = prec_options["type"].get<std::string>();
+      if (prec_type == "hypreboomeramg")
+      {
+         auto amg = std::make_unique<mfem::HypreBoomerAMG>();
+         amg->SetPrintLevel(prec_options["printlevel"].get<int>());
+         return amg;
+      }
+      else if (prec_type == "hypreilu")
+      {
+         auto ilu = std::make_unique<mfem::HypreILU>();
+         HYPRE_ILUSetType(*ilu, prec_options["ilu-type"]);
+         HYPRE_ILUSetLevelOfFill(*ilu, prec_options["lev-fill"]);
+         HYPRE_ILUSetLocalReordering(*ilu, prec_options["ilu-reorder"]);
+         HYPRE_ILUSetPrintLevel(*ilu, prec_options["printlevel"]);
+      }
+      return nullptr;
    }
 };
 
