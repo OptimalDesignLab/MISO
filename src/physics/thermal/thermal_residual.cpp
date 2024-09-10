@@ -9,7 +9,6 @@
 #include "coefficient.hpp"
 #include "miso_input.hpp"
 #include "thermal_integ.hpp"
-
 #include "thermal_residual.hpp"
 #include "utils.hpp"
 
@@ -27,10 +26,6 @@ void setInputs(ThermalResidual &residual, const miso::MISOInputs &inputs)
    setVectorFromInputs(inputs, "thermal_load", residual.load);
    if (residual.load.Size() != 0)
    {
-      // std::cout << "residual.load.Size() != 0 and is:\n";
-      // residual.load.Print(mfem::out, 25);
-      // std::cout << "That has been the thermal load vector\n";
-
       residual.load.SetSubVector(residual.res.getEssentialDofs(), 0.0);
    }
 }
