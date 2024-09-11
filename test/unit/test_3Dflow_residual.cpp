@@ -44,8 +44,7 @@ auto options = R"(
       "steady": false
    },
    "bcs": {
-       "far-field": [1],
-       "slip-wall": [2]
+       "far-field": [1]
    }
       
 })"_json;

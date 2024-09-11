@@ -179,6 +179,7 @@ endif (MISO_USE_CLANG_TIDY)
 set(DEBUG_OPTIONS
    "-g"
    -Wall
+   -O0
    # -Wextra
    # -Werror
 )

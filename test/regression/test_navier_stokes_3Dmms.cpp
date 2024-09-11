@@ -99,7 +99,7 @@ TEST_CASE( "Navier-Stokes 3D MMS inital norm convergance test", "[NS-MMS]")
 
             // Create solver and set initial guess to exact
             FlowSolver<3,false> solver(MPI_COMM_WORLD, options, std::move(mesh));
-            mfem::Vector state_tv(solver.getStateSize());
+            Vector state_tv(solver.getStateSize());
             std::cout << "Number of nodes = " << solver.getStateSize() << "\n";
             solver.setState(uexact, state_tv);
 
@@ -159,7 +159,7 @@ void uexact(const Vector &x, Vector& q)
    const double w_0 = 0.5;
    const double T_0 = 1.0;
 
-   q[0] = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x[0])*sin(2*r_xyz*M_PI*x[1])*sin(2*r_xyz*M_PI*x[3]);
+   q[0] = r_0 + r_0*0.1*sin(2*r_xyz*M_PI*x[0])*sin(2*r_xyz*M_PI*x[1])*sin(2*r_xyz*M_PI*x[2]);
    q[1] = u_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
    q[2] = v_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
    q[3] = w_0*((pow(x[0],3)/3. - pow(x[0],2)/2.) + (pow(x[1],3)/3. - pow(x[1],2)/2.) + (pow(x[2],3)/3. - pow(x[2],2)/2.)); 
