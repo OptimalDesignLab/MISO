@@ -301,7 +301,7 @@ public:
    ~SBPCollection() override;
 };
 
-/// High order L2-discontinous Summation By Parts operators
+/// High order L2-discontinuous Summation By Parts operators
 class DSBPCollection : public FiniteElementCollection
 {
 protected:

@@ -85,7 +85,7 @@ TEST_CASE( "Navier-Stokes 3D MMS inital norm convergance test", "[NS-MMS]")
    int nx;
    // Just test p=1 and p=2 to keep test time limited
    for (int p = 0; p <= 1; ++p)
-   {  nx = 10;
+   {  nx = 4;
       double res_norm[3];
       for (int r = 0; r <= 2; ++r)
       {

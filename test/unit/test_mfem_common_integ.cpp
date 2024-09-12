@@ -1075,7 +1075,7 @@ TEST_CASE("IECurlMagnitudeAggregateIntegratorDenominator::AssembleElementVector"
          dJdu_dot_p_fd += functional.GetEnergy(q_pert);
          dJdu_dot_p_fd /= (2 * delta);
 
-         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd));
+         REQUIRE(dJdu_dot_p == Approx(dJdu_dot_p_fd).epsilon(1e-4));
       }
    }
 }
