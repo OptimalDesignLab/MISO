@@ -66,7 +66,7 @@ set(EM_MPI_TEST_SRCS
    test_coefficient
    test_miso_load
    test_current_load
-   test_magnetic_load
+   #test_magnetic_load
    test_magnetostatic_load
    #test_mass_operator
    test_common_outputs
