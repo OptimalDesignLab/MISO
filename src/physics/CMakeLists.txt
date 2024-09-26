@@ -11,7 +11,9 @@ set(MISO_PHYSICS_HEADERS
    mfem_common_integ.hpp
    pde_solver.hpp
    physics.hpp
+   solver.hpp
 )
+
 
 target_sources(miso
    PRIVATE
@@ -24,13 +26,14 @@ target_sources(miso
       miso_nonlinearform.cpp
       mfem_common_integ.cpp
       pde_solver.cpp
+      solver.cpp
       ${MISO_PHYSICS_HEADERS}
 )
 
-# get_target_property(MACH_PUBLIC_HEADERS mach PUBLIC_HEADER)
-# set(MACH_PUBLIC_HEADERS ${MACH_PUBLIC_HEADERS} ${MACH_PHYSICS_HEADERS})
-# set_target_properties(mach PROPERTIES
-#    PUBLIC_HEADER "${MACH_PUBLIC_HEADERS}"
+# get_target_property(MISO_PUBLIC_HEADERS miso PUBLIC_HEADER)
+# set(MISO_PUBLIC_HEADERS ${MISO_PUBLIC_HEADERS} ${MISO_PHYSICS_HEADERS})
+# set_target_properties(miso PROPERTIES
+#    PUBLIC_HEADER "${MISO_PUBLIC_HEADERS}"
 # )
 
 add_public_headers_to_target(miso "${MISO_PHYSICS_HEADERS}")
@@ -43,4 +46,6 @@ target_include_directories(miso
 
 add_subdirectory(electromagnetics)
 add_subdirectory(fluidflow)
+# add_subdirectory(joule)
+add_subdirectory(meshmove)
 add_subdirectory(thermal)

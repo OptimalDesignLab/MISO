@@ -404,7 +404,7 @@ void NonlinearDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double pointflux_norm = pointflux.Norml2();
       pointflux_bar = 0.0;
-      if (fabs(pointflux_norm) > 1e-14)
+      if (fabs(pointflux_norm) > 1e-16)
       {
          add(pointflux_bar,
              pointflux_norm_bar / pointflux_norm,
@@ -1651,14 +1651,14 @@ void DGInteriorFaceDiffusionIntegratorMeshRevSens::AssembleRHSElementVect(
 
       /// const double ip_flux2_norm = ip_flux2.Norml2();
       ip_flux2_bar = 0.0;
-      if (fabs(ip_flux2_norm) > 1e-14)
+      if (fabs(ip_flux2_norm) > 1e-16)
       {
          ip_flux2_bar.Add(ip_flux2_norm_bar / ip_flux2_norm, ip_flux2);
       }
 
       /// const double ip_flux1_norm = ip_flux1.Norml2();
       ip_flux1_bar = 0.0;
-      if (fabs(ip_flux1_norm) > 1e-14)
+      if (fabs(ip_flux1_norm) > 1e-16)
       {
          ip_flux1_bar.Add(ip_flux1_norm_bar / ip_flux1_norm, ip_flux1);
       }
