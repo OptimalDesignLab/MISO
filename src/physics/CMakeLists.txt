@@ -27,10 +27,10 @@ target_sources(miso
       ${MISO_PHYSICS_HEADERS}
 )
 
-# get_target_property(MACH_PUBLIC_HEADERS mach PUBLIC_HEADER)
-# set(MACH_PUBLIC_HEADERS ${MACH_PUBLIC_HEADERS} ${MACH_PHYSICS_HEADERS})
-# set_target_properties(mach PROPERTIES
-#    PUBLIC_HEADER "${MACH_PUBLIC_HEADERS}"
+# get_target_property(MISO_PUBLIC_HEADERS miso PUBLIC_HEADER)
+# set(MISO_PUBLIC_HEADERS ${MISO_PUBLIC_HEADERS} ${MISO_PHYSICS_HEADERS})
+# set_target_properties(miso PROPERTIES
+#    PUBLIC_HEADER "${MISO_PUBLIC_HEADERS}"
 # )
 
 add_public_headers_to_target(miso "${MISO_PHYSICS_HEADERS}")
